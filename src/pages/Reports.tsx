@@ -260,22 +260,22 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => navigate("/")}
-              className="rounded-full"
+              className="rounded-full flex-shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Récapitulatifs Financiers</h1>
-              <p className="text-muted-foreground">
-                Analyse détaillée de vos finances • {period.label}
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold truncate">Récapitulatifs Financiers</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                Analyse détaillée • {period.label}
               </p>
             </div>
           </div>
@@ -287,89 +287,93 @@ const Reports = () => {
             <CardTitle>Sélectionner la période</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type de période</label>
-                <Select value={periodType} onValueChange={(value: "month" | "year" | "custom") => setPeriodType(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="month">Mois</SelectItem>
-                    <SelectItem value="year">Année</SelectItem>
-                    <SelectItem value="custom">Période personnalisée</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Type de période</label>
+                  <Select value={periodType} onValueChange={(value: "month" | "year" | "custom") => setPeriodType(value)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Mois</SelectItem>
+                      <SelectItem value="year">Année</SelectItem>
+                      <SelectItem value="custom">Personnalisée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {periodType === "month" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Mois</label>
+                    <MonthPicker
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      placeholder="Choisir un mois"
+                    />
+                  </div>
+                )}
+
+                {periodType === "year" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Année</label>
+                    <YearPicker
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      placeholder="Choisir une année"
+                    />
+                  </div>
+                )}
+
+                {periodType === "custom" && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Date début</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start text-left">
+                            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{format(dateRange.from, "dd/MM/yy")}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dateRange.from}
+                            onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Date fin</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start text-left">
+                            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{format(dateRange.to, "dd/MM/yy")}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dateRange.to}
+                            onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {periodType === "month" && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Sélectionner le mois</label>
-                  <MonthPicker
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    placeholder="Choisir un mois"
-                  />
-                </div>
-              )}
-
-              {periodType === "year" && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Sélectionner l'année</label>
-                  <YearPicker
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    placeholder="Choisir une année"
-                  />
-                </div>
-              )}
-
-              {periodType === "custom" && (
-                <div className="flex gap-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Date de début</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-[150px] justify-start text-left">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(dateRange.from, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.from}
-                          onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Date de fin</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-[150px] justify-start text-left">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(dateRange.to, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.to}
-                          onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
+                  size="sm"
+                  className="flex-1"
                   onClick={() => {
                     const newDate = periodType === "month" ? subMonths(selectedDate, 1) : subYears(selectedDate, 1);
                     setSelectedDate(newDate);
@@ -378,7 +382,9 @@ const Reports = () => {
                   Précédent
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="outline" 
+                  size="sm"
+                  className="flex-1"
                   onClick={() => {
                     const newDate = periodType === "month" ? subMonths(selectedDate, -1) : subYears(selectedDate, -1);
                     setSelectedDate(newDate);
@@ -392,17 +398,22 @@ const Reports = () => {
         </Card>
 
         {/* Statistiques globales */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenus Période</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Revenus</CardTitle>
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-500">
-                +{stats.income.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            <CardContent className="pb-2">
+              <div className="text-lg sm:text-2xl font-bold text-green-500">
+                +{stats.income.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground hidden sm:block">
                 {filteredTransactions.filter(t => t.type === 'income').length} transaction(s)
               </p>
             </CardContent>
@@ -410,89 +421,114 @@ const Reports = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dépenses Période</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Dépenses</CardTitle>
+              <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-500">
-                -{stats.expenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            <CardContent className="pb-2">
+              <div className="text-lg sm:text-2xl font-bold text-red-500">
+                -{stats.expenses.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground hidden sm:block">
                 {filteredTransactions.filter(t => t.type === 'expense').length} transaction(s)
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-2 lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Solde Initial</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Solde Initial</CardTitle>
+              <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className={cn("text-2xl font-bold", stats.initialBalance >= 0 ? "text-green-500" : "text-red-500")}>
-                {stats.initialBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            <CardContent className="pb-2">
+              <div className={cn("text-lg sm:text-2xl font-bold", stats.initialBalance >= 0 ? "text-green-500" : "text-red-500")}>
+                {stats.initialBalance.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground hidden sm:block">
                 Au début de la période
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-2 lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Solde Final</CardTitle>
-              <Target className="h-4 w-4 text-primary" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Solde Final</CardTitle>
+              <Target className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className={cn("text-2xl font-bold", stats.finalBalance >= 0 ? "text-green-500" : "text-red-500")}>
-                {stats.finalBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            <CardContent className="pb-2">
+              <div className={cn("text-lg sm:text-2xl font-bold", stats.finalBalance >= 0 ? "text-green-500" : "text-red-500")}>
+                {stats.finalBalance.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Évolution: {stats.netPeriodBalance >= 0 ? '+' : ''}{stats.netPeriodBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                Évolution: {stats.netPeriodBalance >= 0 ? '+' : ''}{stats.netPeriodBalance.toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                })}
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-2 lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Comptes</CardTitle>
-              <Wallet className="h-4 w-4" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Comptes</CardTitle>
+              <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="pb-2">
+              <div className="text-lg sm:text-2xl font-bold">
                 {accounts.length}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Solde actuel total: {accounts.reduce((sum, acc) => sum + Number(acc.balance), 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                Total: {accounts.reduce((sum, acc) => sum + Number(acc.balance), 0).toLocaleString('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                })}
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Graphiques et analyses */}
-        <Tabs defaultValue="evolution" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="evolution">Évolution</TabsTrigger>
-            <TabsTrigger value="categories">Par Catégories</TabsTrigger>
-            <TabsTrigger value="details">Détails</TabsTrigger>
+        <Tabs defaultValue="evolution" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="evolution" className="text-xs sm:text-sm">Évolution</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs sm:text-sm">Catégories</TabsTrigger>
+            <TabsTrigger value="details" className="text-xs sm:text-sm">Détails</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="evolution" className="space-y-6">
+          <TabsContent value="evolution" className="space-y-4 sm:space-y-6">
             {/* Évolution des soldes - Area Chart */}
             {balanceEvolutionData.length > 1 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Évolution du solde</CardTitle>
-                  <CardDescription>
+                <CardHeader className="pb-2 sm:pb-6">
+                  <CardTitle className="text-lg sm:text-xl">Évolution du solde</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Évolution du solde total pour {period.label}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[400px]">
+                  <ChartContainer config={chartConfig} className="h-[250px] sm:h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart 
                         data={balanceEvolutionData}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
                       >
                         <defs>
                           <linearGradient id="soldeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -503,13 +539,13 @@ const Reports = () => {
                         <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                         <XAxis 
                           dataKey="date" 
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
                           interval="preserveStartEnd"
                         />
                         <YAxis 
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
                           tickFormatter={(value) => `${(value/1000).toFixed(0)}k€`}
@@ -519,15 +555,20 @@ const Reports = () => {
                             if (active && payload && payload.length) {
                               const value = payload[0].value;
                               return (
-                                <div className="rounded-lg border bg-background p-3 shadow-md">
-                                  <p className="text-sm font-medium">{label}</p>
+                                <div className="rounded-lg border bg-background p-2 shadow-md">
+                                  <p className="text-xs font-medium">{label}</p>
                                   <div className="flex items-center gap-2 mt-1">
                                     <div 
-                                      className="w-3 h-3 rounded-full" 
+                                      className="w-2 h-2 rounded-full" 
                                       style={{ backgroundColor: chartConfig.solde.color }}
                                     />
-                                    <span className="font-semibold">
-                                      {Number(value).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                    <span className="text-xs font-semibold">
+                                      {Number(value).toLocaleString('fr-FR', { 
+                                        style: 'currency', 
+                                        currency: 'EUR',
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0 
+                                      })}
                                     </span>
                                   </div>
                                 </div>
@@ -540,10 +581,10 @@ const Reports = () => {
                           type="monotone"
                           dataKey="solde" 
                           stroke={chartConfig.solde.color}
-                          strokeWidth={3}
+                          strokeWidth={2}
                           fill="url(#soldeGradient)"
-                          dot={{ r: 4, fill: chartConfig.solde.color }}
-                          activeDot={{ r: 6, fill: chartConfig.solde.color, strokeWidth: 2, stroke: '#fff' }}
+                          dot={{ r: 2, fill: chartConfig.solde.color }}
+                          activeDot={{ r: 4, fill: chartConfig.solde.color, strokeWidth: 2, stroke: '#fff' }}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -554,26 +595,26 @@ const Reports = () => {
 
             {periodType === 'year' && monthlyData.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Évolution mensuelle détaillée</CardTitle>
-                  <CardDescription>Revenus, dépenses et solde par mois pour {format(selectedDate, "yyyy")}</CardDescription>
+                <CardHeader className="pb-2 sm:pb-6">
+                  <CardTitle className="text-lg sm:text-xl">Évolution mensuelle</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Revenus, dépenses et solde pour {format(selectedDate, "yyyy")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[450px]">
+                  <ChartContainer config={chartConfig} className="h-[250px] sm:h-[450px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart 
                         data={monthlyData}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                         <XAxis 
                           dataKey="month" 
-                          tick={{ fontSize: 12 }}
+                          tick={{ fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis 
-                          tick={{ fontSize: 12 }}
+                          tick={{ fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
                           tickFormatter={(value) => `${(value/1000).toFixed(0)}k€`}
@@ -581,7 +622,12 @@ const Reports = () => {
                         <ChartTooltip 
                           content={<ChartTooltipContent 
                             formatter={(value, name) => [
-                              `${Number(value).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
+                              `${Number(value).toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'EUR',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0 
+                              })}`,
                               name === 'solde' ? 'Solde fin de mois' : name
                             ]}
                           />} 
@@ -589,22 +635,22 @@ const Reports = () => {
                         <Bar 
                           dataKey="revenus" 
                           fill={chartConfig.revenus.color}
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={40}
+                          radius={[2, 2, 0, 0]}
+                          maxBarSize={30}
                         />
                         <Bar 
                           dataKey="dépenses" 
                           fill={chartConfig.dépenses.color}
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={40}
+                          radius={[2, 2, 0, 0]}
+                          maxBarSize={30}
                         />
                         <Line 
                           type="monotone"
                           dataKey="solde" 
                           stroke={chartConfig.solde.color}
-                          strokeWidth={3}
-                          dot={{ r: 4, fill: chartConfig.solde.color }}
-                          activeDot={{ r: 6, fill: chartConfig.solde.color }}
+                          strokeWidth={2}
+                          dot={{ r: 2, fill: chartConfig.solde.color }}
+                          activeDot={{ r: 4, fill: chartConfig.solde.color }}
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
@@ -615,53 +661,73 @@ const Reports = () => {
 
             {/* Graphique d'évolution des soldes dans le temps */}
             <Card>
-              <CardHeader>
-                <CardTitle>Évolution des soldes</CardTitle>
-                <CardDescription>
+              <CardHeader className="pb-2 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">Résumé des soldes</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Solde initial vs final pour la période sélectionnée
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-muted/30">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Solde Initial</p>
-                        <p className={cn("text-xl font-bold", stats.initialBalance >= 0 ? "text-green-600" : "text-red-600")}>
-                          {stats.initialBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Solde Initial</p>
+                        <p className={cn("text-lg sm:text-xl font-bold", stats.initialBalance >= 0 ? "text-green-600" : "text-red-600")}>
+                          {stats.initialBalance.toLocaleString('fr-FR', { 
+                            style: 'currency', 
+                            currency: 'EUR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0 
+                          })}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-center py-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                         <span>Evolution:</span>
                         <span className={cn("font-semibold", stats.netPeriodBalance >= 0 ? "text-green-600" : "text-red-600")}>
-                          {stats.netPeriodBalance >= 0 ? '+' : ''}{stats.netPeriodBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                          {stats.netPeriodBalance >= 0 ? '+' : ''}{stats.netPeriodBalance.toLocaleString('fr-FR', { 
+                            style: 'currency', 
+                            currency: 'EUR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0 
+                          })}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10">
+                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-primary/10">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Solde Final</p>
-                        <p className={cn("text-xl font-bold", stats.finalBalance >= 0 ? "text-green-600" : "text-red-600")}>
-                          {stats.finalBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Solde Final</p>
+                        <p className={cn("text-lg sm:text-xl font-bold", stats.finalBalance >= 0 ? "text-green-600" : "text-red-600")}>
+                          {stats.finalBalance.toLocaleString('fr-FR', { 
+                            style: 'currency', 
+                            currency: 'EUR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0 
+                          })}
                         </p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="space-y-4">
-                    <h4 className="font-semibold">Détail par compte</h4>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-3 sm:space-y-4">
+                    <h4 className="font-semibold text-sm sm:text-base">Détail par compte</h4>
+                    <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
                       {accounts.map((account) => (
-                        <div key={account.id} className="flex items-center justify-between p-3 rounded border bg-card">
-                          <div>
-                            <p className="font-medium text-sm">{account.name}</p>
+                        <div key={account.id} className="flex items-center justify-between p-2 sm:p-3 rounded border bg-card">
+                          <div className="min-w-0">
+                            <p className="font-medium text-xs sm:text-sm truncate">{account.name}</p>
                             <p className="text-xs text-muted-foreground capitalize">{account.bank}</p>
                           </div>
                           <div className="text-right">
-                            <p className={cn("font-semibold text-sm", Number(account.balance) >= 0 ? "text-green-600" : "text-red-600")}>
-                              {Number(account.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            <p className={cn("font-semibold text-xs sm:text-sm", Number(account.balance) >= 0 ? "text-green-600" : "text-red-600")}>
+                              {Number(account.balance).toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'EUR',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0 
+                              })}
                             </p>
                           </div>
                         </div>
@@ -673,16 +739,16 @@ const Reports = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="categories" className="space-y-6">
+          <TabsContent value="categories" className="space-y-4 sm:space-y-6">
             {categoryData.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Dépenses par catégorie</CardTitle>
-                  <CardDescription>Répartition des dépenses pour {period.label}</CardDescription>
+                <CardHeader className="pb-2 sm:pb-6">
+                  <CardTitle className="text-lg sm:text-xl">Dépenses par catégorie</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Répartition des dépenses pour {period.label}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="h-[350px]">
+                  <div className="grid grid-cols-1 gap-6 lg:gap-8">
+                    <div className="h-[250px] sm:h-[350px]">
                       <ChartContainer 
                         config={Object.fromEntries(
                           categoryData.map(cat => [
@@ -698,8 +764,8 @@ const Reports = () => {
                               data={categoryData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={60}
-                              outerRadius={120}
+                              innerRadius={40}
+                              outerRadius={80}
                               paddingAngle={2}
                               dataKey="amount"
                             >
@@ -712,19 +778,24 @@ const Reports = () => {
                                 if (active && payload && payload.length) {
                                   const data = payload[0].payload;
                                   return (
-                                    <div className="rounded-lg border bg-background p-3 shadow-md">
+                                    <div className="rounded-lg border bg-background p-2 shadow-md">
                                       <div className="flex items-center gap-2">
                                         <div 
-                                          className="w-3 h-3 rounded-full" 
+                                          className="w-2 h-2 rounded-full" 
                                           style={{ backgroundColor: data.color }}
                                         />
-                                        <span className="font-medium">{data.name}</span>
+                                        <span className="font-medium text-xs">{data.name}</span>
                                       </div>
                                       <div className="mt-1">
-                                        <p className="font-semibold">
-                                          {data.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                        <p className="font-semibold text-xs">
+                                          {data.amount.toLocaleString('fr-FR', { 
+                                            style: 'currency', 
+                                            currency: 'EUR',
+                                            minimumFractionDigits: 0,
+                                            maximumFractionDigits: 0 
+                                          })}
                                         </p>
-                                        <p className="text-sm text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                           {((data.amount / stats.expenses) * 100).toFixed(1)}% du total
                                         </p>
                                       </div>
@@ -739,26 +810,26 @@ const Reports = () => {
                       </ChartContainer>
                     </div>
                     
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto">
+                    <div className="space-y-2 sm:space-y-3 max-h-[300px] sm:max-h-[350px] overflow-y-auto">
                       <div className="sticky top-0 bg-background pb-2">
-                        <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                        <h4 className="font-semibold text-xs sm:text-sm text-muted-foreground uppercase tracking-wide">
                           Détail des catégories
                         </h4>
                       </div>
                       {categoryData.map((category, index) => {
                         const percentage = ((category.amount / stats.expenses) * 100);
                         return (
-                          <div key={category.name} className="group flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                            <div className="flex items-center gap-3">
+                          <div key={category.name} className="group flex items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                               <div
-                                className="w-4 h-4 rounded-full shadow-sm"
+                                className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-sm flex-shrink-0"
                                 style={{ backgroundColor: category.color }}
                               />
-                              <div>
-                                <span className="font-medium text-sm">{category.name}</span>
-                                <div className="w-full bg-muted rounded-full h-1.5 mt-1">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-xs sm:text-sm block truncate">{category.name}</span>
+                                <div className="w-full bg-muted rounded-full h-1 sm:h-1.5 mt-1">
                                   <div 
-                                    className="h-1.5 rounded-full transition-all duration-300"
+                                    className="h-1 sm:h-1.5 rounded-full transition-all duration-300"
                                     style={{ 
                                       backgroundColor: category.color,
                                       width: `${percentage}%`
@@ -767,9 +838,14 @@ const Reports = () => {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="font-bold text-sm">
-                                {category.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            <div className="text-right flex-shrink-0 ml-2">
+                              <div className="font-bold text-xs sm:text-sm">
+                                {category.amount.toLocaleString('fr-FR', { 
+                                  style: 'currency', 
+                                  currency: 'EUR',
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0 
+                                })}
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 {percentage.toFixed(1)}%
@@ -786,60 +862,60 @@ const Reports = () => {
 
             {categoryData.length === 0 && (
               <Card>
-                <CardContent className="text-center py-12">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <TrendingDown className="w-6 h-6 text-muted-foreground" />
+                <CardContent className="text-center py-8 sm:py-12">
+                  <div className="mx-auto w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <TrendingDown className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground" />
                   </div>
-                  <h3 className="font-semibold mb-2">Aucune dépense trouvée</h3>
-                  <p className="text-muted-foreground text-sm">Il n'y a aucune dépense pour cette période</p>
+                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Aucune dépense trouvée</h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm">Il n'y a aucune dépense pour cette période</p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
-          <TabsContent value="details" className="space-y-6">
+          <TabsContent value="details" className="space-y-4 sm:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Détail des transactions</CardTitle>
-                <CardDescription>Toutes les transactions pour {period.label}</CardDescription>
+              <CardHeader className="pb-2 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">Détail des transactions</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Toutes les transactions pour {period.label}</CardDescription>
               </CardHeader>
               <CardContent>
                 {filteredTransactions.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-2 sm:space-y-3 max-h-80 sm:max-h-96 overflow-y-auto">
                     {filteredTransactions
                       .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
                       .map((transaction) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                          <div className="flex items-center gap-4">
+                        <div key={transaction.id} className="flex items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                             <div className="flex-shrink-0">
                               {transaction.type === 'income' && (
-                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                  <TrendingUp className="w-4 h-4 text-green-600" />
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                                 </div>
                               )}
                               {transaction.type === 'expense' && (
-                                <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                                  <TrendingDown className="w-4 h-4 text-red-600" />
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                  <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
                                 </div>
                               )}
                               {transaction.type === 'transfer' && (
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <ArrowLeft className="w-4 h-4 text-blue-600" />
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
                                 </div>
                               )}
                             </div>
-                            <div>
-                              <p className="font-medium text-sm">{transaction.description}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{format(new Date(transaction.transaction_date), "dd/MM/yyyy")}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground mt-1">
+                                <span>{format(new Date(transaction.transaction_date), "dd/MM/yy")}</span>
                                 <span>•</span>
-                                <span>{transaction.account.name}</span>
+                                <span className="truncate">{transaction.account.name}</span>
                                 {transaction.category && (
                                   <>
-                                    <span>•</span>
+                                    <span className="hidden sm:inline">•</span>
                                     <Badge 
                                       variant="outline" 
-                                      className="text-xs"
+                                      className="text-xs px-1 py-0 h-4"
                                       style={{ 
                                         borderColor: transaction.category.color,
                                         color: transaction.category.color 
@@ -852,16 +928,26 @@ const Reports = () => {
                               </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className={cn("font-bold text-sm", 
+                          <div className="text-right flex-shrink-0 ml-2">
+                            <p className={cn("font-bold text-xs sm:text-sm", 
                               transaction.type === 'income' ? "text-green-600" : "text-red-600"
                             )}>
                               {transaction.type === 'income' ? '+' : '-'}
-                              {Number(transaction.amount).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                              {Number(transaction.amount).toLocaleString('fr-FR', { 
+                                style: 'currency', 
+                                currency: 'EUR',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0 
+                              })}
                             </p>
                             {transaction.transfer_fee && Number(transaction.transfer_fee) > 0 && (
                               <p className="text-xs text-muted-foreground">
-                                Frais: {Number(transaction.transfer_fee).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                Frais: {Number(transaction.transfer_fee).toLocaleString('fr-FR', { 
+                                  style: 'currency', 
+                                  currency: 'EUR',
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0 
+                                })}
                               </p>
                             )}
                           </div>
@@ -870,12 +956,12 @@ const Reports = () => {
                     }
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                      <Wallet className="w-6 h-6 text-muted-foreground" />
+                  <div className="text-center py-8 sm:py-12">
+                    <div className="mx-auto w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <Wallet className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground" />
                     </div>
-                    <h3 className="font-semibold mb-2">Aucune transaction trouvée</h3>
-                    <p className="text-muted-foreground text-sm">Il n'y a aucune transaction pour cette période</p>
+                    <h3 className="font-semibold mb-2 text-sm sm:text-base">Aucune transaction trouvée</h3>
+                    <p className="text-muted-foreground text-xs sm:text-sm">Il n'y a aucune transaction pour cette période</p>
                   </div>
                 )}
               </CardContent>
