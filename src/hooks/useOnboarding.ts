@@ -15,8 +15,9 @@ const defaultCategories = [
 ];
 
 const defaultAccounts = [
-  { name: 'Main Checking', bank: 'other' as const, account_type: 'checking' as const, balance: 1000 },
-  { name: 'Savings Account', bank: 'other' as const, account_type: 'savings' as const, balance: 5000 },
+  { name: 'Société Générale CB', bank: 'societe_generale' as const, account_type: 'checking' as const, balance: 1200 },
+  { name: 'Revolut CB', bank: 'revolut' as const, account_type: 'checking' as const, balance: 800 },
+  { name: 'Boursorama CB', bank: 'boursorama' as const, account_type: 'checking' as const, balance: 450 },
 ];
 
 export function useOnboarding() {

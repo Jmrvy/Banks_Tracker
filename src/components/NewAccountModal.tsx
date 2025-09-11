@@ -14,19 +14,22 @@ interface NewAccountModalProps {
 }
 
 const bankOptions = [
-  { value: 'chase', label: 'Chase' },
-  { value: 'bofa', label: 'Bank of America' },
-  { value: 'wells_fargo', label: 'Wells Fargo' },
-  { value: 'citi', label: 'Citibank' },
-  { value: 'capital_one', label: 'Capital One' },
-  { value: 'other', label: 'Other' },
+  { value: 'societe_generale', label: 'Société Générale' },
+  { value: 'revolut', label: 'Revolut' },
+  { value: 'boursorama', label: 'Boursorama' },
+  { value: 'bnp_paribas', label: 'BNP Paribas' },
+  { value: 'credit_agricole', label: 'Crédit Agricole' },
+  { value: 'lcl', label: 'LCL' },
+  { value: 'caisse_epargne', label: 'Caisse d\'Épargne' },
+  { value: 'credit_mutuel', label: 'Crédit Mutuel' },
+  { value: 'other', label: 'Autre' },
 ];
 
 const accountTypeOptions = [
-  { value: 'checking', label: 'Checking' },
-  { value: 'savings', label: 'Savings' },
-  { value: 'credit', label: 'Credit Card' },
-  { value: 'investment', label: 'Investment' },
+  { value: 'checking', label: 'Compte Courant' },
+  { value: 'savings', label: 'Livret d\'Épargne' },
+  { value: 'credit', label: 'Carte de Crédit' },
+  { value: 'investment', label: 'Compte Titre' },
 ];
 
 export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
