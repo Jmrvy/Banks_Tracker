@@ -4,9 +4,11 @@ import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle } from "luc
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export const MonthlyProjections = () => {
   const { transactions, accounts, categories, loading } = useFinancialData();
+  const { formatCurrency } = useUserPreferences();
 
   const monthlyData = useMemo(() => {
     const now = new Date();
@@ -131,16 +133,10 @@ export const MonthlyProjections = () => {
             </div>
             <div className="space-y-1">
               <p className="text-xl font-semibold text-green-600">
-                {monthlyData.monthlyIncome.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}
+                {formatCurrency(monthlyData.monthlyIncome)}
               </p>
               <p className="text-xs text-muted-foreground">
-                Projection: {monthlyData.projectedIncome.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}
+                Projection: {formatCurrency(monthlyData.projectedIncome)}
               </p>
             </div>
           </div>
@@ -152,16 +148,10 @@ export const MonthlyProjections = () => {
             </div>
             <div className="space-y-1">
               <p className="text-xl font-semibold text-red-600">
-                {monthlyData.monthlyExpenses.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}
+                {formatCurrency(monthlyData.monthlyExpenses)}
               </p>
               <p className="text-xs text-muted-foreground">
-                Projection: {monthlyData.projectedExpenses.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}
+                Projection: {formatCurrency(monthlyData.projectedExpenses)}
               </p>
             </div>
           </div>
@@ -191,16 +181,10 @@ export const MonthlyProjections = () => {
             <p className={`text-2xl font-bold ${
               monthlyData.projectedNet >= 0 ? 'text-green-600' : 'text-red-600'
             }`}>
-              {monthlyData.projectedNet >= 0 ? '+' : ''}{monthlyData.projectedNet.toLocaleString('fr-FR', { 
-                style: 'currency', 
-                currency: 'EUR' 
-              })}
+              {monthlyData.projectedNet >= 0 ? '+' : ''}{formatCurrency(monthlyData.projectedNet)}
             </p>
             <p className="text-sm text-muted-foreground">
-              Solde projeté: {projectedBalance.toLocaleString('fr-FR', { 
-                style: 'currency', 
-                currency: 'EUR' 
-              })}
+              Solde projeté: {formatCurrency(projectedBalance)}
             </p>
           </div>
         </div>
@@ -212,10 +196,7 @@ export const MonthlyProjections = () => {
             <div>
               <p className="text-sm font-medium text-destructive">Attention: Dépassement prévu</p>
               <p className="text-xs text-muted-foreground">
-                Réduisez vos dépenses de {monthlyData.budgetOverage.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })} pour respecter le budget
+                Réduisez vos dépenses de {formatCurrency(monthlyData.budgetOverage)} pour respecter le budget
               </p>
             </div>
           </div>
@@ -243,13 +224,7 @@ export const MonthlyProjections = () => {
                       budget.percentage > 100 ? 'text-red-600 font-semibold' : 
                       budget.percentage > 80 ? 'text-orange-600' : 'text-muted-foreground'
                     }`}>
-                      {budget.used.toLocaleString('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'EUR' 
-                      })} / {budget.budget.toLocaleString('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'EUR' 
-                      })}
+                      {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
                     </span>
                   </div>
                   <Progress 
@@ -273,30 +248,15 @@ export const MonthlyProjections = () => {
             <h4 className="text-sm font-medium">Recommandations</h4>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>
-                • Budget journalier recommandé: {monthlyData.dailyBudgetRecommended.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}
+                • Budget journalier recommandé: {formatCurrency(monthlyData.dailyBudgetRecommended)}
               </li>
               <li>
-                • Moyennes actuelles: {monthlyData.dailyIncomeAvg.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}/jour revenus, {monthlyData.dailyExpenseAvg.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}/jour dépenses
+                • Moyennes actuelles: {formatCurrency(monthlyData.dailyIncomeAvg)}/jour revenus, {formatCurrency(monthlyData.dailyExpenseAvg)}/jour dépenses
               </li>
               {monthlyData.remainingBudget > 0 ? (
-                <li>• Budget restant disponible: {monthlyData.remainingBudget.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}</li>
+                <li>• Budget restant disponible: {formatCurrency(monthlyData.remainingBudget)}</li>
               ) : (
-                <li className="text-red-600">• ⚠️ Budget déjà dépassé de {Math.abs(monthlyData.remainingBudget).toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}</li>
+                <li className="text-red-600">• ⚠️ Budget déjà dépassé de {formatCurrency(Math.abs(monthlyData.remainingBudget))}</li>
               )}
             </ul>
           </div>

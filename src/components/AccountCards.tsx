@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, CreditCard } from "lucide-react";
 import { AccountTransactionsModal } from "@/components/AccountTransactionsModal";
 import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 const bankColors: Record<string, string> = {
   societe_generale: 'bg-red-500',
@@ -41,6 +42,7 @@ const bankNames: Record<string, string> = {
 
 export const AccountCards = () => {
   const { accounts, transactions, loading } = useFinancialData();
+  const { formatCurrency } = useUserPreferences();
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   
@@ -161,10 +163,7 @@ export const AccountCards = () => {
             <div>
               <p className="text-muted-foreground text-sm font-medium">Solde Total</p>
               <p className="text-3xl font-bold text-foreground">
-                {totalBalance.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR' 
-                })}
+                {formatCurrency(totalBalance)}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {accounts.length} compte{accounts.length > 1 ? 's' : ''} bancaire{accounts.length > 1 ? 's' : ''}
@@ -202,19 +201,13 @@ export const AccountCards = () => {
                   ) : (
                     <TrendingDown className="w-3 h-3 mr-1" />
                   )}
-                  {Math.abs(account.monthlyChange).toLocaleString('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR' 
-                  })}
+                  {formatCurrency(Math.abs(account.monthlyChange))}
                 </Badge>
               </div>
               
               <div className="space-y-2">
                 <p className="text-2xl font-bold text-foreground">
-                  {account.balance.toLocaleString('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR' 
-                  })}
+                  {formatCurrency(account.balance)}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Dernière transaction: {account.lastTransaction}

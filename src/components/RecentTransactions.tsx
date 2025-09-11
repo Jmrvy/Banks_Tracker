@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 const bankColors: Record<string, string> = {
   societe_generale: 'bg-red-500',
@@ -18,6 +19,7 @@ const bankColors: Record<string, string> = {
 
 export const RecentTransactions = () => {
   const { transactions, loading } = useFinancialData();
+  const { formatCurrency } = useUserPreferences();
   
   // Get the 5 most recent transactions
   const recentTransactions = transactions.slice(0, 5);
@@ -126,10 +128,7 @@ export const RecentTransactions = () => {
                     transaction.type === 'income' ? 'text-green-600' : 'text-foreground'
                   }`}
                 >
-                  {transaction.type === 'income' ? '+' : '-'}{Math.abs(transaction.amount).toLocaleString('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR' 
-                  })}
+                  {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                 </span>
                 <Button variant="ghost" size="sm">
                   <MoreHorizontal className="w-4 h-4" />

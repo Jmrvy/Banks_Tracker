@@ -3,9 +3,11 @@ import { Progress } from "@/components/ui/progress";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
 import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export const SpendingOverview = () => {
   const { transactions, categories, loading } = useFinancialData();
+  const { formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   
@@ -97,8 +99,7 @@ export const SpendingOverview = () => {
         <CardTitle className="flex items-center justify-between">
           <span>Dépenses par Catégorie</span>
           <span className="text-sm font-normal text-muted-foreground">
-            {totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} / {' '}
-            {totalBudget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
           </span>
         </CardTitle>
       </CardHeader>
@@ -126,10 +127,10 @@ export const SpendingOverview = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className={isOverBudget ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
-                    {category.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    {formatCurrency(category.amount)}
                   </span>
                   <span className="text-muted-foreground">
-                    / {category.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    / {formatCurrency(category.budget)}
                   </span>
                 </div>
               </div>

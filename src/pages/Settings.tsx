@@ -14,6 +14,7 @@ import { ArrowLeft, User, Palette, Database, Download, Trash2, Edit3, Save, X } 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { cn } from "@/lib/utils";
 
 const Settings = () => {
@@ -27,12 +28,7 @@ const Settings = () => {
     email: user?.email || ""
   });
   
-  const [preferences, setPreferences] = useState({
-    currency: "EUR",
-    dateFormat: "DD/MM/YYYY",
-    enableNotifications: true,
-    autoExport: false
-  });
+  const { preferences, updatePreferences, formatCurrency } = useUserPreferences();
 
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
@@ -40,16 +36,7 @@ const Settings = () => {
 
   const [updateLoading, setUpdateLoading] = useState(false);
 
-  useEffect(() => {
-    // Charger les préférences sauvegardées depuis localStorage
-    const savedPrefs = localStorage.getItem('userPreferences');
-    if (savedPrefs) {
-      setPreferences(JSON.parse(savedPrefs));
-    }
-  }, []);
-
   const savePreferences = () => {
-    localStorage.setItem('userPreferences', JSON.stringify(preferences));
     toast({
       title: "Préférences sauvegardées",
       description: "Vos préférences ont été mises à jour avec succès.",
@@ -328,10 +315,10 @@ const Settings = () => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Devise</Label>
-                  <Select 
-                    value={preferences.currency} 
-                    onValueChange={(value) => setPreferences(prev => ({ ...prev, currency: value }))}
-                  >
+                    <Select 
+                      value={preferences.currency} 
+                      onValueChange={(value) => updatePreferences({ currency: value })}
+                    >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -347,7 +334,7 @@ const Settings = () => {
                   <Label>Format de date</Label>
                   <Select 
                     value={preferences.dateFormat} 
-                    onValueChange={(value) => setPreferences(prev => ({ ...prev, dateFormat: value }))}
+                    onValueChange={(value) => updatePreferences({ dateFormat: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -371,7 +358,7 @@ const Settings = () => {
                   </div>
                   <Switch
                     checked={preferences.enableNotifications}
-                    onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, enableNotifications: checked }))}
+                    onCheckedChange={(checked) => updatePreferences({ enableNotifications: checked })}
                   />
                 </div>
                 
@@ -382,7 +369,7 @@ const Settings = () => {
                   </div>
                   <Switch
                     checked={preferences.autoExport}
-                    onCheckedChange={(checked) => setPreferences(prev => ({ ...prev, autoExport: checked }))}
+                    onCheckedChange={(checked) => updatePreferences({ autoExport: checked })}
                   />
                 </div>
               </div>
@@ -437,10 +424,7 @@ const Settings = () => {
                         <div>
                           <p className="font-medium">{account.name}</p>
                           <p className="text-sm text-muted-foreground capitalize">
-                            {account.bank} • {Number(account.balance).toLocaleString('fr-FR', { 
-                              style: 'currency', 
-                              currency: 'EUR' 
-                            })}
+                            {account.bank} • {formatCurrency(Number(account.balance))}
                           </p>
                         </div>
                       )}
@@ -520,7 +504,7 @@ const Settings = () => {
                             <p className="font-medium">{category.name}</p>
                             <p className="text-sm text-muted-foreground">
                               {category.budget ? 
-                                `Budget: ${Number(category.budget).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}` : 
+                                `Budget: ${formatCurrency(Number(category.budget))}` : 
                                 'Pas de budget'
                               }
                             </p>
