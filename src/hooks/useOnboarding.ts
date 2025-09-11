@@ -24,6 +24,7 @@ export function useOnboarding() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const createDefaultData = async () => {
     if (!user) return;
@@ -98,17 +99,17 @@ export function useOnboarding() {
     }
   };
 
-  // Force re-run onboarding for existing users with updated French accounts
+  // Run onboarding only once per user session
   useEffect(() => {
-    if (user && !isOnboarding) {
-      // Always create default data to refresh with French accounts
+    if (user && !isOnboarding && !hasInitialized) {
+      setHasInitialized(true);
       const timer = setTimeout(() => {
         createDefaultData();
       }, 1000);
 
       return () => clearTimeout(timer);
     }
-  }, [user]);
+  }, [user, hasInitialized]);
 
   return { isOnboarding, createDefaultData };
 }
