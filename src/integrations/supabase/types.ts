@@ -193,6 +193,8 @@ export type Database = {
           description: string
           id: string
           transaction_date: string
+          transfer_fee: number | null
+          transfer_to_account_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string | null
           user_id: string
@@ -205,6 +207,8 @@ export type Database = {
           description: string
           id?: string
           transaction_date?: string
+          transfer_fee?: number | null
+          transfer_to_account_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id: string
@@ -217,6 +221,8 @@ export type Database = {
           description?: string
           id?: string
           transaction_date?: string
+          transfer_fee?: number | null
+          transfer_to_account_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id?: string
@@ -234,6 +240,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_to_account_id_fkey"
+            columns: ["transfer_to_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
           {
@@ -270,7 +283,7 @@ export type Database = {
         | "caisse_epargne"
         | "credit_mutuel"
       recurrence_type: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"
-      transaction_type: "income" | "expense"
+      transaction_type: "income" | "expense" | "transfer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -416,7 +429,7 @@ export const Constants = {
         "credit_mutuel",
       ],
       recurrence_type: ["daily", "weekly", "monthly", "quarterly", "yearly"],
-      transaction_type: ["income", "expense"],
+      transaction_type: ["income", "expense", "transfer"],
     },
   },
 } as const

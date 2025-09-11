@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, MinusCircle, TrendingUp, TrendingDown, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { ArrowRightLeft } from 'lucide-react';
 
 interface NewTransactionModalProps {
   open: boolean;
@@ -18,14 +19,16 @@ interface NewTransactionModalProps {
 
 export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalProps) {
   const { toast } = useToast();
-  const { accounts, categories, transactions, createTransaction } = useFinancialData();
+  const { accounts, categories, transactions, createTransaction, createTransfer } = useFinancialData();
   
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
-    type: 'expense' as 'income' | 'expense',
+    type: 'expense' as 'income' | 'expense' | 'transfer',
     account_id: '',
+    to_account_id: '',
     category_id: '',
+    transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0]
   });
   const [loading, setLoading] = useState(false);
@@ -42,16 +45,49 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
       return;
     }
 
+    if (formData.type === 'transfer' && !formData.to_account_id) {
+      toast({
+        title: "Compte de destination requis",
+        description: "Veuillez sélectionner un compte de destination pour le transfert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.type === 'transfer' && formData.account_id === formData.to_account_id) {
+      toast({
+        title: "Comptes identiques",
+        description: "Le compte source et le compte de destination doivent être différents.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     
-    const { error } = await createTransaction({
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      type: formData.type,
-      account_id: formData.account_id,
-      category_id: formData.category_id || undefined,
-      transaction_date: formData.transaction_date,
-    });
+    let error;
+    
+    if (formData.type === 'transfer') {
+      const result = await createTransfer({
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        from_account_id: formData.account_id,
+        to_account_id: formData.to_account_id,
+        transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
+        transaction_date: formData.transaction_date,
+      });
+      error = result?.error;
+    } else {
+      const result = await createTransaction({
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        type: formData.type as 'income' | 'expense',
+        account_id: formData.account_id,
+        category_id: formData.category_id || undefined,
+        transaction_date: formData.transaction_date,
+      });
+      error = result?.error;
+    }
 
     if (error) {
       toast({
@@ -60,9 +96,11 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
         variant: "destructive",
       });
     } else {
+      const typeLabel = formData.type === 'income' ? 'Revenus' : 
+                       formData.type === 'transfer' ? 'Transfert' : 'Dépense';
       toast({
-        title: "Transaction créée",
-        description: `${formData.type === 'income' ? 'Revenus' : 'Dépense'} de ${formData.amount}€ ajoutée avec succès.`,
+        title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
+        description: `${typeLabel} de ${formData.amount}€ ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
       });
       
       // Reset form
@@ -71,7 +109,9 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
         amount: '',
         type: 'expense',
         account_id: '',
+        to_account_id: '',
         category_id: '',
+        transfer_fee: '',
         transaction_date: new Date().toISOString().split('T')[0]
       });
       
@@ -82,6 +122,7 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
   };
 
   const selectedAccount = accounts.find(acc => acc.id === formData.account_id);
+  const selectedToAccount = accounts.find(acc => acc.id === formData.to_account_id);
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
 
   // Calculate transaction impact preview
@@ -91,7 +132,21 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
     const amount = parseFloat(formData.amount);
     if (isNaN(amount)) return null;
 
-    const impact = formData.type === 'income' ? amount : -amount;
+    let impact = 0;
+    let toAccountImpact = 0;
+    let newToAccountBalance = 0;
+    let totalCost = amount;
+
+    if (formData.type === 'transfer') {
+      const transferFee = formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0;
+      totalCost = amount + transferFee;
+      impact = -totalCost; // Total amount debited from source account
+      toAccountImpact = amount; // Only the transfer amount goes to destination
+      newToAccountBalance = selectedToAccount ? selectedToAccount.balance + toAccountImpact : 0;
+    } else {
+      impact = formData.type === 'income' ? amount : -amount;
+    }
+
     const newBalance = selectedAccount.balance + impact;
     
     let budgetImpact = null;
@@ -127,9 +182,13 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
       currentBalance: selectedAccount.balance,
       impact,
       newBalance,
-      budgetImpact
+      budgetImpact,
+      isTransfer: formData.type === 'transfer',
+      toAccountImpact,
+      newToAccountBalance,
+      totalCost
     };
-  }, [selectedAccount, formData.amount, formData.type, selectedCategory, transactions]);
+  }, [selectedAccount, selectedToAccount, formData.amount, formData.type, formData.transfer_fee, selectedCategory, transactions]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -170,6 +229,16 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
             >
               <MinusCircle className="h-4 w-4 mr-1" />
               Dépense
+            </Button>
+            <Button
+              type="button"
+              variant={formData.type === 'transfer' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFormData({ ...formData, type: 'transfer' })}
+              className="flex-1"
+            >
+              <ArrowRightLeft className="h-4 w-4 mr-1" />
+              Transfert
             </Button>
           </div>
 
@@ -240,31 +309,83 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
             )}
           </div>
 
+          {/* Destination Account Selection (Transfer only) */}
+          {formData.type === 'transfer' && (
+            <div className="space-y-2">
+              <Label htmlFor="to_account">Compte de destination *</Label>
+              <Select 
+                value={formData.to_account_id} 
+                onValueChange={(value) => setFormData({ ...formData, to_account_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner le compte de destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{account.name}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {account.bank.replace(/_/g, ' ').toUpperCase()}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedToAccount && (
+                <div className="text-sm text-muted-foreground">
+                  Solde actuel: {selectedToAccount.balance.toFixed(2)}€
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Transfer Fee (Transfer only) */}
+          {formData.type === 'transfer' && (
+            <div className="space-y-2">
+              <Label htmlFor="transfer_fee">Frais de transfert (optionnel)</Label>
+              <Input
+                id="transfer_fee"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.transfer_fee}
+                onChange={(e) => setFormData({ ...formData, transfer_fee: e.target.value })}
+              />
+              <div className="text-xs text-muted-foreground">
+                Les frais seront déduits du compte source en plus du montant du transfert.
+              </div>
+            </div>
+          )}
+
           {/* Category Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="category">Catégorie</Label>
-            <Select 
-              value={formData.category_id} 
-              onValueChange={(value) => setFormData({ ...formData, category_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: category.color }}
-                      />
-                      {category.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {formData.type !== 'transfer' && (
+            <div className="space-y-2">
+              <Label htmlFor="category">Catégorie</Label>
+              <Select 
+                value={formData.category_id} 
+                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: category.color }}
+                        />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Date */}
           <div className="space-y-2">
@@ -290,7 +411,10 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
                 {/* Account Balance Impact */}
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div>
-                    <p className="text-sm font-medium">{selectedAccount?.name}</p>
+                    <p className="text-sm font-medium">
+                      {selectedAccount?.name} 
+                      {transactionPreview.isTransfer && " (Source)"}
+                    </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>Solde actuel: {transactionPreview.currentBalance.toLocaleString('fr-FR', { 
                         style: 'currency', 
@@ -309,6 +433,14 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
                           style: 'currency', 
                           currency: 'EUR' 
                         })}
+                        {transactionPreview.isTransfer && formData.transfer_fee && parseFloat(formData.transfer_fee) > 0 && (
+                          <span className="text-orange-600 ml-1">
+                            (dont {parseFloat(formData.transfer_fee).toLocaleString('fr-FR', { 
+                              style: 'currency', 
+                              currency: 'EUR' 
+                            })} de frais)
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -324,6 +456,40 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
                     </p>
                   </div>
                 </div>
+
+                {/* Destination Account Impact (Transfer only) */}
+                {transactionPreview.isTransfer && selectedToAccount && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-800">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {selectedToAccount.name} (Destination)
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Solde actuel: {selectedToAccount.balance.toLocaleString('fr-FR', { 
+                          style: 'currency', 
+                          currency: 'EUR' 
+                        })}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-green-600">
+                          <TrendingUp className="w-3 h-3" />
+                          +{transactionPreview.toAccountImpact.toLocaleString('fr-FR', { 
+                            style: 'currency', 
+                            currency: 'EUR' 
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Nouveau solde</p>
+                      <p className="font-semibold text-green-600">
+                        {transactionPreview.newToAccountBalance.toLocaleString('fr-FR', { 
+                          style: 'currency', 
+                          currency: 'EUR' 
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Budget Impact */}
                 {transactionPreview.budgetImpact && (

@@ -15,10 +15,13 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
   transaction_date: string;
   account: { name: string; bank: string };
   category: { name: string; color: string } | null;
+  transfer_to_account_id?: string;
+  transfer_to_account?: { name: string; bank: string };
+  transfer_fee?: number;
 }
 
 export interface Category {
@@ -57,14 +60,19 @@ export function useFinancialData() {
       .select(`
         *,
         account:accounts(name, bank),
-        category:categories(name, color)
+        category:categories(name, color),
+        transfer_to_account:accounts!transfer_to_account_id(name, bank)
       `)
       .eq('user_id', user.id)
       .order('transaction_date', { ascending: false })
       .limit(50);
 
     if (!error && data) {
-      setTransactions(data as Transaction[]);
+      setTransactions(data.map(t => ({
+        ...t,
+        account: t.account || { name: 'Unknown', bank: 'unknown' },
+        transfer_to_account: t.transfer_to_account || undefined
+      })) as Transaction[]);
     }
   };
 
@@ -109,6 +117,37 @@ export function useFinancialData() {
     return { error };
   };
 
+  const createTransfer = async (transfer: {
+    description: string;
+    amount: number;
+    from_account_id: string;
+    to_account_id: string;
+    transfer_fee?: number;
+    transaction_date: string;
+  }) => {
+    if (!user) return;
+
+    // Create the transfer transaction (debit from source account)
+    const { error } = await supabase
+      .from('transactions')
+      .insert([{
+        description: transfer.description,
+        amount: transfer.amount,
+        type: 'transfer',
+        account_id: transfer.from_account_id,
+        transfer_to_account_id: transfer.to_account_id,
+        transfer_fee: transfer.transfer_fee || 0,
+        transaction_date: transfer.transaction_date,
+        user_id: user.id
+      }]);
+
+    if (!error) {
+      fetchTransactions();
+      fetchAccounts(); // Refresh accounts to update balances
+    }
+    return { error };
+  };
+
   const createCategory = async (category: Omit<Category, 'id'>) => {
     if (!user) return;
 
@@ -141,6 +180,7 @@ export function useFinancialData() {
     loading,
     createAccount,
     createTransaction,
+    createTransfer,
     createCategory,
     refetch: () => {
       fetchAccounts();

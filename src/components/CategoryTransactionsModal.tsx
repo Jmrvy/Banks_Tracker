@@ -8,7 +8,7 @@ interface Transaction {
   amount: number;
   bank: string;
   date: string;
-  type: 'expense' | 'income';
+  type: 'expense' | 'income' | 'transfer';
 }
 
 interface CategoryTransactionsModalProps {

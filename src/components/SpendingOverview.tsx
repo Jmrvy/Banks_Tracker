@@ -38,14 +38,14 @@ export const SpendingOverview = () => {
 
   const getCategoryTransactions = (categoryName: string) => {
     return transactions.filter(t => 
-      t.category?.name === categoryName && t.type === 'expense'
+      t.category?.name === categoryName && (t.type === 'expense' || t.type === 'transfer')
     ).map(t => ({
       id: t.id,
       description: t.description,
       amount: -t.amount, // Make negative for display
       bank: t.account?.bank || 'other',
       date: t.transaction_date,
-      type: t.type
+      type: t.type as 'expense' | 'income' | 'transfer'
     }));
   };
 
