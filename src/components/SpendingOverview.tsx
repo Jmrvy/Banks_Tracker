@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
+import { useState } from "react";
 
 interface SpendingCategory {
   name: string;
@@ -16,9 +18,127 @@ const spendingData: SpendingCategory[] = [
   { name: 'Logement', amount: 1200, budget: 1200, color: 'bg-destructive' },
 ];
 
+// Mock transactions by category
+const transactionsByCategory: Record<string, any[]> = {
+  'Alimentation': [
+    {
+      id: '1',
+      description: 'Carrefour Market',
+      amount: -45.80,
+      bank: 'revolut' as const,
+      date: '2024-01-04',
+      type: 'expense' as const
+    },
+    {
+      id: '2',
+      description: 'Boulangerie Paul',
+      amount: -12.50,
+      bank: 'sg' as const,
+      date: '2024-01-03',
+      type: 'expense' as const
+    },
+    {
+      id: '3',
+      description: 'Monoprix',
+      amount: -67.20,
+      bank: 'boursorama' as const,
+      date: '2024-01-02',
+      type: 'expense' as const
+    },
+    {
+      id: '4',
+      description: 'Marché local',
+      amount: -25.00,
+      bank: 'sg' as const,
+      date: '2024-01-01',
+      type: 'expense' as const
+    }
+  ],
+  'Transport': [
+    {
+      id: '5',
+      description: 'Station Shell',
+      amount: -62.40,
+      bank: 'sg' as const,
+      date: '2024-01-04',
+      type: 'expense' as const
+    },
+    {
+      id: '6',
+      description: 'RATP - Navigo',
+      amount: -75.20,
+      bank: 'revolut' as const,
+      date: '2024-01-01',
+      type: 'expense' as const
+    }
+  ],
+  'Loisirs': [
+    {
+      id: '7',
+      description: 'Netflix',
+      amount: -13.49,
+      bank: 'boursorama' as const,
+      date: '2024-01-03',
+      type: 'expense' as const
+    },
+    {
+      id: '8',
+      description: 'Spotify',
+      amount: -9.99,
+      bank: 'sg' as const,
+      date: '2024-01-01',
+      type: 'expense' as const
+    },
+    {
+      id: '9',
+      description: 'Cinéma Gaumont',
+      amount: -24.50,
+      bank: 'revolut' as const,
+      date: '2023-12-30',
+      type: 'expense' as const
+    }
+  ],
+  'Santé': [
+    {
+      id: '10',
+      description: 'Pharmacie',
+      amount: -28.90,
+      bank: 'sg' as const,
+      date: '2024-01-02',
+      type: 'expense' as const
+    },
+    {
+      id: '11',
+      description: 'Médecin généraliste',
+      amount: -25.00,
+      bank: 'boursorama' as const,
+      date: '2023-12-28',
+      type: 'expense' as const
+    }
+  ],
+  'Logement': [
+    {
+      id: '12',
+      description: 'Loyer Janvier',
+      amount: -1200.00,
+      bank: 'sg' as const,
+      date: '2024-01-01',
+      type: 'expense' as const
+    }
+  ]
+};
+
 export const SpendingOverview = () => {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  
   const totalSpent = spendingData.reduce((sum, cat) => sum + cat.amount, 0);
   const totalBudget = spendingData.reduce((sum, cat) => sum + cat.budget, 0);
+
+  const handleCategoryClick = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setModalOpen(true);
+  };
 
   return (
     <Card>
@@ -37,7 +157,11 @@ export const SpendingOverview = () => {
           const isOverBudget = percentage > 100;
           
           return (
-            <div key={category.name} className="space-y-2">
+            <div 
+              key={category.name} 
+              className="space-y-2 cursor-pointer hover:bg-muted/50 rounded-lg p-2 transition-colors"
+              onClick={() => handleCategoryClick(category.name)}
+            >
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center space-x-2">
                   <div className={`w-3 h-3 rounded-full ${category.color}`} />
@@ -65,6 +189,13 @@ export const SpendingOverview = () => {
           );
         })}
       </CardContent>
+      
+      <CategoryTransactionsModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        categoryName={selectedCategory || ''}
+        transactions={selectedCategory ? transactionsByCategory[selectedCategory] || [] : []}
+      />
     </Card>
   );
 };
