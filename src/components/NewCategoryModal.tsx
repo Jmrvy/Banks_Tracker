@@ -89,10 +89,10 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Category Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Category Name *</Label>
+            <Label htmlFor="name">Nom de la catégorie *</Label>
             <Input
               id="name"
-              placeholder="e.g. Groceries, Gas, Entertainment"
+              placeholder="ex: Courses, Essence, Loisirs"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required

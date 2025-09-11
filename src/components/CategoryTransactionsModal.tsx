@@ -6,7 +6,7 @@ interface Transaction {
   id: string;
   description: string;
   amount: number;
-  bank: 'sg' | 'revolut' | 'boursorama';
+  bank: string;
   date: string;
   type: 'expense' | 'income';
 }
@@ -18,16 +18,30 @@ interface CategoryTransactionsModalProps {
   transactions: Transaction[];
 }
 
-const bankColors = {
-  sg: 'bg-bank-sg',
-  revolut: 'bg-bank-revolut', 
-  boursorama: 'bg-bank-boursorama'
+const bankColors: Record<string, string> = {
+  societe_generale: 'bg-red-500',
+  revolut: 'bg-blue-500', 
+  boursorama: 'bg-orange-500',
+  bnp_paribas: 'bg-green-600',
+  credit_agricole: 'bg-green-700',
+  lcl: 'bg-blue-700',
+  caisse_epargne: 'bg-yellow-600',
+  credit_mutuel: 'bg-blue-800',
+  sg: 'bg-red-500', // Legacy support
+  other: 'bg-gray-500'
 };
 
-const bankNames = {
-  sg: 'Société Générale',
+const bankNames: Record<string, string> = {
+  societe_generale: 'Société Générale',
   revolut: 'Revolut',
-  boursorama: 'Boursorama'
+  boursorama: 'Boursorama',
+  bnp_paribas: 'BNP Paribas',
+  credit_agricole: 'Crédit Agricole',
+  lcl: 'LCL',
+  caisse_epargne: 'Caisse d\'Épargne',
+  credit_mutuel: 'Crédit Mutuel',
+  sg: 'Société Générale', // Legacy support
+  other: 'Autre'
 };
 
 export const CategoryTransactionsModal = ({ 
@@ -63,12 +77,14 @@ export const CategoryTransactionsModal = ({
               >
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-6 rounded-full ${bankColors[transaction.bank]}`} />
+                    <div className={`w-2 h-6 rounded-full ${
+                      bankColors[transaction.bank] || 'bg-gray-500'
+                    }`} />
                     <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
                       {transaction.type === 'income' ? (
-                        <ArrowDownRight className="w-5 h-5 text-success" />
+                        <ArrowDownRight className="w-5 h-5 text-green-600" />
                       ) : (
-                        <ArrowUpRight className="w-5 h-5 text-destructive" />
+                        <ArrowUpRight className="w-5 h-5 text-red-600" />
                       )}
                     </div>
                   </div>
@@ -77,7 +93,7 @@ export const CategoryTransactionsModal = ({
                     <p className="font-medium">{transaction.description}</p>
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge variant="outline" className="text-xs">
-                        {bankNames[transaction.bank]}
+                        {bankNames[transaction.bank] || transaction.bank}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
                         {new Date(transaction.date).toLocaleDateString('fr-FR')}
@@ -89,7 +105,7 @@ export const CategoryTransactionsModal = ({
                 <div className="text-right">
                   <span 
                     className={`font-semibold ${
-                      transaction.type === 'income' ? 'text-success' : 'text-foreground'
+                      transaction.type === 'income' ? 'text-green-600' : 'text-foreground'
                     }`}
                   >
                     {transaction.amount.toLocaleString('fr-FR', { 

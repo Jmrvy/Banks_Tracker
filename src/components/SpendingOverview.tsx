@@ -1,137 +1,33 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
-import { useState } from "react";
-
-interface SpendingCategory {
-  name: string;
-  amount: number;
-  budget: number;
-  color: string;
-}
-
-const spendingData: SpendingCategory[] = [
-  { name: 'Alimentation', amount: 425, budget: 500, color: 'bg-primary' },
-  { name: 'Transport', amount: 180, budget: 200, color: 'bg-accent' },
-  { name: 'Loisirs', amount: 320, budget: 300, color: 'bg-warning' },
-  { name: 'Santé', amount: 120, budget: 250, color: 'bg-success' },
-  { name: 'Logement', amount: 1200, budget: 1200, color: 'bg-destructive' },
-];
-
-// Mock transactions by category
-const transactionsByCategory: Record<string, any[]> = {
-  'Alimentation': [
-    {
-      id: '1',
-      description: 'Carrefour Market',
-      amount: -45.80,
-      bank: 'revolut' as const,
-      date: '2024-01-04',
-      type: 'expense' as const
-    },
-    {
-      id: '2',
-      description: 'Boulangerie Paul',
-      amount: -12.50,
-      bank: 'sg' as const,
-      date: '2024-01-03',
-      type: 'expense' as const
-    },
-    {
-      id: '3',
-      description: 'Monoprix',
-      amount: -67.20,
-      bank: 'boursorama' as const,
-      date: '2024-01-02',
-      type: 'expense' as const
-    },
-    {
-      id: '4',
-      description: 'Marché local',
-      amount: -25.00,
-      bank: 'sg' as const,
-      date: '2024-01-01',
-      type: 'expense' as const
-    }
-  ],
-  'Transport': [
-    {
-      id: '5',
-      description: 'Station Shell',
-      amount: -62.40,
-      bank: 'sg' as const,
-      date: '2024-01-04',
-      type: 'expense' as const
-    },
-    {
-      id: '6',
-      description: 'RATP - Navigo',
-      amount: -75.20,
-      bank: 'revolut' as const,
-      date: '2024-01-01',
-      type: 'expense' as const
-    }
-  ],
-  'Loisirs': [
-    {
-      id: '7',
-      description: 'Netflix',
-      amount: -13.49,
-      bank: 'boursorama' as const,
-      date: '2024-01-03',
-      type: 'expense' as const
-    },
-    {
-      id: '8',
-      description: 'Spotify',
-      amount: -9.99,
-      bank: 'sg' as const,
-      date: '2024-01-01',
-      type: 'expense' as const
-    },
-    {
-      id: '9',
-      description: 'Cinéma Gaumont',
-      amount: -24.50,
-      bank: 'revolut' as const,
-      date: '2023-12-30',
-      type: 'expense' as const
-    }
-  ],
-  'Santé': [
-    {
-      id: '10',
-      description: 'Pharmacie',
-      amount: -28.90,
-      bank: 'sg' as const,
-      date: '2024-01-02',
-      type: 'expense' as const
-    },
-    {
-      id: '11',
-      description: 'Médecin généraliste',
-      amount: -25.00,
-      bank: 'boursorama' as const,
-      date: '2023-12-28',
-      type: 'expense' as const
-    }
-  ],
-  'Logement': [
-    {
-      id: '12',
-      description: 'Loyer Janvier',
-      amount: -1200.00,
-      bank: 'sg' as const,
-      date: '2024-01-01',
-      type: 'expense' as const
-    }
-  ]
-};
+import { useState, useMemo } from "react";
+import { useFinancialData } from "@/hooks/useFinancialData";
 
 export const SpendingOverview = () => {
+  const { transactions, categories, loading } = useFinancialData();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   
+  // Calculate spending by category from actual transactions
+  const spendingData = useMemo(() => {
+    return categories.map(category => {
+      const categoryTransactions = transactions.filter(t => 
+        t.category?.name === category.name && t.type === 'expense'
+      );
+      
+      const amount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+      
+      return {
+        name: category.name,
+        amount,
+        budget: category.budget || 0,
+        color: category.color,
+        transactionCount: categoryTransactions.length
+      };
+    }).filter(cat => cat.budget > 0); // Only show categories with budgets
+  }, [transactions, categories]);
+
   const totalSpent = spendingData.reduce((sum, cat) => sum + cat.amount, 0);
   const totalBudget = spendingData.reduce((sum, cat) => sum + cat.budget, 0);
 
@@ -139,6 +35,61 @@ export const SpendingOverview = () => {
     setSelectedCategory(categoryName);
     setModalOpen(true);
   };
+
+  const getCategoryTransactions = (categoryName: string) => {
+    return transactions.filter(t => 
+      t.category?.name === categoryName && t.type === 'expense'
+    ).map(t => ({
+      id: t.id,
+      description: t.description,
+      amount: -t.amount, // Make negative for display
+      bank: t.account?.bank || 'other',
+      date: t.transaction_date,
+      type: t.type
+    }));
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Dépenses par Catégorie</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="animate-pulse w-3 h-3 rounded-full bg-muted" />
+                  <div className="animate-pulse h-4 bg-muted rounded w-24" />
+                </div>
+                <div className="animate-pulse h-4 bg-muted rounded w-16" />
+              </div>
+              <div className="animate-pulse h-2 bg-muted rounded" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (spendingData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Dépenses par Catégorie</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Aucune catégorie avec budget trouvée</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Créez des catégories et définissez des budgets pour suivre vos dépenses
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -153,7 +104,7 @@ export const SpendingOverview = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         {spendingData.map((category) => {
-          const percentage = (category.amount / category.budget) * 100;
+          const percentage = category.budget > 0 ? (category.amount / category.budget) * 100 : 0;
           const isOverBudget = percentage > 100;
           
           return (
@@ -164,8 +115,14 @@ export const SpendingOverview = () => {
             >
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${category.color}`} />
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: category.color }}
+                  />
                   <span className="font-medium">{category.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({category.transactionCount} transaction{category.transactionCount > 1 ? 's' : ''})
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className={isOverBudget ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
@@ -182,7 +139,7 @@ export const SpendingOverview = () => {
               />
               {isOverBudget && (
                 <p className="text-xs text-destructive">
-                  Dépassement de {((percentage - 100)).toFixed(1)}%
+                  Dépassement de {(percentage - 100).toFixed(1)}%
                 </p>
               )}
             </div>
@@ -194,7 +151,7 @@ export const SpendingOverview = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         categoryName={selectedCategory || ''}
-        transactions={selectedCategory ? transactionsByCategory[selectedCategory] || [] : []}
+        transactions={selectedCategory ? getCategoryTransactions(selectedCategory) : []}
       />
     </Card>
   );

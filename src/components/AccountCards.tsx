@@ -2,180 +2,132 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, CreditCard } from "lucide-react";
 import { AccountTransactionsModal } from "@/components/AccountTransactionsModal";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useFinancialData } from "@/hooks/useFinancialData";
 
-interface Account {
-  id: string;
-  name: string;
-  bank: 'sg' | 'revolut' | 'boursorama';
-  balance: number;
-  monthlyChange: number;
-  lastTransaction: string;
-}
-
-const accounts: Account[] = [
-  {
-    id: '1',
-    name: 'Compte Courant',
-    bank: 'sg',
-    balance: 2450.75,
-    monthlyChange: -230.50,
-    lastTransaction: 'Courses - Carrefour'
-  },
-  {
-    id: '2',
-    name: 'Revolut Card',
-    bank: 'revolut',
-    balance: 890.20,
-    monthlyChange: -45.80,
-    lastTransaction: 'Restaurant - Le Petit Bistro'
-  },
-  {
-    id: '3',
-    name: 'Compte Boursorama',
-    bank: 'boursorama',
-    balance: 1420.30,
-    monthlyChange: -85.20,
-    lastTransaction: 'Abonnement Netflix'
-  }
-];
-
-const bankColors = {
-  sg: 'bg-bank-sg',
-  revolut: 'bg-bank-revolut', 
-  boursorama: 'bg-bank-boursorama'
+const bankColors: Record<string, string> = {
+  societe_generale: 'bg-red-500',
+  revolut: 'bg-blue-500', 
+  boursorama: 'bg-orange-500',
+  bnp_paribas: 'bg-green-600',
+  credit_agricole: 'bg-green-700',
+  lcl: 'bg-blue-700',
+  caisse_epargne: 'bg-yellow-600',
+  credit_mutuel: 'bg-blue-800',
+  chase: 'bg-blue-600',
+  bofa: 'bg-red-600',
+  wells_fargo: 'bg-yellow-500',
+  citi: 'bg-blue-500',
+  capital_one: 'bg-orange-600',
+  other: 'bg-gray-500'
 };
 
-const bankNames = {
-  sg: 'Société Générale',
+const bankNames: Record<string, string> = {
+  societe_generale: 'Société Générale',
   revolut: 'Revolut',
-  boursorama: 'Boursorama'
-};
-
-// Mock transactions by account
-const transactionsByAccount: Record<string, any[]> = {
-  '1': [ // Compte Courant SG
-    {
-      id: 'sg_1',
-      description: 'Salaire Novembre',
-      amount: 3200,
-      category: 'Revenus',
-      date: '2024-01-05',
-      type: 'income'
-    },
-    {
-      id: 'sg_2',
-      description: 'Station Shell',
-      amount: -62.40,
-      category: 'Transport',
-      date: '2024-01-04',
-      type: 'expense'
-    },
-    {
-      id: 'sg_3',
-      description: 'Pharmacie',
-      amount: -28.90,
-      category: 'Santé',
-      date: '2024-01-02',
-      type: 'expense'
-    },
-    {
-      id: 'sg_4',
-      description: 'Loyer Janvier',
-      amount: -1200.00,
-      category: 'Logement',
-      date: '2024-01-01',
-      type: 'expense'
-    },
-    {
-      id: 'sg_5',
-      description: 'Boulangerie Paul',
-      amount: -12.50,
-      category: 'Alimentation',
-      date: '2024-01-03',
-      type: 'expense'
-    }
-  ],
-  '2': [ // Revolut Card
-    {
-      id: 'rev_1',
-      description: 'Carrefour Market',
-      amount: -45.80,
-      category: 'Alimentation',
-      date: '2024-01-04',
-      type: 'expense'
-    },
-    {
-      id: 'rev_2',
-      description: 'RATP - Navigo',
-      amount: -75.20,
-      category: 'Transport',
-      date: '2024-01-01',
-      type: 'expense'
-    },
-    {
-      id: 'rev_3',
-      description: 'Cinéma Gaumont',
-      amount: -24.50,
-      category: 'Loisirs',
-      date: '2023-12-30',
-      type: 'expense'
-    },
-    {
-      id: 'rev_4',
-      description: 'Restaurant - Le Petit Bistro',
-      amount: -42.30,
-      category: 'Alimentation',
-      date: '2023-12-28',
-      type: 'expense'
-    }
-  ],
-  '3': [ // Compte Boursorama
-    {
-      id: 'bour_1',
-      description: 'Netflix',
-      amount: -13.49,
-      category: 'Loisirs',
-      date: '2024-01-03',
-      type: 'expense'
-    },
-    {
-      id: 'bour_2',
-      description: 'Médecin généraliste',
-      amount: -25.00,
-      category: 'Santé',
-      date: '2023-12-28',
-      type: 'expense'
-    },
-    {
-      id: 'bour_3',
-      description: 'Monoprix',
-      amount: -67.20,
-      category: 'Alimentation',
-      date: '2024-01-02',
-      type: 'expense'
-    },
-    {
-      id: 'bour_4',
-      description: 'Virement depuis SG',
-      amount: 500.00,
-      category: 'Revenus',
-      date: '2024-01-01',
-      type: 'income'
-    }
-  ]
+  boursorama: 'Boursorama',
+  bnp_paribas: 'BNP Paribas',
+  credit_agricole: 'Crédit Agricole',
+  lcl: 'LCL',
+  caisse_epargne: 'Caisse d\'Épargne',
+  credit_mutuel: 'Crédit Mutuel',
+  chase: 'Chase',
+  bofa: 'Bank of America',
+  wells_fargo: 'Wells Fargo',
+  citi: 'Citibank',
+  capital_one: 'Capital One',
+  other: 'Autre'
 };
 
 export const AccountCards = () => {
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const { accounts, transactions, loading } = useFinancialData();
+  const [selectedAccount, setSelectedAccount] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  
+  // Calculate monthly changes and last transactions for each account
+  const enrichedAccounts = useMemo(() => {
+    return accounts.map(account => {
+      const accountTransactions = transactions.filter(t => t.account?.name === account.name);
+      
+      // Calculate monthly change (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const monthlyTransactions = accountTransactions.filter(t => 
+        new Date(t.transaction_date) >= thirtyDaysAgo
+      );
+      
+      const monthlyChange = monthlyTransactions.reduce((sum, t) => {
+        return sum + (t.type === 'income' ? t.amount : -t.amount);
+      }, 0);
+      
+      // Get last transaction description
+      const lastTransaction = accountTransactions.length > 0 
+        ? accountTransactions[0].description 
+        : 'Aucune transaction';
+      
+      return {
+        ...account,
+        monthlyChange,
+        lastTransaction,
+        transactionCount: accountTransactions.length
+      };
+    });
+  }, [accounts, transactions]);
   
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
-  const handleAccountClick = (account: Account) => {
-    setSelectedAccount(account);
+  const handleAccountClick = (account: any) => {
+    const accountTransactions = transactions.filter(t => t.account?.name === account.name);
+    
+    setSelectedAccount({
+      ...account,
+      transactions: accountTransactions
+    });
     setModalOpen(true);
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card className="border">
+          <CardContent className="p-6">
+            <div className="animate-pulse">
+              <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
+              <div className="h-8 bg-muted rounded w-1/2"></div>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="border">
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-muted rounded w-3/4 mb-4"></div>
+                  <div className="h-6 bg-muted rounded w-1/2 mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-full"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <Card className="border">
+        <CardContent className="p-6 text-center">
+          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">Aucun compte bancaire</h3>
+          <p className="text-muted-foreground mb-4">
+            Commencez par créer votre premier compte bancaire pour suivre vos finances.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -191,6 +143,9 @@ export const AccountCards = () => {
                   currency: 'EUR' 
                 })}
               </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {accounts.length} compte{accounts.length > 1 ? 's' : ''} bancaire{accounts.length > 1 ? 's' : ''}
+              </p>
             </div>
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <CreditCard className="h-6 w-6 text-primary" />
@@ -201,7 +156,7 @@ export const AccountCards = () => {
 
       {/* Account Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {accounts.map((account) => (
+        {enrichedAccounts.map((account) => (
           <Card 
             key={account.id} 
             className="hover:shadow-sm transition-all duration-200 border cursor-pointer hover:bg-muted/50"
@@ -210,10 +165,12 @@ export const AccountCards = () => {
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-8 rounded-full ${bankColors[account.bank]}`} />
+                  <div className={`w-3 h-8 rounded-full ${bankColors[account.bank] || 'bg-gray-500'}`} />
                   <div>
                     <h3 className="font-semibold text-foreground">{account.name}</h3>
-                    <p className="text-sm text-muted-foreground">{bankNames[account.bank]}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {bankNames[account.bank] || account.bank}
+                    </p>
                   </div>
                 </div>
                 <Badge variant={account.monthlyChange >= 0 ? 'secondary' : 'destructive'} className="text-xs">
@@ -239,6 +196,9 @@ export const AccountCards = () => {
                 <p className="text-sm text-muted-foreground">
                   Dernière transaction: {account.lastTransaction}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {account.transactionCount} transaction{account.transactionCount > 1 ? 's' : ''}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -249,8 +209,8 @@ export const AccountCards = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         accountName={selectedAccount?.name || ''}
-        bankName={selectedAccount ? bankNames[selectedAccount.bank] : ''}
-        transactions={selectedAccount ? transactionsByAccount[selectedAccount.id] || [] : []}
+        bankName={selectedAccount ? bankNames[selectedAccount.bank] || selectedAccount.bank : ''}
+        transactions={selectedAccount?.transactions || []}
         balance={selectedAccount?.balance || 0}
       />
     </div>

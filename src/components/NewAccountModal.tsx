@@ -107,14 +107,17 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Account Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Account Name *</Label>
+            <Label htmlFor="name">Nom du compte *</Label>
             <Input
               id="name"
-              placeholder="e.g. Main Checking, Savings Account"
+              placeholder="ex: Compte Courant SG, Revolut Perso, CB Boursorama"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Vous pouvez avoir plusieurs comptes par banque (ex: CB, Épargne, etc.)
+            </p>
           </div>
 
           {/* Bank */}
