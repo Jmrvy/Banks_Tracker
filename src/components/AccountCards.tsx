@@ -30,11 +30,11 @@ const accounts: Account[] = [
   },
   {
     id: '3',
-    name: 'Épargne Boursorama',
+    name: 'Compte Boursorama',
     bank: 'boursorama',
-    balance: 15420.30,
-    monthlyChange: 500.00,
-    lastTransaction: 'Virement automatique'
+    balance: 1420.30,
+    monthlyChange: -85.20,
+    lastTransaction: 'Abonnement Netflix'
   }
 ];
 
@@ -56,7 +56,7 @@ export const AccountCards = () => {
   return (
     <div className="space-y-6">
       {/* Total Overview */}
-      <Card className="bg-gradient-to-r from-card to-secondary border-0 shadow-lg">
+      <Card className="border">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -78,17 +78,17 @@ export const AccountCards = () => {
       {/* Account Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {accounts.map((account) => (
-          <Card key={account.id} className="hover:shadow-md transition-all duration-200 border-0 bg-card">
+          <Card key={account.id} className="hover:shadow-sm transition-all duration-200 border">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-8 rounded-full ${bankColors[account.bank]}`} />
                   <div>
-                    <h3 className="font-semibold text-card-foreground">{account.name}</h3>
+                    <h3 className="font-semibold text-foreground">{account.name}</h3>
                     <p className="text-sm text-muted-foreground">{bankNames[account.bank]}</p>
                   </div>
                 </div>
-                <Badge variant={account.monthlyChange >= 0 ? 'default' : 'destructive'} className="text-xs">
+                <Badge variant={account.monthlyChange >= 0 ? 'secondary' : 'destructive'} className="text-xs">
                   {account.monthlyChange >= 0 ? (
                     <TrendingUp className="w-3 h-3 mr-1" />
                   ) : (
@@ -102,7 +102,7 @@ export const AccountCards = () => {
               </div>
               
               <div className="space-y-2">
-                <p className="text-2xl font-bold text-card-foreground">
+                <p className="text-2xl font-bold text-foreground">
                   {account.balance.toLocaleString('fr-FR', { 
                     style: 'currency', 
                     currency: 'EUR' 
