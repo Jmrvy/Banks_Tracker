@@ -71,7 +71,12 @@ const Reports = () => {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const netPeriodBalance = income - expenses;
+    const transferFees = filteredTransactions
+      .filter(t => t.type === 'transfer')
+      .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
+
+    // Variation nette de la période (tout compris)
+    const netPeriodBalance = income - expenses - transferFees;
 
     // Calcul du solde initial basé sur les comptes actuels moins les transactions de la période
     const initialBalance = accounts.reduce((sum, account) => {
@@ -161,7 +166,11 @@ const Reports = () => {
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-      const monthBalance = monthIncome - monthExpenses;
+      const monthTransferFees = monthTransactions
+        .filter(t => t.type === 'transfer')
+        .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
+
+      const monthBalance = monthIncome - monthExpenses - monthTransferFees;
       cumulativeBalance += monthBalance;
 
       months.push({
@@ -205,7 +214,10 @@ const Reports = () => {
     transactionsByDate.forEach((dayTransactions, dateStr) => {
       const dateObj = new Date(dateStr);
       const dayBalance = dayTransactions.reduce((sum, t) => {
-        return sum + (t.type === 'income' ? Number(t.amount) : -Number(t.amount));
+        if (t.type === 'income') return sum + Number(t.amount);
+        if (t.type === 'expense') return sum - Number(t.amount);
+        // transfer: n'affecte le total que par les frais éventuels
+        return sum - Number(t.transfer_fee || 0);
       }, 0);
       
       runningBalance += dayBalance;
