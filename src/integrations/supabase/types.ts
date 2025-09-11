@@ -14,7 +14,237 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          account_type: Database["public"]["Enums"]["account_type"]
+          balance: number
+          bank: Database["public"]["Enums"]["bank_type"]
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_type?: Database["public"]["Enums"]["account_type"]
+          balance?: number
+          bank?: Database["public"]["Enums"]["bank_type"]
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_type?: Database["public"]["Enums"]["account_type"]
+          balance?: number
+          bank?: Database["public"]["Enums"]["bank_type"]
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          budget: number | null
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          budget?: number | null
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          budget?: number | null
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recurring_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          description: string
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          next_due_date: string
+          recurrence_type: Database["public"]["Enums"]["recurrence_type"]
+          start_date: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          description: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          next_due_date: string
+          recurrence_type: Database["public"]["Enums"]["recurrence_type"]
+          start_date: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          description?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          next_due_date?: string
+          recurrence_type?: Database["public"]["Enums"]["recurrence_type"]
+          start_date?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          transaction_date: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          transaction_date?: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          transaction_date?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +253,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      account_type: "checking" | "savings" | "credit" | "investment"
+      bank_type:
+        | "chase"
+        | "bofa"
+        | "wells_fargo"
+        | "citi"
+        | "capital_one"
+        | "other"
+      recurrence_type: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"
+      transaction_type: "income" | "expense"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +389,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      account_type: ["checking", "savings", "credit", "investment"],
+      bank_type: [
+        "chase",
+        "bofa",
+        "wells_fargo",
+        "citi",
+        "capital_one",
+        "other",
+      ],
+      recurrence_type: ["daily", "weekly", "monthly", "quarterly", "yearly"],
+      transaction_type: ["income", "expense"],
+    },
   },
 } as const
