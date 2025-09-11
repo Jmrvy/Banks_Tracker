@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, Settings, LogOut, CreditCard, Tag, BarChart3 } from "lucide-react";
+import { Plus, Download, Settings, LogOut, CreditCard, Tag, BarChart3, Repeat, Clock } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { NewTransactionModal } from "./NewTransactionModal";
 import { NewAccountModal } from "./NewAccountModal";
 import { NewCategoryModal } from "./NewCategoryModal";
+import { NewRecurringTransactionModal } from "./NewRecurringTransactionModal";
+import { RecurringTransactionsModal } from "./RecurringTransactionsModal";
 
 export const DashboardHeader = () => {
   const { user, signOut } = useAuth();
@@ -15,6 +17,8 @@ export const DashboardHeader = () => {
   const [showNewTransaction, setShowNewTransaction] = useState(false);
   const [showNewAccount, setShowNewAccount] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const [showNewRecurring, setShowNewRecurring] = useState(false);
+  const [showRecurringList, setShowRecurringList] = useState(false);
   
   const currentMonth = new Date().toLocaleDateString('fr-FR', { 
     month: 'long', 
@@ -65,6 +69,14 @@ export const DashboardHeader = () => {
           <Tag className="w-4 h-4 mr-2" />
           Nouvelle Catégorie
         </Button>
+        <Button variant="outline" onClick={() => setShowNewRecurring(true)}>
+          <Repeat className="w-4 h-4 mr-2" />
+          Transaction Récurrente
+        </Button>
+        <Button variant="outline" onClick={() => setShowRecurringList(true)}>
+          <Clock className="w-4 h-4 mr-2" />
+          Gérer Récurrences
+        </Button>
         <Button variant="outline" onClick={() => navigate("/reports")}>
           <BarChart3 className="w-4 h-4 mr-2" />
           Récapitulatifs
@@ -90,6 +102,14 @@ export const DashboardHeader = () => {
       <NewCategoryModal 
         open={showNewCategory} 
         onOpenChange={setShowNewCategory} 
+      />
+      <NewRecurringTransactionModal 
+        open={showNewRecurring} 
+        onOpenChange={setShowNewRecurring} 
+      />
+      <RecurringTransactionsModal 
+        open={showRecurringList} 
+        onOpenChange={setShowRecurringList} 
       />
     </div>
   );

@@ -32,11 +32,27 @@ export interface Category {
   budget: number | null;
 }
 
+export interface RecurringTransaction {
+  id: string;
+  description: string;
+  amount: number;
+  type: 'income' | 'expense';
+  recurrence_type: 'weekly' | 'monthly' | 'yearly';
+  start_date: string;
+  end_date: string | null;
+  next_due_date: string;
+  is_active: boolean;
+  account: { name: string; bank: string } | null;
+  category: { name: string; color: string } | null;
+  created_at: string;
+}
+
 export function useFinancialData() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAccounts = async () => {
@@ -98,6 +114,24 @@ export function useFinancialData() {
 
     if (!error && data) {
       setCategories(data);
+    }
+  };
+
+  const fetchRecurringTransactions = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('recurring_transactions')
+      .select(`
+        *,
+        account:accounts(name, bank),
+        category:categories(name, color)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setRecurringTransactions(data as RecurringTransaction[]);
     }
   };
 
@@ -188,6 +222,71 @@ export function useFinancialData() {
     return { error };
   };
 
+  const createRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id' | 'account' | 'category' | 'created_at' | 'next_due_date' | 'is_active'> & { account_id: string; category_id?: string }) => {
+    if (!user) return;
+
+    // Calculate next due date based on recurrence type
+    const startDate = new Date(recurring.start_date);
+    let nextDueDate = new Date(startDate);
+    
+    switch (recurring.recurrence_type) {
+      case 'weekly':
+        nextDueDate.setDate(startDate.getDate() + 7);
+        break;
+      case 'monthly':
+        nextDueDate.setMonth(startDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        nextDueDate.setFullYear(startDate.getFullYear() + 1);
+        break;
+    }
+
+    const { error } = await supabase
+      .from('recurring_transactions')
+      .insert([{
+        description: recurring.description,
+        amount: recurring.amount,
+        type: recurring.type,
+        recurrence_type: recurring.recurrence_type,
+        start_date: recurring.start_date,
+        end_date: recurring.end_date,
+        next_due_date: nextDueDate.toISOString().split('T')[0],
+        is_active: true,
+        account_id: recurring.account_id,
+        category_id: recurring.category_id,
+        user_id: user.id
+      }]);
+
+    if (!error) {
+      fetchRecurringTransactions();
+    }
+    return { error };
+  };
+
+  const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date'>>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('recurring_transactions')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    return { error };
+  };
+
+  const deleteRecurringTransaction = async (id: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('recurring_transactions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    return { error };
+  };
+
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -199,7 +298,8 @@ export function useFinancialData() {
         await Promise.all([
           fetchAccounts(),
           fetchTransactions(),
-          fetchCategories()
+          fetchCategories(),
+          fetchRecurringTransactions()
         ]);
       } catch (error) {
         console.error('Error loading financial data:', error);
@@ -256,6 +356,19 @@ export function useFinancialData() {
           fetchCategories();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recurring_transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Recurring transaction change detected:', payload);
+          fetchRecurringTransactions();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -268,15 +381,21 @@ export function useFinancialData() {
     accounts,
     transactions,
     categories,
+    recurringTransactions,
     loading,
     createAccount,
     createTransaction,
     createTransfer,
     createCategory,
+    createRecurringTransaction,
+    updateRecurringTransaction,
+    deleteRecurringTransaction,
+    fetchRecurringTransactions,
     refetch: () => {
       fetchAccounts();
       fetchTransactions();
       fetchCategories();
+      fetchRecurringTransactions();
     }
   };
 }
