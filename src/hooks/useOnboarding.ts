@@ -31,11 +31,11 @@ export function useOnboarding() {
     setIsOnboarding(true);
 
     try {
-      // Check if user already has the correct French accounts
-      const { data: existingAccounts } = await supabase
-        .from('accounts')
-        .select('name')
-        .eq('user_id', user.id);
+      // Check if user already has data
+      const [{ data: existingAccounts }, { data: existingCategories }] = await Promise.all([
+        supabase.from('accounts').select('name').eq('user_id', user.id),
+        supabase.from('categories').select('name').eq('user_id', user.id)
+      ]);
 
       const hasFrenchAccounts = existingAccounts?.some(acc => 
         acc.name === 'Société Générale CB' || 
@@ -43,39 +43,48 @@ export function useOnboarding() {
         acc.name === 'Boursorama CB'
       );
 
-      if (hasFrenchAccounts) {
+      const hasCategories = existingCategories && existingCategories.length > 0;
+
+      if (hasFrenchAccounts && hasCategories) {
         setIsOnboarding(false);
-        return; // User already has French accounts
+        return; // User already has data
       }
 
-      // Create default categories
-      const categoriesData = defaultCategories.map(cat => ({
-        ...cat,
-        user_id: user.id,
-      }));
+      // Create default categories only if they don't exist
+      if (!hasCategories) {
+        const categoriesData = defaultCategories.map(cat => ({
+          ...cat,
+          user_id: user.id,
+        }));
 
-      const { error: categoriesError } = await supabase
-        .from('categories')
-        .insert(categoriesData);
+        const { error: categoriesError } = await supabase
+          .from('categories')
+          .insert(categoriesData);
 
-      if (categoriesError) throw categoriesError;
+        if (categoriesError) throw categoriesError;
+      }
 
-      // Create default accounts
-      const accountsData = defaultAccounts.map(acc => ({
-        ...acc,
-        user_id: user.id,
-      }));
+      // Create default accounts only if they don't exist
+      if (!hasFrenchAccounts) {
+        const accountsData = defaultAccounts.map(acc => ({
+          ...acc,
+          user_id: user.id,
+        }));
 
-      const { error: accountsError } = await supabase
-        .from('accounts')
-        .insert(accountsData);
+        const { error: accountsError } = await supabase
+          .from('accounts')
+          .insert(accountsData);
 
-      if (accountsError) throw accountsError;
+        if (accountsError) throw accountsError;
+      }
 
-      toast({
-        title: "Bienvenue sur FinanceTracker !",
-        description: "Nous avons configuré vos comptes bancaires français.",
-      });
+      // Show success message only if something was created
+      if (!hasCategories || !hasFrenchAccounts) {
+        toast({
+          title: "Bienvenue sur FinanceTracker !",
+          description: "Nous avons configuré vos comptes bancaires français.",
+        });
+      }
 
     } catch (error: any) {
       console.error('Onboarding error:', error);
