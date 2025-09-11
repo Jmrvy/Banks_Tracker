@@ -60,9 +60,9 @@ export function useFinancialData() {
       .from('transactions')
       .select(`
         *,
-        account:accounts(name, bank),
+        account:accounts!transactions_account_id_fkey(name, bank),
         category:categories(name, color),
-        transfer_to_account:accounts!transfer_to_account_id(name, bank)
+        transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
       `)
       .eq('user_id', user.id)
       .order('transaction_date', { ascending: false })
@@ -163,66 +163,77 @@ export function useFinancialData() {
   };
 
   useEffect(() => {
-    if (user) {
-      Promise.all([
-        fetchAccounts(),
-        fetchTransactions(),
-        fetchCategories()
-      ]).finally(() => setLoading(false));
-
-      // Set up real-time subscriptions
-      const channel = supabase
-        .channel('financial-data-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'accounts',
-            filter: `user_id=eq.${user.id}`
-          },
-          () => {
-            console.log('Account change detected, refreshing...');
-            fetchAccounts();
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'transactions', 
-            filter: `user_id=eq.${user.id}`
-          },
-          () => {
-            console.log('Transaction change detected, refreshing...');
-            fetchTransactions();
-            fetchAccounts(); // Also refresh accounts for balance updates
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'categories',
-            filter: `user_id=eq.${user.id}`
-          },
-          () => {
-            console.log('Category change detected, refreshing...');
-            fetchCategories();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        console.log('Cleaning up real-time subscriptions');
-        supabase.removeChannel(channel);
-      };
-    } else {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  }, [user]);
+
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          fetchAccounts(),
+          fetchTransactions(),
+          fetchCategories()
+        ]);
+      } catch (error) {
+        console.error('Error loading financial data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Set up real-time subscriptions
+    const channel = supabase
+      .channel('financial-data-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'accounts',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Account change detected:', payload);
+          fetchAccounts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions', 
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Transaction change detected:', payload);
+          fetchTransactions();
+          fetchAccounts(); // Also refresh accounts for balance updates
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'categories',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Category change detected:', payload);
+          fetchCategories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up real-time subscriptions');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]); // Use user.id instead of user to prevent unnecessary re-renders
 
   return {
     accounts,

@@ -1,6 +1,6 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -8,7 +8,7 @@ interface Transaction {
   amount: number;
   category: { name: string; color: string } | null;
   transaction_date: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
 }
 
 interface AccountTransactionsModalProps {
@@ -45,6 +45,9 @@ export const AccountTransactionsModal = ({
               </span>
             </div>
           </DialogTitle>
+          <DialogDescription>
+            Historique des transactions pour ce compte
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto space-y-3 pr-2">
@@ -62,6 +65,8 @@ export const AccountTransactionsModal = ({
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
                     {transaction.type === 'income' ? (
                       <ArrowDownRight className="w-5 h-5 text-green-600" />
+                    ) : transaction.type === 'transfer' ? (
+                      <ArrowRightLeft className="w-5 h-5 text-blue-600" />
                     ) : (
                       <ArrowUpRight className="w-5 h-5 text-red-600" />
                     )}
@@ -93,10 +98,19 @@ export const AccountTransactionsModal = ({
                 <div className="text-right">
                   <span 
                     className={`font-medium ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-foreground'
+                      transaction.type === 'income' 
+                        ? 'text-green-600' 
+                        : transaction.type === 'transfer'
+                        ? 'text-blue-600'
+                        : 'text-foreground'
                     }`}
                   >
-                    {transaction.type === 'income' ? '+' : '-'}{Math.abs(transaction.amount).toLocaleString('fr-FR', { 
+                    {transaction.type === 'income' 
+                      ? '+' 
+                      : transaction.type === 'transfer'
+                      ? '→'
+                      : '-'
+                    }{Math.abs(transaction.amount).toLocaleString('fr-FR', { 
                       style: 'currency', 
                       currency: 'EUR' 
                     })}

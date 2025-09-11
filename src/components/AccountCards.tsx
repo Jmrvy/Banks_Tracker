@@ -46,8 +46,16 @@ export const AccountCards = () => {
   
   // Calculate monthly changes and last transactions for each account
   const enrichedAccounts = useMemo(() => {
+    console.log('Accounts:', accounts);
+    console.log('Transactions:', transactions);
+    
     return accounts.map(account => {
-      const accountTransactions = transactions.filter(t => t.account?.name === account.name);
+      const accountTransactions = transactions.filter(t => {
+        console.log('Filtering transaction:', t, 'for account:', account.name);
+        return t.account?.name === account.name;
+      });
+      
+      console.log('Account transactions for', account.name, ':', accountTransactions);
       
       // Calculate monthly change (last 30 days)
       const thirtyDaysAgo = new Date();
@@ -58,7 +66,14 @@ export const AccountCards = () => {
       );
       
       const monthlyChange = monthlyTransactions.reduce((sum, t) => {
-        return sum + (t.type === 'income' ? t.amount : -t.amount);
+        if (t.type === 'income') return sum + t.amount;
+        if (t.type === 'expense') return sum - t.amount;
+        if (t.type === 'transfer') {
+          // For the source account of a transfer, it's a deduction
+          // We'll handle destination account logic separately
+          return sum - t.amount;
+        }
+        return sum;
       }, 0);
       
       // Get last transaction description
@@ -78,7 +93,15 @@ export const AccountCards = () => {
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
   const handleAccountClick = (account: any) => {
-    const accountTransactions = transactions.filter(t => t.account?.name === account.name);
+    console.log('Clicked account:', account);
+    console.log('All transactions:', transactions);
+    
+    const accountTransactions = transactions.filter(t => {
+      console.log('Checking transaction:', t, 'Account name:', t.account?.name, 'Target account:', account.name);
+      return t.account?.name === account.name;
+    });
+    
+    console.log('Filtered transactions for account:', accountTransactions);
     
     setSelectedAccount({
       ...account,
