@@ -15,7 +15,7 @@ import { fr } from "date-fns/locale";
 import { CalendarIcon, ArrowLeft, TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Line } from "recharts";
 import { useNavigate } from "react-router-dom";
 
 const Reports = () => {
@@ -141,6 +141,8 @@ const Reports = () => {
     if (periodType !== 'year') return [];
 
     const months = [];
+    let cumulativeBalance = stats.initialBalance;
+    
     for (let i = 0; i < 12; i++) {
       const monthDate = new Date(selectedDate.getFullYear(), i, 1);
       const monthStart = startOfMonth(monthDate);
@@ -159,15 +161,64 @@ const Reports = () => {
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
+      const monthBalance = monthIncome - monthExpenses;
+      cumulativeBalance += monthBalance;
+
       months.push({
         month: format(monthDate, "MMM", { locale: fr }),
         revenus: monthIncome,
-        dépenses: monthExpenses
+        dépenses: monthExpenses,
+        solde: cumulativeBalance,
+        variation: monthBalance
       });
     }
     
     return months;
-  }, [transactions, selectedDate, periodType]);
+  }, [transactions, selectedDate, periodType, stats.initialBalance]);
+
+  // Données pour l'évolution des soldes jour par jour dans la période
+  const balanceEvolutionData = useMemo(() => {
+    const sortedTransactions = filteredTransactions
+      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
+    
+    const dailyData = [];
+    let runningBalance = stats.initialBalance;
+    
+    // Commencer par le solde initial
+    dailyData.push({
+      date: format(period.from, "dd/MM", { locale: fr }),
+      solde: runningBalance,
+      dateObj: period.from
+    });
+
+    // Grouper les transactions par date
+    const transactionsByDate = new Map();
+    sortedTransactions.forEach(t => {
+      const date = format(new Date(t.transaction_date), "yyyy-MM-dd");
+      if (!transactionsByDate.has(date)) {
+        transactionsByDate.set(date, []);
+      }
+      transactionsByDate.get(date).push(t);
+    });
+
+    // Créer les points de données pour chaque jour avec transactions
+    transactionsByDate.forEach((dayTransactions, dateStr) => {
+      const dateObj = new Date(dateStr);
+      const dayBalance = dayTransactions.reduce((sum, t) => {
+        return sum + (t.type === 'income' ? Number(t.amount) : -Number(t.amount));
+      }, 0);
+      
+      runningBalance += dayBalance;
+      
+      dailyData.push({
+        date: format(dateObj, "dd/MM", { locale: fr }),
+        solde: runningBalance,
+        dateObj: dateObj
+      });
+    });
+
+    return dailyData;
+  }, [filteredTransactions, stats.initialBalance, period]);
 
   if (loading) {
     return (
@@ -188,6 +239,10 @@ const Reports = () => {
     dépenses: { 
       label: "Dépenses", 
       color: "hsl(346 87% 43%)" // Rouge pour les dépenses
+    },
+    solde: {
+      label: "Solde",
+      color: "hsl(217 91% 60%)" // Bleu pour le solde
     }
   };
 
@@ -411,16 +466,90 @@ const Reports = () => {
           </TabsList>
 
           <TabsContent value="evolution" className="space-y-6">
+            {/* Évolution des soldes - Area Chart */}
+            {balanceEvolutionData.length > 1 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Évolution du solde</CardTitle>
+                  <CardDescription>
+                    Évolution du solde total pour {period.label}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[400px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart 
+                        data={balanceEvolutionData}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                      >
+                        <defs>
+                          <linearGradient id="soldeGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={chartConfig.solde.color} stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor={chartConfig.solde.color} stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(value) => `${(value/1000).toFixed(0)}k€`}
+                        />
+                        <ChartTooltip 
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              const value = payload[0].value;
+                              return (
+                                <div className="rounded-lg border bg-background p-3 shadow-md">
+                                  <p className="text-sm font-medium">{label}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: chartConfig.solde.color }}
+                                    />
+                                    <span className="font-semibold">
+                                      {Number(value).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Area 
+                          type="monotone"
+                          dataKey="solde" 
+                          stroke={chartConfig.solde.color}
+                          strokeWidth={3}
+                          fill="url(#soldeGradient)"
+                          dot={{ r: 4, fill: chartConfig.solde.color }}
+                          activeDot={{ r: 6, fill: chartConfig.solde.color, strokeWidth: 2, stroke: '#fff' }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            )}
+
             {periodType === 'year' && monthlyData.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Évolution mensuelle</CardTitle>
-                  <CardDescription>Revenus et dépenses par mois pour {format(selectedDate, "yyyy")}</CardDescription>
+                  <CardTitle>Évolution mensuelle détaillée</CardTitle>
+                  <CardDescription>Revenus, dépenses et solde par mois pour {format(selectedDate, "yyyy")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfig} className="h-[450px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
+                      <ComposedChart 
                         data={monthlyData}
                         margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                       >
@@ -435,13 +564,13 @@ const Reports = () => {
                           tick={{ fontSize: 12 }}
                           axisLine={false}
                           tickLine={false}
-                          tickFormatter={(value) => `${value}€`}
+                          tickFormatter={(value) => `${(value/1000).toFixed(0)}k€`}
                         />
                         <ChartTooltip 
                           content={<ChartTooltipContent 
                             formatter={(value, name) => [
                               `${Number(value).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
-                              name
+                              name === 'solde' ? 'Solde fin de mois' : name
                             ]}
                           />} 
                         />
@@ -449,15 +578,23 @@ const Reports = () => {
                           dataKey="revenus" 
                           fill={chartConfig.revenus.color}
                           radius={[4, 4, 0, 0]}
-                          maxBarSize={50}
+                          maxBarSize={40}
                         />
                         <Bar 
                           dataKey="dépenses" 
                           fill={chartConfig.dépenses.color}
                           radius={[4, 4, 0, 0]}
-                          maxBarSize={50}
+                          maxBarSize={40}
                         />
-                      </BarChart>
+                        <Line 
+                          type="monotone"
+                          dataKey="solde" 
+                          stroke={chartConfig.solde.color}
+                          strokeWidth={3}
+                          dot={{ r: 4, fill: chartConfig.solde.color }}
+                          activeDot={{ r: 6, fill: chartConfig.solde.color }}
+                        />
+                      </ComposedChart>
                     </ResponsiveContainer>
                   </ChartContainer>
                 </CardContent>
