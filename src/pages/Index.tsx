@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { AccountCards } from "@/components/AccountCards";
 import { SpendingOverview } from "@/components/SpendingOverview";
@@ -9,11 +10,15 @@ import { MonthlyProjections } from "@/components/MonthlyProjections";
 const Index = () => {
   const { user } = useAuth();
   const { loading } = useFinancialData();
+  const { isOnboarding } = useOnboarding();
 
-  if (loading) {
+  if (loading || isOnboarding) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div>Loading your financial data...</div>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <div>{isOnboarding ? 'Setting up your account...' : 'Loading your financial data...'}</div>
+        </div>
       </div>
     );
   }

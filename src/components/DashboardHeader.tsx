@@ -1,14 +1,18 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, Settings, LogOut } from "lucide-react";
+import { Plus, Download, Settings, LogOut, CreditCard, Tag } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { NewTransactionModal } from "./NewTransactionModal";
+import { NewAccountModal } from "./NewAccountModal";
+import { NewCategoryModal } from "./NewCategoryModal";
 
 export const DashboardHeader = () => {
   const { user, signOut } = useAuth();
   const [showNewTransaction, setShowNewTransaction] = useState(false);
+  const [showNewAccount, setShowNewAccount] = useState(false);
+  const [showNewCategory, setShowNewCategory] = useState(false);
   
   const currentMonth = new Date().toLocaleDateString('fr-FR', { 
     month: 'long', 
@@ -51,6 +55,14 @@ export const DashboardHeader = () => {
           <Plus className="w-4 h-4 mr-2" />
           Nouvelle Transaction
         </Button>
+        <Button variant="outline" onClick={() => setShowNewAccount(true)}>
+          <CreditCard className="w-4 h-4 mr-2" />
+          Nouveau Compte
+        </Button>
+        <Button variant="outline" onClick={() => setShowNewCategory(true)}>
+          <Tag className="w-4 h-4 mr-2" />
+          Nouvelle Catégorie
+        </Button>
         <Button variant="outline">
           <Download className="w-4 h-4 mr-2" />
           Exporter Données
@@ -64,6 +76,14 @@ export const DashboardHeader = () => {
       <NewTransactionModal 
         open={showNewTransaction} 
         onOpenChange={setShowNewTransaction} 
+      />
+      <NewAccountModal 
+        open={showNewAccount} 
+        onOpenChange={setShowNewAccount} 
+      />
+      <NewCategoryModal 
+        open={showNewCategory} 
+        onOpenChange={setShowNewCategory} 
       />
     </div>
   );
