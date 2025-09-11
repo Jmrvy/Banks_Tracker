@@ -1,0 +1,9 @@
+-- Add new French bank types to the enum
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'societe_generale';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'revolut';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'boursorama';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'bnp_paribas';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'credit_agricole';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'lcl';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'caisse_epargne';
+ALTER TYPE bank_type ADD VALUE IF NOT EXISTS 'credit_mutuel';

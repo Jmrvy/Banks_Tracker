@@ -261,6 +261,14 @@ export type Database = {
         | "citi"
         | "capital_one"
         | "other"
+        | "societe_generale"
+        | "revolut"
+        | "boursorama"
+        | "bnp_paribas"
+        | "credit_agricole"
+        | "lcl"
+        | "caisse_epargne"
+        | "credit_mutuel"
       recurrence_type: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"
       transaction_type: "income" | "expense"
     }
@@ -398,6 +406,14 @@ export const Constants = {
         "citi",
         "capital_one",
         "other",
+        "societe_generale",
+        "revolut",
+        "boursorama",
+        "bnp_paribas",
+        "credit_agricole",
+        "lcl",
+        "caisse_epargne",
+        "credit_mutuel",
       ],
       recurrence_type: ["daily", "weekly", "monthly", "quarterly", "yearly"],
       transaction_type: ["income", "expense"],

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export interface Account {
   id: string;
   name: string;
-  bank: 'chase' | 'bofa' | 'wells_fargo' | 'citi' | 'capital_one' | 'other';
+  bank: 'chase' | 'bofa' | 'wells_fargo' | 'citi' | 'capital_one' | 'other' | 'societe_generale' | 'revolut' | 'boursorama' | 'bnp_paribas' | 'credit_agricole' | 'lcl' | 'caisse_epargne' | 'credit_mutuel';
   account_type: 'checking' | 'savings' | 'credit' | 'investment';
   balance: number;
   created_at: string;
