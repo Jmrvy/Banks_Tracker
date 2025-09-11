@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface Account {
   id: string;
@@ -168,6 +169,56 @@ export function useFinancialData() {
         fetchTransactions(),
         fetchCategories()
       ]).finally(() => setLoading(false));
+
+      // Set up real-time subscriptions
+      const channel = supabase
+        .channel('financial-data-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'accounts',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            console.log('Account change detected, refreshing...');
+            fetchAccounts();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'transactions', 
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            console.log('Transaction change detected, refreshing...');
+            fetchTransactions();
+            fetchAccounts(); // Also refresh accounts for balance updates
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'categories',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            console.log('Category change detected, refreshing...');
+            fetchCategories();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('Cleaning up real-time subscriptions');
+        supabase.removeChannel(channel);
+      };
     } else {
       setLoading(false);
     }
