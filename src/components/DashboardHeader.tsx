@@ -1,15 +1,17 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, Settings, LogOut, CreditCard, Tag } from "lucide-react";
+import { Plus, Download, Settings, LogOut, CreditCard, Tag, BarChart3 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { NewTransactionModal } from "./NewTransactionModal";
 import { NewAccountModal } from "./NewAccountModal";
 import { NewCategoryModal } from "./NewCategoryModal";
 
 export const DashboardHeader = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [showNewTransaction, setShowNewTransaction] = useState(false);
   const [showNewAccount, setShowNewAccount] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -62,6 +64,10 @@ export const DashboardHeader = () => {
         <Button variant="outline" onClick={() => setShowNewCategory(true)}>
           <Tag className="w-4 h-4 mr-2" />
           Nouvelle Catégorie
+        </Button>
+        <Button variant="outline" onClick={() => navigate("/reports")}>
+          <BarChart3 className="w-4 h-4 mr-2" />
+          Récapitulatifs
         </Button>
         <Button variant="outline">
           <Download className="w-4 h-4 mr-2" />
