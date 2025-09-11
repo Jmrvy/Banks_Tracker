@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { MonthPicker } from "@/components/ui/month-picker";
+import { YearPicker } from "@/components/ui/year-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -186,27 +188,25 @@ const Reports = () => {
                 </Select>
               </div>
 
-              {(periodType === "month" || periodType === "year") && (
+              {periodType === "month" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {periodType === "month" ? "Sélectionner le mois" : "Sélectionner l'année"}
-                  </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[280px] justify-start text-left">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {period.label}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <label className="text-sm font-medium">Sélectionner le mois</label>
+                  <MonthPicker
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    placeholder="Choisir un mois"
+                  />
+                </div>
+              )}
+
+              {periodType === "year" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sélectionner l'année</label>
+                  <YearPicker
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    placeholder="Choisir une année"
+                  />
                 </div>
               )}
 
