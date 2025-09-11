@@ -56,6 +56,8 @@ export function useFinancialData() {
   const fetchTransactions = async () => {
     if (!user) return;
 
+    console.log('Fetching transactions for user:', user.id);
+
     const { data, error } = await supabase
       .from('transactions')
       .select(`
@@ -68,12 +70,20 @@ export function useFinancialData() {
       .order('transaction_date', { ascending: false })
       .limit(50);
 
-    if (!error && data) {
-      setTransactions(data.map(t => ({
+    if (error) {
+      console.error('Error fetching transactions:', error);
+      return;
+    }
+
+    if (data) {
+      console.log('Raw transaction data:', data);
+      const processedTransactions = data.map(t => ({
         ...t,
         account: t.account || { name: 'Unknown', bank: 'unknown' },
         transfer_to_account: t.transfer_to_account || undefined
-      })) as Transaction[]);
+      })) as Transaction[];
+      console.log('Processed transactions:', processedTransactions);
+      setTransactions(processedTransactions);
     }
   };
 
@@ -107,13 +117,21 @@ export function useFinancialData() {
   const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string }) => {
     if (!user) return;
 
+    console.log('Creating transaction:', transaction);
+
     const { error } = await supabase
       .from('transactions')
       .insert([{ ...transaction, user_id: user.id }]);
 
-    if (!error) {
-      fetchTransactions();
-      fetchAccounts(); // Refresh accounts to update balances
+    if (error) {
+      console.error('Error creating transaction:', error);
+    } else {
+      console.log('Transaction created successfully, refetching data...');
+      // Force immediate refresh with a small delay to ensure DB is updated
+      setTimeout(() => {
+        fetchTransactions();
+        fetchAccounts();
+      }, 100);
     }
     return { error };
   };
@@ -127,6 +145,8 @@ export function useFinancialData() {
     transaction_date: string;
   }) => {
     if (!user) return;
+
+    console.log('Creating transfer:', transfer);
 
     // Create the transfer transaction (debit from source account)
     const { error } = await supabase
@@ -142,9 +162,15 @@ export function useFinancialData() {
         user_id: user.id
       }]);
 
-    if (!error) {
-      fetchTransactions();
-      fetchAccounts(); // Refresh accounts to update balances
+    if (error) {
+      console.error('Error creating transfer:', error);
+    } else {
+      console.log('Transfer created successfully, refetching data...');
+      // Force immediate refresh with a small delay to ensure DB is updated
+      setTimeout(() => {
+        fetchTransactions();
+        fetchAccounts();
+      }, 100);
     }
     return { error };
   };
@@ -210,8 +236,11 @@ export function useFinancialData() {
         },
         (payload) => {
           console.log('Transaction change detected:', payload);
-          fetchTransactions();
-          fetchAccounts(); // Also refresh accounts for balance updates
+          // Add a small delay to ensure the DB has been fully updated
+          setTimeout(() => {
+            fetchTransactions();
+            fetchAccounts();
+          }, 200);
         }
       )
       .on(
