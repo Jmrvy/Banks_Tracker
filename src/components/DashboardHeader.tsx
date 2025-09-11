@@ -73,7 +73,7 @@ export const DashboardHeader = () => {
           <Download className="w-4 h-4 mr-2" />
           Exporter Données
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => navigate("/settings")}>
           <Settings className="w-4 h-4 mr-2" />
           Paramètres
         </Button>
