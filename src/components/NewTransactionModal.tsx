@@ -34,8 +34,8 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
     
     if (!formData.description || !formData.amount || !formData.account_id) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all required fields.",
+        title: "Informations manquantes",
+        description: "Veuillez remplir tous les champs obligatoires.",
         variant: "destructive",
       });
       return;
@@ -54,14 +54,14 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
 
     if (error) {
       toast({
-        title: "Error creating transaction",
+        title: "Erreur lors de la création",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Transaction created",
-        description: `${formData.type === 'income' ? 'Income' : 'Expense'} of $${formData.amount} added successfully.`,
+        title: "Transaction créée",
+        description: `${formData.type === 'income' ? 'Revenus' : 'Dépense'} de ${formData.amount}€ ajoutée avec succès.`,
       });
       
       // Reset form
@@ -93,10 +93,10 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
             ) : (
               <MinusCircle className="h-5 w-5 text-red-500" />
             )}
-            New Transaction
+            Nouvelle Transaction
           </DialogTitle>
           <DialogDescription>
-            Add a new {formData.type} transaction to your account
+            Ajouter une nouvelle transaction de type {formData.type === 'income' ? 'revenus' : 'dépense'}
           </DialogDescription>
         </DialogHeader>
         
@@ -111,7 +111,7 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
               className="flex-1"
             >
               <PlusCircle className="h-4 w-4 mr-1" />
-              Income
+              Revenus
             </Button>
             <Button
               type="button"
@@ -121,7 +121,7 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
               className="flex-1"
             >
               <MinusCircle className="h-4 w-4 mr-1" />
-              Expense
+              Dépense
             </Button>
           </div>
 
@@ -130,7 +130,7 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
-              placeholder="Enter transaction description..."
+              placeholder="Saisissez la description de la transaction..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
@@ -139,7 +139,7 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
 
           {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
+            <Label htmlFor="amount">Montant *</Label>
             <Input
               id="amount"
               type="number"
@@ -153,43 +153,54 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
 
           {/* Account Selection */}
           <div className="space-y-2">
-            <Label htmlFor="account">Account *</Label>
+            <Label htmlFor="account">Compte *</Label>
             <Select 
               value={formData.account_id} 
               onValueChange={(value) => setFormData({ ...formData, account_id: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select an account" />
+                <SelectValue placeholder="Sélectionner un compte" />
               </SelectTrigger>
               <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{account.name}</span>
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {account.bank.replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    </div>
+                {accounts.length === 0 ? (
+                  <SelectItem value="no-accounts" disabled>
+                    Aucun compte disponible
                   </SelectItem>
-                ))}
+                ) : (
+                  accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{account.name}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {account.bank.replace(/_/g, ' ').toUpperCase()}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             {selectedAccount && (
               <div className="text-sm text-muted-foreground">
-                Current balance: ${selectedAccount.balance.toFixed(2)}
+                Solde actuel: {selectedAccount.balance.toFixed(2)}€
+              </div>
+            )}
+            {accounts.length === 0 && (
+              <div className="text-sm text-muted-foreground text-red-500">
+                Aucun compte trouvé. Veuillez d'abord créer un compte.
               </div>
             )}
           </div>
 
           {/* Category Selection */}
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">Catégorie</Label>
             <Select 
               value={formData.category_id} 
               onValueChange={(value) => setFormData({ ...formData, category_id: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a category (optional)" />
+                <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
@@ -226,10 +237,10 @@ export function NewTransactionModal({ open, onOpenChange }: NewTransactionModalP
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              Annuler
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : `Create ${formData.type}`}
+            <Button type="submit" disabled={loading || accounts.length === 0}>
+              {loading ? 'Création...' : `Créer ${formData.type === 'income' ? 'revenus' : 'dépense'}`}
             </Button>
           </div>
         </form>

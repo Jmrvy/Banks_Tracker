@@ -4,14 +4,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const defaultCategories = [
-  { name: 'Groceries', color: '#10B981', budget: 500 },
-  { name: 'Gas & Transportation', color: '#F59E0B', budget: 200 },
-  { name: 'Dining Out', color: '#EF4444', budget: 300 },
-  { name: 'Entertainment', color: '#8B5CF6', budget: 150 },
+  { name: 'Courses', color: '#10B981', budget: 500 },
+  { name: 'Transport', color: '#F59E0B', budget: 200 },
+  { name: 'Restaurants', color: '#EF4444', budget: 300 },
+  { name: 'Loisirs', color: '#8B5CF6', budget: 150 },
   { name: 'Shopping', color: '#EC4899', budget: 200 },
-  { name: 'Bills & Utilities', color: '#06B6D4', budget: 800 },
-  { name: 'Healthcare', color: '#84CC16', budget: 150 },
-  { name: 'Income', color: '#3B82F6', budget: null },
+  { name: 'Factures', color: '#06B6D4', budget: 800 },
+  { name: 'Santé', color: '#84CC16', budget: 150 },
+  { name: 'Revenus', color: '#3B82F6', budget: null },
 ];
 
 const defaultAccounts = [
@@ -31,16 +31,21 @@ export function useOnboarding() {
     setIsOnboarding(true);
 
     try {
-      // Check if user already has accounts
+      // Check if user already has the correct French accounts
       const { data: existingAccounts } = await supabase
         .from('accounts')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
+        .select('name')
+        .eq('user_id', user.id);
 
-      if (existingAccounts && existingAccounts.length > 0) {
+      const hasFrenchAccounts = existingAccounts?.some(acc => 
+        acc.name === 'Société Générale CB' || 
+        acc.name === 'Revolut CB' || 
+        acc.name === 'Boursorama CB'
+      );
+
+      if (hasFrenchAccounts) {
         setIsOnboarding(false);
-        return; // User already has data
+        return; // User already has French accounts
       }
 
       // Create default categories
@@ -68,15 +73,15 @@ export function useOnboarding() {
       if (accountsError) throw accountsError;
 
       toast({
-        title: "Welcome to FinanceTracker!",
-        description: "We've set up some default accounts and categories to get you started.",
+        title: "Bienvenue sur FinanceTracker !",
+        description: "Nous avons configuré vos comptes bancaires français.",
       });
 
     } catch (error: any) {
       console.error('Onboarding error:', error);
       toast({
-        title: "Setup Error",
-        description: "There was an issue setting up your account. You can create accounts manually.",
+        title: "Erreur de configuration",
+        description: "Il y a eu un problème lors de la configuration de votre compte. Vous pouvez créer des comptes manuellement.",
         variant: "destructive",
       });
     } finally {
@@ -84,9 +89,10 @@ export function useOnboarding() {
     }
   };
 
+  // Force re-run onboarding for existing users with updated French accounts
   useEffect(() => {
     if (user && !isOnboarding) {
-      // Small delay to let other components initialize
+      // Always create default data to refresh with French accounts
       const timer = setTimeout(() => {
         createDefaultData();
       }, 1000);
