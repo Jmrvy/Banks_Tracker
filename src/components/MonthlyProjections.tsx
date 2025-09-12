@@ -224,5 +224,3 @@ export const MonthlyProjections = () => {
     </Card>
   );
 };
-
-export default MonthlyProjections;
