@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, Repeat, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, Repeat, BarChart3, Calculator } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
@@ -228,7 +228,7 @@ export const MonthlyProjections = () => {
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
   
-  // FIX: Correct projected balance calculation to avoid double counting
+  // Calculate future net cash flow (only future transactions, not double counting)
   const futureNetCashFlow = useSpendingPatterns 
     ? (monthlyData.futureIncomeFromPatterns - monthlyData.futureExpensesFromPatterns)
     : (monthlyData.projectedRecurringIncome - monthlyData.projectedRecurringExpenses);
@@ -366,23 +366,67 @@ export const MonthlyProjections = () => {
           </div>
         </div>
 
-        {/* Net Projection */}
-        <div className="p-4 rounded-lg border bg-muted/30">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">
-              Projection fin de mois (basée sur {useSpendingPatterns ? 'patterns' : 'récurrents'})
-            </span>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
+        {/* Enhanced Financial Projection Breakdown */}
+        <div className="space-y-3">
+          <div className="p-4 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Projection Financière (basée sur {useSpendingPatterns ? 'patterns' : 'récurrents'})
+              </span>
+            </div>
+            
+            <div className="space-y-3">
+              {/* Initial Balance */}
+              <div className="flex justify-between items-center py-2 border-b border-muted">
+                <span className="text-sm text-muted-foreground">Solde initial</span>
+                <span className="font-medium">{formatCurrency(totalBalance)}</span>
+              </div>
+              
+              {/* Future Cash Flow */}
+              <div className="flex justify-between items-center py-2 border-b border-muted">
+                <span className="text-sm text-muted-foreground">
+                  Flux de trésorerie projeté ({monthlyData.daysRemaining} jours restants)
+                </span>
+                <span className={`font-medium ${
+                  futureNetCashFlow >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {futureNetCashFlow >= 0 ? '+' : ''}{formatCurrency(futureNetCashFlow)}
+                </span>
+              </div>
+              
+              {/* Projected Final Balance */}
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm font-semibold">Solde projeté fin de mois</span>
+                <span className={`text-xl font-bold ${
+                  projectedBalance >= totalBalance ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {formatCurrency(projectedBalance)}
+                </span>
+              </div>
+            </div>
+            
+            {/* Calculation Details */}
+            <div className="mt-3 pt-3 border-t border-muted">
+              <div className="text-xs text-muted-foreground">
+                Calcul: {formatCurrency(totalBalance)} + ({formatCurrency(futureNetCashFlow)}) = {formatCurrency(projectedBalance)}
+              </div>
+            </div>
           </div>
-          <div className="space-y-2">
-            <p className={`text-2xl font-bold ${
-              monthlyData.projectedNet >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {monthlyData.projectedNet >= 0 ? '+' : ''}{formatCurrency(monthlyData.projectedNet)}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Solde projeté: {formatCurrency(projectedBalance)}
-            </p>
+
+          {/* Monthly Net Summary */}
+          <div className="p-3 rounded-lg border bg-blue-50/50 border-blue-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-800">Net mensuel total projeté</span>
+              <span className={`text-lg font-bold ${
+                monthlyData.projectedNet >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {monthlyData.projectedNet >= 0 ? '+' : ''}{formatCurrency(monthlyData.projectedNet)}
+              </span>
+            </div>
+            <div className="text-xs text-blue-600 mt-1">
+              {formatCurrency(monthlyData.projectedIncome)} revenus - {formatCurrency(monthlyData.projectedExpenses)} dépenses
+            </div>
           </div>
         </div>
 
