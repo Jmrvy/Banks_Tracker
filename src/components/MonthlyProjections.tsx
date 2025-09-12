@@ -28,7 +28,6 @@ export const MonthlyProjections = () => {
       const startDate = new Date(Math.max(fromDate.getTime(), new Date(recurring.next_due_date).getTime()));
       const endDate = toDate;
       
-      // Check if recurring transaction has ended
       if (recurring.end_date && new Date(recurring.end_date) < fromDate) {
         return occurrences;
       }
@@ -36,7 +35,6 @@ export const MonthlyProjections = () => {
       let currentDate = new Date(startDate);
 
       while (currentDate <= endDate) {
-        // Don't include if past end_date
         if (recurring.end_date && currentDate > new Date(recurring.end_date)) {
           break;
         }
@@ -50,7 +48,6 @@ export const MonthlyProjections = () => {
           category_id: recurring.category_id
         });
 
-        // Calculate next occurrence based on recurrence_type
         switch (recurring.recurrence_type) {
           case 'daily':
             currentDate.setDate(currentDate.getDate() + 1);
@@ -123,9 +120,13 @@ export const MonthlyProjections = () => {
     const dailyIncomeAvg = currentDay > 0 ? actualMonthlyIncome / currentDay : 0;
     const dailyExpenseAvg = currentDay > 0 ? actualMonthlyExpenses / currentDay : 0;
 
-    // Projections based on spending patterns
-    const projectedIncomeFromPatterns = actualMonthlyIncome + (dailyIncomeAvg * daysRemaining);
-    const projectedExpensesFromPatterns = actualMonthlyExpenses + (dailyExpenseAvg * daysRemaining);
+    // Future projections based on spending patterns (only remaining days)
+    const futureIncomeFromPatterns = dailyIncomeAvg * daysRemaining;
+    const futureExpensesFromPatterns = dailyExpenseAvg * daysRemaining;
+
+    // Projections based on spending patterns (total month)
+    const projectedIncomeFromPatterns = actualMonthlyIncome + futureIncomeFromPatterns;
+    const projectedExpensesFromPatterns = actualMonthlyExpenses + futureExpensesFromPatterns;
 
     // Choose projection method based on toggle
     const projectedIncome = useSpendingPatterns 
@@ -203,6 +204,8 @@ export const MonthlyProjections = () => {
       // Spending pattern details
       projectedIncomeFromPatterns,
       projectedExpensesFromPatterns,
+      futureIncomeFromPatterns,
+      futureExpensesFromPatterns,
       
       // Budget tracking
       totalBudget,
@@ -224,8 +227,13 @@ export const MonthlyProjections = () => {
   }, [transactions, categories, recurringTransactions, useSpendingPatterns]);
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-  const projectedBalance = totalBalance + (monthlyData.projectedRecurringIncome - monthlyData.projectedRecurringExpenses);
-
+  
+  // FIX: Correct projected balance calculation to avoid double counting
+  const futureNetCashFlow = useSpendingPatterns 
+    ? (monthlyData.futureIncomeFromPatterns - monthlyData.futureExpensesFromPatterns)
+    : (monthlyData.projectedRecurringIncome - monthlyData.projectedRecurringExpenses);
+    
+  const projectedBalance = totalBalance + futureNetCashFlow;
 
   if (loading) {
     return (
@@ -308,9 +316,9 @@ export const MonthlyProjections = () => {
                     +{formatCurrency(monthlyData.projectedRecurringIncome)} récurrents
                   </p>
                 )}
-                {useSpendingPatterns && monthlyData.dailyIncomeAvg > 0 && (
+                {useSpendingPatterns && monthlyData.futureIncomeFromPatterns > 0 && (
                   <p className="text-xs text-orange-600">
-                    +{formatCurrency(monthlyData.dailyIncomeAvg * monthlyData.daysRemaining)} patterns
+                    +{formatCurrency(monthlyData.futureIncomeFromPatterns)} patterns
                   </p>
                 )}
               </div>
@@ -334,9 +342,9 @@ export const MonthlyProjections = () => {
                     +{formatCurrency(monthlyData.projectedRecurringExpenses)} récurrents
                   </p>
                 )}
-                {useSpendingPatterns && monthlyData.dailyExpenseAvg > 0 && (
+                {useSpendingPatterns && monthlyData.futureExpensesFromPatterns > 0 && (
                   <p className="text-xs text-orange-600">
-                    +{formatCurrency(monthlyData.dailyExpenseAvg * monthlyData.daysRemaining)} patterns
+                    +{formatCurrency(monthlyData.futureExpensesFromPatterns)} patterns
                   </p>
                 )}
               </div>
@@ -497,8 +505,8 @@ export const MonthlyProjections = () => {
               )}
               {useSpendingPatterns && (
                 <li>
-                  • Patterns quotidiens: +{formatCurrency(monthlyData.dailyIncomeAvg)} revenus, 
-                  -{formatCurrency(monthlyData.dailyExpenseAvg)} dépenses
+                  • Patterns restants: +{formatCurrency(monthlyData.futureIncomeFromPatterns)} revenus, 
+                  -{formatCurrency(monthlyData.futureExpensesFromPatterns)} dépenses
                 </li>
               )}
               {monthlyData.remainingBudget > 0 ? (
