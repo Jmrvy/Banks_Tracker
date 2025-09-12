@@ -47,7 +47,7 @@ export interface RecurringTransaction {
   next_due_date: string;
   is_active: boolean;
   account: { name: string; bank: string } | null;
-  category: { name: string; color: string } | null;
+  category: { id: string; name: string; color: string } | null; // ← Added id here
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +67,6 @@ export function useFinancialData() {
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
-
     if (!error && data) {
       setAccounts(data);
     }
@@ -119,6 +118,7 @@ export function useFinancialData() {
     }
   };
 
+  // FIXED: Added 'id' to category select
   const fetchRecurringTransactions = async () => {
     if (!user) return;
     console.log('Fetching recurring transactions for user:', user.id);
@@ -128,7 +128,7 @@ export function useFinancialData() {
       .select(`
         *,
         account:accounts(name, bank),
-        category:categories(name, color)
+        category:categories(id, name, color)
       `)
       .eq('user_id', user.id)
       .eq('is_active', true)
@@ -175,7 +175,6 @@ export function useFinancialData() {
       console.error('Error creating transaction:', error);
     } else {
       console.log('Transaction created successfully, refetching data...');
-      // Force immediate refresh with a small delay to ensure DB is updated
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();
@@ -195,7 +194,6 @@ export function useFinancialData() {
     if (!user) return;
     console.log('Creating transfer:', transfer);
     
-    // Create the transfer transaction (debit from source account)
     const { error } = await supabase
       .from('transactions')
       .insert([{
@@ -213,7 +211,6 @@ export function useFinancialData() {
       console.error('Error creating transfer:', error);
     } else {
       console.log('Transfer created successfully, refetching data...');
-      // Force immediate refresh with a small delay to ensure DB is updated
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();
@@ -315,7 +312,6 @@ export function useFinancialData() {
     return { error };
   };
 
-  // New function to process due recurring transactions
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
@@ -429,7 +425,6 @@ export function useFinancialData() {
         },
         (payload) => {
           console.log('Transaction change detected:', payload);
-          // Add a small delay to ensure the DB has been fully updated
           setTimeout(() => {
             fetchTransactions();
             fetchAccounts();
@@ -468,7 +463,7 @@ export function useFinancialData() {
       console.log('Cleaning up real-time subscriptions');
       supabase.removeChannel(channel);
     };
-  }, [user?.id]); // Use user.id instead of user to prevent unnecessary re-renders
+  }, [user?.id]);
 
   return {
     accounts,
