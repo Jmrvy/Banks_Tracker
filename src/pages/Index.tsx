@@ -216,4 +216,4 @@ function MonthlyProjections() {
   );
 }
 
-export default MonthlyProjections;
+export default Index;
