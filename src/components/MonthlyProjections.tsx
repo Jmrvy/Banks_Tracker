@@ -224,7 +224,8 @@ export const MonthlyProjections = () => {
   }, [transactions, categories, recurringTransactions, useSpendingPatterns]);
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-  const projectedBalance = totalBalance + monthlyData.projectedNet;
+  const projectedBalance = totalBalance + (monthlyData.projectedRecurringIncome - monthlyData.projectedRecurringExpenses);
+
 
   if (loading) {
     return (
