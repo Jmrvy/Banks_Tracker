@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
-const bankColors: Record<string, string> = {
+const bankColors = {
   societe_generale: 'bg-red-500',
   revolut: 'bg-blue-500', 
   boursorama: 'bg-orange-500',
@@ -20,9 +21,12 @@ const bankColors: Record<string, string> = {
 export const RecentTransactions = () => {
   const { transactions, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
-  
-  // Get the 5 most recent transactions
-  const recentTransactions = transactions.slice(0, 5);
+
+  // Add state to manage view mode
+  const [showAll, setShowAll] = useState(false);
+
+  // Dynamically choose which transactions to display
+  const displayedTransactions = showAll ? transactions : transactions.slice(0, 5);
 
   if (loading) {
     return (
@@ -51,7 +55,7 @@ export const RecentTransactions = () => {
     );
   }
 
-  if (recentTransactions.length === 0) {
+  if (transactions.length === 0) {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -73,13 +77,15 @@ export const RecentTransactions = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Transactions Récentes</CardTitle>
-        <Button variant="outline" size="sm">
-          Voir tout ({transactions.length})
+        {/* Add onClick handler and dynamic text */}
+        <Button variant="outline" size="sm" onClick={() => setShowAll(!showAll)}>
+          {showAll ? 'Voir moins' : `Voir tout (${transactions.length})`}
         </Button>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {recentTransactions.map((transaction) => (
+          {/* Use displayedTransactions instead of recentTransactions */}
+          {displayedTransactions.map((transaction) => (
             <div 
               key={transaction.id} 
               className="flex items-center justify-between p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors"
