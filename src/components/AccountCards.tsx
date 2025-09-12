@@ -54,8 +54,8 @@ export const AccountCards = () => {
     return accounts.map(account => {
     const accountTransactions = transactions.filter(t => {
       console.log('Filtering transaction:', t, 'for account:', account.name);
-      // Compare by account_id for reliable matching
-      return t.account_id === account.id;
+      // Match by account_id OR by joined account name as fallback
+      return t.account_id === account.id || t.account?.name === account.name;
     });
       
       console.log('Account transactions for', account.name, ':', accountTransactions);
@@ -100,9 +100,9 @@ export const AccountCards = () => {
     console.log('All transactions:', transactions);
     
     const accountTransactions = transactions.filter(t => {
-      console.log('Checking transaction:', t, 'Account ID:', t.account_id, 'Target account ID:', account.id);
-      // Compare by account_id for reliable matching  
-      return t.account_id === account.id;
+      console.log('Checking transaction:', t, 'Account ID:', (t as any).account_id, 'Target account ID:', account.id);
+      // Match by account_id OR by joined account name as fallback
+      return (t as any).account_id === account.id || t.account?.name === account.name;
     });
     
     console.log('Filtered transactions for account:', accountTransactions);
