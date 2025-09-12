@@ -1,12 +1,10 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, DollarSign, Repeat, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Repeat, AlertTriangle } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 
 const getRecurringOccurrences = (recurringTransactions = [], startDate, endDate) => {
@@ -15,8 +13,6 @@ const getRecurringOccurrences = (recurringTransactions = [], startDate, endDate)
     const freq = tx.frequency;
     const interval = tx.interval || 1;
     let dt = new Date(tx.start_date);
-
-    // Avance jusqu’à la première occurance >= startDate
     while (dt < startDate) {
       switch (freq) {
         case "daily": dt.setDate(dt.getDate() + interval); break;
@@ -27,8 +23,6 @@ const getRecurringOccurrences = (recurringTransactions = [], startDate, endDate)
         default: return;
       }
     }
-
-    // Ajoute toutes occurrences entre startDate et endDate
     while (dt <= endDate && (!tx.end_date || dt <= new Date(tx.end_date))) {
       occurrences.push({ ...tx, transaction_date: new Date(dt) });
       switch (freq) {
@@ -54,26 +48,20 @@ function MonthlyProjections() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const day = now.getDate();
     const daysRemaining = daysInMonth - day;
-
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month, daysInMonth);
-    const afterToday = new Date(year, month, day + 1);
 
-    // Occurrences de transactions récurrentes pour ce mois
     const recurrences = getRecurringOccurrences(recurringTransactions ?? [], monthStart, monthEnd);
     const recurrencesPast = recurrences.filter(t => t.transaction_date <= now);
     const recurrencesFuture = recurrences.filter(t => t.transaction_date > now);
 
-    // Transactions réelles ce mois (jusqu’à aujourd’hui)
     const realTxs = transactions.filter(t => {
       const d = new Date(t.transaction_date);
       return d >= monthStart && d <= now;
     });
 
-    // Combine les transactions réelles et récurrentes passées
     const combinedTxs = [...realTxs, ...recurrencesPast];
 
-    // Calculs des montants
     const income = combinedTxs.filter(t => t.type === "income").reduce((a, t) => a + t.amount, 0);
     const expenses = combinedTxs.filter(t => t.type === "expense").reduce((a, t) => a + t.amount, 0);
 
