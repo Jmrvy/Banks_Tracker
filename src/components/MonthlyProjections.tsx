@@ -1,12 +1,76 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, Brain } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, Brain, Repeat } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
-// Machine Learning helper functions
+// Helper functions pour les transactions récurrentes
+const getNextOccurrences = (recurringTransaction, fromDate, toDate) => {
+  const occurrences = [];
+  const frequency = recurringTransaction.frequency;
+  const interval = recurringTransaction.interval || 1;
+  const startDate = new Date(recurringTransaction.start_date);
+  let nextDate = new Date(startDate);
+
+  // Ajuster la date de début si elle est antérieure à fromDate
+  while (nextDate < fromDate) {
+    switch (frequency) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + interval);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + (interval * 7));
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + interval);
+        break;
+      case 'quarterly':
+        nextDate.setMonth(nextDate.getMonth() + (interval * 3));
+        break;
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + interval);
+        break;
+    }
+  }
+
+  // Générer toutes les occurrences dans la période
+  while (nextDate <= toDate && (!recurringTransaction.end_date || nextDate <= new Date(recurringTransaction.end_date))) {
+    if (nextDate >= fromDate) {
+      occurrences.push({
+        date: new Date(nextDate),
+        amount: recurringTransaction.amount,
+        type: recurringTransaction.type,
+        category: recurringTransaction.category,
+        description: recurringTransaction.description,
+        isRecurring: true,
+        originalRecurring: recurringTransaction
+      });
+    }
+
+    switch (frequency) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + interval);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + (interval * 7));
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + interval);
+        break;
+      case 'quarterly':
+        nextDate.setMonth(nextDate.getMonth() + (interval * 3));
+        break;
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + interval);
+        break;
+    }
+  }
+
+  return occurrences;
+};
+
 const calculateWeightedMovingAverage = (values, weights) => {
   if (values.length === 0) return 0;
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
@@ -17,11 +81,9 @@ const calculateWeightedMovingAverage = (values, weights) => {
 const calculateSeasonalTrend = (monthlyData, targetMonth) => {
   if (monthlyData.length < 2) return 1;
   
-  // Find same month in previous years
   const sameMonthData = monthlyData.filter(data => data.month === targetMonth);
   if (sameMonthData.length < 2) return 1;
   
-  // Calculate seasonal multiplier
   const totalAverage = monthlyData.reduce((sum, data) => sum + data.amount, 0) / monthlyData.length;
   const monthAverage = sameMonthData.reduce((sum, data) => sum + data.amount, 0) / sameMonthData.length;
   
@@ -29,13 +91,20 @@ const calculateSeasonalTrend = (monthlyData, targetMonth) => {
 };
 
 const detectSpendingPattern = (dailyData) => {
-  if (dailyData.length < 7) return { pattern: 'insufficient_data', multiplier: 1 };
+  if (dailyData.length < 7) return { pattern: 'insufficient_data', multiplier: 1, weekdayAvg: 0, weekendAvg: 0 };
   
-  // Analyze weekly patterns
-  const weekdayAvg = dailyData.filter((_, index) => index % 7 < 5).reduce((sum, val) => sum + val, 0) / (dailyData.length * 5/7);
-  const weekendAvg = dailyData.filter((_, index) => index % 7 >= 5).reduce((sum, val) => sum + val, 0) / (dailyData.length * 2/7);
+  const weekdayData = dailyData.filter((_, index) => {
+    const dayOfWeek = new Date().getDay() - dailyData.length + index + 1;
+    return dayOfWeek % 7 < 5 && dayOfWeek % 7 > 0;
+  });
+  const weekendData = dailyData.filter((_, index) => {
+    const dayOfWeek = new Date().getDay() - dailyData.length + index + 1;
+    return dayOfWeek % 7 === 0 || dayOfWeek % 7 === 6;
+  });
   
-  // Detect trend (increasing, decreasing, stable)
+  const weekdayAvg = weekdayData.length > 0 ? weekdayData.reduce((sum, val) => sum + val, 0) / weekdayData.length : 0;
+  const weekendAvg = weekendData.length > 0 ? weekendData.reduce((sum, val) => sum + val, 0) / weekendData.length : 0;
+  
   const firstHalf = dailyData.slice(0, Math.floor(dailyData.length / 2));
   const secondHalf = dailyData.slice(Math.floor(dailyData.length / 2));
   
@@ -52,28 +121,8 @@ const detectSpendingPattern = (dailyData) => {
   };
 };
 
-const polynomialRegression = (xValues, yValues, degree = 2) => {
-  if (xValues.length < degree + 1) return null;
-  
-  // Simple polynomial regression for trend analysis
-  const n = xValues.length;
-  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-  
-  for (let i = 0; i < n; i++) {
-    sumX += xValues[i];
-    sumY += yValues[i];
-    sumXY += xValues[i] * yValues[i];
-    sumX2 += xValues[i] * xValues[i];
-  }
-  
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
-  
-  return { slope, intercept };
-};
-
 export const MonthlyProjections = () => {
-  const { transactions, accounts, categories, loading } = useFinancialData();
+  const { transactions, accounts, categories, recurringTransactions, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
   const monthlyData = useMemo(() => {
@@ -84,54 +133,105 @@ export const MonthlyProjections = () => {
     const currentDay = now.getDate();
     const daysRemaining = daysInMonth - currentDay;
 
-    // Enhanced historical data analysis (last 6 months)
+    // Dates importantes
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const remainingPeriodStart = new Date(currentYear, currentMonth, currentDay + 1);
+
+    // **NOUVEAU : Génération des transactions récurrentes pour le reste du mois**
+    const recurringTransactionsThisMonth = recurringTransactions?.flatMap(recurring => 
+      getNextOccurrences(recurring, monthStart, monthEnd)
+    ) || [];
+
+    const recurringTransactionsRemaining = recurringTransactions?.flatMap(recurring => 
+      getNextOccurrences(recurring, remainingPeriodStart, monthEnd)
+    ) || [];
+
+    console.log('Transactions récurrentes trouvées pour ce mois:', recurringTransactionsThisMonth.length);
+    console.log('Transactions récurrentes restantes:', recurringTransactionsRemaining.length);
+
+    // Analyse historique (6 derniers mois) incluant les récurrentes
     const historicalMonths = Array.from({ length: 6 }, (_, i) => {
       const monthDate = new Date(currentYear, currentMonth - i - 1, 1);
-      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      const histMonthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const histMonthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
       
       const monthTransactions = transactions.filter(t => {
         const date = new Date(t.transaction_date);
-        return date >= monthStart && date <= monthEnd;
+        return date >= histMonthStart && date <= histMonthEnd;
       });
+
+      // Ajouter les transactions récurrentes historiques
+      const histRecurringTransactions = recurringTransactions?.flatMap(recurring => 
+        getNextOccurrences(recurring, histMonthStart, histMonthEnd)
+      ) || [];
+      
+      const allMonthTransactions = [...monthTransactions, ...histRecurringTransactions];
       
       return {
         month: monthDate.getMonth(),
         year: monthDate.getFullYear(),
-        income: monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
-        expenses: monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
-        transactions: monthTransactions
+        income: allMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
+        expenses: allMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+        transactions: allMonthTransactions
       };
     }).reverse();
 
-    // Current month transactions
+    // Transactions actuelles du mois (réelles + récurrentes déjà passées)
     const currentMonthTransactions = transactions.filter(t => {
       const date = new Date(t.transaction_date);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     });
 
-    // Daily spending patterns for current month
+    // Ajouter les transactions récurrentes qui auraient dû se produire jusqu'à maintenant
+    const recurringTransactionsPast = recurringTransactionsThisMonth.filter(rt => 
+      rt.date <= now
+    );
+
+    const allCurrentMonthTransactions = [...currentMonthTransactions, ...recurringTransactionsPast];
+
+    // **CALCULS AVANCÉS AVEC RÉCURRENTES**
+    
+    // Revenus et dépenses actuels (incluant récurrentes passées)
+    const monthlyIncome = allCurrentMonthTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const monthlyExpenses = allCurrentMonthTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    // Revenus et dépenses récurrents prévus pour le reste du mois
+    const remainingRecurringIncome = recurringTransactionsRemaining
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const remainingRecurringExpenses = recurringTransactionsRemaining
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    // Données quotidiennes pour le pattern analysis
     const dailyExpenses = Array.from({ length: currentDay }, (_, day) => {
-      const dayTransactions = currentMonthTransactions.filter(t => {
-        const date = new Date(t.transaction_date);
+      const dayTransactions = allCurrentMonthTransactions.filter(t => {
+        const date = new Date(t.transaction_date || t.date);
         return date.getDate() === day + 1;
       });
       return dayTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     });
 
     const dailyIncome = Array.from({ length: currentDay }, (_, day) => {
-      const dayTransactions = currentMonthTransactions.filter(t => {
-        const date = new Date(t.transaction_date);
+      const dayTransactions = allCurrentMonthTransactions.filter(t => {
+        const date = new Date(t.transaction_date || t.date);
         return date.getDate() === day + 1;
       });
       return dayTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     });
 
-    // ML-based projections
+    // Pattern analysis
     const spendingPattern = detectSpendingPattern(dailyExpenses);
     const incomePattern = detectSpendingPattern(dailyIncome);
     
-    // Seasonal analysis
+    // Analyse saisonnière
     const seasonalExpenseMultiplier = calculateSeasonalTrend(
       historicalMonths.map(m => ({ month: m.month, amount: m.expenses })), 
       currentMonth
@@ -141,8 +241,8 @@ export const MonthlyProjections = () => {
       currentMonth
     );
 
-    // Weighted moving average (more recent months have higher weight)
-    const expenseWeights = [1, 1.2, 1.5, 2, 2.5, 3]; // Recent months weighted more
+    // Moyennes pondérées historiques
+    const expenseWeights = [1, 1.2, 1.5, 2, 2.5, 3];
     const incomeWeights = [1, 1.2, 1.5, 2, 2.5, 3];
     
     const historicalExpenseAvg = calculateWeightedMovingAverage(
@@ -154,119 +254,97 @@ export const MonthlyProjections = () => {
       incomeWeights
     );
 
-    // Current month actual values
-    const monthlyIncome = currentMonthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+    // **PROJECTIONS AVANCÉES AVEC RÉCURRENTES**
     
-    const monthlyExpenses = currentMonthTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Méthode 1: Pattern + Récurrentes
+    const basicDailyExpenseAvg = currentDay > 0 ? (monthlyExpenses - recurringTransactionsPast.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)) / currentDay : 0;
+    const basicDailyIncomeAvg = currentDay > 0 ? (monthlyIncome - recurringTransactionsPast.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)) / currentDay : 0;
 
-    // Enhanced projections using multiple methods
-    const basicDailyExpenseAvg = currentDay > 0 ? monthlyExpenses / currentDay : 0;
-    const basicDailyIncomeAvg = currentDay > 0 ? monthlyIncome / currentDay : 0;
-
-    // Polynomial regression for trend analysis
-    const expenseRegression = polynomialRegression(
-      Array.from({ length: currentDay }, (_, i) => i + 1), 
-      dailyExpenses
-    );
-    const incomeRegression = polynomialRegression(
-      Array.from({ length: currentDay }, (_, i) => i + 1), 
-      dailyIncome
-    );
-
-    // Advanced projection combining multiple models
     const remainingWeekdays = Math.floor(daysRemaining * 5/7);
     const remainingWeekends = daysRemaining - remainingWeekdays;
 
-    // Method 1: Pattern-based projection with weekday/weekend adjustment
-    const patternBasedExpenseProjection = currentDay > 0 ? 
-      monthlyExpenses + (
-        (spendingPattern.weekdayAvg * remainingWeekdays) + 
-        (spendingPattern.weekendAvg * remainingWeekends)
-      ) * spendingPattern.multiplier * seasonalExpenseMultiplier
-      : historicalExpenseAvg * seasonalExpenseMultiplier;
+    const patternBasedExpenseProjection = monthlyExpenses + 
+      remainingRecurringExpenses + 
+      ((spendingPattern.weekdayAvg * remainingWeekdays) + 
+       (spendingPattern.weekendAvg * remainingWeekends)) * spendingPattern.multiplier * seasonalExpenseMultiplier;
 
-    const patternBasedIncomeProjection = currentDay > 0 ? 
-      monthlyIncome + (
-        (incomePattern.weekdayAvg * remainingWeekdays) + 
-        (incomePattern.weekendAvg * remainingWeekends)
-      ) * incomePattern.multiplier * seasonalIncomeMultiplier
-      : historicalIncomeAvg * seasonalIncomeMultiplier;
+    const patternBasedIncomeProjection = monthlyIncome + 
+      remainingRecurringIncome + 
+      ((incomePattern.weekdayAvg * remainingWeekdays) + 
+       (incomePattern.weekendAvg * remainingWeekends)) * incomePattern.multiplier * seasonalIncomeMultiplier;
 
-    // Method 2: Regression-based projection
-    const regressionExpenseProjection = expenseRegression ? 
-      monthlyExpenses + Array.from({ length: daysRemaining }, (_, i) => {
-        const dayNum = currentDay + i + 1;
-        return Math.max(0, expenseRegression.slope * dayNum + expenseRegression.intercept);
-      }).reduce((sum, val) => sum + val, 0) : patternBasedExpenseProjection;
-
-    const regressionIncomeProjection = incomeRegression ? 
-      monthlyIncome + Array.from({ length: daysRemaining }, (_, i) => {
-        const dayNum = currentDay + i + 1;
-        return Math.max(0, incomeRegression.slope * dayNum + incomeRegression.intercept);
-      }).reduce((sum, val) => sum + val, 0) : patternBasedIncomeProjection;
-
-    // Method 3: Historical average with seasonal adjustment
+    // Méthode 2: Historique + Récurrentes
     const historicalProjectedExpenses = currentDay > 0 ? 
-      (monthlyExpenses / currentDay * daysInMonth) : 
+      monthlyExpenses + remainingRecurringExpenses + (basicDailyExpenseAvg * daysRemaining) : 
       historicalExpenseAvg * seasonalExpenseMultiplier;
 
     const historicalProjectedIncome = currentDay > 0 ? 
-      (monthlyIncome / currentDay * daysInMonth) : 
+      monthlyIncome + remainingRecurringIncome + (basicDailyIncomeAvg * daysRemaining) : 
       historicalIncomeAvg * seasonalIncomeMultiplier;
 
-    // Ensemble method: weighted average of all projections
+    // Méthode 3: Récurrentes pures (baseline très fiable)
+    const recurringOnlyExpenseProjection = monthlyExpenses + remainingRecurringExpenses;
+    const recurringOnlyIncomeProjection = monthlyIncome + remainingRecurringIncome;
+
+    // Ensemble method avec pondération améliorée
     const confidenceBasedWeights = {
-      pattern: Math.min(currentDay / 7, 1), // More confident with more data
-      regression: Math.min(currentDay / 10, 0.8), // Regression needs more data
-      historical: historicalMonths.length > 2 ? 0.6 : 0.3
+      pattern: Math.min(currentDay / 7, 1) * 0.4,
+      historical: historicalMonths.length > 2 ? 0.3 : 0.15,
+      recurring: 0.3 // Poids important pour les récurrentes car très fiables
     };
 
     const totalWeight = Object.values(confidenceBasedWeights).reduce((sum, w) => sum + w, 0);
     
     const projectedExpenses = (
       (patternBasedExpenseProjection * confidenceBasedWeights.pattern) +
-      (regressionExpenseProjection * confidenceBasedWeights.regression) +
-      (historicalProjectedExpenses * confidenceBasedWeights.historical)
+      (historicalProjectedExpenses * confidenceBasedWeights.historical) +
+      (recurringOnlyExpenseProjection * confidenceBasedWeights.recurring)
     ) / totalWeight;
 
     const projectedIncome = (
       (patternBasedIncomeProjection * confidenceBasedWeights.pattern) +
-      (regressionIncomeProjection * confidenceBasedWeights.regression) +
-      (historicalProjectedIncome * confidenceBasedWeights.historical)
+      (historicalProjectedIncome * confidenceBasedWeights.historical) +
+      (recurringOnlyIncomeProjection * confidenceBasedWeights.recurring)
     ) / totalWeight;
 
     const projectedNet = projectedIncome - projectedExpenses;
 
-    // Confidence scoring
+    // Score de confiance amélioré (récurrentes augmentent la confiance)
+    const recurringCoverageExpenses = remainingRecurringExpenses > 0 ? 
+      Math.min(remainingRecurringExpenses / (projectedExpenses - monthlyExpenses), 1) : 0;
+    const recurringCoverageIncome = remainingRecurringIncome > 0 ? 
+      Math.min(remainingRecurringIncome / (projectedIncome - monthlyIncome), 1) : 0;
+
     const dataConfidence = Math.min(
-      (currentDay / daysInMonth) * 0.4 + // Current month data
-      (historicalMonths.length / 6) * 0.3 + // Historical data availability
-      (Math.min(transactions.length / 100, 1)) * 0.3, // Total transaction count
+      (currentDay / daysInMonth) * 0.3 + 
+      (historicalMonths.length / 6) * 0.25 + 
+      (Math.min(transactions.length / 100, 1)) * 0.2 +
+      ((recurringCoverageExpenses + recurringCoverageIncome) / 2) * 0.25, // Bonus récurrentes
       1
     );
 
-    // Calculate budget data
+    // Budget data avec projections récurrentes par catégorie
     const totalBudget = categories
       .filter(cat => cat.budget && cat.budget > 0)
       .reduce((sum, cat) => sum + cat.budget, 0);
 
     const budgetUsed = categories.map(category => {
-      const categoryExpenses = currentMonthTransactions
+      const categoryExpenses = allCurrentMonthTransactions
         .filter(t => t.category?.name === category.name && t.type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0);
       
-      // Project category spending using the same advanced method
+      const categoryRecurringRemaining = recurringTransactionsRemaining
+        .filter(t => t.category?.name === category.name && t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      
       const categoryDailyAvg = currentDay > 0 ? categoryExpenses / currentDay : 0;
-      const categoryProjection = categoryExpenses + (categoryDailyAvg * daysRemaining * spendingPattern.multiplier);
+      const categoryProjection = categoryExpenses + categoryRecurringRemaining + (categoryDailyAvg * daysRemaining * spendingPattern.multiplier);
       
       return {
         name: category.name,
         used: categoryExpenses,
         projected: categoryProjection,
+        recurringRemaining: categoryRecurringRemaining,
         budget: category.budget || 0,
         percentage: category.budget ? (categoryExpenses / category.budget) * 100 : 0,
         projectedPercentage: category.budget ? (categoryProjection / category.budget) * 100 : 0,
@@ -274,9 +352,8 @@ export const MonthlyProjections = () => {
       };
     }).filter(cat => cat.budget > 0);
 
-    // Enhanced recommendations
     const remainingBudget = totalBudget - monthlyExpenses;
-    const dailyBudgetRecommended = daysRemaining > 0 ? remainingBudget / daysRemaining : 0;
+    const dailyBudgetRecommended = daysRemaining > 0 ? (remainingBudget - remainingRecurringExpenses) / daysRemaining : 0;
     const projectedBudgetOverage = Math.max(0, projectedExpenses - totalBudget);
 
     return {
@@ -296,7 +373,13 @@ export const MonthlyProjections = () => {
       dailyBudgetRecommended,
       isOverBudget: projectedExpenses > totalBudget,
       budgetOverage: projectedBudgetOverage,
-      // ML-specific data
+      // Nouvelles données récurrentes
+      remainingRecurringIncome,
+      remainingRecurringExpenses,
+      recurringTransactionsCount: recurringTransactionsRemaining.length,
+      recurringCoverageExpenses,
+      recurringCoverageIncome,
+      // ML data
       spendingPattern,
       incomePattern,
       seasonalExpenseMultiplier,
@@ -305,11 +388,11 @@ export const MonthlyProjections = () => {
       historicalMonths: historicalMonths.length,
       projectionMethods: {
         pattern: patternBasedExpenseProjection,
-        regression: regressionExpenseProjection,
-        historical: historicalProjectedExpenses
+        historical: historicalProjectedExpenses,
+        recurring: recurringOnlyExpenseProjection
       }
     };
-  }, [transactions, categories]);
+  }, [transactions, categories, recurringTransactions]);
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
   const projectedBalance = totalBalance + monthlyData.projectedNet;
@@ -348,13 +431,21 @@ export const MonthlyProjections = () => {
           <p className="text-sm text-muted-foreground">
             Jour {monthlyData.currentDay} sur {monthlyData.daysInMonth} • {monthlyData.daysRemaining} jours restants
           </p>
-          <Badge variant={monthlyData.dataConfidence > 0.7 ? "default" : "secondary"}>
-            Confiance: {(monthlyData.dataConfidence * 100).toFixed(0)}%
-          </Badge>
+          <div className="flex gap-2">
+            {monthlyData.recurringTransactionsCount > 0 && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Repeat className="w-3 h-3" />
+                {monthlyData.recurringTransactionsCount} récurrentes
+              </Badge>
+            )}
+            <Badge variant={monthlyData.dataConfidence > 0.7 ? "default" : "secondary"}>
+              Confiance: {(monthlyData.dataConfidence * 100).toFixed(0)}%
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Enhanced Financial Overview */}
+        {/* Enhanced Financial Overview avec récurrentes */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -372,9 +463,9 @@ export const MonthlyProjections = () => {
               </p>
               <p className="text-xs text-muted-foreground">
                 Projection IA: {formatCurrency(monthlyData.projectedIncome)}
-                {monthlyData.seasonalIncomeMultiplier !== 1 && (
+                {monthlyData.remainingRecurringIncome > 0 && (
                   <span className="ml-1 text-blue-600">
-                    ({monthlyData.seasonalIncomeMultiplier > 1 ? '+' : ''}{((monthlyData.seasonalIncomeMultiplier - 1) * 100).toFixed(0)}% saisonnier)
+                    (+ {formatCurrency(monthlyData.remainingRecurringIncome)} récurrents)
                   </span>
                 )}
               </p>
@@ -396,15 +487,40 @@ export const MonthlyProjections = () => {
               </p>
               <p className="text-xs text-muted-foreground">
                 Projection IA: {formatCurrency(monthlyData.projectedExpenses)}
-                {monthlyData.seasonalExpenseMultiplier !== 1 && (
+                {monthlyData.remainingRecurringExpenses > 0 && (
                   <span className="ml-1 text-blue-600">
-                    ({monthlyData.seasonalExpenseMultiplier > 1 ? '+' : ''}{((monthlyData.seasonalExpenseMultiplier - 1) * 100).toFixed(0)}% saisonnier)
+                    (+ {formatCurrency(monthlyData.remainingRecurringExpenses)} récurrents)
                   </span>
                 )}
               </p>
             </div>
           </div>
         </div>
+
+        {/* Transactions récurrentes détail */}
+        {(monthlyData.remainingRecurringIncome > 0 || monthlyData.remainingRecurringExpenses > 0) && (
+          <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
+            <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">
+              <Repeat className="w-4 h-4" />
+              Transactions récurrentes prévues ce mois
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {monthlyData.remainingRecurringIncome > 0 && (
+                <div>
+                  <span className="text-green-600">Revenus: {formatCurrency(monthlyData.remainingRecurringIncome)}</span>
+                </div>
+              )}
+              {monthlyData.remainingRecurringExpenses > 0 && (
+                <div>
+                  <span className="text-red-600">Dépenses: {formatCurrency(monthlyData.remainingRecurringExpenses)}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Couverture: {(monthlyData.recurringCoverageExpenses * 100).toFixed(0)}% dépenses, {(monthlyData.recurringCoverageIncome * 100).toFixed(0)}% revenus
+            </p>
+          </div>
+        )}
 
         {/* Progress bar for month */}
         <div className="space-y-2">
@@ -426,6 +542,7 @@ export const MonthlyProjections = () => {
             <span className="text-sm font-medium flex items-center gap-2">
               Projection IA fin de mois
               <Brain className="w-3 h-3" />
+              {monthlyData.recurringTransactionsCount > 0 && <Repeat className="w-3 h-3 text-blue-600" />}
             </span>
             <DollarSign className="w-4 h-4 text-muted-foreground" />
           </div>
@@ -439,7 +556,7 @@ export const MonthlyProjections = () => {
               Solde projeté: {formatCurrency(projectedBalance)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Basé sur {monthlyData.historicalMonths} mois d'historique • Pattern: {monthlyData.spendingPattern.pattern}
+              Basé sur {monthlyData.historicalMonths} mois d'historique + {monthlyData.recurringTransactionsCount} récurrentes • Pattern: {monthlyData.spendingPattern.pattern}
             </p>
           </div>
         </div>
@@ -452,17 +569,21 @@ export const MonthlyProjections = () => {
               <p className="text-sm font-medium text-destructive">Attention: Dépassement prévu par l'IA</p>
               <p className="text-xs text-muted-foreground">
                 Projection de dépassement: {formatCurrency(monthlyData.budgetOverage)}
+                {monthlyData.remainingRecurringExpenses > 0 && (
+                  <span> (dont {formatCurrency(monthlyData.remainingRecurringExpenses)} récurrents inévitables)</span>
+                )}
               </p>
             </div>
           </div>
         )}
 
-        {/* Enhanced Budget Progress */}
+        {/* Enhanced Budget Progress avec récurrentes */}
         {monthlyData.budgetUsed.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium flex items-center gap-2">
-              Utilisation du Budget (Projections IA)
+              Utilisation du Budget (Projections IA + Récurrentes)
               <Brain className="w-3 h-3" />
+              <Repeat className="w-3 h-3 text-blue-600" />
             </h4>
             <div className="space-y-3">
               {monthlyData.budgetUsed
@@ -477,6 +598,12 @@ export const MonthlyProjections = () => {
                         style={{ backgroundColor: budget.color }}
                       />
                       <span className="font-medium">{budget.name}</span>
+                      {budget.recurringRemaining > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Repeat className="w-2 h-2 mr-1" />
+                          {formatCurrency(budget.recurringRemaining)}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-right">
                       <span className={`${
@@ -501,6 +628,9 @@ export const MonthlyProjections = () => {
                   {budget.projectedPercentage > 100 && (
                     <p className="text-xs text-red-600">
                       Dépassement projeté: {(budget.projectedPercentage - 100).toFixed(0)}%
+                      {budget.recurringRemaining > 0 && (
+                        <span> (récurrentes inévitables: {formatCurrency(budget.recurringRemaining)})</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -509,32 +639,39 @@ export const MonthlyProjections = () => {
           </div>
         )}
 
-        {/* Enhanced Recommendations */}
+        {/* Enhanced Recommendations avec récurrentes */}
         {monthlyData.totalBudget > 0 && (
           <div className="space-y-2 pt-4 border-t">
             <h4 className="text-sm font-medium flex items-center gap-2">
-              Recommandations IA
+              Recommandations IA + Récurrentes
               <Brain className="w-3 h-3" />
+              <Repeat className="w-3 h-3 text-blue-600" />
             </h4>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>
-                • Budget journalier recommandé: {formatCurrency(monthlyData.dailyBudgetRecommended)}
+                • Budget journalier recommandé (hors récurrentes): {formatCurrency(monthlyData.dailyBudgetRecommended)}
               </li>
               <li>
                 • Pattern détecté: {monthlyData.spendingPattern.pattern} 
                 ({monthlyData.spendingPattern.multiplier > 1 ? '+' : ''}{((monthlyData.spendingPattern.multiplier - 1) * 100).toFixed(0)}%)
               </li>
+              {monthlyData.recurringTransactionsCount > 0 && (
+                <li className="text-blue-600">
+                  • Transactions récurrentes: {monthlyData.recurringTransactionsCount} prévues 
+                  ({formatCurrency(monthlyData.remainingRecurringExpenses)} dépenses + {formatCurrency(monthlyData.remainingRecurringIncome)} revenus)
+                </li>
+              )}
               <li>
                 • Différence weekend/semaine: {formatCurrency(monthlyData.spendingPattern.weekendAvg - monthlyData.spendingPattern.weekdayAvg)}/jour
               </li>
-              {monthlyData.remainingBudget > 0 ? (
-                <li>• Budget restant disponible: {formatCurrency(monthlyData.remainingBudget)}</li>
+              {monthlyData.remainingBudget > monthlyData.remainingRecurringExpenses ? (
+                <li>• Budget flexible restant: {formatCurrency(monthlyData.remainingBudget - monthlyData.remainingRecurringExpenses)}</li>
               ) : (
-                <li className="text-red-600">• ⚠️ Budget déjà dépassé de {formatCurrency(Math.abs(monthlyData.remainingBudget))}</li>
+                <li className="text-red-600">• ⚠️ Budget déjà dépassé (après récurrentes: {formatCurrency(Math.abs(monthlyData.remainingBudget - monthlyData.remainingRecurringExpenses))})</li>
               )}
               <li className="text-blue-600">
                 • Confiance des prédictions: {(monthlyData.dataConfidence * 100).toFixed(0)}% 
-                (basé sur {monthlyData.historicalMonths} mois d'historique)
+                (historique + {monthlyData.recurringCoverageExpenses > 0.5 ? 'forte' : 'faible'} couverture récurrentes)
               </li>
             </ul>
           </div>
@@ -545,10 +682,14 @@ export const MonthlyProjections = () => {
           <div className="text-center py-4 text-muted-foreground">
             <p className="text-sm flex items-center justify-center gap-2">
               <Brain className="w-4 h-4" />
-              Aucun budget défini pour l'analyse IA
+              <Repeat className="w-4 h-4 text-blue-600" />
+              Analyse IA + Récurrentes disponible
             </p>
             <p className="text-xs mt-1">
-              Créez des catégories avec des budgets pour voir des projections intelligentes
+              {monthlyData.recurringTransactionsCount > 0 
+                ? `${monthlyData.recurringTransactionsCount} transactions récurrentes détectées. Créez des budgets pour une analyse complète.`
+                : "Créez des catégories avec des budgets et des transactions récurrentes pour des projections intelligentes"
+              }
             </p>
           </div>
         )}
