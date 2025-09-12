@@ -215,5 +215,3 @@ function MonthlyProjections() {
     </Card>
   );
 }
-
-export default Index;
