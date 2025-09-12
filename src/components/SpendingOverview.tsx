@@ -10,7 +10,7 @@ export const SpendingOverview = () => {
   const { formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  
+
   // Calculate spending by category from actual transactions
   const spendingData = useMemo(() => {
     return categories.map(category => {
@@ -27,7 +27,7 @@ export const SpendingOverview = () => {
         color: category.color,
         transactionCount: categoryTransactions.length
       };
-    }).filter(cat => cat.budget > 0); // Only show categories with budgets
+    }).filter(cat => cat.amount > 0 || cat.budget > 0); // Show categories with spending OR budget
   }, [transactions, categories]);
 
   const totalSpent = spendingData.reduce((sum, cat) => sum + cat.amount, 0);
@@ -83,9 +83,9 @@ export const SpendingOverview = () => {
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Aucune catégorie avec budget trouvée</p>
+            <p className="text-muted-foreground">Aucune catégorie avec dépenses ou budget trouvée</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Créez des catégories et définissez des budgets pour suivre vos dépenses
+              Créez des transactions ou définissez des budgets pour suivre vos dépenses
             </p>
           </div>
         </CardContent>
@@ -129,15 +129,19 @@ export const SpendingOverview = () => {
                   <span className={isOverBudget ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
                     {formatCurrency(category.amount)}
                   </span>
-                  <span className="text-muted-foreground">
-                    / {formatCurrency(category.budget)}
-                  </span>
+                  {category.budget > 0 && (
+                    <span className="text-muted-foreground">
+                      / {formatCurrency(category.budget)}
+                    </span>
+                  )}
                 </div>
               </div>
-              <Progress 
-                value={Math.min(percentage, 100)} 
-                className="h-2"
-              />
+              {category.budget > 0 && (
+                <Progress 
+                  value={Math.min(percentage, 100)} 
+                  className="h-2"
+                />
+              )}
               {isOverBudget && (
                 <p className="text-xs text-destructive">
                   Dépassement de {(percentage - 100).toFixed(1)}%
