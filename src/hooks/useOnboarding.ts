@@ -44,25 +44,30 @@ export function useOnboarding() {
         acc.name === 'Boursorama CB'
       );
 
-      const hasCategories = existingCategories && existingCategories.length > 0;
+      const existingCategoryNames = new Set(existingCategories?.map(cat => cat.name) || []);
+      const hasAllDefaultCategories = defaultCategories.every(cat => existingCategoryNames.has(cat.name));
 
-      if (hasFrenchAccounts && hasCategories) {
+      if (hasFrenchAccounts && hasAllDefaultCategories) {
         setIsOnboarding(false);
         return; // User already has data
       }
 
-      // Create default categories only if they don't exist
-      if (!hasCategories) {
-        const categoriesData = defaultCategories.map(cat => ({
-          ...cat,
-          user_id: user.id,
-        }));
+      // Create only missing categories
+      if (!hasAllDefaultCategories) {
+        const missingCategories = defaultCategories.filter(cat => !existingCategoryNames.has(cat.name));
+        
+        if (missingCategories.length > 0) {
+          const categoriesData = missingCategories.map(cat => ({
+            ...cat,
+            user_id: user.id,
+          }));
 
-        const { error: categoriesError } = await supabase
-          .from('categories')
-          .insert(categoriesData);
+          const { error: categoriesError } = await supabase
+            .from('categories')
+            .insert(categoriesData);
 
-        if (categoriesError) throw categoriesError;
+          if (categoriesError) throw categoriesError;
+        }
       }
 
       // Create default accounts only if they don't exist
@@ -80,7 +85,7 @@ export function useOnboarding() {
       }
 
       // Show success message only if something was created
-      if (!hasCategories || !hasFrenchAccounts) {
+      if (!hasAllDefaultCategories || !hasFrenchAccounts) {
         toast({
           title: "Bienvenue sur FinanceTracker !",
           description: "Nous avons configuré vos comptes bancaires français.",
