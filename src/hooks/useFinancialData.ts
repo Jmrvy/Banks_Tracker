@@ -35,10 +35,13 @@ export interface Category {
 
 export interface RecurringTransaction {
   id: string;
+  user_id: string;
+  account_id: string;
+  category_id: string | null;
   description: string;
   amount: number;
   type: 'income' | 'expense';
-  recurrence_type: 'weekly' | 'monthly' | 'yearly';
+  recurrence_type: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
   start_date: string;
   end_date: string | null;
   next_due_date: string;
@@ -46,6 +49,7 @@ export interface RecurringTransaction {
   account: { name: string; bank: string } | null;
   category: { name: string; color: string } | null;
   created_at: string;
+  updated_at: string;
 }
 
 export function useFinancialData() {
@@ -58,7 +62,6 @@ export function useFinancialData() {
 
   const fetchAccounts = async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from('accounts')
       .select('*')
@@ -72,9 +75,8 @@ export function useFinancialData() {
 
   const fetchTransactions = async () => {
     if (!user) return;
-
     console.log('Fetching transactions for user:', user.id);
-
+    
     const { data, error } = await supabase
       .from('transactions')
       .select(`
@@ -106,7 +108,6 @@ export function useFinancialData() {
 
   const fetchCategories = async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from('categories')
       .select('*')
@@ -120,7 +121,8 @@ export function useFinancialData() {
 
   const fetchRecurringTransactions = async () => {
     if (!user) return;
-
+    console.log('Fetching recurring transactions for user:', user.id);
+    
     const { data, error } = await supabase
       .from('recurring_transactions')
       .select(`
@@ -129,16 +131,28 @@ export function useFinancialData() {
         category:categories(name, color)
       `)
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .eq('is_active', true)
+      .order('next_due_date', { ascending: true });
 
-    if (!error && data) {
-      setRecurringTransactions(data as RecurringTransaction[]);
+    if (error) {
+      console.error('Error fetching recurring transactions:', error);
+      return;
+    }
+
+    if (data) {
+      console.log('Raw recurring transaction data:', data);
+      const processedRecurring = data.map(rt => ({
+        ...rt,
+        account: rt.account || null,
+        category: rt.category || null
+      })) as RecurringTransaction[];
+      console.log('Processed recurring transactions:', processedRecurring);
+      setRecurringTransactions(processedRecurring);
     }
   };
 
   const createAccount = async (account: Omit<Account, 'id' | 'created_at'>) => {
     if (!user) return;
-
     const { error } = await supabase
       .from('accounts')
       .insert([{ ...account, user_id: user.id }]);
@@ -151,9 +165,8 @@ export function useFinancialData() {
 
   const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string }) => {
     if (!user) return;
-
     console.log('Creating transaction:', transaction);
-
+    
     const { error } = await supabase
       .from('transactions')
       .insert([{ ...transaction, user_id: user.id }]);
@@ -180,9 +193,8 @@ export function useFinancialData() {
     transaction_date: string;
   }) => {
     if (!user) return;
-
     console.log('Creating transfer:', transfer);
-
+    
     // Create the transfer transaction (debit from source account)
     const { error } = await supabase
       .from('transactions')
@@ -212,7 +224,6 @@ export function useFinancialData() {
 
   const createCategory = async (category: Omit<Category, 'id'>) => {
     if (!user) return;
-
     const { error } = await supabase
       .from('categories')
       .insert([{ ...category, user_id: user.id }]);
@@ -223,19 +234,28 @@ export function useFinancialData() {
     return { error };
   };
 
-  const createRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id' | 'account' | 'category' | 'created_at' | 'next_due_date' | 'is_active'> & { account_id: string; category_id?: string }) => {
+  const createRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id' | 'user_id' | 'account' | 'category' | 'created_at' | 'updated_at' | 'next_due_date' | 'is_active'> & { account_id: string; category_id?: string }) => {
     if (!user) return;
-
+    
     // Calculate next due date based on recurrence type
     const startDate = new Date(recurring.start_date);
     let nextDueDate = new Date(startDate);
     
     switch (recurring.recurrence_type) {
+      case 'daily':
+        nextDueDate.setDate(startDate.getDate() + 1);
+        break;
       case 'weekly':
         nextDueDate.setDate(startDate.getDate() + 7);
         break;
+      case 'biweekly':
+        nextDueDate.setDate(startDate.getDate() + 14);
+        break;
       case 'monthly':
         nextDueDate.setMonth(startDate.getMonth() + 1);
+        break;
+      case 'quarterly':
+        nextDueDate.setMonth(startDate.getMonth() + 3);
         break;
       case 'yearly':
         nextDueDate.setFullYear(startDate.getFullYear() + 1);
@@ -266,26 +286,98 @@ export function useFinancialData() {
 
   const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date'>>) => {
     if (!user) return;
-
     const { error } = await supabase
       .from('recurring_transactions')
-      .update(updates)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id)
       .eq('user_id', user.id);
 
+    if (!error) {
+      fetchRecurringTransactions();
+    }
     return { error };
   };
 
   const deleteRecurringTransaction = async (id: string) => {
     if (!user) return;
-
     const { error } = await supabase
       .from('recurring_transactions')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id);
 
+    if (!error) {
+      fetchRecurringTransactions();
+    }
     return { error };
+  };
+
+  // New function to process due recurring transactions
+  const processDueRecurringTransactions = async () => {
+    if (!user) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const dueTransactions = recurringTransactions.filter(rt => 
+      rt.is_active && 
+      rt.next_due_date <= today &&
+      (!rt.end_date || rt.next_due_date <= rt.end_date)
+    );
+
+    for (const rt of dueTransactions) {
+      // Create the actual transaction
+      await createTransaction({
+        account_id: rt.account_id,
+        category_id: rt.category_id,
+        description: `${rt.description} (Récurrent)`,
+        amount: rt.amount,
+        type: rt.type,
+        transaction_date: rt.next_due_date
+      });
+
+      // Calculate next due date
+      const currentDue = new Date(rt.next_due_date);
+      let nextDue = new Date(currentDue);
+
+      switch (rt.recurrence_type) {
+        case 'daily':
+          nextDue.setDate(currentDue.getDate() + 1);
+          break;
+        case 'weekly':
+          nextDue.setDate(currentDue.getDate() + 7);
+          break;
+        case 'biweekly':
+          nextDue.setDate(currentDue.getDate() + 14);
+          break;
+        case 'monthly':
+          nextDue.setMonth(currentDue.getMonth() + 1);
+          break;
+        case 'quarterly':
+          nextDue.setMonth(currentDue.getMonth() + 3);
+          break;
+        case 'yearly':
+          nextDue.setFullYear(currentDue.getFullYear() + 1);
+          break;
+      }
+
+      // Update the recurring transaction with new next_due_date
+      await supabase
+        .from('recurring_transactions')
+        .update({
+          next_due_date: nextDue.toISOString().split('T')[0],
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', rt.id);
+    }
+
+    if (dueTransactions.length > 0) {
+      // Refresh data after processing
+      fetchRecurringTransactions();
+      fetchTransactions();
+      fetchAccounts();
+    }
   };
 
   useEffect(() => {
@@ -391,6 +483,7 @@ export function useFinancialData() {
     createRecurringTransaction,
     updateRecurringTransaction,
     deleteRecurringTransaction,
+    processDueRecurringTransactions,
     fetchRecurringTransactions,
     refetch: () => {
       fetchAccounts();
