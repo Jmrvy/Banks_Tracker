@@ -215,15 +215,3 @@ function MonthlyProjections() {
     </Card>
   );
 }
-
-import React from "react";
-
-function MonthlyProjections() {
-  return (
-    <div>Hello Monthly Projections</div>
-  );
-}
-
-export default MonthlyProjections;
-
-export default MonthlyProjections;
