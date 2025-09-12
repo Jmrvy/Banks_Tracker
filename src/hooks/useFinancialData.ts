@@ -14,6 +14,7 @@ export interface Account {
 
 export interface Transaction {
   id: string;
+  account_id: string;
   description: string;
   amount: number;
   type: 'income' | 'expense' | 'transfer';
