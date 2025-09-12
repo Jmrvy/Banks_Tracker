@@ -90,4 +90,6 @@ const App = () => (
   </QueryClientProvider>
 );
 
-export default App;
+export default function Index() {
+  return (/* JSX */);
+}
