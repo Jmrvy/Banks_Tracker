@@ -149,7 +149,7 @@ export const MonthlyProjections = () => {
       .filter(cat => cat.budget && cat.budget > 0)
       .reduce((sum, cat) => sum + cat.budget, 0);
 
-    // Calculate budget used per category
+    // FIXED: Enhanced budget used per category calculation
     const budgetUsed = categories.map(category => {
       const actualCategoryExpenses = currentMonthTransactions
         .filter(t => t.category?.id === category.id && t.type === 'expense')
@@ -162,9 +162,14 @@ export const MonthlyProjections = () => {
         const dailyCategoryExpenseAvg = currentDay > 0 ? actualCategoryExpenses / currentDay : 0;
         projectedCategoryExpenses = dailyCategoryExpenseAvg * daysRemaining;
       } else {
-        // Project based on recurring transactions
+        // FIXED: Project based on recurring transactions - check both category_id and category name
         projectedCategoryExpenses = futureRecurringOccurrences
-          .filter(occ => occ.category_id === category.id && occ.type === 'expense')
+          .filter(occ => {
+            // Check both category_id and category name for better matching
+            return (occ.category_id === category.id || 
+                   (occ.category && occ.category.name === category.name)) && 
+                   occ.type === 'expense';
+          })
           .reduce((sum, occ) => sum + occ.amount, 0);
       }
 
@@ -179,7 +184,14 @@ export const MonthlyProjections = () => {
         percentage: category.budget ? (totalCategoryExpenses / category.budget) * 100 : 0,
         color: category.color
       };
-    }).filter(cat => cat.budget > 0);
+    })
+    .filter(cat => cat.budget > 0)
+    // FIXED: Sort by total usage (actual + projected) descending to show most impacted first
+    .sort((a, b) => (b.used || 0) - (a.used || 0));
+
+    // Separate categories with spending vs no spending for better display
+    const categoriesWithSpending = budgetUsed.filter(cat => cat.used > 0);
+    const categoriesWithoutSpending = budgetUsed.filter(cat => cat.used === 0);
 
     // Calculate remaining budget and daily recommendations
     const remainingBudget = totalBudget - projectedExpenses;
@@ -211,9 +223,11 @@ export const MonthlyProjections = () => {
       futureRecurringCount: futureRecurringOccurrences.length,
       upcomingRecurring,
       
-      // Budget tracking
+      // Budget tracking - FIXED
       totalBudget,
       budgetUsed,
+      categoriesWithSpending,
+      categoriesWithoutSpending,
       remainingBudget,
       dailyBudgetRecommended,
       
@@ -514,55 +528,79 @@ export const MonthlyProjections = () => {
           </div>
         )}
 
-        {/* Budget Progress */}
-        {monthlyData.budgetUsed.length > 0 && (
+        {/* Budget Progress - ENHANCED */}
+        {(monthlyData.categoriesWithSpending.length > 0 || monthlyData.categoriesWithoutSpending.length > 0) && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium">
               Utilisation du Budget (incluant {useSpendingPatterns ? 'patterns' : 'récurrents'})
             </h4>
-            <div className="space-y-3">
-              {monthlyData.budgetUsed
-                .sort((a, b) => b.percentage - a.percentage)
-                .slice(0, 4)
-                .map((budget) => (
-                <div key={budget.name} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: budget.color }}
-                      />
-                      <span className="font-medium">{budget.name}</span>
-                      {budget.projected > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          {useSpendingPatterns ? (
-                            <BarChart3 className="w-2 h-2 mr-1" />
-                          ) : (
-                            <Repeat className="w-2 h-2 mr-1" />
-                          )}
-                          +{formatCurrency(budget.projected)}
-                        </Badge>
-                      )}
+            
+            {/* Categories with spending (most impacted first) */}
+            {monthlyData.categoriesWithSpending.length > 0 && (
+              <div className="space-y-3">
+                {monthlyData.categoriesWithSpending.map((budget) => (
+                  <div key={budget.name} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: budget.color }}
+                        />
+                        <span className="font-medium">{budget.name}</span>
+                        {budget.projected > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            {useSpendingPatterns ? (
+                              <BarChart3 className="w-2 h-2 mr-1" />
+                            ) : (
+                              <Repeat className="w-2 h-2 mr-1" />
+                            )}
+                            +{formatCurrency(budget.projected)}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className={`${
+                        budget.percentage > 100 ? 'text-red-600 font-semibold' : 
+                        budget.percentage > 80 ? 'text-orange-600' : 'text-muted-foreground'
+                      }`}>
+                        {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
+                      </span>
                     </div>
-                    <span className={`${
-                      budget.percentage > 100 ? 'text-red-600 font-semibold' : 
-                      budget.percentage > 80 ? 'text-orange-600' : 'text-muted-foreground'
-                    }`}>
-                      {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
-                    </span>
+                    <Progress 
+                      value={Math.min(budget.percentage, 100)} 
+                      className="h-2"
+                    />
+                    {budget.percentage > 100 && (
+                      <p className="text-xs text-red-600">
+                        Dépassement prévu de {(budget.percentage - 100).toFixed(0)}%
+                      </p>
+                    )}
                   </div>
-                  <Progress 
-                    value={Math.min(budget.percentage, 100)} 
-                    className="h-2"
-                  />
-                  {budget.percentage > 100 && (
-                    <p className="text-xs text-red-600">
-                      Dépassement prévu de {(budget.percentage - 100).toFixed(0)}%
-                    </p>
-                  )}
+                ))}
+              </div>
+            )}
+
+            {/* Categories without spending (grayed out) */}
+            {monthlyData.categoriesWithoutSpending.length > 0 && (
+              <div className="space-y-2 mt-4 pt-3 border-t border-muted">
+                <span className="text-xs text-muted-foreground">Catégories sans dépenses</span>
+                <div className="space-y-2">
+                  {monthlyData.categoriesWithoutSpending.map((budget) => (
+                    <div key={budget.name} className="flex items-center justify-between text-sm opacity-60">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: budget.color }}
+                        />
+                        <span>{budget.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -572,6 +610,24 @@ export const MonthlyProjections = () => {
             <h4 className="text-sm font-medium">
               Recommandations (basées sur {useSpendingPatterns ? 'patterns' : 'récurrents'})
             </h4>
+            
+            {/* Top spending categories */}
+            {monthlyData.categoriesWithSpending.length > 0 && (
+              <div className="mb-3 p-3 bg-yellow-50/50 rounded-lg border border-yellow-200">
+                <h5 className="text-xs font-medium text-yellow-800 mb-2">Catégories les plus impactées:</h5>
+                <div className="space-y-1">
+                  {monthlyData.categoriesWithSpending.slice(0, 3).map(cat => (
+                    <div key={cat.name} className="text-xs text-yellow-700">
+                      • <span className="font-medium">{cat.name}</span>: 
+                      {cat.actual > 0 && <span> {formatCurrency(cat.actual)} dépensé</span>}
+                      {cat.projected > 0 && <span> + {formatCurrency(cat.projected)} prévu</span>}
+                      {cat.percentage > 100 && <span className="text-red-600"> (dépassement!)</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>
                 • Budget journalier recommandé: {formatCurrency(monthlyData.dailyBudgetRecommended)}
