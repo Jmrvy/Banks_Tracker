@@ -1,32 +1,13 @@
-import { useEffect, useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export function useOnboarding() {
-  const { toast } = useToast();
+  // Hook simplifié qui ne fait rien
   const [isOnboarding] = useState(false);
-  const [hasShownWelcome, setHasShownWelcome] = useState(false);
   
   const createDefaultData = async () => {
-    // Message de bienvenue simple sans création de données
-    if (!hasShownWelcome) {
-      toast({
-        title: "Bienvenue sur FinanceTracker !",
-        description: "Commencez par créer vos comptes et catégories.",
-      });
-      setHasShownWelcome(true);
-    }
+    // Fonction vide - ne fait plus rien
+    console.log('Onboarding désactivé');
   };
-
-  // Affiche le message une seule fois au chargement
-  useEffect(() => {
-    if (!hasShownWelcome) {
-      const timer = setTimeout(() => {
-        createDefaultData();
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [hasShownWelcome]);
 
   return { 
     isOnboarding, 
