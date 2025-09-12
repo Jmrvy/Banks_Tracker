@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { TrendingUp, TrendingDown, DollarSign, Repeat, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData } from "@/hooks/financialData";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 
