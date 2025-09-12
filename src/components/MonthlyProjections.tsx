@@ -1,13 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, Repeat } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export const MonthlyProjections = () => {
-  const { transactions, accounts, categories, loading } = useFinancialData();
+  const { transactions, accounts, categories, recurringTransactions, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
   const monthlyData = useMemo(() => {
@@ -18,28 +18,107 @@ export const MonthlyProjections = () => {
     const currentDay = now.getDate();
     const daysRemaining = daysInMonth - currentDay;
 
+    // Helper function to calculate next occurrence of a recurring transaction
+    const getNextOccurrences = (recurring, fromDate, toDate) => {
+      const occurrences = [];
+      const startDate = new Date(Math.max(fromDate.getTime(), new Date(recurring.next_due_date).getTime()));
+      const endDate = toDate;
+      
+      // Check if recurring transaction has ended
+      if (recurring.end_date && new Date(recurring.end_date) < fromDate) {
+        return occurrences;
+      }
+
+      let currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        // Don't include if past end_date
+        if (recurring.end_date && currentDate > new Date(recurring.end_date)) {
+          break;
+        }
+
+        occurrences.push({
+          date: new Date(currentDate),
+          amount: recurring.amount,
+          type: recurring.type,
+          description: recurring.description,
+          category: recurring.category,
+          category_id: recurring.category_id
+        });
+
+        // Calculate next occurrence based on recurrence_type
+        switch (recurring.recurrence_type) {
+          case 'daily':
+            currentDate.setDate(currentDate.getDate() + 1);
+            break;
+          case 'weekly':
+            currentDate.setDate(currentDate.getDate() + 7);
+            break;
+          case 'biweekly':
+            currentDate.setDate(currentDate.getDate() + 14);
+            break;
+          case 'monthly':
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            currentDate.setMonth(currentDate.getMonth() + 3);
+            break;
+          case 'yearly':
+            currentDate.setFullYear(currentDate.getFullYear() + 1);
+            break;
+          default:
+            // Unknown recurrence type, break to avoid infinite loop
+            break;
+        }
+      }
+
+      return occurrences;
+    };
+
     // Filter transactions for current month
     const currentMonthTransactions = transactions.filter(t => {
       const date = new Date(t.transaction_date);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     });
 
-    // Calculate current month income and expenses
-    const monthlyIncome = currentMonthTransactions
+    // Calculate current month income and expenses from actual transactions
+    const actualMonthlyIncome = currentMonthTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const monthlyExpenses = currentMonthTransactions
+    const actualMonthlyExpenses = currentMonthTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    // Calculate daily averages
-    const dailyIncomeAvg = currentDay > 0 ? monthlyIncome / currentDay : 0;
-    const dailyExpenseAvg = currentDay > 0 ? monthlyExpenses / currentDay : 0;
+    // Get projected recurring transactions for the remaining days of the month
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const todayDate = new Date(currentYear, currentMonth, currentDay);
 
-    // Project for end of month
-    const projectedIncome = monthlyIncome + (dailyIncomeAvg * daysRemaining);
-    const projectedExpenses = monthlyExpenses + (dailyExpenseAvg * daysRemaining);
+    // Get all recurring transaction occurrences for the current month
+    const allRecurringOccurrences = [];
+    recurringTransactions?.forEach(recurring => {
+      if (recurring.is_active) {
+        const occurrences = getNextOccurrences(recurring, monthStart, monthEnd);
+        allRecurringOccurrences.push(...occurrences);
+      }
+    });
+
+    // Split recurring transactions into past (already should have been processed) and future
+    const futureRecurringOccurrences = allRecurringOccurrences.filter(occ => occ.date > todayDate);
+
+    // Calculate projected income/expenses from recurring transactions
+    const projectedRecurringIncome = futureRecurringOccurrences
+      .filter(occ => occ.type === 'income')
+      .reduce((sum, occ) => sum + occ.amount, 0);
+
+    const projectedRecurringExpenses = futureRecurringOccurrences
+      .filter(occ => occ.type === 'expense')
+      .reduce((sum, occ) => sum + occ.amount, 0);
+
+    // Total projected amounts (actual + future recurring)
+    const projectedIncome = actualMonthlyIncome + projectedRecurringIncome;
+    const projectedExpenses = actualMonthlyExpenses + projectedRecurringExpenses;
     const projectedNet = projectedIncome - projectedExpenses;
 
     // Calculate total budget from categories
@@ -47,44 +126,76 @@ export const MonthlyProjections = () => {
       .filter(cat => cat.budget && cat.budget > 0)
       .reduce((sum, cat) => sum + cat.budget, 0);
 
-    // Calculate budget used per category
+    // Calculate budget used per category (including projected recurring expenses)
     const budgetUsed = categories.map(category => {
-      const categoryExpenses = currentMonthTransactions
-        .filter(t => t.category?.name === category.name && t.type === 'expense')
+      const actualCategoryExpenses = currentMonthTransactions
+        .filter(t => t.category?.id === category.id && t.type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0);
+
+      const projectedCategoryExpenses = futureRecurringOccurrences
+        .filter(occ => occ.category_id === category.id && occ.type === 'expense')
+        .reduce((sum, occ) => sum + occ.amount, 0);
+
+      const totalCategoryExpenses = actualCategoryExpenses + projectedCategoryExpenses;
       
       return {
         name: category.name,
-        used: categoryExpenses,
+        used: totalCategoryExpenses,
+        actual: actualCategoryExpenses,
+        projected: projectedCategoryExpenses,
         budget: category.budget || 0,
-        percentage: category.budget ? (categoryExpenses / category.budget) * 100 : 0,
+        percentage: category.budget ? (totalCategoryExpenses / category.budget) * 100 : 0,
         color: category.color
       };
     }).filter(cat => cat.budget > 0);
 
-    // Calculate recommended daily budget
-    const remainingBudget = totalBudget - monthlyExpenses;
+    // Calculate remaining budget and daily recommendations
+    const remainingBudget = totalBudget - projectedExpenses;
     const dailyBudgetRecommended = daysRemaining > 0 ? remainingBudget / daysRemaining : 0;
 
+    // Calculate averages for historical context
+    const dailyIncomeAvg = currentDay > 0 ? actualMonthlyIncome / currentDay : 0;
+    const dailyExpenseAvg = currentDay > 0 ? actualMonthlyExpenses / currentDay : 0;
+
+    // Get upcoming recurring transactions for display
+    const upcomingRecurring = futureRecurringOccurrences
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 3); // Show next 3 upcoming
+
     return {
-      monthlyIncome,
-      monthlyExpenses,
+      // Actual amounts (from transactions)
+      actualMonthlyIncome,
+      actualMonthlyExpenses,
+      
+      // Projected amounts (actual + recurring)
       projectedIncome,
       projectedExpenses,
       projectedNet,
+      
+      // Recurring transaction details
+      projectedRecurringIncome,
+      projectedRecurringExpenses,
+      futureRecurringCount: futureRecurringOccurrences.length,
+      upcomingRecurring,
+      
+      // Budget tracking
       totalBudget,
       budgetUsed,
+      remainingBudget,
+      dailyBudgetRecommended,
+      
+      // Time tracking
       currentDay,
       daysInMonth,
       daysRemaining,
       dailyIncomeAvg,
       dailyExpenseAvg,
-      remainingBudget,
-      dailyBudgetRecommended,
+      
+      // Alerts
       isOverBudget: projectedExpenses > totalBudget,
       budgetOverage: Math.max(0, projectedExpenses - totalBudget)
     };
-  }, [transactions, categories]);
+  }, [transactions, categories, recurringTransactions]);
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
   const projectedBalance = totalBalance + monthlyData.projectedNet;
@@ -118,6 +229,12 @@ export const MonthlyProjections = () => {
         <CardTitle className="flex items-center gap-2">
           <Target className="w-5 h-5" />
           Projections Mensuelles
+          {monthlyData.futureRecurringCount > 0 && (
+            <Badge variant="secondary" className="ml-2">
+              <Repeat className="w-3 h-3 mr-1" />
+              {monthlyData.futureRecurringCount} récurrentes
+            </Badge>
+          )}
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Jour {monthlyData.currentDay} sur {monthlyData.daysInMonth} • {monthlyData.daysRemaining} jours restants
@@ -133,14 +250,20 @@ export const MonthlyProjections = () => {
             </div>
             <div className="space-y-1">
               <p className="text-xl font-semibold text-green-600">
-                {formatCurrency(monthlyData.monthlyIncome)}
+                {formatCurrency(monthlyData.actualMonthlyIncome)}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Projection: {formatCurrency(monthlyData.projectedIncome)}
-              </p>
+              <div className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">
+                  Projection: {formatCurrency(monthlyData.projectedIncome)}
+                </p>
+                {monthlyData.projectedRecurringIncome > 0 && (
+                  <p className="text-xs text-blue-600">
+                    +{formatCurrency(monthlyData.projectedRecurringIncome)} récurrents
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <TrendingDown className="w-4 h-4 text-red-600" />
@@ -148,11 +271,18 @@ export const MonthlyProjections = () => {
             </div>
             <div className="space-y-1">
               <p className="text-xl font-semibold text-red-600">
-                {formatCurrency(monthlyData.monthlyExpenses)}
+                {formatCurrency(monthlyData.actualMonthlyExpenses)}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Projection: {formatCurrency(monthlyData.projectedExpenses)}
-              </p>
+              <div className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">
+                  Projection: {formatCurrency(monthlyData.projectedExpenses)}
+                </p>
+                {monthlyData.projectedRecurringExpenses > 0 && (
+                  <p className="text-xs text-red-600">
+                    +{formatCurrency(monthlyData.projectedRecurringExpenses)} récurrents
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -174,7 +304,7 @@ export const MonthlyProjections = () => {
         {/* Net Projection */}
         <div className="p-4 rounded-lg border bg-muted/30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Projection fin de mois</span>
+            <span className="text-sm font-medium">Projection fin de mois (basée sur récurrents)</span>
             <DollarSign className="w-4 h-4 text-muted-foreground" />
           </div>
           <div className="space-y-2">
@@ -189,6 +319,42 @@ export const MonthlyProjections = () => {
           </div>
         </div>
 
+        {/* Upcoming Recurring Transactions */}
+        {monthlyData.upcomingRecurring.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Repeat className="w-4 h-4" />
+              Prochaines Transactions Récurrentes
+            </h4>
+            <div className="space-y-2">
+              {monthlyData.upcomingRecurring.map((upcoming, index) => (
+                <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-sm">
+                  <div className="flex items-center space-x-2">
+                    {upcoming.category && (
+                      <div 
+                        className="w-2 h-2 rounded-full" 
+                        style={{ backgroundColor: upcoming.category.color }}
+                      />
+                    )}
+                    <span className="font-medium">{upcoming.description}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(upcoming.date).toLocaleDateString('fr-FR', { 
+                        day: 'numeric', 
+                        month: 'short' 
+                      })}
+                    </span>
+                  </div>
+                  <span className={`font-semibold ${
+                    upcoming.type === 'income' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {upcoming.type === 'income' ? '+' : '-'}{formatCurrency(upcoming.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Budget Alert */}
         {monthlyData.isOverBudget && monthlyData.totalBudget > 0 && (
           <div className="flex items-center space-x-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
@@ -202,10 +368,10 @@ export const MonthlyProjections = () => {
           </div>
         )}
 
-        {/* Budget Progress - Only show top categories with budgets */}
+        {/* Budget Progress - Enhanced with recurring transaction info */}
         {monthlyData.budgetUsed.length > 0 && (
           <div className="space-y-3">
-            <h4 className="text-sm font-medium">Utilisation du Budget</h4>
+            <h4 className="text-sm font-medium">Utilisation du Budget (incluant récurrents)</h4>
             <div className="space-y-3">
               {monthlyData.budgetUsed
                 .sort((a, b) => b.percentage - a.percentage)
@@ -219,6 +385,12 @@ export const MonthlyProjections = () => {
                         style={{ backgroundColor: budget.color }}
                       />
                       <span className="font-medium">{budget.name}</span>
+                      {budget.projected > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Repeat className="w-2 h-2 mr-1" />
+                          +{formatCurrency(budget.projected)}
+                        </Badge>
+                      )}
                     </div>
                     <span className={`${
                       budget.percentage > 100 ? 'text-red-600 font-semibold' : 
@@ -233,7 +405,7 @@ export const MonthlyProjections = () => {
                   />
                   {budget.percentage > 100 && (
                     <p className="text-xs text-red-600">
-                      Dépassement de {(budget.percentage - 100).toFixed(0)}%
+                      Dépassement prévu de {(budget.percentage - 100).toFixed(0)}%
                     </p>
                   )}
                 </div>
@@ -242,22 +414,29 @@ export const MonthlyProjections = () => {
           </div>
         )}
 
-        {/* Recommendations */}
+        {/* Enhanced Recommendations */}
         {monthlyData.totalBudget > 0 && (
           <div className="space-y-2 pt-4 border-t">
-            <h4 className="text-sm font-medium">Recommandations</h4>
+            <h4 className="text-sm font-medium">Recommandations (basées sur récurrents)</h4>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>
                 • Budget journalier recommandé: {formatCurrency(monthlyData.dailyBudgetRecommended)}
               </li>
               <li>
-                • Moyennes actuelles: {formatCurrency(monthlyData.dailyIncomeAvg)}/jour revenus, {formatCurrency(monthlyData.dailyExpenseAvg)}/jour dépenses
+                • Récurrents à venir: +{formatCurrency(monthlyData.projectedRecurringIncome)} revenus, 
+                -{formatCurrency(monthlyData.projectedRecurringExpenses)} dépenses
               </li>
               {monthlyData.remainingBudget > 0 ? (
                 <li>• Budget restant disponible: {formatCurrency(monthlyData.remainingBudget)}</li>
               ) : (
-                <li className="text-red-600">• ⚠️ Budget déjà dépassé de {formatCurrency(Math.abs(monthlyData.remainingBudget))}</li>
+                <li className="text-red-600">
+                  • ⚠️ Budget dépassé de {formatCurrency(Math.abs(monthlyData.remainingBudget))} avec récurrents
+                </li>
               )}
+              <li className="pt-1 border-t border-muted">
+                • Moyennes historiques: {formatCurrency(monthlyData.dailyIncomeAvg)}/jour revenus, 
+                {formatCurrency(monthlyData.dailyExpenseAvg)}/jour dépenses
+              </li>
             </ul>
           </div>
         )}
