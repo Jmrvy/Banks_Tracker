@@ -1,490 +1,674 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, Repeat, BarChart3, Calculator } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useState, useMemo } from "react";
+import { useFinancialData } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
-export interface Account {
-  id: string;
-  name: string;
-  bank: 'chase' | 'bofa' | 'wells_fargo' | 'citi' | 'capital_one' | 'other' | 'societe_generale' | 'revolut' | 'boursorama' | 'bnp_paribas' | 'credit_agricole' | 'lcl' | 'caisse_epargne' | 'credit_mutuel';
-  account_type: 'checking' | 'savings' | 'credit' | 'investment';
-  balance: number;
-  created_at: string;
-}
+export const MonthlyProjections = () => {
+  const { transactions, accounts, categories, recurringTransactions, loading } = useFinancialData();
+  const { formatCurrency } = useUserPreferences();
 
-export interface Transaction {
-  id: string;
-  account_id: string;
-  description: string;
-  amount: number;
-  type: 'income' | 'expense' | 'transfer';
-  transaction_date: string;
-  account: { name: string; bank: string };
-  category: { name: string; color: string } | null;
-  transfer_to_account_id?: string;
-  transfer_to_account?: { name: string; bank: string };
-  transfer_fee?: number;
-}
+  // State to toggle between recurring transactions and spending patterns
+  const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
 
-export interface Category {
-  id: string;
-  name: string;
-  color: string;
-  budget: number | null;
-}
+  const monthlyData = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const currentDay = now.getDate();
+    const daysRemaining = daysInMonth - currentDay;
 
-export interface RecurringTransaction {
-  id: string;
-  user_id: string;
-  account_id: string;
-  category_id: string | null;
-  description: string;
-  amount: number;
-  type: 'income' | 'expense';
-  recurrence_type: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
-  start_date: string;
-  end_date: string | null;
-  next_due_date: string;
-  is_active: boolean;
-  account: { name: string; bank: string } | null;
-  category: { id: string; name: string; color: string } | null; // ← Added id here
-  created_at: string;
-  updated_at: string;
-}
+    // Helper function to calculate next occurrence of a recurring transaction
+    const getNextOccurrences = (recurring, fromDate, toDate) => {
+      const occurrences = [];
+      const startDate = new Date(Math.max(fromDate.getTime(), new Date(recurring.next_due_date).getTime()));
+      const endDate = toDate;
+      
+      if (recurring.end_date && new Date(recurring.end_date) < fromDate) {
+        return occurrences;
+      }
 
-export function useFinancialData() {
-  const { user } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+      let currentDate = new Date(startDate);
 
-  const fetchAccounts = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error && data) {
-      setAccounts(data);
-    }
-  };
+      while (currentDate <= endDate) {
+        if (recurring.end_date && currentDate > new Date(recurring.end_date)) {
+          break;
+        }
 
-  const fetchTransactions = async () => {
-    if (!user) return;
-    console.log('Fetching transactions for user:', user.id);
-    
-    const { data, error } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        account:accounts!transactions_account_id_fkey(name, bank),
-        category:categories(name, color),
-        transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
-      `)
-      .eq('user_id', user.id)
-      .order('transaction_date', { ascending: false })
-      .limit(50);
+        occurrences.push({
+          date: new Date(currentDate),
+          amount: recurring.amount,
+          type: recurring.type,
+          description: recurring.description,
+          category: recurring.category,
+          category_id: recurring.category_id
+        });
 
-    if (error) {
-      console.error('Error fetching transactions:', error);
-      return;
-    }
+        switch (recurring.recurrence_type) {
+          case 'daily':
+            currentDate.setDate(currentDate.getDate() + 1);
+            break;
+          case 'weekly':
+            currentDate.setDate(currentDate.getDate() + 7);
+            break;
+          case 'biweekly':
+            currentDate.setDate(currentDate.getDate() + 14);
+            break;
+          case 'monthly':
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            currentDate.setMonth(currentDate.getMonth() + 3);
+            break;
+          case 'yearly':
+            currentDate.setFullYear(currentDate.getFullYear() + 1);
+            break;
+          default:
+            break;
+        }
+      }
 
-    if (data) {
-      console.log('Raw transaction data:', data);
-      const processedTransactions = data.map(t => ({
-        ...t,
-        account: t.account || { name: 'Unknown', bank: 'unknown' },
-        transfer_to_account: t.transfer_to_account || undefined
-      })) as Transaction[];
-      console.log('Processed transactions:', processedTransactions);
-      setTransactions(processedTransactions);
-    }
-  };
+      return occurrences;
+    };
 
-  const fetchCategories = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('name');
+    // Filter transactions for current month
+    const currentMonthTransactions = transactions.filter(t => {
+      const date = new Date(t.transaction_date);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    });
 
-    if (!error && data) {
-      setCategories(data);
-    }
-  };
+    // Calculate current month income and expenses from actual transactions
+    const actualMonthlyIncome = currentMonthTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
 
-  // FIXED: Added 'id' to category select
-  const fetchRecurringTransactions = async () => {
-    if (!user) return;
-    console.log('Fetching recurring transactions for user:', user.id);
-    
-    const { data, error } = await supabase
-      .from('recurring_transactions')
-      .select(`
-        *,
-        account:accounts(name, bank),
-        category:categories(id, name, color)
-      `)
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .order('next_due_date', { ascending: true });
+    const actualMonthlyExpenses = currentMonthTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
 
-    if (error) {
-      console.error('Error fetching recurring transactions:', error);
-      return;
-    }
+    const actualNetCashFlow = actualMonthlyIncome - actualMonthlyExpenses;
 
-    if (data) {
-      console.log('Raw recurring transaction data:', data);
-      const processedRecurring = data.map(rt => ({
-        ...rt,
-        account: rt.account || null,
-        category: rt.category || null
-      })) as RecurringTransaction[];
-      console.log('Processed recurring transactions:', processedRecurring);
-      setRecurringTransactions(processedRecurring);
-    }
-  };
+    // Get projected recurring transactions for the remaining days of the month
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const todayDate = new Date(currentYear, currentMonth, currentDay);
 
-  const createAccount = async (account: Omit<Account, 'id' | 'created_at'>) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from('accounts')
-      .insert([{ ...account, user_id: user.id }]);
+    // Get all recurring transaction occurrences for the current month
+    const allRecurringOccurrences = [];
+    recurringTransactions?.forEach(recurring => {
+      if (recurring.is_active) {
+        const occurrences = getNextOccurrences(recurring, monthStart, monthEnd);
+        allRecurringOccurrences.push(...occurrences);
+      }
+    });
 
-    if (!error) {
-      fetchAccounts();
-    }
-    return { error };
-  };
+    // Split recurring transactions into past and future
+    const futureRecurringOccurrences = allRecurringOccurrences.filter(occ => occ.date > todayDate);
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string }) => {
-    if (!user) return;
-    console.log('Creating transaction:', transaction);
-    
-    const { error } = await supabase
-      .from('transactions')
-      .insert([{ ...transaction, user_id: user.id }]);
+    // Calculate projected income/expenses from recurring transactions
+    const projectedRecurringIncome = futureRecurringOccurrences
+      .filter(occ => occ.type === 'income')
+      .reduce((sum, occ) => sum + occ.amount, 0);
 
-    if (error) {
-      console.error('Error creating transaction:', error);
-    } else {
-      console.log('Transaction created successfully, refetching data...');
-      setTimeout(() => {
-        fetchTransactions();
-        fetchAccounts();
-      }, 100);
-    }
-    return { error };
-  };
+    const projectedRecurringExpenses = futureRecurringOccurrences
+      .filter(occ => occ.type === 'expense')
+      .reduce((sum, occ) => sum + occ.amount, 0);
 
-  const createTransfer = async (transfer: {
-    description: string;
-    amount: number;
-    from_account_id: string;
-    to_account_id: string;
-    transfer_fee?: number;
-    transaction_date: string;
-  }) => {
-    if (!user) return;
-    console.log('Creating transfer:', transfer);
-    
-    const { error } = await supabase
-      .from('transactions')
-      .insert([{
-        description: transfer.description,
-        amount: transfer.amount,
-        type: 'transfer',
-        account_id: transfer.from_account_id,
-        transfer_to_account_id: transfer.to_account_id,
-        transfer_fee: transfer.transfer_fee || 0,
-        transaction_date: transfer.transaction_date,
-        user_id: user.id
-      }]);
+    const futureRecurringNet = projectedRecurringIncome - projectedRecurringExpenses;
 
-    if (error) {
-      console.error('Error creating transfer:', error);
-    } else {
-      console.log('Transfer created successfully, refetching data...');
-      setTimeout(() => {
-        fetchTransactions();
-        fetchAccounts();
-      }, 100);
-    }
-    return { error };
-  };
+    // Calculate averages for spending patterns
+    const dailyIncomeAvg = currentDay > 0 ? actualMonthlyIncome / currentDay : 0;
+    const dailyExpenseAvg = currentDay > 0 ? actualMonthlyExpenses / currentDay : 0;
 
-  const createCategory = async (category: Omit<Category, 'id'>) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from('categories')
-      .insert([{ ...category, user_id: user.id }]);
+    // Future projections based on spending patterns (only remaining days)
+    const futureIncomeFromPatterns = dailyIncomeAvg * daysRemaining;
+    const futureExpensesFromPatterns = dailyExpenseAvg * daysRemaining;
+    const futurePatternNet = futureIncomeFromPatterns - futureExpensesFromPatterns;
 
-    if (!error) {
-      fetchCategories();
-    }
-    return { error };
-  };
+    // Projections based on spending patterns (total month)
+    const projectedIncomeFromPatterns = actualMonthlyIncome + futureIncomeFromPatterns;
+    const projectedExpensesFromPatterns = actualMonthlyExpenses + futureExpensesFromPatterns;
 
-  const createRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id' | 'user_id' | 'account' | 'category' | 'created_at' | 'updated_at' | 'next_due_date' | 'is_active'> & { account_id: string; category_id?: string }) => {
-    if (!user) return;
-    
-    // Calculate next due date based on recurrence type
-    const startDate = new Date(recurring.start_date);
-    let nextDueDate = new Date(startDate);
-    
-    switch (recurring.recurrence_type) {
-      case 'daily':
-        nextDueDate.setDate(startDate.getDate() + 1);
-        break;
-      case 'weekly':
-        nextDueDate.setDate(startDate.getDate() + 7);
-        break;
-      case 'biweekly':
-        nextDueDate.setDate(startDate.getDate() + 14);
-        break;
-      case 'monthly':
-        nextDueDate.setMonth(startDate.getMonth() + 1);
-        break;
-      case 'quarterly':
-        nextDueDate.setMonth(startDate.getMonth() + 3);
-        break;
-      case 'yearly':
-        nextDueDate.setFullYear(startDate.getFullYear() + 1);
-        break;
-    }
+    // Choose projection method based on toggle
+    const projectedIncome = useSpendingPatterns 
+      ? projectedIncomeFromPatterns 
+      : actualMonthlyIncome + projectedRecurringIncome;
+      
+    const projectedExpenses = useSpendingPatterns 
+      ? projectedExpensesFromPatterns 
+      : actualMonthlyExpenses + projectedRecurringExpenses;
 
-    const { error } = await supabase
-      .from('recurring_transactions')
-      .insert([{
-        description: recurring.description,
-        amount: recurring.amount,
-        type: recurring.type,
-        recurrence_type: recurring.recurrence_type,
-        start_date: recurring.start_date,
-        end_date: recurring.end_date,
-        next_due_date: nextDueDate.toISOString().split('T')[0],
-        is_active: true,
-        account_id: recurring.account_id,
-        category_id: recurring.category_id,
-        user_id: user.id
-      }]);
+    const projectedNet = projectedIncome - projectedExpenses;
 
-    if (!error) {
-      fetchRecurringTransactions();
-    }
-    return { error };
-  };
+    // Calculate total budget from categories
+    const totalBudget = categories
+      .filter(cat => cat.budget && cat.budget > 0)
+      .reduce((sum, cat) => sum + cat.budget, 0);
 
-  const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date'>>) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from('recurring_transactions')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .eq('user_id', user.id);
+    // FIXED: Enhanced budget used per category calculation
+    const budgetUsed = categories.map(category => {
+      const actualCategoryExpenses = currentMonthTransactions
+        .filter(t => t.category?.id === category.id && t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
 
-    if (!error) {
-      fetchRecurringTransactions();
-    }
-    return { error };
-  };
+      let projectedCategoryExpenses = 0;
 
-  const deleteRecurringTransaction = async (id: string) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from('recurring_transactions')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      if (useSpendingPatterns) {
+        // Project based on daily averages for this category
+        const dailyCategoryExpenseAvg = currentDay > 0 ? actualCategoryExpenses / currentDay : 0;
+        projectedCategoryExpenses = dailyCategoryExpenseAvg * daysRemaining;
+      } else {
+        // FIXED: Project based on recurring transactions - check both category_id and category name
+        projectedCategoryExpenses = futureRecurringOccurrences
+          .filter(occ => {
+            // Check both category_id and category name for better matching
+            return (occ.category_id === category.id || 
+                   (occ.category && occ.category.name === category.name)) && 
+                   occ.type === 'expense';
+          })
+          .reduce((sum, occ) => sum + occ.amount, 0);
+      }
 
-    if (!error) {
-      fetchRecurringTransactions();
-    }
-    return { error };
-  };
+      const totalCategoryExpenses = actualCategoryExpenses + projectedCategoryExpenses;
+      
+      return {
+        name: category.name,
+        used: totalCategoryExpenses,
+        actual: actualCategoryExpenses,
+        projected: projectedCategoryExpenses,
+        budget: category.budget || 0,
+        percentage: category.budget ? (totalCategoryExpenses / category.budget) * 100 : 0,
+        color: category.color
+      };
+    })
+    .filter(cat => cat.budget > 0)
+    // FIXED: Sort by total usage (actual + projected) descending to show most impacted first
+    .sort((a, b) => (b.used || 0) - (a.used || 0));
 
-  const processDueRecurringTransactions = async () => {
-    if (!user) return;
-    
-    const today = new Date().toISOString().split('T')[0];
-    const dueTransactions = recurringTransactions.filter(rt => 
-      rt.is_active && 
-      rt.next_due_date <= today &&
-      (!rt.end_date || rt.next_due_date <= rt.end_date)
+    // Separate categories with spending vs no spending for better display
+    const categoriesWithSpending = budgetUsed.filter(cat => cat.used > 0);
+    const categoriesWithoutSpending = budgetUsed.filter(cat => cat.used === 0);
+
+    // Calculate remaining budget and daily recommendations
+    const remainingBudget = totalBudget - projectedExpenses;
+    const dailyBudgetRecommended = daysRemaining > 0 ? remainingBudget / daysRemaining : 0;
+
+    // Get upcoming recurring transactions for display
+    const upcomingRecurring = futureRecurringOccurrences
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 3);
+
+    return {
+      // Actual amounts (from transactions)
+      actualMonthlyIncome,
+      actualMonthlyExpenses,
+      actualNetCashFlow,
+      
+      // Projected amounts (based on selected method)
+      projectedIncome,
+      projectedExpenses,
+      projectedNet,
+      
+      // Future projections
+      futureRecurringNet,
+      futurePatternNet,
+      projectedRecurringIncome,
+      projectedRecurringExpenses,
+      futureIncomeFromPatterns,
+      futureExpensesFromPatterns,
+      futureRecurringCount: futureRecurringOccurrences.length,
+      upcomingRecurring,
+      
+      // Budget tracking - FIXED
+      totalBudget,
+      budgetUsed,
+      categoriesWithSpending,
+      categoriesWithoutSpending,
+      remainingBudget,
+      dailyBudgetRecommended,
+      
+      // Time tracking
+      currentDay,
+      daysInMonth,
+      daysRemaining,
+      dailyIncomeAvg,
+      dailyExpenseAvg,
+      
+      // Alerts
+      isOverBudget: projectedExpenses > totalBudget,
+      budgetOverage: Math.max(0, projectedExpenses - totalBudget)
+    };
+  }, [transactions, categories, recurringTransactions, useSpendingPatterns]);
+
+  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
+  
+  // Calculate beginning of month balance (reverse engineer from current balance)
+  const beginningOfMonthBalance = totalBalance - monthlyData.actualNetCashFlow;
+  
+  // Step 1: Current balance to end of month
+  const futureNetCashFlow = useSpendingPatterns 
+    ? monthlyData.futurePatternNet
+    : monthlyData.futureRecurringNet;
+  const projectedBalanceFromCurrent = totalBalance + futureNetCashFlow;
+  
+  // Step 2: Beginning of month to end of month  
+  const projectedBalanceFromBeginning = beginningOfMonthBalance + monthlyData.projectedNet;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Projections Mensuelles
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                <div className="h-6 bg-muted rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
+  }
 
-    for (const rt of dueTransactions) {
-      // Create the actual transaction
-      await createTransaction({
-        account_id: rt.account_id,
-        category_id: rt.category_id,
-        description: `${rt.description} (Récurrent)`,
-        amount: rt.amount,
-        type: rt.type,
-        transaction_date: rt.next_due_date
-      });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Target className="w-5 h-5" />
+          Projections Mensuelles
+          {!useSpendingPatterns && monthlyData.futureRecurringCount > 0 && (
+            <Badge variant="secondary" className="ml-2">
+              <Repeat className="w-3 h-3 mr-1" />
+              {monthlyData.futureRecurringCount} récurrentes
+            </Badge>
+          )}
+          {useSpendingPatterns && (
+            <Badge variant="outline" className="ml-2">
+              <BarChart3 className="w-3 h-3 mr-1" />
+              Patterns
+            </Badge>
+          )}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Jour {monthlyData.currentDay} sur {monthlyData.daysInMonth} • {monthlyData.daysRemaining} jours restants
+        </p>
+        
+        {/* Toggle Button */}
+        <div className="mt-3">
+          <Button 
+            variant={useSpendingPatterns ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseSpendingPatterns(!useSpendingPatterns)}
+            className="flex items-center gap-2"
+          >
+            <BarChart3 className="w-3 h-3" />
+            {useSpendingPatterns ? 'Utiliser récurrents' : 'Use spending patterns'}
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Financial Overview */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+              Revenus ce mois
+            </div>
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-green-600">
+                {formatCurrency(monthlyData.actualMonthlyIncome)}
+              </p>
+              <div className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">
+                  Projection: {formatCurrency(monthlyData.projectedIncome)}
+                </p>
+                {!useSpendingPatterns && monthlyData.projectedRecurringIncome > 0 && (
+                  <p className="text-xs text-blue-600">
+                    +{formatCurrency(monthlyData.projectedRecurringIncome)} récurrents
+                  </p>
+                )}
+                {useSpendingPatterns && monthlyData.futureIncomeFromPatterns > 0 && (
+                  <p className="text-xs text-orange-600">
+                    +{formatCurrency(monthlyData.futureIncomeFromPatterns)} patterns
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <TrendingDown className="w-4 h-4 text-red-600" />
+              Dépenses ce mois
+            </div>
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-red-600">
+                {formatCurrency(monthlyData.actualMonthlyExpenses)}
+              </p>
+              <div className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">
+                  Projection: {formatCurrency(monthlyData.projectedExpenses)}
+                </p>
+                {!useSpendingPatterns && monthlyData.projectedRecurringExpenses > 0 && (
+                  <p className="text-xs text-red-600">
+                    +{formatCurrency(monthlyData.projectedRecurringExpenses)} récurrents
+                  </p>
+                )}
+                {useSpendingPatterns && monthlyData.futureExpensesFromPatterns > 0 && (
+                  <p className="text-xs text-orange-600">
+                    +{formatCurrency(monthlyData.futureExpensesFromPatterns)} patterns
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
-      // Calculate next due date
-      const currentDue = new Date(rt.next_due_date);
-      let nextDue = new Date(currentDue);
+        {/* Progress bar for month */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{monthlyData.daysInMonth - monthlyData.daysRemaining} jours écoulés</span>
+            <span>{monthlyData.daysRemaining} jours restants</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className="bg-primary h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((monthlyData.daysInMonth - monthlyData.daysRemaining) / monthlyData.daysInMonth) * 100}%` }}
+            />
+          </div>
+        </div>
 
-      switch (rt.recurrence_type) {
-        case 'daily':
-          nextDue.setDate(currentDue.getDate() + 1);
-          break;
-        case 'weekly':
-          nextDue.setDate(currentDue.getDate() + 7);
-          break;
-        case 'biweekly':
-          nextDue.setDate(currentDue.getDate() + 14);
-          break;
-        case 'monthly':
-          nextDue.setMonth(currentDue.getMonth() + 1);
-          break;
-        case 'quarterly':
-          nextDue.setMonth(currentDue.getMonth() + 3);
-          break;
-        case 'yearly':
-          nextDue.setFullYear(currentDue.getFullYear() + 1);
-          break;
-      }
+        {/* Two-Step Projection */}
+        <div className="space-y-4">
+          {/* Step 1: Current Balance to End of Month */}
+          <div className="p-4 rounded-lg border bg-blue-50/50 border-blue-200">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-blue-800 flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Étape 1: Projection depuis solde actuel
+              </span>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm">Solde actuel</span>
+                <span className="font-medium">{formatCurrency(totalBalance)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm">
+                  Flux futurs ({useSpendingPatterns ? 'patterns' : 'récurrents'})
+                </span>
+                <span className={`font-medium ${
+                  futureNetCashFlow >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {futureNetCashFlow >= 0 ? '+' : ''}{formatCurrency(futureNetCashFlow)}
+                </span>
+              </div>
+              
+              <div className="border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold">Solde projeté fin de mois</span>
+                  <span className={`text-lg font-bold ${
+                    projectedBalanceFromCurrent >= totalBalance ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(projectedBalanceFromCurrent)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      // Update the recurring transaction with new next_due_date
-      await supabase
-        .from('recurring_transactions')
-        .update({
-          next_due_date: nextDue.toISOString().split('T')[0],
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', rt.id);
-    }
+          {/* Step 2: Beginning of Month to End of Month */}
+          <div className="p-4 rounded-lg border bg-green-50/50 border-green-200">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-green-800 flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                Étape 2: Projection mensuelle complète
+              </span>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm">Solde début de mois</span>
+                <span className="font-medium">{formatCurrency(beginningOfMonthBalance)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm">Net mensuel projeté</span>
+                <span className={`font-medium ${
+                  monthlyData.projectedNet >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {monthlyData.projectedNet >= 0 ? '+' : ''}{formatCurrency(monthlyData.projectedNet)}
+                </span>
+              </div>
+              
+              <div className="border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold">Solde projeté fin de mois</span>
+                  <span className={`text-lg font-bold ${
+                    projectedBalanceFromBeginning >= beginningOfMonthBalance ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(projectedBalanceFromBeginning)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    if (dueTransactions.length > 0) {
-      // Refresh data after processing
-      fetchRecurringTransactions();
-      fetchTransactions();
-      fetchAccounts();
-    }
-  };
+          {/* Calculation verification */}
+          <div className="p-3 rounded-lg bg-muted/30 border">
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div>Étape 1: {formatCurrency(totalBalance)} + ({formatCurrency(futureNetCashFlow)}) = {formatCurrency(projectedBalanceFromCurrent)}</div>
+              <div>Étape 2: {formatCurrency(beginningOfMonthBalance)} + ({formatCurrency(monthlyData.projectedNet)}) = {formatCurrency(projectedBalanceFromBeginning)}</div>
+              <div className="pt-1 border-t border-muted text-center font-medium">
+                Les deux méthodes donnent le même résultat: {formatCurrency(projectedBalanceFromCurrent)}
+              </div>
+            </div>
+          </div>
+        </div>
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+        {/* Upcoming Recurring Transactions - Only show when not using spending patterns */}
+        {!useSpendingPatterns && monthlyData.upcomingRecurring.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Repeat className="w-4 h-4" />
+              Prochaines Transactions Récurrentes
+            </h4>
+            <div className="space-y-2">
+              {monthlyData.upcomingRecurring.map((upcoming, index) => (
+                <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-sm">
+                  <div className="flex items-center space-x-2">
+                    {upcoming.category && (
+                      <div 
+                        className="w-2 h-2 rounded-full" 
+                        style={{ backgroundColor: upcoming.category.color }}
+                      />
+                    )}
+                    <span className="font-medium">{upcoming.description}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(upcoming.date).toLocaleDateString('fr-FR', { 
+                        day: 'numeric', 
+                        month: 'short' 
+                      })}
+                    </span>
+                  </div>
+                  <span className={`font-semibold ${
+                    upcoming.type === 'income' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {upcoming.type === 'income' ? '+' : '-'}{formatCurrency(upcoming.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          fetchAccounts(),
-          fetchTransactions(),
-          fetchCategories(),
-          fetchRecurringTransactions()
-        ]);
-      } catch (error) {
-        console.error('Error loading financial data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+        {/* Budget Alert */}
+        {monthlyData.isOverBudget && monthlyData.totalBudget > 0 && (
+          <div className="flex items-center space-x-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <div>
+              <p className="text-sm font-medium text-destructive">Attention: Dépassement prévu</p>
+              <p className="text-xs text-muted-foreground">
+                Réduisez vos dépenses de {formatCurrency(monthlyData.budgetOverage)} pour respecter le budget
+              </p>
+            </div>
+          </div>
+        )}
 
-    loadData();
+        {/* Budget Progress - ENHANCED */}
+        {(monthlyData.categoriesWithSpending.length > 0 || monthlyData.categoriesWithoutSpending.length > 0) && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">
+              Utilisation du Budget (incluant {useSpendingPatterns ? 'patterns' : 'récurrents'})
+            </h4>
+            
+            {/* Categories with spending (most impacted first) */}
+            {monthlyData.categoriesWithSpending.length > 0 && (
+              <div className="space-y-3">
+                {monthlyData.categoriesWithSpending.map((budget) => (
+                  <div key={budget.name} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: budget.color }}
+                        />
+                        <span className="font-medium">{budget.name}</span>
+                        {budget.projected > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            {useSpendingPatterns ? (
+                              <BarChart3 className="w-2 h-2 mr-1" />
+                            ) : (
+                              <Repeat className="w-2 h-2 mr-1" />
+                            )}
+                            +{formatCurrency(budget.projected)}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className={`${
+                        budget.percentage > 100 ? 'text-red-600 font-semibold' : 
+                        budget.percentage > 80 ? 'text-orange-600' : 'text-muted-foreground'
+                      }`}>
+                        {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={Math.min(budget.percentage, 100)} 
+                      className="h-2"
+                    />
+                    {budget.percentage > 100 && (
+                      <p className="text-xs text-red-600">
+                        Dépassement prévu de {(budget.percentage - 100).toFixed(0)}%
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
-    // Set up real-time subscriptions
-    const channel = supabase
-      .channel('financial-data-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'accounts',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Account change detected:', payload);
-          fetchAccounts();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'transactions', 
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Transaction change detected:', payload);
-          setTimeout(() => {
-            fetchTransactions();
-            fetchAccounts();
-          }, 200);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'categories',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Category change detected:', payload);
-          fetchCategories();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'recurring_transactions',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Recurring transaction change detected:', payload);
-          fetchRecurringTransactions();
-        }
-      )
-      .subscribe();
+            {/* Categories without spending (grayed out) */}
+            {monthlyData.categoriesWithoutSpending.length > 0 && (
+              <div className="space-y-2 mt-4 pt-3 border-t border-muted">
+                <span className="text-xs text-muted-foreground">Catégories sans dépenses</span>
+                <div className="space-y-2">
+                  {monthlyData.categoriesWithoutSpending.map((budget) => (
+                    <div key={budget.name} className="flex items-center justify-between text-sm opacity-60">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: budget.color }}
+                        />
+                        <span>{budget.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
-    return () => {
-      console.log('Cleaning up real-time subscriptions');
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
+        {/* Enhanced Recommendations */}
+        {monthlyData.totalBudget > 0 && (
+          <div className="space-y-2 pt-4 border-t">
+            <h4 className="text-sm font-medium">
+              Recommandations (basées sur {useSpendingPatterns ? 'patterns' : 'récurrents'})
+            </h4>
+            
+            {/* Top spending categories */}
+            {monthlyData.categoriesWithSpending.length > 0 && (
+              <div className="mb-3 p-3 bg-yellow-50/50 rounded-lg border border-yellow-200">
+                <h5 className="text-xs font-medium text-yellow-800 mb-2">Catégories les plus impactées:</h5>
+                <div className="space-y-1">
+                  {monthlyData.categoriesWithSpending.slice(0, 3).map(cat => (
+                    <div key={cat.name} className="text-xs text-yellow-700">
+                      • <span className="font-medium">{cat.name}</span>: 
+                      {cat.actual > 0 && <span> {formatCurrency(cat.actual)} dépensé</span>}
+                      {cat.projected > 0 && <span> + {formatCurrency(cat.projected)} prévu</span>}
+                      {cat.percentage > 100 && <span className="text-red-600"> (dépassement!)</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-  return {
-    accounts,
-    transactions,
-    categories,
-    recurringTransactions,
-    loading,
-    createAccount,
-    createTransaction,
-    createTransfer,
-    createCategory,
-    createRecurringTransaction,
-    updateRecurringTransaction,
-    deleteRecurringTransaction,
-    processDueRecurringTransactions,
-    fetchRecurringTransactions,
-    refetch: () => {
-      fetchAccounts();
-      fetchTransactions();
-      fetchCategories();
-      fetchRecurringTransactions();
-    }
-  };
-}
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>
+                • Budget journalier recommandé: {formatCurrency(monthlyData.dailyBudgetRecommended)}
+              </li>
+              {!useSpendingPatterns && (
+                <li>
+                  • Récurrents à venir: +{formatCurrency(monthlyData.projectedRecurringIncome)} revenus, 
+                  -{formatCurrency(monthlyData.projectedRecurringExpenses)} dépenses
+                </li>
+              )}
+              {useSpendingPatterns && (
+                <li>
+                  • Patterns restants: +{formatCurrency(monthlyData.futureIncomeFromPatterns)} revenus, 
+                  -{formatCurrency(monthlyData.futureExpensesFromPatterns)} dépenses
+                </li>
+              )}
+              {monthlyData.remainingBudget > 0 ? (
+                <li>• Budget restant disponible: {formatCurrency(monthlyData.remainingBudget)}</li>
+              ) : (
+                <li className="text-red-600">
+                  • ⚠️ Budget dépassé de {formatCurrency(Math.abs(monthlyData.remainingBudget))}
+                </li>
+              )}
+              <li className="pt-1 border-t border-muted">
+                • Moyennes historiques: {formatCurrency(monthlyData.dailyIncomeAvg)}/jour revenus, 
+                {formatCurrency(monthlyData.dailyExpenseAvg)}/jour dépenses
+              </li>
+            </ul>
+          </div>
+        )}
+
+        {/* No budget message */}
+        {monthlyData.totalBudget === 0 && (
+          <div className="text-center py-4 text-muted-foreground">
+            <p className="text-sm">Aucun budget défini</p>
+            <p className="text-xs mt-1">
+              Créez des catégories avec des budgets pour voir des projections détaillées
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
