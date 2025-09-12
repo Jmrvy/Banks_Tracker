@@ -31,7 +31,7 @@ export const DashboardHeader = () => {
       <div className="relative overflow-hidden rounded-xl bg-card border p-8">
         <div className="flex items-center justify-between">
           <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-2 text-foreground">Dashboard</h1>
+            <h1 className="text-3xl font-bold mb-2 text-foreground">Dashboard de l'état de vos comptes bancaires</h1>
             <p className="text-lg text-muted-foreground">
               Bienvenue, {user?.user_metadata?.full_name || user?.email || 'Utilisateur'} • {currentMonth}
             </p>
