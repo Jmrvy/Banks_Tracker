@@ -231,28 +231,28 @@ export function useFinancialData() {
     return { error };
   };
 
-  const createRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id' | 'user_id' | 'account' | 'category' | 'created_at' | 'updated_at' | 'next_due_date' | 'is_active'> & { account_id: string; category_id?: string }) => {
-    if (!user) return;
+  const createRecurringTransaction = async (recurring: {
+    description: string;
+    amount: number;
+    type: 'income' | 'expense';
+    account_id: string;
+    category_id?: string;
+    recurrence_type: 'weekly' | 'monthly' | 'yearly';
+    start_date: string;
+    end_date?: string;
+  }) => {
+    if (!user) return { error: { message: 'User not authenticated' } };
     
     // Calculate next due date based on recurrence type
     const startDate = new Date(recurring.start_date);
     let nextDueDate = new Date(startDate);
     
     switch (recurring.recurrence_type) {
-      case 'daily':
-        nextDueDate.setDate(startDate.getDate() + 1);
-        break;
       case 'weekly':
         nextDueDate.setDate(startDate.getDate() + 7);
         break;
-      case 'biweekly':
-        nextDueDate.setDate(startDate.getDate() + 14);
-        break;
       case 'monthly':
         nextDueDate.setMonth(startDate.getMonth() + 1);
-        break;
-      case 'quarterly':
-        nextDueDate.setMonth(startDate.getMonth() + 3);
         break;
       case 'yearly':
         nextDueDate.setFullYear(startDate.getFullYear() + 1);
@@ -261,7 +261,7 @@ export function useFinancialData() {
 
     const { error } = await supabase
       .from('recurring_transactions')
-      .insert([{
+      .insert({
         description: recurring.description,
         amount: recurring.amount,
         type: recurring.type,
@@ -273,7 +273,7 @@ export function useFinancialData() {
         account_id: recurring.account_id,
         category_id: recurring.category_id,
         user_id: user.id
-      }]);
+      });
 
     if (!error) {
       fetchRecurringTransactions();

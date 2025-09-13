@@ -7,10 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useNavigate } from "react-router-dom";
+import { NewRecurringTransactionModal } from "@/components/NewRecurringTransactionModal";
 
 const RecurringTransactions = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [showNewRecurring, setShowNewRecurring] = useState(false);
   const { formatCurrency } = useUserPreferences();
   const { 
     recurringTransactions, 
@@ -181,7 +183,7 @@ const RecurringTransactions = () => {
                   {recurringTransactions.length} transaction{recurringTransactions.length > 1 ? 's' : ''} récurrente{recurringTransactions.length > 1 ? 's' : ''}
                 </CardDescription>
               </div>
-              <Button onClick={() => navigate("/?modal=transaction&tab=recurring")}>
+              <Button onClick={() => setShowNewRecurring(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nouvelle Récurrence
               </Button>
@@ -327,6 +329,11 @@ const RecurringTransactions = () => {
           </CardContent>
         </Card>
       </div>
+
+      <NewRecurringTransactionModal 
+        open={showNewRecurring} 
+        onOpenChange={setShowNewRecurring} 
+      />
     </div>
   );
 };

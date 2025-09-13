@@ -152,7 +152,7 @@ export const MonthlyProjections = () => {
     // FIXED: Enhanced budget used per category calculation
     const budgetUsed = categories.map(category => {
       const actualCategoryExpenses = currentMonthTransactions
-        .filter(t => t.category?.id === category.id && t.type === 'expense')
+        .filter(t => t.category?.name === category.name && t.type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0);
 
       let projectedCategoryExpenses = 0;
