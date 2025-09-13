@@ -232,13 +232,13 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
               <Label htmlFor="category">Catégorie</Label>
               <Select 
                 value={formData.category_id} 
-                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                onValueChange={(value) => setFormData({ ...formData, category_id: value === 'none' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune catégorie</SelectItem>
+                  <SelectItem value="none">Aucune catégorie</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
