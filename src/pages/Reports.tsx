@@ -21,7 +21,7 @@ import { useNavigate } from "react-router-dom";
 const Reports = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { transactions, categories, accounts, loading } = useFinancialData();
+  const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
   const [periodType, setPeriodType] = useState<"month" | "year" | "custom">("month");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
@@ -185,7 +185,7 @@ const Reports = () => {
     return months;
   }, [transactions, selectedDate, periodType, stats.initialBalance]);
 
-  // Données pour l'évolution des soldes jour par jour dans la période
+  // Données pour l'évolution des soldes jour par jour dans la période + projection
   const balanceEvolutionData = useMemo(() => {
     const sortedTransactions = filteredTransactions
       .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
@@ -197,6 +197,7 @@ const Reports = () => {
     dailyData.push({
       date: format(period.from, "dd/MM", { locale: fr }),
       solde: runningBalance,
+      soldeProjecte: runningBalance,
       dateObj: period.from
     });
 
@@ -225,12 +226,80 @@ const Reports = () => {
       dailyData.push({
         date: format(dateObj, "dd/MM", { locale: fr }),
         solde: runningBalance,
+        soldeProjecte: runningBalance,
         dateObj: dateObj
       });
     });
 
+    // Ajouter projection basée sur les transactions récurrentes
+    if (recurringTransactions && recurringTransactions.length > 0 && dailyData.length > 0) {
+      const lastDate = dailyData[dailyData.length - 1].dateObj;
+      const projectionEndDate = new Date(lastDate);
+      projectionEndDate.setMonth(projectionEndDate.getMonth() + 3); // Projection sur 3 mois
+
+      let projectedBalance = runningBalance;
+      let currentDate = new Date(lastDate);
+      currentDate.setDate(currentDate.getDate() + 1);
+
+      while (currentDate <= projectionEndDate) {
+        // Calculer l'impact des transactions récurrentes pour ce jour
+        const dailyRecurringImpact = recurringTransactions
+          .filter(rt => rt.is_active)
+          .reduce((impact, rt) => {
+            const nextDueDate = new Date(rt.next_due_date);
+            
+            // Vérifier si une récurrence est due ce jour
+            if (currentDate.toDateString() === nextDueDate.toDateString()) {
+              if (rt.type === 'income') {
+                return impact + Number(rt.amount);
+              } else if (rt.type === 'expense') {
+                return impact - Number(rt.amount);
+              }
+            }
+            return impact;
+          }, 0);
+
+        projectedBalance += dailyRecurringImpact;
+
+        // Ajouter un point tous les 7 jours pour ne pas surcharger le graphique
+        if (currentDate.getDate() % 7 === 0 || dailyRecurringImpact !== 0) {
+          dailyData.push({
+            date: format(currentDate, "dd/MM", { locale: fr }),
+            solde: null, // Pas de solde réel pour les projections
+            soldeProjecte: projectedBalance,
+            dateObj: new Date(currentDate),
+            isProjection: true
+          });
+        }
+
+        // Passer au jour suivant et mettre à jour les prochaines échéances
+        currentDate.setDate(currentDate.getDate() + 1);
+        
+        // Mettre à jour les prochaines échéances des récurrences qui ont été traitées
+        recurringTransactions.forEach(rt => {
+          const nextDueDate = new Date(rt.next_due_date);
+          if (currentDate > nextDueDate) {
+            // Calculer la prochaine échéance
+            const newNextDue = new Date(nextDueDate);
+            switch (rt.recurrence_type) {
+              case 'weekly':
+                newNextDue.setDate(newNextDue.getDate() + 7);
+                break;
+              case 'monthly':
+                newNextDue.setMonth(newNextDue.getMonth() + 1);
+                break;
+              case 'yearly':
+                newNextDue.setFullYear(newNextDue.getFullYear() + 1);
+                break;
+            }
+            rt.next_due_date = newNextDue.toISOString().split('T')[0];
+          }
+        });
+      }
+    }
+
     return dailyData;
-  }, [filteredTransactions, stats.initialBalance, period]);
+  }, [filteredTransactions, stats.initialBalance, period, recurringTransactions]);
 
   if (loading) {
     return (
@@ -255,6 +324,10 @@ const Reports = () => {
     solde: {
       label: "Solde",
       color: "hsl(217 91% 60%)" // Bleu pour le solde
+    },
+    soldeProjecte: {
+      label: "Solde Projeté",
+      color: "hsl(217 91% 80%)" // Bleu plus clair pour la projection
     }
   };
 
@@ -520,13 +593,13 @@ const Reports = () => {
                 <CardHeader className="pb-2 sm:pb-6">
                   <CardTitle className="text-lg sm:text-xl">Évolution du solde</CardTitle>
                   <CardDescription className="text-xs sm:text-sm">
-                    Évolution du solde total pour {period.label}
+                    Évolution du solde total pour {period.label} avec projection basée sur les transactions récurrentes
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfig} className="h-[250px] sm:h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart 
+                       <AreaChart 
                         data={balanceEvolutionData}
                         margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
                       >
@@ -534,6 +607,10 @@ const Reports = () => {
                           <linearGradient id="soldeGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor={chartConfig.solde.color} stopOpacity={0.3}/>
                             <stop offset="95%" stopColor={chartConfig.solde.color} stopOpacity={0.1}/>
+                          </linearGradient>
+                          <linearGradient id="soldeProjecteGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={chartConfig.soldeProjecte.color} stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor={chartConfig.soldeProjecte.color} stopOpacity={0.05}/>
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
@@ -553,23 +630,33 @@ const Reports = () => {
                         <ChartTooltip 
                           content={({ active, payload, label }) => {
                             if (active && payload && payload.length) {
-                              const value = payload[0].value;
                               return (
                                 <div className="rounded-lg border bg-background p-2 shadow-md">
                                   <p className="text-xs font-medium">{label}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div 
-                                      className="w-2 h-2 rounded-full" 
-                                      style={{ backgroundColor: chartConfig.solde.color }}
-                                    />
-                                    <span className="text-xs font-semibold">
-                                      {Number(value).toLocaleString('fr-FR', { 
-                                        style: 'currency', 
-                                        currency: 'EUR',
-                                        minimumFractionDigits: 0,
-                                        maximumFractionDigits: 0 
-                                      })}
-                                    </span>
+                                  <div className="space-y-1 mt-1">
+                                    {payload.map((entry, index) => {
+                                      if (entry.value != null) {
+                                        const isProjection = entry.dataKey === 'soldeProjecte';
+                                        return (
+                                          <div key={index} className="flex items-center gap-2">
+                                            <div 
+                                              className="w-2 h-2 rounded-full" 
+                                              style={{ backgroundColor: entry.color }}
+                                            />
+                                            <span className="text-xs font-semibold">
+                                              {isProjection ? 'Projection: ' : 'Solde: '}
+                                              {Number(entry.value).toLocaleString('fr-FR', { 
+                                                style: 'currency', 
+                                                currency: 'EUR',
+                                                minimumFractionDigits: 0,
+                                                maximumFractionDigits: 0 
+                                              })}
+                                            </span>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })}
                                   </div>
                                 </div>
                               );
@@ -585,6 +672,18 @@ const Reports = () => {
                           fill="url(#soldeGradient)"
                           dot={{ r: 2, fill: chartConfig.solde.color }}
                           activeDot={{ r: 4, fill: chartConfig.solde.color, strokeWidth: 2, stroke: '#fff' }}
+                          connectNulls={false}
+                        />
+                        <Area 
+                          type="monotone"
+                          dataKey="soldeProjecte" 
+                          stroke={chartConfig.soldeProjecte.color}
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          fill="url(#soldeProjecteGradient)"
+                          dot={{ r: 1, fill: chartConfig.soldeProjecte.color }}
+                          activeDot={{ r: 3, fill: chartConfig.soldeProjecte.color, strokeWidth: 2, stroke: '#fff' }}
+                          connectNulls={true}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
