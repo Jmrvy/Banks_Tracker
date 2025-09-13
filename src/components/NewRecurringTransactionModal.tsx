@@ -388,3 +388,5 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
     </Dialog>
   );
 }
+
+export default NewRecurringTransactionModal;

@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useNavigate } from "react-router-dom";
-import { NewRecurringTransactionModal } from "@/components/NewRecurringTransactionModal";
+import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 
 const RecurringTransactions = () => {
   const { toast } = useToast();
