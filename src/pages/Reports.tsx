@@ -8,14 +8,15 @@ import { YearPicker } from "@/components/ui/year-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears, isWithinInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, ArrowLeft, TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
+import { CalendarIcon, ArrowLeft, TrendingUp, TrendingDown, Wallet, Target, BarChart3, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area, ComposedChart, Line } from "recharts";
 import { useNavigate } from "react-router-dom";
 
 const Reports = () => {
@@ -28,6 +29,7 @@ const Reports = () => {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date())
   });
+  const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
 
   // Calcul de la période sélectionnée
   const period = useMemo(() => {
@@ -122,70 +124,7 @@ const Reports = () => {
     };
   }, [filteredTransactions, accounts, transactions, period]);
 
-  // Données pour les graphiques
-  const categoryData = useMemo(() => {
-    const expensesByCategory = filteredTransactions
-      .filter(t => t.type === 'expense' && t.category)
-      .reduce((acc, t) => {
-        const categoryName = t.category?.name || 'Non catégorisé';
-        const color = t.category?.color || '#6b7280';
-        acc[categoryName] = (acc[categoryName] || 0) + Number(t.amount);
-        return acc;
-      }, {} as Record<string, number>);
-
-    return Object.entries(expensesByCategory)
-      .map(([name, amount]) => ({
-        name,
-        amount,
-        color: categories.find(c => c.name === name)?.color || '#6b7280'
-      }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [filteredTransactions, categories]);
-
-  const monthlyData = useMemo(() => {
-    if (periodType !== 'year') return [];
-
-    const months = [];
-    let cumulativeBalance = stats.initialBalance;
-    
-    for (let i = 0; i < 12; i++) {
-      const monthDate = new Date(selectedDate.getFullYear(), i, 1);
-      const monthStart = startOfMonth(monthDate);
-      const monthEnd = endOfMonth(monthDate);
-      
-      const monthTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.transaction_date);
-        return isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
-      });
-
-      const monthIncome = monthTransactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      
-      const monthExpenses = monthTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const monthTransferFees = monthTransactions
-        .filter(t => t.type === 'transfer')
-        .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
-
-      const monthBalance = monthIncome - monthExpenses - monthTransferFees;
-      cumulativeBalance += monthBalance;
-
-      months.push({
-        month: format(monthDate, "MMM", { locale: fr }),
-        revenus: monthIncome,
-        dépenses: monthExpenses,
-        solde: cumulativeBalance,
-        variation: monthBalance
-      });
-    }
-    
-    return months;
-  }, [transactions, selectedDate, periodType, stats.initialBalance]);
-
-  // Données pour l'évolution des soldes jour par jour dans la période + projection
+  // Données pour l'évolution des soldes avec projection récurrents ET spending patterns
   const balanceEvolutionData = useMemo(() => {
     const sortedTransactions = filteredTransactions
       .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
@@ -217,7 +156,6 @@ const Reports = () => {
       const dayBalance = dayTransactions.reduce((sum, t) => {
         if (t.type === 'income') return sum + Number(t.amount);
         if (t.type === 'expense') return sum - Number(t.amount);
-        // transfer: n'affecte le total que par les frais éventuels
         return sum - Number(t.transfer_fee || 0);
       }, 0);
       
@@ -231,75 +169,171 @@ const Reports = () => {
       });
     });
 
-    // Ajouter projection basée sur les transactions récurrentes
-    if (recurringTransactions && recurringTransactions.length > 0 && dailyData.length > 0) {
+    // Projection sur 3 mois
+    if (dailyData.length > 0) {
       const lastDate = dailyData[dailyData.length - 1].dateObj;
       const projectionEndDate = new Date(lastDate);
-      projectionEndDate.setMonth(projectionEndDate.getMonth() + 3); // Projection sur 3 mois
+      projectionEndDate.setMonth(projectionEndDate.getMonth() + 3);
 
       let projectedBalance = runningBalance;
       let currentDate = new Date(lastDate);
       currentDate.setDate(currentDate.getDate() + 1);
 
-      while (currentDate <= projectionEndDate) {
-        // Calculer l'impact des transactions récurrentes pour ce jour
-        const dailyRecurringImpact = recurringTransactions
-          .filter(rt => rt.is_active)
-          .reduce((impact, rt) => {
+      if (useSpendingPatterns) {
+        // Projection basée sur les patterns de dépenses
+        const daysInPeriod = differenceInDays(period.to, period.from) + 1;
+        const dailyAvgIncome = stats.income / daysInPeriod;
+        const dailyAvgExpenses = stats.expenses / daysInPeriod;
+        const dailyNetAvg = dailyAvgIncome - dailyAvgExpenses;
+
+        while (currentDate <= projectionEndDate) {
+          projectedBalance += dailyNetAvg;
+
+          if (currentDate.getDate() % 7 === 0) {
+            dailyData.push({
+              date: format(currentDate, "dd/MM", { locale: fr }),
+              solde: null,
+              soldeProjecte: projectedBalance,
+              dateObj: new Date(currentDate),
+              isProjection: true
+            });
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else {
+        // Projection basée sur les transactions récurrentes
+        const activeRecurring = [...recurringTransactions.filter(rt => rt.is_active)];
+
+        while (currentDate <= projectionEndDate) {
+          const dailyRecurringImpact = activeRecurring.reduce((impact, rt) => {
             const nextDueDate = new Date(rt.next_due_date);
             
-            // Vérifier si une récurrence est due ce jour
             if (currentDate.toDateString() === nextDueDate.toDateString()) {
               if (rt.type === 'income') {
-                return impact + Number(rt.amount);
+                impact += Number(rt.amount);
               } else if (rt.type === 'expense') {
-                return impact - Number(rt.amount);
+                impact -= Number(rt.amount);
               }
+
+              // Calculer la prochaine échéance
+              const newNextDue = new Date(nextDueDate);
+              switch (rt.recurrence_type) {
+                case 'weekly':
+                  newNextDue.setDate(newNextDue.getDate() + 7);
+                  break;
+                case 'monthly':
+                  newNextDue.setMonth(newNextDue.getMonth() + 1);
+                  break;
+                case 'yearly':
+                  newNextDue.setFullYear(newNextDue.getFullYear() + 1);
+                  break;
+              }
+              rt.next_due_date = newNextDue.toISOString().split('T')[0];
             }
             return impact;
           }, 0);
 
-        projectedBalance += dailyRecurringImpact;
+          projectedBalance += dailyRecurringImpact;
 
-        // Ajouter un point tous les 7 jours pour ne pas surcharger le graphique
-        if (currentDate.getDate() % 7 === 0 || dailyRecurringImpact !== 0) {
-          dailyData.push({
-            date: format(currentDate, "dd/MM", { locale: fr }),
-            solde: null, // Pas de solde réel pour les projections
-            soldeProjecte: projectedBalance,
-            dateObj: new Date(currentDate),
-            isProjection: true
-          });
-        }
-
-        // Passer au jour suivant et mettre à jour les prochaines échéances
-        currentDate.setDate(currentDate.getDate() + 1);
-        
-        // Mettre à jour les prochaines échéances des récurrences qui ont été traitées
-        recurringTransactions.forEach(rt => {
-          const nextDueDate = new Date(rt.next_due_date);
-          if (currentDate > nextDueDate) {
-            // Calculer la prochaine échéance
-            const newNextDue = new Date(nextDueDate);
-            switch (rt.recurrence_type) {
-              case 'weekly':
-                newNextDue.setDate(newNextDue.getDate() + 7);
-                break;
-              case 'monthly':
-                newNextDue.setMonth(newNextDue.getMonth() + 1);
-                break;
-              case 'yearly':
-                newNextDue.setFullYear(newNextDue.getFullYear() + 1);
-                break;
-            }
-            rt.next_due_date = newNextDue.toISOString().split('T')[0];
+          if (currentDate.getDate() % 7 === 0 || dailyRecurringImpact !== 0) {
+            dailyData.push({
+              date: format(currentDate, "dd/MM", { locale: fr }),
+              solde: null,
+              soldeProjecte: projectedBalance,
+              dateObj: new Date(currentDate),
+              isProjection: true
+            });
           }
-        });
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
       }
     }
 
     return dailyData;
-  }, [filteredTransactions, stats.initialBalance, period, recurringTransactions]);
+  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns]);
+
+  // Données pour les catégories avec budgets
+  const categoryChartData = useMemo(() => {
+    const expensesByCategory = filteredTransactions
+      .filter(t => t.type === 'expense' && t.category)
+      .reduce((acc, t) => {
+        const categoryId = t.category?.id;
+        const categoryName = t.category?.name || 'Non catégorisé';
+        const category = categories.find(c => c.id === categoryId);
+        if (!acc[categoryId]) {
+          acc[categoryId] = {
+            name: categoryName,
+            spent: 0,
+            budget: Number(category?.budget || 0),
+            color: t.category?.color || '#6b7280'
+          };
+        }
+        acc[categoryId].spent += Number(t.amount);
+        return acc;
+      }, {} as Record<string, any>);
+
+    return Object.entries(expensesByCategory)
+      .map(([_, data]) => ({
+        ...data,
+        percentage: data.budget > 0 ? (data.spent / data.budget * 100).toFixed(1) : 0,
+        remaining: Math.max(0, data.budget - data.spent)
+      }))
+      .sort((a, b) => b.spent - a.spent);
+  }, [filteredTransactions, categories]);
+
+  // Données pour les transactions récurrentes
+  const recurringData = useMemo(() => {
+    const activeRecurring = recurringTransactions.filter(rt => rt.is_active);
+    
+    const monthlyIncome = activeRecurring
+      .filter(rt => rt.type === 'income')
+      .reduce((sum, rt) => {
+        const amount = Number(rt.amount);
+        switch (rt.recurrence_type) {
+          case 'weekly': return sum + (amount * 52 / 12);
+          case 'monthly': return sum + amount;
+          case 'yearly': return sum + (amount / 12);
+          default: return sum;
+        }
+      }, 0);
+
+    const monthlyExpenses = activeRecurring
+      .filter(rt => rt.type === 'expense')
+      .reduce((sum, rt) => {
+        const amount = Number(rt.amount);
+        switch (rt.recurrence_type) {
+          case 'weekly': return sum + (amount * 52 / 12);
+          case 'monthly': return sum + amount;
+          case 'yearly': return sum + (amount / 12);
+          default: return sum;
+        }
+      }, 0);
+
+    return {
+      activeRecurring,
+      monthlyIncome,
+      monthlyExpenses,
+      monthlyNet: monthlyIncome - monthlyExpenses
+    };
+  }, [recurringTransactions]);
+
+  // Données spending patterns si activé
+  const spendingPatternsData = useMemo(() => {
+    if (!useSpendingPatterns || filteredTransactions.length === 0) return null;
+
+    const daysInPeriod = differenceInDays(period.to, period.from) + 1;
+    const dailyAvgIncome = stats.income / daysInPeriod;
+    const dailyAvgExpenses = stats.expenses / daysInPeriod;
+
+    return {
+      dailyAvgIncome,
+      dailyAvgExpenses,
+      dailyNet: dailyAvgIncome - dailyAvgExpenses,
+      projectedMonthlyIncome: dailyAvgIncome * 30,
+      projectedMonthlyExpenses: dailyAvgExpenses * 30,
+      projectedMonthlyNet: (dailyAvgIncome - dailyAvgExpenses) * 30
+    };
+  }, [useSpendingPatterns, filteredTransactions, stats, period]);
 
   if (loading) {
     return (
@@ -313,21 +347,21 @@ const Reports = () => {
   }
 
   const chartConfig = {
-    revenus: { 
-      label: "Revenus", 
-      color: "hsl(142 76% 36%)" // Vert pour les revenus
-    },
-    dépenses: { 
-      label: "Dépenses", 
-      color: "hsl(346 87% 43%)" // Rouge pour les dépenses
-    },
     solde: {
       label: "Solde",
-      color: "hsl(217 91% 60%)" // Bleu pour le solde
+      color: "hsl(var(--primary))"
     },
     soldeProjecte: {
       label: "Solde Projeté",
-      color: "hsl(217 91% 80%)" // Bleu plus clair pour la projection
+      color: "hsl(var(--primary) / 0.6)"
+    },
+    spent: {
+      label: "Dépensé",
+      color: "hsl(var(--destructive))"
+    },
+    budget: {
+      label: "Budget",
+      color: "hsl(var(--muted-foreground))"
     }
   };
 
@@ -441,630 +475,585 @@ const Reports = () => {
                   </>
                 )}
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    const newDate = periodType === "month" ? subMonths(selectedDate, 1) : subYears(selectedDate, 1);
-                    setSelectedDate(newDate);
-                  }}
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline" 
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    const newDate = periodType === "month" ? subMonths(selectedDate, -1) : subYears(selectedDate, -1);
-                    setSelectedDate(newDate);
-                  }}
-                >
-                  Suivant
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Statistiques globales */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
+        {/* Résumé des soldes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Revenus</CardTitle>
-              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className="text-lg sm:text-2xl font-bold text-green-500">
-                +{stats.income.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                })}
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Revenus</p>
               </div>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                {filteredTransactions.filter(t => t.type === 'income').length} transaction(s)
-              </p>
+              <div className="mt-2">
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
+                  {stats.income.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Dépenses</CardTitle>
-              <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className="text-lg sm:text-2xl font-bold text-red-500">
-                -{stats.expenses.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                })}
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center space-x-2">
+                <TrendingDown className="h-4 w-4 text-red-600" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Dépenses</p>
               </div>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                {filteredTransactions.filter(t => t.type === 'expense').length} transaction(s)
-              </p>
+              <div className="mt-2">
+                <p className="text-lg sm:text-2xl font-bold text-red-600">
+                  {stats.expenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Solde Initial</CardTitle>
-              <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className={cn("text-lg sm:text-2xl font-bold", stats.initialBalance >= 0 ? "text-green-500" : "text-red-500")}>
-                {stats.initialBalance.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                })}
+          <Card>
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center space-x-2">
+                <Wallet className="h-4 w-4 text-blue-600" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Solde initial</p>
               </div>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                Au début de la période
-              </p>
+              <div className="mt-2">
+                <p className="text-lg sm:text-2xl font-bold">
+                  {stats.initialBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Solde Final</CardTitle>
-              <Target className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className={cn("text-lg sm:text-2xl font-bold", stats.finalBalance >= 0 ? "text-green-500" : "text-red-500")}>
-                {stats.finalBalance.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                })}
+          <Card>
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center space-x-2">
+                <Target className="h-4 w-4 text-purple-600" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Solde final</p>
               </div>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                Évolution: {stats.netPeriodBalance >= 0 ? '+' : ''}{stats.netPeriodBalance.toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                })}
-              </p>
+              <div className="mt-2">
+                <p className={cn(
+                  "text-lg sm:text-2xl font-bold",
+                  stats.finalBalance >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {stats.finalBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Comptes</CardTitle>
-              <Wallet className="h-3 w-3 sm:h-4 sm:w-4" />
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className="text-lg sm:text-2xl font-bold">
-                {accounts.length}
+          <Card>
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center space-x-2">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Comptes</p>
               </div>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                Total: {accounts.reduce((sum, acc) => sum + Number(acc.balance), 0).toLocaleString('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                })}
-              </p>
+              <div className="mt-2">
+                <p className="text-lg sm:text-2xl font-bold">
+                  {accounts.length}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Graphiques et analyses */}
-        <Tabs defaultValue="evolution" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="evolution" className="text-xs sm:text-sm">Évolution</TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-sm">Catégories</TabsTrigger>
-            <TabsTrigger value="details" className="text-xs sm:text-sm">Détails</TabsTrigger>
+        <Tabs defaultValue="evolution" className="space-y-4">
+          <TabsList className="grid w-fit grid-cols-3 mx-auto">
+            <TabsTrigger value="evolution">Évolution</TabsTrigger>
+            <TabsTrigger value="categories">Catégories</TabsTrigger>
+            <TabsTrigger value="recurring">Récapitulatif</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="evolution" className="space-y-4 sm:space-y-6">
-            {/* Évolution des soldes - Area Chart */}
-            {balanceEvolutionData.length > 1 && (
-              <Card>
-                <CardHeader className="pb-2 sm:pb-6">
-                  <CardTitle className="text-lg sm:text-xl">Évolution du solde</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Évolution du solde total pour {period.label} avec projection basée sur les transactions récurrentes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[250px] sm:h-[400px]">
+          <TabsContent value="evolution" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Évolution du solde</CardTitle>
+                    <CardDescription>
+                      Évolution de votre solde avec projection sur 3 mois
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="spending-patterns"
+                      checked={useSpendingPatterns}
+                      onCheckedChange={setUseSpendingPatterns}
+                    />
+                    <label htmlFor="spending-patterns" className="text-sm font-medium">
+                      {useSpendingPatterns ? 'Spending Patterns' : 'Récurrents'}
+                    </label>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ChartContainer config={chartConfig}>
                     <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart 
-                        data={balanceEvolutionData}
-                        margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
-                      >
-                        <defs>
-                          <linearGradient id="soldeGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={chartConfig.solde.color} stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor={chartConfig.solde.color} stopOpacity={0.1}/>
-                          </linearGradient>
-                          <linearGradient id="soldeProjecteGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={chartConfig.soldeProjecte.color} stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor={chartConfig.soldeProjecte.color} stopOpacity={0.05}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <ComposedChart data={balanceEvolutionData}>
+                        <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
                           dataKey="date" 
-                          tick={{ fontSize: 10 }}
-                          axisLine={false}
+                          fontSize={12}
                           tickLine={false}
-                          interval="preserveStartEnd"
+                          axisLine={false}
                         />
                         <YAxis 
-                          tick={{ fontSize: 10 }}
-                          axisLine={false}
+                          fontSize={12}
                           tickLine={false}
-                          tickFormatter={(value) => `${(value/1000).toFixed(0)}k€`}
+                          axisLine={false}
+                          tickFormatter={(value) => 
+                            value.toLocaleString('fr-FR', { 
+                              style: 'currency', 
+                              currency: 'EUR',
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0
+                            })
+                          }
                         />
                         <ChartTooltip 
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="rounded-lg border bg-background p-2 shadow-md">
-                                  <p className="text-xs font-medium">{label}</p>
-                                  <div className="space-y-1 mt-1">
-                                    {payload.map((entry, index) => {
-                                      if (entry.value != null) {
-                                        const isProjection = entry.dataKey === 'soldeProjecte';
-                                        return (
-                                          <div key={index} className="flex items-center gap-2">
-                                            <div 
-                                              className="w-2 h-2 rounded-full" 
-                                              style={{ backgroundColor: entry.color }}
-                                            />
-                                            <span className="text-xs font-semibold">
-                                              {isProjection ? 'Projection: ' : 'Solde: '}
-                                              {Number(entry.value).toLocaleString('fr-FR', { 
-                                                style: 'currency', 
-                                                currency: 'EUR',
-                                                minimumFractionDigits: 0,
-                                                maximumFractionDigits: 0 
-                                              })}
-                                            </span>
-                                          </div>
-                                        );
-                                      }
-                                      return null;
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
+                          content={
+                            <ChartTooltipContent 
+                              formatter={(value, name) => [
+                                typeof value === 'number' 
+                                  ? value.toLocaleString('fr-FR', { 
+                                      style: 'currency', 
+                                      currency: 'EUR' 
+                                    })
+                                  : 'N/A',
+                                name === 'solde' ? 'Solde réel' : `Solde projeté (${useSpendingPatterns ? 'patterns' : 'récurrents'})`
+                              ]}
+                              labelFormatter={(label) => `Date: ${label}`}
+                            />
+                          }
                         />
-                        <Area 
+                        <Area
                           type="monotone"
-                          dataKey="solde" 
+                          dataKey="solde"
                           stroke={chartConfig.solde.color}
-                          strokeWidth={2}
-                          fill="url(#soldeGradient)"
-                          dot={{ r: 2, fill: chartConfig.solde.color }}
-                          activeDot={{ r: 4, fill: chartConfig.solde.color, strokeWidth: 2, stroke: '#fff' }}
+                          fill={chartConfig.solde.color}
+                          fillOpacity={0.3}
                           connectNulls={false}
                         />
-                        <Area 
+                        <Line
                           type="monotone"
-                          dataKey="soldeProjecte" 
+                          dataKey="soldeProjecte"
                           stroke={chartConfig.soldeProjecte.color}
                           strokeWidth={2}
                           strokeDasharray="5 5"
-                          fill="url(#soldeProjecteGradient)"
-                          dot={{ r: 1, fill: chartConfig.soldeProjecte.color }}
-                          activeDot={{ r: 3, fill: chartConfig.soldeProjecte.color, strokeWidth: 2, stroke: '#fff' }}
+                          dot={false}
                           connectNulls={true}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            )}
-
-            {periodType === 'year' && monthlyData.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2 sm:pb-6">
-                  <CardTitle className="text-lg sm:text-xl">Évolution mensuelle</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Revenus, dépenses et solde pour {format(selectedDate, "yyyy")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[250px] sm:h-[450px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart 
-                        data={monthlyData}
-                        margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis 
-                          dataKey="month" 
-                          tick={{ fontSize: 10 }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 10 }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickFormatter={(value) => `${(value/1000).toFixed(0)}k€`}
-                        />
-                        <ChartTooltip 
-                          content={<ChartTooltipContent 
-                            formatter={(value, name) => [
-                              `${Number(value).toLocaleString('fr-FR', { 
-                                style: 'currency', 
-                                currency: 'EUR',
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 0 
-                              })}`,
-                              name === 'solde' ? 'Solde fin de mois' : name
-                            ]}
-                          />} 
-                        />
-                        <Bar 
-                          dataKey="revenus" 
-                          fill={chartConfig.revenus.color}
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={30}
-                        />
-                        <Bar 
-                          dataKey="dépenses" 
-                          fill={chartConfig.dépenses.color}
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={30}
-                        />
-                        <Line 
-                          type="monotone"
-                          dataKey="solde" 
-                          stroke={chartConfig.solde.color}
-                          strokeWidth={2}
-                          dot={{ r: 2, fill: chartConfig.solde.color }}
-                          activeDot={{ r: 4, fill: chartConfig.solde.color }}
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Résumé des soldes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Solde de début:</span>
+                    <span className="text-sm font-mono">
+                      {stats.initialBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Variation nette:</span>
+                    <span className={cn(
+                      "text-sm font-mono",
+                      stats.netPeriodBalance >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {stats.netPeriodBalance >= 0 ? "+" : ""}{stats.netPeriodBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2">
+                    <span className="text-sm font-medium">Solde de fin:</span>
+                    <span className={cn(
+                      "text-sm font-mono font-bold",
+                      stats.finalBalance >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {stats.finalBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Projection mensuelle</CardTitle>
+                  <CardDescription>
+                    Basée sur {useSpendingPatterns ? 'les patterns de dépenses' : 'les transactions récurrentes'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {useSpendingPatterns && spendingPatternsData ? (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Revenus projetés:</span>
+                        <span className="text-sm font-mono text-green-600">
+                          {spendingPatternsData.projectedMonthlyIncome.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Dépenses projetées:</span>
+                        <span className="text-sm font-mono text-red-600">
+                          {spendingPatternsData.projectedMonthlyExpenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-t pt-2">
+                        <span className="text-sm font-medium">Net mensuel projeté:</span>
+                        <span className={cn(
+                          "text-sm font-mono font-bold",
+                          spendingPatternsData.projectedMonthlyNet >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {spendingPatternsData.projectedMonthlyNet >= 0 ? "+" : ""}{spendingPatternsData.projectedMonthlyNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Revenus récurrents:</span>
+                        <span className="text-sm font-mono text-green-600">
+                          {recurringData.monthlyIncome.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Dépenses récurrentes:</span>
+                        <span className="text-sm font-mono text-red-600">
+                          {recurringData.monthlyExpenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-t pt-2">
+                        <span className="text-sm font-medium">Net récurrent mensuel:</span>
+                        <span className={cn(
+                          "text-sm font-mono font-bold",
+                          recurringData.monthlyNet >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {recurringData.monthlyNet >= 0 ? "+" : ""}{recurringData.monthlyNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="categories" className="space-y-4">
+            {categoryChartData.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dépenses par catégorie</CardTitle>
+                    <CardDescription>Montants dépensés et budgets alloués</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ChartContainer config={chartConfig}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart 
+                            data={categoryChartData} 
+                            layout="horizontal"
+                            margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                              type="number"
+                              fontSize={12}
+                              tickFormatter={(value) => 
+                                value.toLocaleString('fr-FR', { 
+                                  style: 'currency', 
+                                  currency: 'EUR',
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0
+                                })
+                              }
+                            />
+                            <YAxis 
+                              type="category"
+                              dataKey="name" 
+                              fontSize={12}
+                              width={75}
+                            />
+                            <ChartTooltip 
+                              content={
+                                <ChartTooltipContent 
+                                  formatter={(value, name) => [
+                                    typeof value === 'number' 
+                                      ? value.toLocaleString('fr-FR', { 
+                                          style: 'currency', 
+                                          currency: 'EUR' 
+                                        })
+                                      : 'N/A',
+                                    name === 'spent' ? 'Dépensé' : 'Budget'
+                                  ]}
+                                />
+                              }
+                            />
+                            <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.5} />
+                            <Bar dataKey="spent" fill={chartConfig.spent.color} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Analyse budgétaire</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4 max-h-80 overflow-y-auto">
+                      {categoryChartData.map((category, index) => (
+                        <div key={index} className="p-3 bg-muted/50 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-4 h-4 rounded-full" 
+                                style={{ backgroundColor: category.color }}
+                              />
+                              <span className="font-medium">{category.name}</span>
+                            </div>
+                            <Badge variant={category.budget > 0 && category.spent > category.budget ? "destructive" : "secondary"}>
+                              {category.budget > 0 ? `${category.percentage}%` : 'Pas de budget'}
+                            </Badge>
+                          </div>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Dépensé:</span>
+                              <span className="font-medium text-red-600">
+                                {category.spent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                              </span>
+                            </div>
+                            {category.budget > 0 && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Budget:</span>
+                                  <span className="font-medium">
+                                    {category.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Restant:</span>
+                                  <span className={cn(
+                                    "font-medium",
+                                    category.remaining > 0 ? "text-green-600" : "text-red-600"
+                                  )}>
+                                    {category.remaining.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          {category.budget > 0 && (
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={cn(
+                                  "h-2 rounded-full transition-all",
+                                  category.spent > category.budget ? "bg-red-500" : "bg-green-500"
+                                )}
+                                style={{ 
+                                  width: `${Math.min(100, (category.spent / category.budget) * 100)}%` 
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-muted-foreground">Aucune dépense trouvée pour cette période</p>
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
 
-            {/* Graphique d'évolution des soldes dans le temps */}
-            <Card>
-              <CardHeader className="pb-2 sm:pb-6">
-                <CardTitle className="text-lg sm:text-xl">Résumé des soldes</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Solde initial vs final pour la période sélectionnée
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-muted/30">
-                      <div>
-                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Solde Initial</p>
-                        <p className={cn("text-lg sm:text-xl font-bold", stats.initialBalance >= 0 ? "text-green-600" : "text-red-600")}>
-                          {stats.initialBalance.toLocaleString('fr-FR', { 
-                            style: 'currency', 
-                            currency: 'EUR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0 
-                          })}
+          <TabsContent value="recurring" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Repeat className="h-5 w-5" />
+                    Transactions récurrentes
+                  </CardTitle>
+                  <CardDescription>
+                    Analyse de vos revenus et dépenses récurrents
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Revenus/mois</p>
+                        <p className="text-lg font-bold text-green-600">
+                          {recurringData.monthlyIncome.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Dépenses/mois</p>
+                        <p className="text-lg font-bold text-red-600">
+                          {recurringData.monthlyExpenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center py-2">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <span>Evolution:</span>
-                        <span className={cn("font-semibold", stats.netPeriodBalance >= 0 ? "text-green-600" : "text-red-600")}>
-                          {stats.netPeriodBalance >= 0 ? '+' : ''}{stats.netPeriodBalance.toLocaleString('fr-FR', { 
-                            style: 'currency', 
-                            currency: 'EUR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0 
-                          })}
-                        </span>
-                      </div>
+                    
+                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground">Net mensuel récurrent</p>
+                      <p className={cn(
+                        "text-xl font-bold",
+                        recurringData.monthlyNet >= 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                        {recurringData.monthlyNet >= 0 ? "+" : ""}{recurringData.monthlyNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-primary/10">
-                      <div>
-                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Solde Final</p>
-                        <p className={cn("text-lg sm:text-xl font-bold", stats.finalBalance >= 0 ? "text-green-600" : "text-red-600")}>
-                          {stats.finalBalance.toLocaleString('fr-FR', { 
-                            style: 'currency', 
-                            currency: 'EUR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0 
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3 sm:space-y-4">
-                    <h4 className="font-semibold text-sm sm:text-base">Détail par compte</h4>
-                    <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
-                      {accounts.map((account) => (
-                        <div key={account.id} className="flex items-center justify-between p-2 sm:p-3 rounded border bg-card">
-                          <div className="min-w-0">
-                            <p className="font-medium text-xs sm:text-sm truncate">{account.name}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{account.bank}</p>
+
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <h4 className="text-sm font-medium">Détail des récurrences ({recurringData.activeRecurring.length})</h4>
+                      {recurringData.activeRecurring.map((recurring) => (
+                        <div key={recurring.id} className="flex items-center justify-between p-2 bg-background rounded border">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{recurring.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="text-xs">
+                                {recurring.recurrence_type === 'weekly' ? 'Hebdo' : 
+                                 recurring.recurrence_type === 'monthly' ? 'Mensuel' : 'Annuel'}
+                              </Badge>
+                              <span>•</span>
+                              <span>Prochaine: {format(new Date(recurring.next_due_date), "dd/MM", { locale: fr })}</span>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className={cn("font-semibold text-xs sm:text-sm", Number(account.balance) >= 0 ? "text-green-600" : "text-red-600")}>
-                              {Number(account.balance).toLocaleString('fr-FR', { 
+                          <div className="text-right flex-shrink-0 ml-2">
+                            <p className={cn(
+                              "text-sm font-semibold",
+                              recurring.type === 'income' ? "text-green-600" : "text-red-600"
+                            )}>
+                              {recurring.type === 'income' ? "+" : "-"}
+                              {Number(recurring.amount).toLocaleString('fr-FR', { 
                                 style: 'currency', 
-                                currency: 'EUR',
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 0 
+                                currency: 'EUR' 
                               })}
                             </p>
                           </div>
                         </div>
                       ))}
+                      {recurringData.activeRecurring.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Aucune transaction récurrente active
+                        </p>
+                      )}
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
 
-          <TabsContent value="categories" className="space-y-4 sm:space-y-6">
-            {categoryData.length > 0 && (
               <Card>
-                <CardHeader className="pb-2 sm:pb-6">
-                  <CardTitle className="text-lg sm:text-xl">Dépenses par catégorie</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Répartition des dépenses pour {period.label}</CardDescription>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Analyse des patterns
+                  </CardTitle>
+                  <CardDescription>
+                    Patterns de dépenses basés sur votre historique
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 gap-6 lg:gap-8">
-                    <div className="h-[250px] sm:h-[350px]">
-                      <ChartContainer 
-                        config={Object.fromEntries(
-                          categoryData.map(cat => [
-                            cat.name.toLowerCase().replace(/\s+/g, '_'), 
-                            { label: cat.name, color: cat.color }
-                          ])
-                        )}
-                        className="h-full"
-                      >
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={categoryData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={40}
-                              outerRadius={80}
-                              paddingAngle={2}
-                              dataKey="amount"
-                            >
-                              {categoryData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <ChartTooltip 
-                              content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload;
-                                  return (
-                                    <div className="rounded-lg border bg-background p-2 shadow-md">
-                                      <div className="flex items-center gap-2">
-                                        <div 
-                                          className="w-2 h-2 rounded-full" 
-                                          style={{ backgroundColor: data.color }}
-                                        />
-                                        <span className="font-medium text-xs">{data.name}</span>
-                                      </div>
-                                      <div className="mt-1">
-                                        <p className="font-semibold text-xs">
-                                          {data.amount.toLocaleString('fr-FR', { 
-                                            style: 'currency', 
-                                            currency: 'EUR',
-                                            minimumFractionDigits: 0,
-                                            maximumFractionDigits: 0 
-                                          })}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {((data.amount / stats.expenses) * 100).toFixed(1)}% du total
-                                        </p>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </ChartContainer>
-                    </div>
-                    
-                    <div className="space-y-2 sm:space-y-3 max-h-[300px] sm:max-h-[350px] overflow-y-auto">
-                      <div className="sticky top-0 bg-background pb-2">
-                        <h4 className="font-semibold text-xs sm:text-sm text-muted-foreground uppercase tracking-wide">
-                          Détail des catégories
-                        </h4>
+                  {spendingPatternsData ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">Moy. revenus/jour</p>
+                          <p className="text-lg font-bold text-green-600">
+                            {spendingPatternsData.dailyAvgIncome.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">Moy. dépenses/jour</p>
+                          <p className="text-lg font-bold text-red-600">
+                            {spendingPatternsData.dailyAvgExpenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                          </p>
+                        </div>
                       </div>
-                      {categoryData.map((category, index) => {
-                        const percentage = ((category.amount / stats.expenses) * 100);
-                        return (
-                          <div key={category.name} className="group flex items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                              <div
-                                className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-sm flex-shrink-0"
-                                style={{ backgroundColor: category.color }}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <span className="font-medium text-xs sm:text-sm block truncate">{category.name}</span>
-                                <div className="w-full bg-muted rounded-full h-1 sm:h-1.5 mt-1">
-                                  <div 
-                                    className="h-1 sm:h-1.5 rounded-full transition-all duration-300"
-                                    style={{ 
-                                      backgroundColor: category.color,
-                                      width: `${percentage}%`
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0 ml-2">
-                              <div className="font-bold text-xs sm:text-sm">
-                                {category.amount.toLocaleString('fr-FR', { 
-                                  style: 'currency', 
-                                  currency: 'EUR',
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 0 
-                                })}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {percentage.toFixed(1)}%
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                      
+                      <div className="p-3 bg-muted/50 rounded-lg text-center">
+                        <p className="text-sm text-muted-foreground">Net quotidien moyen</p>
+                        <p className={cn(
+                          "text-xl font-bold",
+                          spendingPatternsData.dailyNet >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {spendingPatternsData.dailyNet >= 0 ? "+" : ""}{spendingPatternsData.dailyNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        </p>
+                      </div>
 
-            {categoryData.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-8 sm:py-12">
-                  <div className="mx-auto w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <TrendingDown className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Aucune dépense trouvée</h3>
-                  <p className="text-muted-foreground text-xs sm:text-sm">Il n'y a aucune dépense pour cette période</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="details" className="space-y-4 sm:space-y-6">
-            <Card>
-              <CardHeader className="pb-2 sm:pb-6">
-                <CardTitle className="text-lg sm:text-xl">Détail des transactions</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Toutes les transactions pour {period.label}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {filteredTransactions.length > 0 ? (
-                  <div className="space-y-2 sm:space-y-3 max-h-80 sm:max-h-96 overflow-y-auto">
-                    {filteredTransactions
-                      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-                      .map((transaction) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                            <div className="flex-shrink-0">
-                              {transaction.type === 'income' && (
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-                                </div>
-                              )}
-                              {transaction.type === 'expense' && (
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-100 flex items-center justify-center">
-                                  <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
-                                </div>
-                              )}
-                              {transaction.type === 'transfer' && (
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground mt-1">
-                                <span>{format(new Date(transaction.transaction_date), "dd/MM/yy")}</span>
-                                <span>•</span>
-                                <span className="truncate">{transaction.account.name}</span>
-                                {transaction.category && (
-                                  <>
-                                    <span className="hidden sm:inline">•</span>
-                                    <Badge 
-                                      variant="outline" 
-                                      className="text-xs px-1 py-0 h-4"
-                                      style={{ 
-                                        borderColor: transaction.category.color,
-                                        color: transaction.category.color 
-                                      }}
-                                    >
-                                      {transaction.category.name}
-                                    </Badge>
-                                  </>
-                                )}
-                              </div>
-                            </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <h4 className="text-sm font-medium mb-2">Projection mensuelle (patterns)</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Revenus projetés:</span>
+                            <span className="font-medium text-green-600">
+                              {spendingPatternsData.projectedMonthlyIncome.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            </span>
                           </div>
-                          <div className="text-right flex-shrink-0 ml-2">
-                            <p className={cn("font-bold text-xs sm:text-sm", 
-                              transaction.type === 'income' ? "text-green-600" : "text-red-600"
+                          <div className="flex justify-between">
+                            <span>Dépenses projetées:</span>
+                            <span className="font-medium text-red-600">
+                              {spendingPatternsData.projectedMonthlyExpenses.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2">
+                            <span className="font-medium">Net projeté:</span>
+                            <span className={cn(
+                              "font-bold",
+                              spendingPatternsData.projectedMonthlyNet >= 0 ? "text-green-600" : "text-red-600"
                             )}>
-                              {transaction.type === 'income' ? '+' : '-'}
-                              {Number(transaction.amount).toLocaleString('fr-FR', { 
-                                style: 'currency', 
-                                currency: 'EUR',
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 0 
-                              })}
-                            </p>
-                            {transaction.transfer_fee && Number(transaction.transfer_fee) > 0 && (
-                              <p className="text-xs text-muted-foreground">
-                                Frais: {Number(transaction.transfer_fee).toLocaleString('fr-FR', { 
-                                  style: 'currency', 
-                                  currency: 'EUR',
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 0 
-                                })}
-                              </p>
-                            )}
+                              {spendingPatternsData.projectedMonthlyNet >= 0 ? "+" : ""}{spendingPatternsData.projectedMonthlyNet.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            </span>
                           </div>
                         </div>
-                      ))
-                    }
-                  </div>
-                ) : (
-                  <div className="text-center py-8 sm:py-12">
-                    <div className="mx-auto w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                      <Wallet className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground" />
+                      </div>
+
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <h4 className="text-sm font-medium mb-2 text-blue-900 dark:text-blue-100">Recommandations</h4>
+                        <ul className="text-xs space-y-1 text-blue-800 dark:text-blue-200">
+                          {spendingPatternsData.dailyNet > 0 ? (
+                            <li>• Votre épargne quotidienne moyenne est positive, continuez sur cette voie !</li>
+                          ) : (
+                            <li>• Attention, vos dépenses dépassent vos revenus en moyenne</li>
+                          )}
+                          <li>• Basé sur {differenceInDays(period.to, period.from) + 1} jours d'analyse</li>
+                          <li>• Les patterns peuvent varier selon les saisons et événements spéciaux</li>
+                        </ul>
+                      </div>
                     </div>
-                    <h3 className="font-semibold mb-2 text-sm sm:text-base">Aucune transaction trouvée</h3>
-                    <p className="text-muted-foreground text-xs sm:text-sm">Il n'y a aucune transaction pour cette période</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        Activez les spending patterns pour voir l'analyse
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={() => setUseSpendingPatterns(true)}
+                      >
+                        Activer les patterns
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
