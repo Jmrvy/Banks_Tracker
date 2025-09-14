@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { EditTransactionModal } from "@/components/EditTransactionModal";
+import { useToast } from "@/hooks/use-toast";
 
 const bankColors = {
   societe_generale: 'bg-red-500',
@@ -19,14 +22,40 @@ const bankColors = {
 };
 
 export const RecentTransactions = () => {
-  const { transactions, loading } = useFinancialData();
+  const { transactions, loading, deleteTransaction } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { toast } = useToast();
 
   // Add state to manage view mode
   const [showAll, setShowAll] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Dynamically choose which transactions to display
   const displayedTransactions = showAll ? transactions : transactions.slice(0, 5);
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteTransaction = async (transaction: Transaction) => {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer la transaction "${transaction.description}" ?`)) {
+      const { error } = await deleteTransaction(transaction.id);
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error.message || "Erreur lors de la suppression de la transaction",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Succès",
+          description: "Transaction supprimée avec succès",
+        });
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -136,14 +165,37 @@ export const RecentTransactions = () => {
                 >
                   {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                 </span>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEditTransaction(transaction)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Modifier
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDeleteTransaction(transaction)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Supprimer
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           ))}
         </div>
       </CardContent>
+
+      <EditTransactionModal
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        transaction={editingTransaction}
+      />
     </Card>
   );
 };

@@ -20,7 +20,7 @@ export interface Transaction {
   type: 'income' | 'expense' | 'transfer';
   transaction_date: string;
   account: { name: string; bank: string };
-  category: { name: string; color: string } | null;
+  category: { id: string; name: string; color: string } | null;
   transfer_to_account_id?: string;
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
@@ -81,7 +81,7 @@ export function useFinancialData() {
       .select(`
         *,
         account:accounts!transactions_account_id_fkey(name, bank),
-        category:categories(name, color),
+        category:categories(id, name, color),
         transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
       `)
       .eq('user_id', user.id)
@@ -312,6 +312,51 @@ export function useFinancialData() {
     return { error };
   };
 
+  const updateTransaction = async (id: string, updates: {
+    description?: string;
+    amount?: number;
+    type?: 'income' | 'expense' | 'transfer';
+    account_id?: string;
+    category_id?: string;
+    transaction_date?: string;
+    transfer_to_account_id?: string;
+    transfer_fee?: number;
+  }) => {
+    if (!user) return { error: { message: 'User not authenticated' } };
+    
+    const { error } = await supabase
+      .from('transactions')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (!error) {
+      setTimeout(() => {
+        fetchTransactions();
+        fetchAccounts();
+      }, 100);
+    }
+    return { error };
+  };
+
+  const deleteTransaction = async (id: string) => {
+    if (!user) return { error: { message: 'User not authenticated' } };
+    
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (!error) {
+      setTimeout(() => {
+        fetchTransactions();
+        fetchAccounts();
+      }, 100);
+    }
+    return { error };
+  };
+
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
@@ -478,6 +523,8 @@ export function useFinancialData() {
     createRecurringTransaction,
     updateRecurringTransaction,
     deleteRecurringTransaction,
+    updateTransaction,
+    deleteTransaction,
     processDueRecurringTransactions,
     fetchRecurringTransactions,
     refetch: () => {
