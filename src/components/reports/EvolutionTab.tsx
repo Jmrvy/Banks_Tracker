@@ -60,67 +60,73 @@ export const EvolutionTab = ({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
-            <ChartContainer config={chartConfig}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={balanceEvolutionData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => 
-                      value.toLocaleString('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'EUR',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                      })
-                    }
-                  />
-                  <ChartTooltip 
-                    content={
-                      <ChartTooltipContent 
-                        formatter={(value, name) => [
-                          typeof value === 'number' 
-                            ? value.toLocaleString('fr-FR', { 
-                                style: 'currency', 
-                                currency: 'EUR' 
-                              })
-                            : 'N/A',
-                          name === 'solde' ? 'Solde réel' : `Solde projeté (${useSpendingPatterns ? 'patterns' : 'récurrents'})`
-                        ]}
-                        labelFormatter={(label) => `Date: ${label}`}
-                      />
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="solde"
-                    stroke={chartConfig.solde.color}
-                    fill={chartConfig.solde.color}
-                    fillOpacity={0.3}
-                    connectNulls={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="soldeProjecte"
-                    stroke={chartConfig.soldeProjecte.color}
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={false}
-                    connectNulls={true}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </div>
+          {balanceEvolutionData && balanceEvolutionData.length > 0 ? (
+            <div className="h-80">
+              <ChartContainer config={chartConfig}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={balanceEvolutionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="date" 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => 
+                        value.toLocaleString('fr-FR', { 
+                          style: 'currency', 
+                          currency: 'EUR',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })
+                      }
+                    />
+                    <ChartTooltip 
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value, name) => [
+                            typeof value === 'number' 
+                              ? value.toLocaleString('fr-FR', { 
+                                  style: 'currency', 
+                                  currency: 'EUR' 
+                                })
+                              : 'N/A',
+                            name === 'solde' ? 'Solde réel' : `Solde projeté (${useSpendingPatterns ? 'patterns' : 'récurrents'})`
+                          ]}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="solde"
+                      stroke={chartConfig.solde.color}
+                      fill={chartConfig.solde.color}
+                      fillOpacity={0.3}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="soldeProjecte"
+                      stroke={chartConfig.soldeProjecte.color}
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      connectNulls={true}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+          ) : (
+            <div className="h-80 flex items-center justify-center">
+              <p className="text-muted-foreground">Aucune donnée disponible pour le graphique</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
