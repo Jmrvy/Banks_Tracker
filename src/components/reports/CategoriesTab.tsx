@@ -43,48 +43,47 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
         </CardHeader>
         <CardContent>
           <div className="h-80">
-            <ChartContainer config={chartConfig}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={categoryChartData} 
-                  layout="horizontal"
-                  margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    type="number"
-                    fontSize={12}
-                    tickFormatter={(value) => 
-                      value.toLocaleString('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'EUR',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                      })
-                    }
-                  />
-                  <YAxis 
-                    type="category"
-                    dataKey="name" 
-                    fontSize={12}
-                    width={75}
-                  />
-                  <ChartTooltip 
-                    content={
-                      <ChartTooltipContent 
-                        formatter={(value, name) => [
-                          typeof value === 'number' 
-                            ? formatCurrency(value)
-                            : 'N/A',
-                          name === 'spent' ? 'Dépensé' : 'Budget'
-                        ]}
-                      />
-                    }
-                  />
-                  <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.5} />
-                  <Bar dataKey="spent" fill={chartConfig.spent.color} />
-                </BarChart>
-              </ResponsiveContainer>
+            <ChartContainer config={chartConfig} className="w-full h-full">
+              <BarChart 
+                data={categoryChartData} 
+                layout="horizontal"
+                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  type="number"
+                  fontSize={12}
+                  domain={[0, 'dataMax']}
+                  tickFormatter={(value) => 
+                    value.toLocaleString('fr-FR', { 
+                      style: 'currency', 
+                      currency: 'EUR',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    })
+                  }
+                />
+                <YAxis 
+                  type="category"
+                  dataKey="name" 
+                  fontSize={12}
+                  width={100}
+                />
+                <ChartTooltip 
+                  content={
+                    <ChartTooltipContent 
+                      formatter={(value, name) => [
+                        typeof value === 'number' 
+                          ? formatCurrency(value)
+                          : 'N/A',
+                        name === 'spent' ? 'Dépensé' : 'Budget'
+                      ]}
+                    />
+                  }
+                />
+                <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.5} />
+                <Bar dataKey="spent" fill={chartConfig.spent.color} />
+              </BarChart>
             </ChartContainer>
           </div>
         </CardContent>
