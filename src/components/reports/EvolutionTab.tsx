@@ -37,12 +37,12 @@ export const EvolutionTab = ({
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle>Évolution du solde</CardTitle>
+              <CardTitle className="text-xl">Évolution du solde</CardTitle>
               <CardDescription>
                 Évolution de votre solde avec projection sur 3 mois
               </CardDescription>
@@ -59,23 +59,28 @@ export const EvolutionTab = ({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {balanceEvolutionData && balanceEvolutionData.length > 0 ? (
-            <div className="h-80">
+            <div className="w-full h-[400px] md:h-[500px]">
               <ChartContainer config={chartConfig}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={balanceEvolutionData}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                  <ComposedChart 
+                    data={balanceEvolutionData}
+                    margin={{ top: 10, right: 30, left: 20, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis 
                       dataKey="date" 
-                      fontSize={12}
+                      fontSize={11}
                       tickLine={false}
                       axisLine={false}
+                      className="text-muted-foreground"
                     />
                     <YAxis 
-                      fontSize={12}
+                      fontSize={11}
                       tickLine={false}
                       axisLine={false}
+                      className="text-muted-foreground"
                       tickFormatter={(value) => 
                         value.toLocaleString('fr-FR', { 
                           style: 'currency', 
@@ -123,7 +128,7 @@ export const EvolutionTab = ({
               </ChartContainer>
             </div>
           ) : (
-            <div className="h-80 flex items-center justify-center">
+            <div className="w-full h-[400px] flex items-center justify-center">
               <p className="text-muted-foreground">Aucune donnée disponible pour le graphique</p>
             </div>
           )}
