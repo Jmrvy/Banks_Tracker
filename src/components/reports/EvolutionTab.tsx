@@ -61,71 +61,73 @@ export const EvolutionTab = ({
         </CardHeader>
         <CardContent className="pt-0">
           {balanceEvolutionData && balanceEvolutionData.length > 0 ? (
-            <div className="w-full h-[400px] md:h-[500px]">
-              <ChartContainer config={chartConfig}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart 
-                    data={balanceEvolutionData}
-                    margin={{ top: 10, right: 30, left: 20, bottom: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis 
-                      dataKey="date" 
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      className="text-muted-foreground"
-                    />
-                    <YAxis 
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      className="text-muted-foreground"
-                      tickFormatter={(value) => 
-                        value.toLocaleString('fr-FR', { 
-                          style: 'currency', 
-                          currency: 'EUR',
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })
-                      }
-                    />
-                    <ChartTooltip 
-                      content={
-                        <ChartTooltipContent 
-                          formatter={(value, name) => [
-                            typeof value === 'number' 
-                              ? value.toLocaleString('fr-FR', { 
-                                  style: 'currency', 
-                                  currency: 'EUR' 
-                                })
-                              : 'N/A',
-                            name === 'solde' ? 'Solde réel' : `Solde projeté (${useSpendingPatterns ? 'patterns' : 'récurrents'})`
-                          ]}
-                          labelFormatter={(label) => `Date: ${label}`}
-                        />
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="solde"
-                      stroke={chartConfig.solde.color}
-                      fill={chartConfig.solde.color}
-                      fillOpacity={0.3}
-                      connectNulls={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="soldeProjecte"
-                      stroke={chartConfig.soldeProjecte.color}
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      connectNulls={true}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+            <div className="w-full h-[400px] md:h-[500px] overflow-hidden relative">
+              <div className="absolute inset-0 p-2">
+                <ChartContainer config={chartConfig} className="w-full h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart 
+                      data={balanceEvolutionData}
+                      margin={{ top: 10, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis 
+                        dataKey="date" 
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        className="text-muted-foreground"
+                      />
+                      <YAxis 
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        className="text-muted-foreground"
+                        tickFormatter={(value) => 
+                          value.toLocaleString('fr-FR', { 
+                            style: 'currency', 
+                            currency: 'EUR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0
+                          })
+                        }
+                      />
+                      <ChartTooltip 
+                        content={
+                          <ChartTooltipContent 
+                            formatter={(value, name) => [
+                              typeof value === 'number' 
+                                ? value.toLocaleString('fr-FR', { 
+                                    style: 'currency', 
+                                    currency: 'EUR' 
+                                  })
+                                : 'N/A',
+                              name === 'solde' ? 'Solde réel' : `Solde projeté (${useSpendingPatterns ? 'patterns' : 'récurrents'})`
+                            ]}
+                            labelFormatter={(label) => `Date: ${label}`}
+                          />
+                        }
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="solde"
+                        stroke={chartConfig.solde.color}
+                        fill={chartConfig.solde.color}
+                        fillOpacity={0.3}
+                        connectNulls={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="soldeProjecte"
+                        stroke={chartConfig.soldeProjecte.color}
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        connectNulls={true}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             </div>
           ) : (
             <div className="w-full h-[400px] flex items-center justify-center">
