@@ -319,28 +319,42 @@ export const useReportsData = (
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
     const expensesByCategory = filteredTransactions
-      .filter(t => t.type === 'expense' && t.category)
+      .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
-        const categoryId = t.category?.id;
+        const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';
         const category = categories.find(c => c.id === categoryId);
+        const categoryColor = t.category?.color || '#6b7280';
+        
         if (!acc[categoryId]) {
           acc[categoryId] = {
             name: categoryName,
             spent: 0,
             budget: Number(category?.budget || 0),
-            color: t.category?.color || '#6b7280'
+            color: categoryColor
           };
         }
         acc[categoryId].spent += Number(t.amount);
         return acc;
       }, {} as Record<string, any>);
 
+    // Ajouter les catégories avec budget mais sans dépenses
+    categories.forEach(category => {
+      if (category.budget && category.budget > 0 && !expensesByCategory[category.id]) {
+        expensesByCategory[category.id] = {
+          name: category.name,
+          spent: 0,
+          budget: Number(category.budget),
+          color: category.color
+        };
+      }
+    });
+
     return Object.entries(expensesByCategory)
       .map(([_, data]) => ({
         ...data,
         percentage: data.budget > 0 ? (data.spent / data.budget * 100).toFixed(1) : "0",
-        remaining: Math.max(0, data.budget - data.spent)
+        remaining: data.budget > 0 ? Math.max(0, data.budget - data.spent) : 0
       }))
       .sort((a, b) => b.spent - a.spent);
   }, [filteredTransactions, categories]);
