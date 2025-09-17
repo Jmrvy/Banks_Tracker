@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { CategoryData } from "@/hooks/useReportsData";
@@ -24,6 +24,16 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
   const formatCurrency = (amount: number) => 
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
+  // Prépare des valeurs positives pour un rendu fiable
+  const chartData = categoryChartData.map((c) => ({
+    ...c,
+    spent: Math.abs(c.spent),
+    budget: Math.abs(c.budget || 0),
+  }));
+
+  // Domaine X stable pour éviter un dataMax à 0
+  const chartMax = Math.max(1, ...chartData.map((c) => Math.max(c.spent, c.budget)));
+
   if (categoryChartData.length === 0) {
     return (
       <Card>
@@ -45,15 +55,16 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
           <div className="h-80">
             <ChartContainer config={chartConfig} className="w-full h-full">
               <BarChart 
-                data={categoryChartData} 
+                data={chartData}
                 layout="horizontal"
-                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+                barCategoryGap={12}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   type="number"
                   fontSize={12}
-                  domain={[0, 'dataMax']}
+                  domain={[0, chartMax]}
                   tickFormatter={(value) => 
                     value.toLocaleString('fr-FR', { 
                       style: 'currency', 
@@ -67,7 +78,7 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
                   type="category"
                   dataKey="name" 
                   fontSize={12}
-                  width={100}
+                  width={120}
                 />
                 <ChartTooltip 
                   content={
@@ -81,8 +92,9 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
                     />
                   }
                 />
-                <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.5} />
-                <Bar dataKey="spent" fill={chartConfig.spent.color} />
+                <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
+                <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.5} radius={4} />
+                <Bar dataKey="spent" fill={chartConfig.spent.color} radius={4} />
               </BarChart>
             </ChartContainer>
           </div>
