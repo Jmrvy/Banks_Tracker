@@ -34,7 +34,7 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
   // Domaine X stable pour éviter un dataMax à 0
   const chartMax = Math.max(1, ...chartData.map((c) => Math.max(c.spent, c.budget)));
 
-  if (categoryChartData.length === 0) {
+  if (chartData.length === 0) {
     return (
       <Card>
         <CardContent className="text-center py-12">
@@ -43,6 +43,8 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
       </Card>
     );
   }
+
+  const sortedData = [...chartData].sort((a, b) => b.spent - a.spent);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -55,10 +57,12 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
           <div className="h-80">
             <ChartContainer config={chartConfig} className="w-full h-full">
               <BarChart 
-                data={chartData}
+                data={sortedData}
                 layout="horizontal"
                 margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
                 barCategoryGap={12}
+                barGap={4}
+                barSize={14}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
