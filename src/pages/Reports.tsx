@@ -83,10 +83,10 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-4">
-          <TabsList className="grid w-fit grid-cols-3 mx-auto">
-            <TabsTrigger value="evolution">Évolution</TabsTrigger>
-            <TabsTrigger value="categories">Catégories</TabsTrigger>
-            <TabsTrigger value="recurring">Récapitulatif</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 mx-auto bg-muted/30 h-9 p-1 rounded-lg">
+            <TabsTrigger value="evolution" className="text-xs sm:text-sm">Évolution</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs sm:text-sm">Catégories</TabsTrigger>
+            <TabsTrigger value="recurring" className="text-xs sm:text-sm">Récapitulatif</TabsTrigger>
           </TabsList>
 
           <TabsContent value="evolution">

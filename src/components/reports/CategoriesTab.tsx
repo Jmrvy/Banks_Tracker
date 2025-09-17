@@ -1,9 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
 import { CategoryData } from "@/hooks/useReportsData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
@@ -21,6 +22,7 @@ const chartConfig = {
 };
 
 export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
+  const isMobile = useIsMobile();
   const formatCurrency = (amount: number) => 
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
@@ -47,42 +49,51 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
   const sortedData = [...chartData].sort((a, b) => b.spent - a.spent);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Dépenses par catégorie</CardTitle>
-          <CardDescription>Montants dépensés et budgets alloués</CardDescription>
+    <div className="space-y-4">
+      {/* Chart Section - Mobile Optimized */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+          <CardTitle className="text-base sm:text-lg">Dépenses par catégorie</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Montants dépensés et budgets alloués</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="h-80">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          <div className="h-64 sm:h-80">
             <ChartContainer config={chartConfig} className="w-full h-full">
               <BarChart 
                 data={sortedData}
                 layout="horizontal"
-                margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
-                barCategoryGap={12}
-                barGap={4}
-                barSize={14}
+                margin={{ 
+                  top: 5, 
+                  right: 15, 
+                  left: isMobile ? 80 : 120, 
+                  bottom: 5 
+                }}
+                barCategoryGap={8}
+                barGap={2}
+                barSize={isMobile ? 10 : 14}
               >
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis 
                   type="number"
-                  fontSize={12}
+                  fontSize={isMobile ? 10 : 12}
                   domain={[0, chartMax]}
                   tickFormatter={(value) => 
-                    value.toLocaleString('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'EUR',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })
+                    isMobile 
+                      ? `${(value / 1000).toFixed(0)}k€`
+                      : value.toLocaleString('fr-FR', { 
+                          style: 'currency', 
+                          currency: 'EUR',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })
                   }
                 />
                 <YAxis 
                   type="category"
                   dataKey="name" 
-                  fontSize={12}
-                  width={120}
+                  fontSize={isMobile ? 10 : 12}
+                  width={isMobile ? 80 : 120}
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
                 />
                 <ChartTooltip 
                   content={
@@ -96,74 +107,92 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
                     />
                   }
                 />
-                <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
-                <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.5} radius={4} />
-                <Bar dataKey="spent" fill={chartConfig.spent.color} radius={4} />
+                <ChartLegend 
+                  verticalAlign="top" 
+                  content={<ChartLegendContent />}
+                  iconType="rect"
+                  wrapperStyle={{ fontSize: isMobile ? '12px' : '14px' }}
+                />
+                <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.4} radius={2} />
+                <Bar dataKey="spent" fill={chartConfig.spent.color} radius={2} />
               </BarChart>
             </ChartContainer>
           </div>
         </CardContent>
       </Card>
 
+      {/* Budget Analysis - Mobile Optimized */}
       <Card>
-        <CardHeader>
-          <CardTitle>Analyse budgétaire</CardTitle>
+        <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+          <CardTitle className="text-base sm:text-lg">Analyse budgétaire</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4 max-h-80 overflow-y-auto">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          <div className="space-y-2 sm:space-y-3 max-h-80 overflow-y-auto">
             {categoryChartData.map((category, index) => (
-              <div key={index} className="p-3 bg-muted/50 rounded-lg space-y-2">
+              <div 
+                key={index} 
+                className="group p-2 sm:p-3 bg-muted/30 hover:bg-muted/50 rounded-lg space-y-1.5 sm:space-y-2 transition-all duration-200 animate-fade-in border border-transparent hover:border-border/50"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <div 
-                      className="w-4 h-4 rounded-full" 
+                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: category.color }}
                     />
-                    <span className="font-medium">{category.name}</span>
+                    <span className="font-medium text-sm sm:text-base truncate">{category.name}</span>
                   </div>
-                  <Badge variant={category.budget > 0 && category.spent > category.budget ? "destructive" : "secondary"}>
+                  <Badge 
+                    variant={category.budget > 0 && category.spent > category.budget ? "destructive" : "secondary"}
+                    className="text-xs flex-shrink-0 ml-2"
+                  >
                     {category.budget > 0 ? `${category.percentage}%` : 'Pas de budget'}
                   </Badge>
                 </div>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Dépensé:</span>
-                    <span className="font-medium text-red-600">
+                
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
+                  <div>
+                    <span className="text-muted-foreground block">Dépensé</span>
+                    <span className="font-semibold text-destructive">
                       {formatCurrency(category.spent)}
                     </span>
                   </div>
                   {category.budget > 0 && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Budget:</span>
-                        <span className="font-medium">
-                          {formatCurrency(category.budget)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Restant:</span>
-                        <span className={cn(
-                          "font-medium",
-                          category.remaining > 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                          {formatCurrency(category.remaining)}
-                        </span>
-                      </div>
-                    </>
+                    <div>
+                      <span className="text-muted-foreground block">Budget</span>
+                      <span className="font-semibold">
+                        {formatCurrency(category.budget)}
+                      </span>
+                    </div>
                   )}
                 </div>
+
                 {category.budget > 0 && (
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={cn(
-                        "h-2 rounded-full transition-all",
-                        category.spent > category.budget ? "bg-red-500" : "bg-green-500"
-                      )}
-                      style={{ 
-                        width: `${Math.min(100, (category.spent / category.budget) * 100)}%` 
-                      }}
-                    />
-                  </div>
+                  <>
+                    <div className="flex justify-between items-center text-xs sm:text-sm">
+                      <span className="text-muted-foreground">Restant</span>
+                      <span className={cn(
+                        "font-semibold",
+                        category.remaining > 0 ? "text-success" : "text-destructive"
+                      )}>
+                        {formatCurrency(category.remaining)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5 sm:h-2 overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500 ease-out",
+                          category.spent > category.budget 
+                            ? "bg-gradient-to-r from-destructive/80 to-destructive" 
+                            : "bg-gradient-to-r from-success/80 to-success"
+                        )}
+                        style={{ 
+                          width: `${Math.min(100, (category.spent / category.budget) * 100)}%`,
+                          transitionDelay: `${index * 100 + 200}ms`
+                        }}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             ))}
