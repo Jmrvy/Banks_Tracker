@@ -11,6 +11,10 @@ import NotFound from "@/pages/NotFound";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import RecurringTransactions from "@/pages/RecurringTransactions";
+import NewTransaction from "@/pages/NewTransaction";
+import NewAccount from "@/pages/NewAccount";
+import NewCategory from "@/pages/NewCategory";
+import { MobileNavigation } from "@/components/MobileNavigation";
 
 const queryClient = new QueryClient();
 
@@ -32,45 +36,72 @@ function AppRoutes() {
   const { user } = useAuth();
   
   return (
-    <Routes>
-      <Route 
-        path="/auth" 
-        element={user ? <Navigate to="/" replace /> : <Auth />} 
-      />
-      <Route 
-        path="/" 
-        element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/reports" 
-        element={
-          <ProtectedRoute>
-            <Reports />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings" 
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/recurring-transactions" 
-        element={
-          <ProtectedRoute>
-            <RecurringTransactions />
-          </ProtectedRoute>
-        } 
-      />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route 
+          path="/auth" 
+          element={user ? <Navigate to="/" replace /> : <Auth />} 
+        />
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/new-transaction" 
+          element={
+            <ProtectedRoute>
+              <NewTransaction />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/new-account" 
+          element={
+            <ProtectedRoute>
+              <NewAccount />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/new-category" 
+          element={
+            <ProtectedRoute>
+              <NewCategory />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports" 
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings" 
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/recurring-transactions" 
+          element={
+            <ProtectedRoute>
+              <RecurringTransactions />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      {user && <MobileNavigation />}
+    </>
   );
 }
 
