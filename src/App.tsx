@@ -12,8 +12,6 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import RecurringTransactions from "@/pages/RecurringTransactions";
 import NewTransaction from "@/pages/NewTransaction";
-import NewAccount from "@/pages/NewAccount";
-import NewCategory from "@/pages/NewCategory";
 import { MobileNavigation } from "@/components/MobileNavigation";
 
 const queryClient = new QueryClient();
@@ -55,22 +53,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <NewTransaction />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/new-account" 
-          element={
-            <ProtectedRoute>
-              <NewAccount />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/new-category" 
-          element={
-            <ProtectedRoute>
-              <NewCategory />
             </ProtectedRoute>
           } 
         />

@@ -1,11 +1,16 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, LogOut } from "lucide-react";
+import { Download, LogOut, CreditCard, Tag } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { NewAccountModal } from "@/components/NewAccountModal";
+import { NewCategoryModal } from "@/components/NewCategoryModal";
+import { useState } from "react";
 
 export const DashboardHeader = () => {
   const { user, signOut } = useAuth();
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   
   const currentMonth = new Date().toLocaleDateString('fr-FR', { 
     month: 'long', 
@@ -44,11 +49,28 @@ export const DashboardHeader = () => {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
+        <Button variant="outline" onClick={() => setAccountModalOpen(true)}>
+          <CreditCard className="w-4 h-4 mr-2" />
+          Nouveau Compte
+        </Button>
+        <Button variant="outline" onClick={() => setCategoryModalOpen(true)}>
+          <Tag className="w-4 h-4 mr-2" />
+          Nouvelle Catégorie
+        </Button>
         <Button variant="outline">
           <Download className="w-4 h-4 mr-2" />
           Exporter Données
         </Button>
       </div>
+      
+      <NewAccountModal 
+        open={accountModalOpen} 
+        onOpenChange={setAccountModalOpen} 
+      />
+      <NewCategoryModal 
+        open={categoryModalOpen} 
+        onOpenChange={setCategoryModalOpen} 
+      />
     </div>
   );
 };

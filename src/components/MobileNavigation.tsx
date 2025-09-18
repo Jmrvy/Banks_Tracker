@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { 
   Home, 
   Plus, 
-  CreditCard, 
-  Tag, 
   BarChart3, 
   Settings
 } from "lucide-react";
@@ -20,16 +18,6 @@ const navItems = [
     path: "/new-transaction",
     icon: Plus,
     label: "Transaction"
-  },
-  {
-    path: "/new-account", 
-    icon: CreditCard,
-    label: "Compte"
-  },
-  {
-    path: "/new-category",
-    icon: Tag,
-    label: "Catégorie"
   },
   {
     path: "/reports",

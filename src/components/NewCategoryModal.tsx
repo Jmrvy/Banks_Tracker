@@ -1,21 +1,21 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
-
-interface NewCategoryModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
 
 const predefinedColors = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
   '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
 ];
+
+interface NewCategoryModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
 export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) {
   const { toast } = useToast();
@@ -33,8 +33,8 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
     
     if (!formData.name) {
       toast({
-        title: "Missing information",
-        description: "Please enter a category name.",
+        title: "Informations manquantes",
+        description: "Veuillez saisir un nom de catégorie.",
         variant: "destructive",
       });
       return;
@@ -50,14 +50,14 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
 
     if (error) {
       toast({
-        title: "Error creating category",
+        title: "Erreur lors de la création",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Category created",
-        description: `${formData.name} category created successfully.`,
+        title: "Catégorie créée",
+        description: `La catégorie ${formData.name} a été créée avec succès.`,
       });
       
       // Reset form
@@ -75,14 +75,14 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
-            New Category
+            Nouvelle Catégorie
           </DialogTitle>
           <DialogDescription>
-            Add a new category to organize your transactions
+            Ajouter une nouvelle catégorie pour organiser vos transactions.
           </DialogDescription>
         </DialogHeader>
         
@@ -100,15 +100,15 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
           </div>
 
           {/* Color Selection */}
-          <div className="space-y-2">
-            <Label>Color</Label>
+          <div className="space-y-3">
+            <Label>Couleur</Label>
             <div className="flex gap-2 flex-wrap">
               {predefinedColors.map((color) => (
                 <button
                   key={color}
                   type="button"
-                  className={`w-8 h-8 rounded-full border-2 ${
-                    formData.color === color ? 'border-foreground' : 'border-muted'
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${
+                    formData.color === color ? 'border-foreground scale-110' : 'border-muted hover:scale-105'
                   }`}
                   style={{ backgroundColor: color }}
                   onClick={() => setFormData({ ...formData, color })}
@@ -117,16 +117,16 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
             </div>
             <div className="flex items-center gap-2">
               <div 
-                className="w-6 h-6 rounded-full border" 
+                className="w-4 h-4 rounded-full border" 
                 style={{ backgroundColor: formData.color }}
               />
-              <span className="text-sm text-muted-foreground">Selected color</span>
+              <span className="text-sm text-muted-foreground">Couleur sélectionnée</span>
             </div>
           </div>
 
           {/* Monthly Budget */}
           <div className="space-y-2">
-            <Label htmlFor="budget">Monthly Budget (Optional)</Label>
+            <Label htmlFor="budget">Budget mensuel (optionnel)</Label>
             <Input
               id="budget"
               type="number"
@@ -136,22 +136,23 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
               onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              Set a monthly spending limit for this category
+              Définir une limite de dépenses mensuelles pour cette catégorie
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
+              className="flex-1"
             >
-              Cancel
+              Annuler
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Category'}
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? 'Création...' : 'Créer la catégorie'}
             </Button>
           </div>
         </form>
