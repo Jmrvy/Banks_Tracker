@@ -227,6 +227,19 @@ const NewTransaction = () => {
             </TabsTrigger>
           </TabsList>
 
+          {/* Simple button to access recurring transactions management */}
+          <div className="mt-4 flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/recurring-transactions')}
+              className="flex items-center gap-2"
+            >
+              <Repeat className="h-4 w-4" />
+              Gérer les récurrentes
+            </Button>
+          </div>
+
           <TabsContent value="transaction" className="space-y-4 mt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Transaction Type Toggle */}
