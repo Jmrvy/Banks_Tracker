@@ -54,8 +54,10 @@ export const AccountCards = () => {
     return accounts.map(account => {
     const accountTransactions = transactions.filter(t => {
       console.log('Filtering transaction:', t, 'for account:', account.name);
-      // Match by account_id OR by joined account name as fallback
-      return t.account_id === account.id || t.account?.name === account.name;
+      // Match by account_id OR by transfer_to_account_id OR by joined account name as fallback
+      return t.account_id === account.id || 
+             t.transfer_to_account_id === account.id ||
+             t.account?.name === account.name;
     });
       
       console.log('Account transactions for', account.name, ':', accountTransactions);
@@ -72,9 +74,14 @@ export const AccountCards = () => {
         if (t.type === 'income') return sum + t.amount;
         if (t.type === 'expense') return sum - t.amount;
         if (t.type === 'transfer') {
-          // For the source account of a transfer, it's a deduction
-          // We'll handle destination account logic separately
-          return sum - t.amount;
+          // Check if this account is the source or destination of the transfer
+          if (t.account_id === account.id) {
+            // This account is the source - deduct amount + fee
+            return sum - t.amount - (t.transfer_fee || 0);
+          } else if (t.transfer_to_account_id === account.id) {
+            // This account is the destination - add amount
+            return sum + t.amount;
+          }
         }
         return sum;
       }, 0);
@@ -101,8 +108,10 @@ export const AccountCards = () => {
     
     const accountTransactions = transactions.filter(t => {
       console.log('Checking transaction:', t, 'Account ID:', (t as any).account_id, 'Target account ID:', account.id);
-      // Match by account_id OR by joined account name as fallback
-      return (t as any).account_id === account.id || t.account?.name === account.name;
+      // Match by account_id OR by transfer_to_account_id OR by joined account name as fallback
+      return (t as any).account_id === account.id || 
+             (t as any).transfer_to_account_id === account.id ||
+             t.account?.name === account.name;
     });
     
     console.log('Filtered transactions for account:', accountTransactions);
