@@ -360,60 +360,103 @@ export function useFinancialData() {
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayString = today.toISOString().split('T')[0];
+    
     const dueTransactions = recurringTransactions.filter(rt => 
       rt.is_active && 
-      rt.next_due_date <= today &&
+      rt.next_due_date <= todayString &&
       (!rt.end_date || rt.next_due_date <= rt.end_date)
     );
 
+    let processedCount = 0;
+
     for (const rt of dueTransactions) {
-      // Create the actual transaction
-      await createTransaction({
-        account_id: rt.account_id,
-        category_id: rt.category_id,
-        description: `${rt.description} (Récurrent)`,
-        amount: rt.amount,
-        type: rt.type,
-        transaction_date: rt.next_due_date
-      });
+      try {
+        // Check if end_date has passed
+        if (rt.end_date && rt.end_date < todayString) {
+          console.log(`Deactivating expired recurring transaction: ${rt.description}`);
+          
+          // Deactivate the recurring transaction
+          await supabase
+            .from('recurring_transactions')
+            .update({ is_active: false })
+            .eq('id', rt.id);
+          
+          continue;
+        }
 
-      // Calculate next due date
-      const currentDue = new Date(rt.next_due_date);
-      let nextDue = new Date(currentDue);
+        // Calculate how many occurrences we need to process
+        const currentDue = new Date(rt.next_due_date);
+        let nextDue = new Date(currentDue);
+        let occurrencesProcessed = 0;
+        const maxOccurrences = 12; // Limit to prevent infinite loops
 
-      switch (rt.recurrence_type) {
-        case 'daily':
-          nextDue.setDate(currentDue.getDate() + 1);
-          break;
-        case 'weekly':
-          nextDue.setDate(currentDue.getDate() + 7);
-          break;
-        case 'biweekly':
-          nextDue.setDate(currentDue.getDate() + 14);
-          break;
-        case 'monthly':
-          nextDue.setMonth(currentDue.getMonth() + 1);
-          break;
-        case 'quarterly':
-          nextDue.setMonth(currentDue.getMonth() + 3);
-          break;
-        case 'yearly':
-          nextDue.setFullYear(currentDue.getFullYear() + 1);
-          break;
+        // Process all missed occurrences up to today
+        while (nextDue <= today && occurrencesProcessed < maxOccurrences) {
+          // Skip if this occurrence is after the end_date
+          if (rt.end_date && nextDue.toISOString().split('T')[0] > rt.end_date) {
+            break;
+          }
+
+          // Create the actual transaction for this occurrence
+          await createTransaction({
+            account_id: rt.account_id,
+            category_id: rt.category_id,
+            description: `${rt.description} (Récurrence automatique)`,
+            amount: rt.amount,
+            type: rt.type,
+            transaction_date: nextDue.toISOString().split('T')[0]
+          });
+
+          occurrencesProcessed++;
+
+          // Calculate next occurrence
+          const previousDue = new Date(nextDue);
+          nextDue = new Date(previousDue);
+
+          switch (rt.recurrence_type) {
+            case 'daily':
+              nextDue.setDate(previousDue.getDate() + 1);
+              break;
+            case 'weekly':
+              nextDue.setDate(previousDue.getDate() + 7);
+              break;
+            case 'biweekly':
+              nextDue.setDate(previousDue.getDate() + 14);
+              break;
+            case 'monthly':
+              nextDue.setMonth(previousDue.getMonth() + 1);
+              break;
+            case 'quarterly':
+              nextDue.setMonth(previousDue.getMonth() + 3);
+              break;
+            case 'yearly':
+              nextDue.setFullYear(previousDue.getFullYear() + 1);
+              break;
+          }
+        }
+
+        // Update the recurring transaction with the new next_due_date
+        await supabase
+          .from('recurring_transactions')
+          .update({
+            next_due_date: nextDue.toISOString().split('T')[0],
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', rt.id);
+
+        processedCount += occurrencesProcessed;
+        console.log(`Processed ${occurrencesProcessed} occurrences for recurring transaction: ${rt.description}`);
+
+      } catch (error) {
+        console.error(`Error processing recurring transaction ${rt.id}:`, error);
       }
-
-      // Update the recurring transaction with new next_due_date
-      await supabase
-        .from('recurring_transactions')
-        .update({
-          next_due_date: nextDue.toISOString().split('T')[0],
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', rt.id);
     }
 
-    if (dueTransactions.length > 0) {
+    if (processedCount > 0) {
+      console.log(`Processed ${processedCount} total recurring transactions`);
       // Refresh data after processing
       fetchRecurringTransactions();
       fetchTransactions();
@@ -435,7 +478,7 @@ export function useFinancialData() {
           fetchCategories(),
           fetchRecurringTransactions()
         ]);
-
+        
         // Process due recurring transactions after loading data
         await processDueRecurringTransactions();
       } catch (error) {
@@ -453,7 +496,7 @@ export function useFinancialData() {
         await processDueRecurringTransactions();
       }
     }, 6 * 60 * 60 * 1000); // Check every 6 hours
-    
+
     // Set up real-time subscriptions
     const channel = supabase
       .channel('financial-data-changes')
