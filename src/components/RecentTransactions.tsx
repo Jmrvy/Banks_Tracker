@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
@@ -127,6 +127,8 @@ export const RecentTransactions = () => {
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
                     {transaction.type === 'income' ? (
                       <ArrowDownRight className="w-4 h-4 text-green-600" />
+                    ) : transaction.type === 'transfer' ? (
+                      <ArrowRightLeft className="w-4 h-4 text-blue-600" />
                     ) : (
                       <ArrowUpRight className="w-4 h-4 text-red-600" />
                     )}
@@ -153,6 +155,11 @@ export const RecentTransactions = () => {
                         • {transaction.account.name}
                       </span>
                     )}
+                    {transaction.type === 'transfer' && transaction.transfer_to_account && (
+                      <span className="text-xs text-muted-foreground">
+                        → {transaction.transfer_to_account.name}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -160,10 +167,19 @@ export const RecentTransactions = () => {
               <div className="flex items-center space-x-2">
                 <span 
                   className={`font-semibold ${
-                    transaction.type === 'income' ? 'text-green-600' : 'text-foreground'
+                    transaction.type === 'income' ? 'text-green-600' : 
+                    transaction.type === 'transfer' ? 'text-blue-600' : 
+                    'text-foreground'
                   }`}
                 >
-                  {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                  {transaction.type === 'income' ? '+' : 
+                   transaction.type === 'transfer' ? '↔' : 
+                   '-'}{formatCurrency(Math.abs(transaction.amount))}
+                  {transaction.type === 'transfer' && transaction.transfer_fee && transaction.transfer_fee > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      (+{formatCurrency(transaction.transfer_fee)} frais)
+                    </span>
+                  )}
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
