@@ -77,9 +77,9 @@ export const RecurringTransactionsWarning = () => {
     <div className="space-y-4">
       {/* Overdue Transactions Alert */}
       {overdueTransactions.length > 0 && (
-        <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
-          <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-          <AlertDescription className="text-red-800 dark:text-red-200">
+        <Alert className="border-destructive/50 bg-destructive/10 dark:border-destructive/30 dark:bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-foreground">
             <div className="flex items-center justify-between">
               <span>
                 {overdueTransactions.length} transaction{overdueTransactions.length > 1 ? 's' : ''} récurrente{overdueTransactions.length > 1 ? 's' : ''} en retard
@@ -88,7 +88,7 @@ export const RecurringTransactionsWarning = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/recurring-transactions')}
-                className="text-red-600 border-red-300 hover:bg-red-100 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10"
               >
                 Voir
               </Button>
@@ -99,10 +99,10 @@ export const RecurringTransactionsWarning = () => {
 
       {/* Upcoming Transactions */}
       {upcomingTransactions.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+        <Card className="border-border bg-card dark:border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-orange-800 dark:text-orange-200 flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4" />
+            <CardTitle className="text-foreground dark:text-foreground flex items-center gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               Transactions récurrentes à venir
             </CardTitle>
           </CardHeader>
@@ -111,7 +111,7 @@ export const RecurringTransactionsWarning = () => {
               {upcomingTransactions.slice(0, 3).map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-white/50 dark:bg-black/20"
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50"
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="text-lg">{getTypeIcon(transaction.type)}</span>
@@ -158,7 +158,7 @@ export const RecurringTransactionsWarning = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate('/recurring-transactions')}
-                    className="text-orange-700 hover:text-orange-800 dark:text-orange-300 dark:hover:text-orange-200"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     Voir {upcomingTransactions.length - 3} autre{upcomingTransactions.length - 3 > 1 ? 's' : ''} transaction{upcomingTransactions.length - 3 > 1 ? 's' : ''}
                     <ArrowRight className="h-3 w-3 ml-1" />
