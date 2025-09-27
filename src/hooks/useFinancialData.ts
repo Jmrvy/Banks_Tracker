@@ -85,8 +85,7 @@ export function useFinancialData() {
         transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
       `)
       .eq('user_id', user.id)
-      .order('transaction_date', { ascending: false })
-      .limit(50);
+      .order('transaction_date', { ascending: false });
 
     if (error) {
       console.error('Error fetching transactions:', error);
