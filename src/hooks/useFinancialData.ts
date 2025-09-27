@@ -360,15 +360,32 @@ export function useFinancialData() {
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
+    // Use a more reliable date comparison
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const todayString = today.toISOString().split('T')[0];
     
-    const dueTransactions = recurringTransactions.filter(rt => 
-      rt.is_active && 
-      rt.next_due_date <= todayString &&
-      (!rt.end_date || rt.next_due_date <= rt.end_date)
-    );
+    console.log('Processing recurring transactions for date:', todayString);
+    console.log('Total recurring transactions:', recurringTransactions.length);
+    
+    const dueTransactions = recurringTransactions.filter(rt => {
+      if (!rt.is_active) return false;
+      
+      // Convert both dates to Date objects for proper comparison
+      const dueDate = new Date(rt.next_due_date);
+      const todayDate = new Date(todayString);
+      
+      const isDue = dueDate <= todayDate;
+      const isNotExpired = !rt.end_date || new Date(rt.end_date) >= dueDate;
+      
+      console.log(`Checking ${rt.description}: due ${rt.next_due_date} (${dueDate.toISOString()}) vs today ${todayString} (${todayDate.toISOString()}) - isDue: ${isDue}, isNotExpired: ${isNotExpired}`);
+      
+      return isDue && isNotExpired;
+    });
+
+    console.log('Due transactions found:', dueTransactions.length);
+    dueTransactions.forEach(rt => {
+      console.log(`- ${rt.description}: due ${rt.next_due_date}, active: ${rt.is_active}`);
+    });
 
     let processedCount = 0;
 
@@ -586,6 +603,7 @@ export function useFinancialData() {
       fetchTransactions();
       fetchCategories();
       fetchRecurringTransactions();
-    }
+    },
+    manualProcessRecurring: processDueRecurringTransactions
   };
 }
