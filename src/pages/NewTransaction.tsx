@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, MinusCircle, TrendingUp, TrendingDown, ArrowRightLeft, Repeat, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MinusCircle, ArrowRightLeft, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useNavigate } from 'react-router-dom';
@@ -17,9 +16,8 @@ const NewTransaction = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { formatCurrency } = useUserPreferences();
-  const { accounts, categories, transactions, createTransaction, createTransfer, createRecurringTransaction } = useFinancialData();
+  const { accounts, categories, transactions, createTransaction, createTransfer } = useFinancialData();
   
-  const [activeTab, setActiveTab] = useState('transaction');
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -29,16 +27,6 @@ const NewTransaction = () => {
     category_id: '',
     transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0]
-  });
-  const [recurringFormData, setRecurringFormData] = useState({
-    description: '',
-    amount: '',
-    type: 'expense' as 'income' | 'expense',
-    account_id: '',
-    category_id: '',
-    recurrence_type: 'monthly' as 'weekly' | 'monthly' | 'yearly',
-    start_date: new Date().toISOString().split('T')[0],
-    end_date: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -130,69 +118,9 @@ const NewTransaction = () => {
     setLoading(false);
   };
 
-  const handleRecurringSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!recurringFormData.description || !recurringFormData.amount || !recurringFormData.account_id) {
-      toast({
-        title: "Informations manquantes",
-        description: "Veuillez remplir tous les champs obligatoires.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    
-    const result = await createRecurringTransaction({
-      description: recurringFormData.description,
-      amount: parseFloat(recurringFormData.amount),
-      type: recurringFormData.type,
-      account_id: recurringFormData.account_id,
-      category_id: recurringFormData.category_id || undefined,
-      recurrence_type: recurringFormData.recurrence_type,
-      start_date: recurringFormData.start_date,
-      end_date: recurringFormData.end_date || undefined,
-    });
-
-    if (result?.error) {
-      toast({
-        title: "Erreur lors de la création",
-        description: result.error.message,
-        variant: "destructive",
-      });
-    } else {
-      const typeLabel = recurringFormData.type === 'income' ? 'Revenus récurrents' : 'Dépense récurrente';
-      toast({
-        title: `${typeLabel} créé${recurringFormData.type === 'income' ? 's' : 'e'}`,
-        description: `${typeLabel} de ${recurringFormData.amount}€ programmé${recurringFormData.type === 'income' ? 's' : 'e'} avec succès.`,
-      });
-      
-      // Reset form
-      setRecurringFormData({
-        description: '',
-        amount: '',
-        type: 'expense',
-        account_id: '',
-        category_id: '',
-        recurrence_type: 'monthly',
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: ''
-      });
-      
-      navigate('/');
-    }
-    
-    setLoading(false);
-  };
-
   const selectedAccount = accounts.find(acc => acc.id === formData.account_id);
   const selectedToAccount = accounts.find(acc => acc.id === formData.to_account_id);
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
-  
-  // For recurring transactions
-  const recurringSelectedAccount = accounts.find(acc => acc.id === recurringFormData.account_id);
-  const recurringSelectedCategory = categories.find(cat => cat.id === recurringFormData.category_id);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -215,33 +143,9 @@ const NewTransaction = () => {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="transaction" className="flex items-center gap-2">
-              <PlusCircle className="h-4 w-4" />
-              Transaction
-            </TabsTrigger>
-            <TabsTrigger value="recurring" className="flex items-center gap-2">
-              <Repeat className="h-4 w-4" />
-              Récurrente
-            </TabsTrigger>
-          </TabsList>
 
-          {/* Simple button to access recurring transactions management */}
-          <div className="mt-4 flex justify-end">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/recurring-transactions')}
-              className="flex items-center gap-2"
-            >
-              <Repeat className="h-4 w-4" />
-              Gérer les récurrentes
-            </Button>
-          </div>
-
-          <TabsContent value="transaction" className="space-y-4 mt-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
               {/* Transaction Type Toggle */}
               <div className="flex gap-2">
                 <Button
@@ -439,171 +343,8 @@ const NewTransaction = () => {
                   {loading ? 'Création...' : 'Créer'}
                 </Button>
               </div>
-            </form>
-          </TabsContent>
-
-          <TabsContent value="recurring" className="space-y-4 mt-4">
-            <form onSubmit={handleRecurringSubmit} className="space-y-4">
-              {/* Recurring Type */}
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={recurringFormData.type === 'income' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setRecurringFormData({ ...recurringFormData, type: 'income' })}
-                  className="flex-1"
-                >
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  Revenus
-                </Button>
-                <Button
-                  type="button"
-                  variant={recurringFormData.type === 'expense' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setRecurringFormData({ ...recurringFormData, type: 'expense' })}
-                  className="flex-1"
-                >
-                  <TrendingDown className="h-4 w-4 mr-1" />
-                  Dépense
-                </Button>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="recurring_description">Description *</Label>
-                <Textarea
-                  id="recurring_description"
-                  placeholder="Saisissez la description..."
-                  value={recurringFormData.description}
-                  onChange={(e) => setRecurringFormData({ ...recurringFormData, description: e.target.value })}
-                  required
-                />
-              </div>
-
-              {/* Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="recurring_amount">Montant *</Label>
-                <Input
-                  id="recurring_amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={recurringFormData.amount}
-                  onChange={(e) => setRecurringFormData({ ...recurringFormData, amount: e.target.value })}
-                  required
-                />
-              </div>
-
-              {/* Account */}
-              <div className="space-y-2">
-                <Label htmlFor="recurring_account">Compte *</Label>
-                <Select 
-                  value={recurringFormData.account_id} 
-                  onValueChange={(value) => setRecurringFormData({ ...recurringFormData, account_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un compte" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{account.name}</span>
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            {account.bank.replace(/_/g, ' ').toUpperCase()}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Category */}
-              <div className="space-y-2">
-                <Label htmlFor="recurring_category">Catégorie</Label>
-                <Select 
-                  value={recurringFormData.category_id} 
-                  onValueChange={(value) => setRecurringFormData({ ...recurringFormData, category_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: category.color }}
-                          />
-                          {category.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Recurrence Type */}
-              <div className="space-y-2">
-                <Label htmlFor="recurrence_type">Fréquence *</Label>
-                <Select 
-                  value={recurringFormData.recurrence_type} 
-                  onValueChange={(value: any) => setRecurringFormData({ ...recurringFormData, recurrence_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weekly">Chaque semaine</SelectItem>
-                    <SelectItem value="monthly">Chaque mois</SelectItem>
-                    <SelectItem value="yearly">Chaque année</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Start Date */}
-              <div className="space-y-2">
-                <Label htmlFor="start_date">Date de début *</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={recurringFormData.start_date}
-                  onChange={(e) => setRecurringFormData({ ...recurringFormData, start_date: e.target.value })}
-                  required
-                />
-              </div>
-
-              {/* End Date */}
-              <div className="space-y-2">
-                <Label htmlFor="end_date">Date de fin (optionnel)</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={recurringFormData.end_date}
-                  onChange={(e) => setRecurringFormData({ ...recurringFormData, end_date: e.target.value })}
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/')}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? 'Programmation...' : 'Programmer'}
-                </Button>
-              </div>
-            </form>
-          </TabsContent>
-        </Tabs>
+          </form>
+        </div>
       </div>
     </div>
   );
