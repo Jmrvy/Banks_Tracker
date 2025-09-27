@@ -4,6 +4,7 @@ import {
   Home, 
   Plus, 
   BarChart3, 
+  Repeat, 
   Settings
 } from "lucide-react";
 
@@ -18,6 +19,11 @@ const navItems = [
     path: "/new-transaction",
     icon: Plus,
     label: "Transaction"
+  },
+  {
+    path: "/recurring-transactions",
+    icon: Repeat,
+    label: "Récurrentes"
   },
   {
     path: "/reports",
