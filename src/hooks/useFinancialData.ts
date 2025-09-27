@@ -435,6 +435,9 @@ export function useFinancialData() {
           fetchCategories(),
           fetchRecurringTransactions()
         ]);
+
+        // Process due recurring transactions after loading data
+        await processDueRecurringTransactions();
       } catch (error) {
         console.error('Error loading financial data:', error);
       } finally {
@@ -444,6 +447,13 @@ export function useFinancialData() {
 
     loadData();
 
+    // Set up periodic check for due recurring transactions (every 6 hours)
+    const recurringCheckInterval = setInterval(async () => {
+      if (user) {
+        await processDueRecurringTransactions();
+      }
+    }, 6 * 60 * 60 * 1000); // Check every 6 hours
+    
     // Set up real-time subscriptions
     const channel = supabase
       .channel('financial-data-changes')
@@ -505,7 +515,8 @@ export function useFinancialData() {
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscriptions');
+      console.log('Cleaning up real-time subscriptions and intervals');
+      clearInterval(recurringCheckInterval);
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
