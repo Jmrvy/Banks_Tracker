@@ -56,7 +56,7 @@ export const MobileNavigation = () => {
                 size="sm"
                 onClick={() => navigate(item.path)}
                 className={`flex flex-col h-14 w-16 gap-1 text-xs ${
-                  item.primary ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                  item.primary && location.pathname === "/" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
                 } ${isActive && !item.primary ? "bg-accent text-accent-foreground" : ""}`}
               >
                 <Icon className="h-5 w-5" />
