@@ -130,7 +130,6 @@ export function useFinancialData() {
         category:categories(id, name, color)
       `)
       .eq('user_id', user.id)
-      .eq('is_active', true)
       .order('next_due_date', { ascending: true });
 
     if (error) {
