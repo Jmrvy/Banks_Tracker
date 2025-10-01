@@ -248,61 +248,75 @@ export const useReportsData = (
           currentDate.setDate(currentDate.getDate() + 1);
         }
       } else if (recurringTransactions.length > 0) {
-        // Projection basée sur les transactions récurrentes (sans mutations)
+        // Projection basée sur les transactions récurrentes - respecter les dates exactes
         const activeRecurring = recurringTransactions
           .filter(rt => rt.is_active)
-          .map(rt => ({ ...rt })); // Copie pour éviter les mutations
+          .map(rt => ({ ...rt }));
 
-        // Map pour suivre les prochaines échéances sans mutation
-        const nextDueDates = new Map();
+        // Collecter toutes les occurrences futures des transactions récurrentes
+        const futureTransactions: Array<{ date: Date; amount: number; type: string; description: string }> = [];
+        
         activeRecurring.forEach(rt => {
-          nextDueDates.set(rt.id, new Date(rt.next_due_date));
+          let nextDue = new Date(rt.next_due_date);
+          const maxIterations = 100; // Limite de sécurité
+          let iterations = 0;
+
+          while (nextDue <= projectionEndDate && iterations < maxIterations) {
+            if (nextDue >= projectionStartDate) {
+              futureTransactions.push({
+                date: new Date(nextDue),
+                amount: Number(rt.amount),
+                type: rt.type,
+                description: rt.description
+              });
+            }
+
+            // Calculer la prochaine occurrence
+            const previousDue = new Date(nextDue);
+            switch (rt.recurrence_type) {
+              case 'daily':
+                nextDue = new Date(previousDue);
+                nextDue.setDate(previousDue.getDate() + 1);
+                break;
+              case 'weekly':
+                nextDue = new Date(previousDue);
+                nextDue.setDate(previousDue.getDate() + 7);
+                break;
+              case 'monthly':
+                nextDue = new Date(previousDue);
+                nextDue.setMonth(previousDue.getMonth() + 1);
+                break;
+              case 'yearly':
+                nextDue = new Date(previousDue);
+                nextDue.setFullYear(previousDue.getFullYear() + 1);
+                break;
+            }
+            iterations++;
+          }
         });
 
-        while (currentDate <= projectionEndDate) {
-          let dailyRecurringImpact = 0;
+        // Trier les transactions par date
+        futureTransactions.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-          activeRecurring.forEach(rt => {
-            const nextDueDate = nextDueDates.get(rt.id);
-            
-            if (currentDate.toDateString() === nextDueDate.toDateString()) {
-              if (rt.type === 'income') {
-                dailyRecurringImpact += Number(rt.amount);
-              } else if (rt.type === 'expense') {
-                dailyRecurringImpact -= Number(rt.amount);
-              }
-
-              // Calculer la prochaine échéance
-              const newNextDue = new Date(nextDueDate);
-              switch (rt.recurrence_type) {
-                case 'weekly':
-                  newNextDue.setDate(newNextDue.getDate() + 7);
-                  break;
-                case 'monthly':
-                  newNextDue.setMonth(newNextDue.getMonth() + 1);
-                  break;
-                case 'yearly':
-                  newNextDue.setFullYear(newNextDue.getFullYear() + 1);
-                  break;
-              }
-              nextDueDates.set(rt.id, newNextDue);
-            }
-          });
-
-          projectedBalance += dailyRecurringImpact;
-
-          // Ajouter des points pour les transactions récurrentes ou hebdomadaires
-          if (dailyRecurringImpact !== 0 || currentDate.getDate() % 7 === 0 || currentDate.getDate() === 1) {
-            dailyData.push({
-              date: format(currentDate, "dd/MM", { locale: fr }),
-              solde: null,
-              soldeProjecte: projectedBalance,
-              dateObj: new Date(currentDate),
-              isProjection: true
-            });
+        // Ajouter des points de projection seulement aux dates des transactions
+        let currentProjectedBalance = runningBalance;
+        futureTransactions.forEach(ft => {
+          // Appliquer l'impact de la transaction
+          if (ft.type === 'income') {
+            currentProjectedBalance += ft.amount;
+          } else if (ft.type === 'expense') {
+            currentProjectedBalance -= ft.amount;
           }
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
+
+          // Ajouter un point au graphique
+          dailyData.push({
+            date: format(ft.date, "dd/MM", { locale: fr }),
+            solde: null,
+            soldeProjecte: currentProjectedBalance,
+            dateObj: new Date(ft.date),
+            isProjection: true
+          });
+        });
       }
 
       // S'assurer qu'il y a au moins quelques points de projection
