@@ -358,9 +358,8 @@ export function useFinancialData() {
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
-    // Use a more reliable date comparison
-    const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    // Use string comparison for dates to avoid timezone issues
+    const todayString = new Date().toISOString().split('T')[0];
     
     console.log('Processing recurring transactions for date:', todayString);
     console.log('Total recurring transactions:', recurringTransactions.length);
@@ -368,14 +367,11 @@ export function useFinancialData() {
     const dueTransactions = recurringTransactions.filter(rt => {
       if (!rt.is_active) return false;
       
-      // Convert both dates to Date objects for proper comparison
-      const dueDate = new Date(rt.next_due_date);
-      const todayDate = new Date(todayString);
+      // Use string comparison for reliable date comparison
+      const isDue = rt.next_due_date <= todayString;
+      const isNotExpired = !rt.end_date || rt.end_date >= rt.next_due_date;
       
-      const isDue = dueDate <= todayDate;
-      const isNotExpired = !rt.end_date || new Date(rt.end_date) >= dueDate;
-      
-      console.log(`Checking ${rt.description}: due ${rt.next_due_date} (${dueDate.toISOString()}) vs today ${todayString} (${todayDate.toISOString()}) - isDue: ${isDue}, isNotExpired: ${isNotExpired}`);
+      console.log(`Checking ${rt.description}: due ${rt.next_due_date} vs today ${todayString} - isDue: ${isDue}, isNotExpired: ${isNotExpired}`);
       
       return isDue && isNotExpired;
     });
@@ -402,16 +398,15 @@ export function useFinancialData() {
           continue;
         }
 
-        // Calculate how many occurrences we need to process
-        const currentDue = new Date(rt.next_due_date);
-        let nextDue = new Date(currentDue);
+        // Process transactions using string dates to avoid timezone issues
+        let currentDueDateString = rt.next_due_date;
         let occurrencesProcessed = 0;
         const maxOccurrences = 12; // Limit to prevent infinite loops
 
         // Process all missed occurrences up to today
-        while (nextDue <= today && occurrencesProcessed < maxOccurrences) {
+        while (currentDueDateString <= todayString && occurrencesProcessed < maxOccurrences) {
           // Skip if this occurrence is after the end_date
-          if (rt.end_date && nextDue.toISOString().split('T')[0] > rt.end_date) {
+          if (rt.end_date && currentDueDateString > rt.end_date) {
             break;
           }
 
@@ -422,14 +417,14 @@ export function useFinancialData() {
             description: `${rt.description} (Récurrence automatique)`,
             amount: rt.amount,
             type: rt.type,
-            transaction_date: nextDue.toISOString().split('T')[0]
+            transaction_date: currentDueDateString
           });
 
           occurrencesProcessed++;
 
-          // Calculate next occurrence
-          const previousDue = new Date(nextDue);
-          nextDue = new Date(previousDue);
+          // Calculate next occurrence using Date objects but convert back to string
+          const previousDue = new Date(currentDueDateString + 'T00:00:00');
+          const nextDue = new Date(previousDue);
 
           switch (rt.recurrence_type) {
             case 'daily':
@@ -451,13 +446,15 @@ export function useFinancialData() {
               nextDue.setFullYear(previousDue.getFullYear() + 1);
               break;
           }
+          
+          currentDueDateString = nextDue.toISOString().split('T')[0];
         }
 
         // Update the recurring transaction with the new next_due_date
         await supabase
           .from('recurring_transactions')
           .update({
-            next_due_date: nextDue.toISOString().split('T')[0],
+            next_due_date: currentDueDateString,
             updated_at: new Date().toISOString()
           })
           .eq('id', rt.id);
