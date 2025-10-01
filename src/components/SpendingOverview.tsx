@@ -4,6 +4,7 @@ import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModa
 import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { startOfMonth, endOfMonth } from "date-fns";
 
 export const SpendingOverview = () => {
   const { transactions, categories, loading } = useFinancialData();
@@ -11,10 +12,20 @@ export const SpendingOverview = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Calculate spending by category from actual transactions
+  // Calculate spending by category from actual transactions (current month only)
   const spendingData = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    
+    // Filter transactions to current month
+    const currentMonthTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.transaction_date);
+      return transactionDate >= monthStart && transactionDate <= monthEnd;
+    });
+    
     return categories.map(category => {
-      const categoryTransactions = transactions.filter(t => 
+      const categoryTransactions = currentMonthTransactions.filter(t => 
         t.category?.name === category.name && t.type === 'expense'
       );
       
@@ -99,7 +110,7 @@ export const SpendingOverview = () => {
         <CardTitle className="flex items-center justify-between">
           <span>Dépenses par Catégorie</span>
           <span className="text-sm font-normal text-muted-foreground">
-            {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
+            Mois en cours: {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
           </span>
         </CardTitle>
       </CardHeader>
