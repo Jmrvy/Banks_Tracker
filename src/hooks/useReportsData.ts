@@ -215,11 +215,10 @@ export const useReportsData = (
 
     // Si la période est déjà terminée, pas de projection
     if (periodEndDate >= today) {
-      // Projection sur 3 mois à partir de la fin de la période
-      const projectionStartDate = new Date(endDate);
+      // Projection uniquement jusqu'à la fin de la période sélectionnée
+      const projectionStartDate = new Date(today);
       projectionStartDate.setDate(projectionStartDate.getDate() + 1);
-      const projectionEndDate = new Date(projectionStartDate);
-      projectionEndDate.setMonth(projectionEndDate.getMonth() + 3);
+      const projectionEndDate = new Date(endDate);
 
       let projectedBalance = runningBalance;
       let currentDate = new Date(projectionStartDate);

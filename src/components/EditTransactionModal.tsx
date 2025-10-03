@@ -108,7 +108,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-[95vw] sm:max-w-md p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Modifier la transaction</DialogTitle>
         </DialogHeader>

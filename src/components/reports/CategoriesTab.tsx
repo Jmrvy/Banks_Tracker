@@ -33,6 +33,8 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
     budget: Math.abs(c.budget || 0),
   }));
 
+  console.log('Category Chart Data:', chartData);
+
   // Domaine X stable pour éviter un dataMax à 0
   const chartMax = Math.max(1, ...chartData.map((c) => Math.max(c.spent, c.budget)));
 
@@ -57,20 +59,20 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
           <CardDescription className="text-xs sm:text-sm">Montants dépensés et budgets alloués</CardDescription>
         </CardHeader>
         <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-          <div className="h-64 sm:h-80">
+          <div className="h-[400px] sm:h-80">
             <ChartContainer config={chartConfig} className="w-full h-full">
               <BarChart 
                 data={sortedData}
                 layout="horizontal"
                 margin={{ 
                   top: 5, 
-                  right: 15, 
-                  left: isMobile ? 80 : 120, 
+                  right: 10, 
+                  left: isMobile ? 70 : 110, 
                   bottom: 5 
                 }}
-                barCategoryGap={8}
+                barCategoryGap={isMobile ? 6 : 8}
                 barGap={2}
-                barSize={isMobile ? 10 : 14}
+                barSize={isMobile ? 12 : 16}
               >
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis 
