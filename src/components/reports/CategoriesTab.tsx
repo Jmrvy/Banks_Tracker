@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { CategoryData } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -26,17 +26,18 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
   const formatCurrency = (amount: number) => 
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
-  // Prépare des valeurs positives pour un rendu fiable
-  const chartData = categoryChartData.map((c) => ({
-    ...c,
-    spent: Math.abs(c.spent),
-    budget: Math.abs(c.budget || 0),
-  }));
+  // Prépare les données pour le pie chart
+  const chartData = categoryChartData
+    .filter(c => c.spent > 0)
+    .map((c) => ({
+      name: c.name,
+      value: Math.abs(c.spent),
+      color: c.color,
+    }));
+
+  const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
 
   console.log('Category Chart Data:', chartData);
-
-  // Domaine X stable pour éviter un dataMax à 0
-  const chartMax = Math.max(1, ...chartData.map((c) => Math.max(c.spent, c.budget)));
 
   if (chartData.length === 0) {
     return (
@@ -48,8 +49,6 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
     );
   }
 
-  const sortedData = [...chartData].sort((a, b) => b.spent - a.spent);
-
   return (
     <div className="space-y-4">
       {/* Chart Section - Mobile Optimized */}
@@ -59,66 +58,64 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
           <CardDescription className="text-xs sm:text-sm">Montants dépensés et budgets alloués</CardDescription>
         </CardHeader>
         <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-          <div className="h-[400px] sm:h-80">
-            <ChartContainer config={chartConfig} className="w-full h-full">
-              <BarChart 
-                data={sortedData}
-                layout="horizontal"
-                margin={{ 
-                  top: 5, 
-                  right: 10, 
-                  left: isMobile ? 70 : 110, 
-                  bottom: 5 
-                }}
-                barCategoryGap={isMobile ? 6 : 8}
-                barGap={2}
-                barSize={isMobile ? 12 : 16}
-              >
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis 
-                  type="number"
-                  fontSize={isMobile ? 10 : 12}
-                  domain={[0, chartMax]}
-                  tickFormatter={(value) => 
+          <div className="h-[400px] sm:h-96 flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => 
                     isMobile 
-                      ? `${(value / 1000).toFixed(0)}k€`
-                      : value.toLocaleString('fr-FR', { 
-                          style: 'currency', 
-                          currency: 'EUR',
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })
+                      ? `${(percent * 100).toFixed(0)}%`
+                      : `${name}: ${(percent * 100).toFixed(1)}%`
                   }
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="name" 
-                  fontSize={isMobile ? 10 : 12}
-                  width={isMobile ? 80 : 120}
-                  tick={{ fontSize: isMobile ? 10 : 12 }}
-                />
+                  outerRadius={isMobile ? 100 : 130}
+                  innerRadius={isMobile ? 50 : 70}
+                  fill="#8884d8"
+                  dataKey="value"
+                  paddingAngle={2}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
                 <ChartTooltip 
-                  content={
-                    <ChartTooltipContent 
-                      formatter={(value, name) => [
-                        typeof value === 'number' 
-                          ? formatCurrency(value)
-                          : 'N/A',
-                        name === 'spent' ? 'Dépensé' : 'Budget'
-                      ]}
-                    />
-                  }
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      const percentage = ((data.value / totalSpent) * 100).toFixed(1);
+                      return (
+                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: data.color }}
+                            />
+                            <span className="font-medium text-sm">{data.name}</span>
+                          </div>
+                          <div className="text-sm">
+                            <div className="font-semibold text-foreground">
+                              {formatCurrency(data.value)}
+                            </div>
+                            <div className="text-muted-foreground text-xs">
+                              {percentage}% du total
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
-                <ChartLegend 
-                  verticalAlign="top" 
-                  content={<ChartLegendContent />}
-                  iconType="rect"
-                  wrapperStyle={{ fontSize: isMobile ? '12px' : '14px' }}
-                />
-                <Bar dataKey="budget" fill={chartConfig.budget.color} opacity={0.4} radius={2} />
-                <Bar dataKey="spent" fill={chartConfig.spent.color} radius={2} />
-              </BarChart>
-            </ChartContainer>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Total des dépenses: <span className="font-semibold text-foreground">{formatCurrency(totalSpent)}</span>
+            </p>
           </div>
         </CardContent>
       </Card>
