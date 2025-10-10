@@ -72,7 +72,7 @@ serve(async (req) => {
             type: recurring.type,
             account_id: recurring.account_id,
             category_id: recurring.category_id,
-            transaction_date: today,
+            transaction_date: recurring.next_due_date,
             user_id: recurring.user_id
           });
 
