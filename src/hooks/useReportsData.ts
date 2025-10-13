@@ -340,6 +340,17 @@ export const useReportsData = (
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
+    // Calculer le multiplicateur de budget selon la période
+    let budgetMultiplier = 1;
+    
+    if (periodType === 'year') {
+      budgetMultiplier = 12;
+    } else if (periodType === 'custom') {
+      const daysInPeriod = differenceInDays(period.to, period.from) + 1;
+      budgetMultiplier = daysInPeriod / 30; // 1 mois = 30 jours
+    }
+    // periodType === 'month' → budgetMultiplier = 1 (pas de changement)
+    
     const expensesByCategory = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
@@ -352,7 +363,7 @@ export const useReportsData = (
           acc[categoryId] = {
             name: categoryName,
             spent: 0,
-            budget: Number(category?.budget || 0),
+            budget: Number(category?.budget || 0) * budgetMultiplier,
             color: categoryColor
           };
         }
@@ -366,7 +377,7 @@ export const useReportsData = (
         expensesByCategory[category.id] = {
           name: category.name,
           spent: 0,
-          budget: Number(category.budget),
+          budget: Number(category.budget) * budgetMultiplier,
           color: category.color
         };
       }
@@ -379,7 +390,7 @@ export const useReportsData = (
         remaining: data.budget > 0 ? Math.max(0, data.budget - data.spent) : 0
       }))
       .sort((a, b) => b.spent - a.spent);
-  }, [filteredTransactions, categories]);
+  }, [filteredTransactions, categories, periodType, period]);
 
   // Données pour les transactions récurrentes
   const recurringData = useMemo<RecurringData>(() => {
