@@ -64,8 +64,18 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
 
   const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
 
-  // Prépare les données triées pour le bar chart
-  const barChartData = [...chartData].sort((a, b) => b.value - a.value);
+  // Prépare les données pour le graphique empilé (Budget vs Dépenses)
+  const stackedBarData = categoryChartData
+    .filter(c => c.budget > 0)
+    .sort((a, b) => b.spent - a.spent)
+    .map(c => ({
+      name: c.name,
+      spent: Math.abs(c.spent),
+      remaining: Math.max(0, c.budget - c.spent),
+      budget: c.budget,
+      color: c.color,
+      percentage: parseFloat(c.percentage)
+    }));
 
   console.log('Category Chart Data:', chartData);
 
@@ -152,18 +162,23 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
           </CardContent>
         </Card>
 
-        {/* Bar Chart */}
+        {/* Stacked Bar Chart - Budget vs Dépenses */}
         <Card className="overflow-hidden">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-            <CardTitle className="text-base sm:text-lg">Classement des dépenses</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Montants par catégorie (ordre décroissant)</CardDescription>
+            <CardTitle className="text-base sm:text-lg">Budget vs Dépenses</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Comparaison par catégorie</CardDescription>
           </CardHeader>
           <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
             <div className="h-[400px] sm:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
-                  data={barChartData}
+                  data={stackedBarData}
                   margin={{ top: 20, right: 10, left: 10, bottom: 60 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      handleBarClick(data.activePayload[0].payload);
+                    }
+                  }}
                 >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis 
@@ -191,22 +206,38 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
-                        const percentage = ((data.value / totalSpent) * 100).toFixed(1);
                         return (
-                          <div className="rounded-lg border bg-background p-2 shadow-sm">
-                            <div className="flex items-center gap-2 mb-1">
+                          <div className="rounded-lg border bg-background p-3 shadow-sm min-w-[200px]">
+                            <div className="flex items-center gap-2 mb-2">
                               <div 
                                 className="w-3 h-3 rounded-full" 
                                 style={{ backgroundColor: data.color }}
                               />
                               <span className="font-medium text-sm">{data.name}</span>
                             </div>
-                            <div className="text-sm">
-                              <div className="font-semibold text-foreground">
-                                {formatCurrency(data.value)}
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Budget:</span>
+                                <span className="font-semibold">{formatCurrency(data.budget)}</span>
                               </div>
-                              <div className="text-muted-foreground text-xs">
-                                {percentage}% du total
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Dépensé:</span>
+                                <span className="font-semibold text-destructive">{formatCurrency(data.spent)}</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Restant:</span>
+                                <span className={cn(
+                                  "font-semibold",
+                                  data.remaining > 0 ? "text-success" : "text-destructive"
+                                )}>
+                                  {formatCurrency(data.remaining)}
+                                </span>
+                              </div>
+                              <div className="pt-1 mt-1 border-t">
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground">Utilisé:</span>
+                                  <span className="font-semibold">{data.percentage.toFixed(1)}%</span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -216,17 +247,35 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
                     }}
                   />
                   <Bar 
-                    dataKey="value" 
-                    radius={[4, 4, 0, 0]}
-                    onClick={handleBarClick}
+                    dataKey="spent" 
+                    stackId="a"
+                    fill="currentColor"
+                    radius={[0, 0, 0, 0]}
                     cursor="pointer"
                   >
-                    {barChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    {stackedBarData.map((entry, index) => (
+                      <Cell key={`spent-${index}`} fill={entry.color} />
                     ))}
                   </Bar>
+                  <Bar 
+                    dataKey="remaining" 
+                    stackId="a"
+                    fill="hsl(var(--muted))"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                  />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div className="mt-3 flex justify-center gap-4 text-xs sm:text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-destructive rounded"></div>
+                <span className="text-muted-foreground">Dépensé</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-muted rounded"></div>
+                <span className="text-muted-foreground">Restant</span>
+              </div>
             </div>
           </CardContent>
         </Card>
