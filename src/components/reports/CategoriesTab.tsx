@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
@@ -5,9 +6,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { cn } from "@/lib/utils";
 import { CategoryData } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
+import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
+  transactions: FinancialTransaction[];
 }
 
 const chartConfig = {
@@ -21,10 +25,33 @@ const chartConfig = {
   }
 };
 
-export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
+export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  
   const formatCurrency = (amount: number) => 
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+  const handleBarClick = (data: any) => {
+    setSelectedCategory(data.name);
+    setModalOpen(true);
+  };
+
+  const getCategoryTransactions = () => {
+    if (!selectedCategory) return [];
+    
+    return transactions
+      .filter(t => t.category?.name === selectedCategory && t.type === 'expense')
+      .map(t => ({
+        id: t.id,
+        description: t.description,
+        amount: Math.abs(t.amount),
+        bank: t.account?.bank || 'other',
+        date: t.transaction_date,
+        type: t.type
+      }));
+  };
 
   // Prépare les données pour le pie chart
   const chartData = categoryChartData
@@ -191,6 +218,8 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
                   <Bar 
                     dataKey="value" 
                     radius={[4, 4, 0, 0]}
+                    onClick={handleBarClick}
+                    cursor="pointer"
                   >
                     {barChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -281,6 +310,13 @@ export const CategoriesTab = ({ categoryChartData }: CategoriesTabProps) => {
           </div>
         </CardContent>
       </Card>
+
+      <CategoryTransactionsModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        categoryName={selectedCategory || ''}
+        transactions={getCategoryTransactions()}
+      />
     </div>
   );
 };

@@ -31,7 +31,8 @@ const Reports = () => {
     categoryChartData,
     recurringData,
     spendingPatternsData,
-    accounts
+    accounts,
+    filteredTransactions
   } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns);
 
   if (loading) {
@@ -101,7 +102,10 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="categories">
-            <CategoriesTab categoryChartData={categoryChartData} />
+            <CategoriesTab 
+              categoryChartData={categoryChartData} 
+              transactions={filteredTransactions}
+            />
           </TabsContent>
 
           <TabsContent value="recurring">
