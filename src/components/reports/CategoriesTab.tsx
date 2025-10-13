@@ -252,28 +252,37 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
                     fill="currentColor"
                     radius={[0, 0, 0, 0]}
                     cursor="pointer"
+                    stroke="hsl(var(--border))"
+                    strokeWidth={1}
                   >
                     {stackedBarData.map((entry, index) => (
-                      <Cell key={`spent-${index}`} fill={entry.color} />
+                      <Cell 
+                        key={`spent-${index}`} 
+                        fill={entry.color}
+                        opacity={0.9}
+                      />
                     ))}
                   </Bar>
                   <Bar 
                     dataKey="remaining" 
                     stackId="a"
-                    fill="hsl(var(--muted))"
+                    fill="hsl(var(--muted-foreground))"
                     radius={[4, 4, 0, 0]}
                     cursor="pointer"
+                    stroke="hsl(var(--border))"
+                    strokeWidth={1}
+                    opacity={0.2}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-3 flex justify-center gap-4 text-xs sm:text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-destructive rounded"></div>
+                <div className="w-3 h-3 rounded border border-border" style={{ backgroundColor: 'hsl(var(--primary))', opacity: 0.9 }}></div>
                 <span className="text-muted-foreground">Dépensé</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-muted rounded"></div>
+                <div className="w-3 h-3 rounded border border-border" style={{ backgroundColor: 'hsl(var(--muted-foreground))', opacity: 0.2 }}></div>
                 <span className="text-muted-foreground">Restant</span>
               </div>
             </div>
