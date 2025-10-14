@@ -1,16 +1,18 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, LogOut, CreditCard, Tag } from "lucide-react";
+import { FileText, LogOut, CreditCard, Tag } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
+import { ReportGeneratorModal } from "@/components/ReportGeneratorModal";
 import { useState } from "react";
 
 export const DashboardHeader = () => {
   const { user, signOut } = useAuth();
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   
   const currentMonth = new Date().toLocaleDateString('fr-FR', { 
     month: 'long', 
@@ -57,9 +59,9 @@ export const DashboardHeader = () => {
           <Tag className="w-4 h-4 mr-2" />
           Nouvelle Catégorie
         </Button>
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Exporter Données
+        <Button variant="outline" onClick={() => setReportModalOpen(true)}>
+          <FileText className="w-4 h-4 mr-2" />
+          Générer un Rapport
         </Button>
       </div>
       
@@ -70,6 +72,10 @@ export const DashboardHeader = () => {
       <NewCategoryModal 
         open={categoryModalOpen} 
         onOpenChange={setCategoryModalOpen} 
+      />
+      <ReportGeneratorModal 
+        open={reportModalOpen} 
+        onOpenChange={setReportModalOpen} 
       />
     </div>
   );
