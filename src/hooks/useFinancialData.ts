@@ -41,7 +41,7 @@ export interface RecurringTransaction {
   description: string;
   amount: number;
   type: 'income' | 'expense';
-  recurrence_type: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+  recurrence_type: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   start_date: string;
   end_date: string | null;
   next_due_date: string;
@@ -282,7 +282,7 @@ export function useFinancialData() {
     return { error };
   };
 
-  const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date'>>) => {
+  const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date' | 'type' | 'account_id' | 'category_id' | 'recurrence_type' | 'start_date'>>) => {
     if (!user) return;
     const { error } = await supabase
       .from('recurring_transactions')
@@ -430,14 +430,8 @@ export function useFinancialData() {
           const nextDue = new Date(previousDue);
 
           switch (rt.recurrence_type) {
-            case 'daily':
-              nextDue.setDate(previousDue.getDate() + 1);
-              break;
             case 'weekly':
               nextDue.setDate(previousDue.getDate() + 7);
-              break;
-            case 'biweekly':
-              nextDue.setDate(previousDue.getDate() + 14);
               break;
             case 'monthly':
               nextDue.setMonth(previousDue.getMonth() + 1);

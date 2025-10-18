@@ -2,17 +2,19 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Repeat, Calendar, Trash2, Pause, Play, Plus } from "lucide-react";
+import { ArrowLeft, Repeat, Calendar, Trash2, Pause, Play, Plus, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useNavigate } from "react-router-dom";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
+import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
 
 const RecurringTransactions = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showNewRecurring, setShowNewRecurring] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const { formatCurrency } = useUserPreferences();
   const { 
     recurringTransactions, 
@@ -303,6 +305,14 @@ const RecurringTransactions = () => {
                           <Button
                             size="sm"
                             variant="outline"
+                            onClick={() => setEditingTransaction(recurring)}
+                            title="Modifier"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => handleToggleActive(recurring.id, recurring.is_active)}
                             title={recurring.is_active ? 'Désactiver' : 'Activer'}
                           >
@@ -334,6 +344,12 @@ const RecurringTransactions = () => {
       <NewRecurringTransactionModal 
         open={showNewRecurring} 
         onOpenChange={setShowNewRecurring} 
+      />
+
+      <EditRecurringTransactionModal 
+        open={!!editingTransaction} 
+        onOpenChange={(open) => !open && setEditingTransaction(null)} 
+        transaction={editingTransaction}
       />
     </div>
   );

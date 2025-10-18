@@ -273,10 +273,6 @@ export const useReportsData = (
             // Calculer la prochaine occurrence
             const previousDue = new Date(nextDue);
             switch (rt.recurrence_type) {
-              case 'daily':
-                nextDue = new Date(previousDue);
-                nextDue.setDate(previousDue.getDate() + 1);
-                break;
               case 'weekly':
                 nextDue = new Date(previousDue);
                 nextDue.setDate(previousDue.getDate() + 7);
@@ -284,6 +280,10 @@ export const useReportsData = (
               case 'monthly':
                 nextDue = new Date(previousDue);
                 nextDue.setMonth(previousDue.getMonth() + 1);
+                break;
+              case 'quarterly':
+                nextDue = new Date(previousDue);
+                nextDue.setMonth(previousDue.getMonth() + 3);
                 break;
               case 'yearly':
                 nextDue = new Date(previousDue);
