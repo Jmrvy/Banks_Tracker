@@ -70,6 +70,7 @@ const RecurringTransactions = () => {
     switch (type) {
       case 'weekly': return 'Hebdomadaire';
       case 'monthly': return 'Mensuelle';
+      case 'quarterly': return 'Trimestrielle';
       case 'yearly': return 'Annuelle';
       default: return type;
     }

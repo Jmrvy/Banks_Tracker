@@ -93,6 +93,9 @@ serve(async (req) => {
           case 'monthly':
             nextDueDate.setMonth(currentDueDate.getMonth() + 1);
             break;
+          case 'quarterly':
+            nextDueDate.setMonth(currentDueDate.getMonth() + 3);
+            break;
           case 'yearly':
             nextDueDate.setFullYear(currentDueDate.getFullYear() + 1);
             break;

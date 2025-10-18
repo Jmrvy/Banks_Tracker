@@ -47,7 +47,7 @@ export interface RecurringTransaction {
   next_due_date: string;
   is_active: boolean;
   account: { name: string; bank: string } | null;
-  category: { id: string; name: string; color: string } | null; // ← Added id here
+  category: { id: string; name: string; color: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -235,7 +235,7 @@ export function useFinancialData() {
     type: 'income' | 'expense';
     account_id: string;
     category_id?: string;
-    recurrence_type: 'weekly' | 'monthly' | 'yearly';
+    recurrence_type: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
     start_date: string;
     end_date?: string;
   }) => {
@@ -251,6 +251,9 @@ export function useFinancialData() {
         break;
       case 'monthly':
         nextDueDate.setMonth(startDate.getMonth() + 1);
+        break;
+      case 'quarterly':
+        nextDueDate.setMonth(startDate.getMonth() + 3);
         break;
       case 'yearly':
         nextDueDate.setFullYear(startDate.getFullYear() + 1);

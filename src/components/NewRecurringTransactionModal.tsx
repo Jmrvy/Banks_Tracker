@@ -28,7 +28,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
     type: 'expense' as 'income' | 'expense',
     account_id: '',
     category_id: '',
-    recurrence_type: 'monthly' as 'weekly' | 'monthly' | 'yearly',
+    recurrence_type: 'monthly' as 'weekly' | 'monthly' | 'quarterly' | 'yearly',
     start_date: new Date().toISOString().split('T')[0],
     end_date: ''
   });
@@ -97,7 +97,8 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
   const getRecurrenceLabel = (type: string) => {
     switch (type) {
       case 'weekly': return 'Chaque semaine';
-      case 'monthly': return 'Chaque mois';  
+      case 'monthly': return 'Chaque mois';
+      case 'quarterly': return 'Chaque trimestre';
       case 'yearly': return 'Chaque année';
       default: return type;
     }
@@ -115,6 +116,9 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
         break;
       case 'monthly':
         nextDate.setMonth(startDate.getMonth() + 1);
+        break;
+      case 'quarterly':
+        nextDate.setMonth(startDate.getMonth() + 3);
         break;
       case 'yearly':
         nextDate.setFullYear(startDate.getFullYear() + 1);
@@ -282,6 +286,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                   <SelectContent>
                     <SelectItem value="weekly">Chaque semaine</SelectItem>
                     <SelectItem value="monthly">Chaque mois</SelectItem>
+                    <SelectItem value="quarterly">Chaque trimestre</SelectItem>
                     <SelectItem value="yearly">Chaque année</SelectItem>
                   </SelectContent>
                 </Select>
