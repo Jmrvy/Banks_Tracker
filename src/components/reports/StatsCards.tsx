@@ -3,18 +3,25 @@ import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReportsStats } from "@/hooks/useReportsData";
 
+interface Transaction {
+  id: string;
+  type: 'income' | 'expense' | 'transfer';
+}
+
 interface StatsCardsProps {
   stats: ReportsStats;
   accountsCount: number;
+  onIncomeClick?: () => void;
+  onExpensesClick?: () => void;
 }
 
-export const StatsCards = ({ stats, accountsCount }: StatsCardsProps) => {
+export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClick }: StatsCardsProps) => {
   const formatCurrency = (amount: number) => 
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
-      <Card className="hover-scale">
+      <Card className="hover-scale cursor-pointer" onClick={onIncomeClick}>
         <CardContent className="p-2 sm:p-3 lg:p-6">
           <div className="flex items-center space-x-1.5 sm:space-x-2">
             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success flex-shrink-0" />
@@ -28,7 +35,7 @@ export const StatsCards = ({ stats, accountsCount }: StatsCardsProps) => {
         </CardContent>
       </Card>
 
-      <Card className="hover-scale">
+      <Card className="hover-scale cursor-pointer" onClick={onExpensesClick}>
         <CardContent className="p-2 sm:p-3 lg:p-6">
           <div className="flex items-center space-x-1.5 sm:space-x-2">
             <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-destructive flex-shrink-0" />

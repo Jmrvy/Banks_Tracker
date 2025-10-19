@@ -11,6 +11,7 @@ import { StatsCards } from "@/components/reports/StatsCards";
 import { EvolutionTab } from "@/components/reports/EvolutionTab";
 import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
+import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 
 const Reports = () => {
   const navigate = useNavigate();
@@ -22,6 +23,8 @@ const Reports = () => {
     to: endOfMonth(new Date())
   });
   const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
+  const [showIncomeModal, setShowIncomeModal] = useState(false);
+  const [showExpensesModal, setShowExpensesModal] = useState(false);
 
   const {
     loading,
@@ -80,7 +83,12 @@ const Reports = () => {
         />
 
         {/* Résumé des soldes */}
-        <StatsCards stats={stats} accountsCount={accounts.length} />
+        <StatsCards 
+          stats={stats} 
+          accountsCount={accounts.length}
+          onIncomeClick={() => setShowIncomeModal(true)}
+          onExpensesClick={() => setShowExpensesModal(true)}
+        />
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-4">
@@ -119,6 +127,22 @@ const Reports = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <TransactionTypeModal
+        open={showIncomeModal}
+        onOpenChange={setShowIncomeModal}
+        transactions={filteredTransactions.filter(t => t.type === 'income')}
+        type="income"
+        period={period.label}
+      />
+
+      <TransactionTypeModal
+        open={showExpensesModal}
+        onOpenChange={setShowExpensesModal}
+        transactions={filteredTransactions.filter(t => t.type === 'expense')}
+        type="expense"
+        period={period.label}
+      />
     </div>
   );
 };
