@@ -47,8 +47,14 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     
     setIsGenerating(true);
     try {
-      // Wait for charts to render
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Temporarily make visible for rendering
+      reportRef.current.style.left = '0';
+      reportRef.current.style.position = 'fixed';
+      reportRef.current.style.top = '0';
+      reportRef.current.style.zIndex = '-1';
+      
+      // Wait for charts and content to render
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
@@ -56,26 +62,34 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         logging: false,
         backgroundColor: '#ffffff',
         windowWidth: 1200,
+        width: 1200,
       });
+
+      // Hide again
+      reportRef.current.style.left = '-9999px';
+      reportRef.current.style.position = 'absolute';
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 72;
-
-      let heightLeft = imgHeight * ratio;
+      
+      // Convert canvas dimensions to PDF dimensions
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth * ratio, imgHeight * ratio);
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
 
+      // Add additional pages if content is longer than one page
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight * ratio;
+        position = -(imgHeight - heightLeft);
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth * ratio, imgHeight * ratio);
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pdfHeight;
       }
 
@@ -286,9 +300,9 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                         contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
                         formatter={(value: number) => formatCurrency(value)}
                       />
-                      <Line 
+                       <Line 
                         type="monotone" 
-                        dataKey="balance" 
+                        dataKey="solde" 
                         stroke="#3b82f6" 
                         strokeWidth={3}
                         dot={{ fill: '#3b82f6', r: 4 }}
@@ -356,69 +370,67 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
               </div>
             )}
 
-            {/* Transactions by Account */}
+            {/* All Transactions Table */}
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900">Transactions par Compte</h2>
-              {accountBalances.map(account => {
-                const accountTrans = filteredTransactions.filter(t => 
-                  t.account_id === account.id || t.transfer_to_account_id === account.id
-                );
-
-                if (accountTrans.length === 0) return null;
-
-                return (
-                  <div key={account.id} className="p-6 border border-gray-200 rounded-lg bg-white">
-                    <h3 className="text-xl font-semibold mb-4 text-gray-900">{account.name}</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="text-left p-2 text-gray-700 border-b border-gray-300">Date</th>
-                            <th className="text-left p-2 text-gray-700 border-b border-gray-300">Description</th>
-                            <th className="text-left p-2 text-gray-700 border-b border-gray-300">Type</th>
-                            <th className="text-right p-2 text-gray-700 border-b border-gray-300">Montant</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {accountTrans.slice(0, 15).map((transaction) => (
-                            <tr key={transaction.id} className="border-b border-gray-200">
-                              <td className="p-2 text-gray-600">
-                                {format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}
-                              </td>
-                              <td className="p-2 text-gray-900">{transaction.description}</td>
-                              <td className="p-2">
-                                <span className={`px-2 py-1 rounded text-xs ${
-                                  transaction.type === 'income' ? 'bg-green-100 text-green-700' :
-                                  transaction.type === 'expense' ? 'bg-red-100 text-red-700' :
-                                  'bg-blue-100 text-blue-700'
-                                }`}>
-                                  {transaction.type === 'income' ? 'Revenu' : 
-                                   transaction.type === 'expense' ? 'Dépense' : 'Virement'}
-                                </span>
-                              </td>
-                              <td className={`p-2 text-right font-semibold ${
-                                transaction.type === 'income' ? 'text-green-700' :
-                                transaction.type === 'expense' ? 'text-red-700' :
-                                'text-blue-700'
-                              }`}>
-                                {transaction.type === 'income' ? '+' : '-'}
-                                {formatCurrency(Number(transaction.amount))}
-                              </td>
-                            </tr>
-                          ))}
-                          {accountTrans.length > 15 && (
-                            <tr>
-                              <td colSpan={4} className="p-2 text-center text-gray-500 text-xs">
-                                ... et {accountTrans.length - 15} autres transactions
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })}
+              <h2 className="text-2xl font-bold text-gray-900">Détail des Transactions</h2>
+              <div className="p-6 border border-gray-200 rounded-lg bg-white">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Date</th>
+                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Compte</th>
+                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Description</th>
+                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Catégorie</th>
+                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Type</th>
+                        <th className="text-right p-2 text-gray-700 border-b-2 border-gray-300">Montant</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTransactions
+                        .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+                        .map((transaction) => (
+                        <tr key={transaction.id} className="border-b border-gray-200">
+                          <td className="p-2 text-gray-600">
+                            {format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}
+                          </td>
+                          <td className="p-2 text-gray-700">
+                            {accounts.find(a => a.id === transaction.account_id)?.name || '-'}
+                          </td>
+                          <td className="p-2 text-gray-900">{transaction.description}</td>
+                          <td className="p-2 text-gray-600 text-xs">
+                            {transaction.category?.name || '-'}
+                          </td>
+                          <td className="p-2">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              transaction.type === 'income' ? 'bg-green-100 text-green-700' :
+                              transaction.type === 'expense' ? 'bg-red-100 text-red-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {transaction.type === 'income' ? 'Revenu' : 
+                               transaction.type === 'expense' ? 'Dépense' : 'Virement'}
+                            </span>
+                          </td>
+                          <td className={`p-2 text-right font-semibold ${
+                            transaction.type === 'income' ? 'text-green-700' :
+                            transaction.type === 'expense' ? 'text-red-700' :
+                            'text-blue-700'
+                          }`}>
+                            {transaction.type === 'income' ? '+' : '-'}
+                            {formatCurrency(Number(transaction.amount))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Total des transactions:</td>
+                        <td className="p-3 text-right font-bold text-gray-900">{filteredTransactions.length}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
