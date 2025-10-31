@@ -259,11 +259,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                 <p className="text-2xl font-bold text-red-700">{formatCurrency(stats.expenses)}</p>
               </div>
               <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-300 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Solde Net</p>
+                <p className="text-xs text-gray-600 mb-1">Net Période</p>
                 <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.netPeriodBalance)}</p>
               </div>
               <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-300 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Solde Total</p>
+                <p className="text-xs text-gray-600 mb-1">Solde Final</p>
                 <p className="text-2xl font-bold text-purple-700">{formatCurrency(totalBalance)}</p>
               </div>
             </div>
