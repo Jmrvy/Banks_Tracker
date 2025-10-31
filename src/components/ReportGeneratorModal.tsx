@@ -119,12 +119,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     return transactionDate >= actualStartDate && transactionDate <= actualEndDate;
   });
 
-  // Calculate account balances at report date
+  // Calculate account balances at end of selected period
   const accountBalances = accounts.map(account => {
     const accountTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.transaction_date);
       return (t.account_id === account.id || t.transfer_to_account_id === account.id) && 
-             transactionDate <= reportDate;
+             transactionDate <= actualEndDate;
     });
 
     let balance = 0;
@@ -142,13 +142,16 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     return { ...account, currentBalance: balance };
   });
 
-  // Prepare category chart data for stacked bars
-  const stackedBarData = categoryChartData
+  // Calculate total balance at end of period
+  const totalBalance = accountBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
+
+  // Prepare category chart data - top 10 categories by spending
+  const topCategories = categoryChartData
     .filter(cat => cat.spent > 0)
     .sort((a, b) => b.spent - a.spent)
-    .slice(0, 8)
+    .slice(0, 10)
     .map(cat => ({
-      name: cat.name.length > 12 ? cat.name.substring(0, 12) + '...' : cat.name,
+      name: cat.name.length > 15 ? cat.name.substring(0, 15) + '...' : cat.name,
       spent: cat.spent,
       remaining: Math.max(0, cat.budget - cat.spent),
       budget: cat.budget,
@@ -230,145 +233,126 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           {/* Hidden report content for PDF generation */}
           <div 
             ref={reportRef} 
-            className="absolute left-[-9999px] w-[1200px] bg-white p-12 space-y-8"
+            className="absolute left-[-9999px] w-[1200px] bg-white p-10 space-y-6"
             style={{ fontFamily: 'Arial, sans-serif' }}
           >
             {/* Header */}
-            <div className="border-b-4 border-blue-600 pb-6">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Rapport Financier</h1>
-              <div className="flex justify-between text-gray-600">
-                <p className="text-lg">Date du rapport: {format(reportDate, 'dd MMMM yyyy', { locale: fr })}</p>
-                <p className="text-lg">Période: {format(actualStartDate, 'dd MMM', { locale: fr })} - {format(actualEndDate, 'dd MMM yyyy', { locale: fr })}</p>
+            <div className="border-b-2 border-blue-600 pb-4">
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Rapport Financier</h1>
+              <div className="flex justify-between text-gray-600 text-sm">
+                <p>Période: {format(actualStartDate, 'dd MMM', { locale: fr })} - {format(actualEndDate, 'dd MMM yyyy', { locale: fr })}</p>
+                <p>Généré le: {format(new Date(), 'dd MMMM yyyy', { locale: fr })}</p>
               </div>
             </div>
 
-            {/* Summary Stats */}
-            <div className="grid grid-cols-3 gap-6">
-              <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Revenus</p>
-                <p className="text-3xl font-bold text-green-700">{formatCurrency(stats.income)}</p>
+            {/* Summary Stats - Compact */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 border border-green-300 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Revenus</p>
+                <p className="text-2xl font-bold text-green-700">{formatCurrency(stats.income)}</p>
               </div>
-              <div className="p-6 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Dépenses</p>
-                <p className="text-3xl font-bold text-red-700">{formatCurrency(stats.expenses)}</p>
+              <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 border border-red-300 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Dépenses</p>
+                <p className="text-2xl font-bold text-red-700">{formatCurrency(stats.expenses)}</p>
               </div>
-              <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Solde Net</p>
-                <p className="text-3xl font-bold text-blue-700">{formatCurrency(stats.netPeriodBalance)}</p>
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-300 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Solde Net</p>
+                <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.netPeriodBalance)}</p>
               </div>
-            </div>
-
-            {/* Account Balances */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900">Soldes des Comptes</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {accountBalances.map(account => (
-                  <div key={account.id} className="p-5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-gray-600">{account.name}</p>
-                        <p className="text-xl font-bold text-gray-900">{formatCurrency(account.currentBalance)}</p>
-                      </div>
-                      <div className="text-xs text-gray-500 text-right">
-                        <p>{account.bank}</p>
-                        <p>{account.account_type}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-300 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Solde Total</p>
+                <p className="text-2xl font-bold text-purple-700">{formatCurrency(totalBalance)}</p>
               </div>
             </div>
 
-            {/* Balance Evolution Chart */}
-            {balanceEvolutionData.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900">Évolution du Solde</h2>
-                <div className="p-6 border border-gray-200 rounded-lg bg-white">
-                  <ResponsiveContainer width="100%" height={300}>
+            {/* Two Column Layout for Charts */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left Column: Balance Evolution */}
+              <div className="space-y-3">
+                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Évolution du Solde</h2>
+                <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
+                  <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={balanceEvolutionData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                       <XAxis 
                         dataKey="date" 
-                        tick={{ fill: '#666', fontSize: 12 }}
+                        tick={{ fill: '#666', fontSize: 10 }}
                         stroke="#999"
                       />
                       <YAxis 
-                        tick={{ fill: '#666', fontSize: 12 }}
+                        tick={{ fill: '#666', fontSize: 10 }}
                         stroke="#999"
+                        width={60}
                       />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
                         formatter={(value: number) => formatCurrency(value)}
                       />
-                       <Line 
+                      <Line 
                         type="monotone" 
                         dataKey="solde" 
                         stroke="#3b82f6" 
-                        strokeWidth={3}
-                        dot={{ fill: '#3b82f6', r: 4 }}
+                        strokeWidth={2}
+                        dot={{ fill: '#3b82f6', r: 3 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
-            )}
 
-            {/* Category Spending Chart */}
-            {stackedBarData.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900">Dépenses par Catégorie vs Budget</h2>
-                <div className="p-6 border border-gray-200 rounded-lg bg-white">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={stackedBarData}>
+                {/* Account Balances under chart */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-300 pb-2">Soldes des Comptes</h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {accountBalances.map(account => (
+                      <div key={account.id} className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded border border-gray-200 flex justify-between items-center">
+                        <div>
+                          <p className="text-xs text-gray-600">{account.name}</p>
+                          <p className="text-sm font-semibold text-gray-900">{account.bank} - {account.account_type}</p>
+                        </div>
+                        <p className="text-lg font-bold text-gray-900">{formatCurrency(account.currentBalance)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Category Spending */}
+              <div className="space-y-3">
+                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Dépenses par Catégorie</h2>
+                <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
+                  <ResponsiveContainer width="100%" height={500}>
+                    <BarChart data={topCategories} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                       <XAxis 
-                        dataKey="name" 
-                        tick={{ fill: '#666', fontSize: 11 }}
+                        type="number"
+                        tick={{ fill: '#666', fontSize: 10 }}
                         stroke="#999"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
                       />
                       <YAxis 
-                        tick={{ fill: '#666', fontSize: 12 }}
+                        type="category"
+                        dataKey="name" 
+                        tick={{ fill: '#666', fontSize: 10 }}
                         stroke="#999"
+                        width={120}
                       />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
                         formatter={(value: number) => formatCurrency(value)}
                       />
                       <Bar 
                         dataKey="spent" 
-                        stackId="a"
                         fill="currentColor"
-                        radius={[0, 0, 0, 0]}
+                        radius={[0, 4, 4, 0]}
                       >
-                        {stackedBarData.map((entry, index) => (
-                          <Cell key={`spent-${index}`} fill={entry.color} opacity={0.9} />
+                        {topCategories.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} opacity={0.9} />
                         ))}
                       </Bar>
-                      <Bar 
-                        dataKey="remaining" 
-                        stackId="a"
-                        fill="#e0e0e0"
-                        radius={[4, 4, 0, 0]}
-                        opacity={0.4}
-                      />
                     </BarChart>
                   </ResponsiveContainer>
-                  <div className="mt-4 flex justify-center gap-6 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-blue-600 rounded"></div>
-                      <span className="text-gray-700">Dépensé</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-gray-300 rounded"></div>
-                      <span className="text-gray-700">Budget restant</span>
-                    </div>
-                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* All Transactions Table */}
             <div className="space-y-4">
