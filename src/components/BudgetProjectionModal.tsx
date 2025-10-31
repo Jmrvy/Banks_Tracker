@@ -92,12 +92,20 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
     recurringTransactions?.forEach(recurring => {
       if (recurring.is_active) {
         const occurrences = getNextOccurrences(recurring, monthStart, monthEnd);
-        allRecurringOccurrences.push(...occurrences);
+        // Enrich occurrences with full category object
+        const enrichedOccurrences = occurrences.map(occ => ({
+          ...occ,
+          category: categories.find(cat => cat.id === recurring.category_id)
+        }));
+        allRecurringOccurrences.push(...enrichedOccurrences);
       }
     });
 
     // Split recurring transactions into past and future
     const futureRecurringOccurrences = allRecurringOccurrences.filter(occ => occ.date > todayDate);
+    
+    console.log('Future recurring occurrences:', futureRecurringOccurrences);
+    console.log('Categories:', categories);
 
     // Calculate total budget from categories
     const totalBudget = categories
