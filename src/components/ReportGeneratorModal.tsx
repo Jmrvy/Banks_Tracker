@@ -120,28 +120,29 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   });
 
   // Calculate account balances at end of selected period
-  // Start from initial balances and apply only transactions within the period
+  // Start from current balance and subtract transactions after the end date
   const accountBalances = accounts.map(account => {
-    // Get all transactions up to the end date to calculate the balance
-    const accountTransactions = transactions.filter(t => {
+    // Get transactions that happened AFTER the end date
+    const transactionsAfterEndDate = transactions.filter(t => {
       const transactionDate = new Date(t.transaction_date);
       return (t.account_id === account.id || t.transfer_to_account_id === account.id) && 
-             transactionDate <= actualEndDate;
+             transactionDate > actualEndDate;
     });
 
-    let balance = 0;
-    accountTransactions.forEach(t => {
+    // Start with current balance and reverse transactions after end date
+    let balanceAtEndDate = Number(account.balance);
+    transactionsAfterEndDate.forEach(t => {
       if (t.account_id === account.id) {
-        if (t.type === 'income') balance += Number(t.amount);
-        if (t.type === 'expense') balance -= Number(t.amount);
-        if (t.type === 'transfer') balance -= Number(t.amount) + Number(t.transfer_fee || 0);
+        if (t.type === 'income') balanceAtEndDate -= Number(t.amount);
+        if (t.type === 'expense') balanceAtEndDate += Number(t.amount);
+        if (t.type === 'transfer') balanceAtEndDate += Number(t.amount) + Number(t.transfer_fee || 0);
       }
       if (t.transfer_to_account_id === account.id && t.type === 'transfer') {
-        balance += Number(t.amount);
+        balanceAtEndDate -= Number(t.amount);
       }
     });
 
-    return { ...account, currentBalance: balance };
+    return { ...account, currentBalance: balanceAtEndDate };
   });
 
   // Calculate total balance at end of period - this uses stats.finalBalance which is correct
