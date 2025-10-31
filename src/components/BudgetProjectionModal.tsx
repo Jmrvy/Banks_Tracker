@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -164,6 +164,9 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Utilisation du Budget Projeté</DialogTitle>
+          <DialogDescription>
+            Le solde projeté par catégorie = actuel + prévision du mois restant.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -197,7 +200,7 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
                           </div>
                           <div className="flex gap-3 text-xs text-muted-foreground">
                             <span>Actuel: {formatCurrency(cat.actual)}</span>
-                            <span>Projeté: {formatCurrency(cat.projected)}</span>
+                            <span>Projeté: {formatCurrency(cat.used)}</span>
                           </div>
                         </div>
                         <div className="text-right">
