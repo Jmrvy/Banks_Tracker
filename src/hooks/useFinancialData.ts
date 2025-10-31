@@ -284,12 +284,49 @@ export function useFinancialData() {
 
   const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date' | 'type' | 'account_id' | 'category_id' | 'recurrence_type' | 'start_date'>>) => {
     if (!user) return;
+    
+    // Recalculate next_due_date if start_date or recurrence_type is being updated
+    let updatedData: any = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (updates.start_date || updates.recurrence_type) {
+      // Get current transaction to have all needed data
+      const { data: currentTransaction } = await supabase
+        .from('recurring_transactions')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (currentTransaction) {
+        const startDate = new Date(updates.start_date || currentTransaction.start_date);
+        const recurrenceType = updates.recurrence_type || currentTransaction.recurrence_type;
+        let nextDueDate = new Date(startDate);
+        
+        switch (recurrenceType) {
+          case 'weekly':
+            nextDueDate.setDate(startDate.getDate() + 7);
+            break;
+          case 'monthly':
+            nextDueDate.setMonth(startDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            nextDueDate.setMonth(startDate.getMonth() + 3);
+            break;
+          case 'yearly':
+            nextDueDate.setFullYear(startDate.getFullYear() + 1);
+            break;
+        }
+        
+        updatedData.next_due_date = nextDueDate.toISOString().split('T')[0];
+      }
+    }
+    
     const { error } = await supabase
       .from('recurring_transactions')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatedData)
       .eq('id', id)
       .eq('user_id', user.id);
 
