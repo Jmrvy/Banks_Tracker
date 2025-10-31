@@ -120,7 +120,9 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   });
 
   // Calculate account balances at end of selected period
+  // Start from initial balances and apply only transactions within the period
   const accountBalances = accounts.map(account => {
+    // Get all transactions up to the end date to calculate the balance
     const accountTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.transaction_date);
       return (t.account_id === account.id || t.transfer_to_account_id === account.id) && 
@@ -142,8 +144,8 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     return { ...account, currentBalance: balance };
   });
 
-  // Calculate total balance at end of period
-  const totalBalance = accountBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
+  // Calculate total balance at end of period - this uses stats.finalBalance which is correct
+  const totalBalance = stats.finalBalance;
 
   // Prepare category chart data - top 10 categories by spending
   const topCategories = categoryChartData

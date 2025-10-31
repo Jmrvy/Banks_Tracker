@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { BudgetProjectionModal } from "@/components/BudgetProjectionModal";
 
 export const MonthlyProjections = () => {
   const { transactions, accounts, categories, recurringTransactions, loading } = useFinancialData();
@@ -13,6 +14,7 @@ export const MonthlyProjections = () => {
 
   // State to toggle between recurring transactions and spending patterns
   const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
 
   const monthlyData = useMemo(() => {
     const now = new Date();
@@ -528,79 +530,17 @@ export const MonthlyProjections = () => {
           </div>
         )}
 
-        {/* Budget Progress - ENHANCED */}
+        {/* Budget Progress - Button to open modal */}
         {(monthlyData.categoriesWithSpending.length > 0 || monthlyData.categoriesWithoutSpending.length > 0) && (
           <div className="space-y-3">
-            <h4 className="text-sm font-medium">
-              Utilisation du Budget (incluant {useSpendingPatterns ? 'patterns' : 'récurrents'})
-            </h4>
-            
-            {/* Categories with spending (most impacted first) */}
-            {monthlyData.categoriesWithSpending.length > 0 && (
-              <div className="space-y-3">
-                {monthlyData.categoriesWithSpending.map((budget) => (
-                  <div key={budget.name} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center space-x-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: budget.color }}
-                        />
-                        <span className="font-medium">{budget.name}</span>
-                        {budget.projected > 0 && (
-                          <Badge variant="outline" className="text-xs">
-                            {useSpendingPatterns ? (
-                              <BarChart3 className="w-2 h-2 mr-1" />
-                            ) : (
-                              <Repeat className="w-2 h-2 mr-1" />
-                            )}
-                            +{formatCurrency(budget.projected)}
-                          </Badge>
-                        )}
-                      </div>
-                      <span className={`${
-                        budget.percentage > 100 ? 'text-red-600 font-semibold' : 
-                        budget.percentage > 80 ? 'text-orange-600' : 'text-muted-foreground'
-                      }`}>
-                        {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={Math.min(budget.percentage, 100)} 
-                      className="h-2"
-                    />
-                    {budget.percentage > 100 && (
-                      <p className="text-xs text-red-600">
-                        Dépassement prévu de {(budget.percentage - 100).toFixed(0)}%
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Categories without spending (grayed out) */}
-            {monthlyData.categoriesWithoutSpending.length > 0 && (
-              <div className="space-y-2 mt-4 pt-3 border-t border-muted">
-                <span className="text-xs text-muted-foreground">Catégories sans dépenses</span>
-                <div className="space-y-2">
-                  {monthlyData.categoriesWithoutSpending.map((budget) => (
-                    <div key={budget.name} className="flex items-center justify-between text-sm opacity-60">
-                      <div className="flex items-center space-x-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: budget.color }}
-                        />
-                        <span>{budget.name}</span>
-                      </div>
-                      <span className="text-muted-foreground">
-                        {formatCurrency(budget.used)} / {formatCurrency(budget.budget)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowBudgetModal(true)}
+            >
+              <Target className="w-4 h-4 mr-2" />
+              Voir l'utilisation du budget projeté
+            </Button>
           </div>
         )}
 
@@ -669,6 +609,12 @@ export const MonthlyProjections = () => {
           </div>
         )}
       </CardContent>
+      
+      <BudgetProjectionModal 
+        open={showBudgetModal}
+        onOpenChange={setShowBudgetModal}
+        useSpendingPatterns={useSpendingPatterns}
+      />
     </Card>
   );
 };
