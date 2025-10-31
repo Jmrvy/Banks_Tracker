@@ -51,22 +51,22 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => navigate("/")}
-              className="rounded-full flex-shrink-0"
+              className="rounded-full flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-3xl font-bold truncate">Récapitulatifs Financiers</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                Analyse détaillée • {period.label}
+              <h1 className="text-base sm:text-xl lg:text-2xl font-bold truncate">Rapports</h1>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                {period.label}
               </p>
             </div>
           </div>
@@ -91,11 +91,11 @@ const Reports = () => {
         />
 
         {/* Graphiques et analyses */}
-        <Tabs defaultValue="evolution" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 mx-auto bg-muted/30 h-9 p-1 rounded-lg">
-            <TabsTrigger value="evolution" className="text-xs sm:text-sm">Évolution</TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-sm">Catégories</TabsTrigger>
-            <TabsTrigger value="recurring" className="text-xs sm:text-sm">Récapitulatif</TabsTrigger>
+        <Tabs defaultValue="evolution" className="space-y-3 sm:space-y-4">
+          <TabsList className="grid w-full grid-cols-3 mx-auto bg-muted/30 h-8 sm:h-9 p-0.5 sm:p-1 rounded-lg">
+            <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Évolution</TabsTrigger>
+            <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Catégories</TabsTrigger>
+            <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Récap</TabsTrigger>
           </TabsList>
 
           <TabsContent value="evolution">

@@ -229,78 +229,79 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
         
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate("/")}
-            className="rounded-full"
+            className="rounded-full h-8 w-8 sm:h-10 sm:w-10"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Paramètres</h1>
-            <p className="text-muted-foreground text-sm">
-              Gérez vos préférences et votre compte
+            <h1 className="text-base sm:text-xl lg:text-2xl font-bold">Paramètres</h1>
+            <p className="text-muted-foreground text-[10px] sm:text-xs hidden sm:block">
+              Gérez vos préférences
             </p>
           </div>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-3 sm:gap-4">
           
           {/* Profil Utilisateur */}
           <Card>
-            <CardHeader>
+            <CardHeader className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                <CardTitle>Profil Utilisateur</CardTitle>
+                <User className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-sm sm:text-base">Profil</CardTitle>
               </div>
-              <CardDescription>
-                Modifiez vos informations personnelles
+              <CardDescription className="text-xs sm:text-sm hidden sm:block">
+                Modifiez vos informations
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nom complet</Label>
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="fullName" className="text-xs sm:text-sm">Nom complet</Label>
                   <Input
                     id="fullName"
                     value={profile.fullName}
                     onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
-                    placeholder="Votre nom complet"
+                    placeholder="Votre nom"
+                    className="h-8 sm:h-10 text-xs sm:text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="email" className="text-xs sm:text-sm">Email</Label>
                   <Input
                     id="email"
                     value={profile.email}
                     disabled
-                    className="bg-muted"
+                    className="bg-muted h-8 sm:h-10 text-xs sm:text-sm"
                   />
                 </div>
               </div>
-              <Button onClick={updateProfile} disabled={updateLoading} className="w-full sm:w-auto">
-                {updateLoading ? "Mise à jour..." : "Mettre à jour le profil"}
+              <Button onClick={updateProfile} disabled={updateLoading} className="w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm">
+                {updateLoading ? "Mise à jour..." : "Mettre à jour"}
               </Button>
             </CardContent>
           </Card>
 
           {/* Préférences */}
           <Card>
-            <CardHeader>
+            <CardHeader className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                <CardTitle>Préférences</CardTitle>
+                <Palette className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-sm sm:text-base">Préférences</CardTitle>
               </div>
-              <CardDescription>
-                Personnalisez l'affichage et les fonctionnalités
+              <CardDescription className="text-xs sm:text-sm hidden sm:block">
+                Personnalisez l'affichage
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
               
               <div className="flex items-center justify-between">
                 <div>
@@ -382,17 +383,17 @@ const Settings = () => {
 
           {/* Gestion des Comptes */}
           <Card>
-            <CardHeader>
+            <CardHeader className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                <CardTitle>Mes Comptes</CardTitle>
+                <Database className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-sm sm:text-base">Mes Comptes</CardTitle>
               </div>
-              <CardDescription>
-                Gérez vos comptes bancaires
+              <CardDescription className="text-xs sm:text-sm hidden sm:block">
+                Gérez vos comptes
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <CardContent className="p-3 sm:p-6">
+              <div className="space-y-2 sm:space-y-3">
                 {accounts.map((account) => (
                   <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex-1 min-w-0">

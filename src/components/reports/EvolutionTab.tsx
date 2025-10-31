@@ -37,31 +37,32 @@ export const EvolutionTab = ({
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4">
       <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <CardHeader className="pb-2 sm:pb-3 px-2 sm:px-4 pt-2 sm:pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
             <div>
-              <CardTitle className="text-xl">Évolution du solde</CardTitle>
-              <CardDescription>
-                Évolution de votre solde avec projection sur 3 mois
+              <CardTitle className="text-sm sm:text-base lg:text-lg">Évolution</CardTitle>
+              <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
+                Projection 3 mois
               </CardDescription>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
               <Switch
                 id="spending-patterns"
                 checked={useSpendingPatterns}
                 onCheckedChange={setUseSpendingPatterns}
+                className="scale-75 sm:scale-100"
               />
-              <label htmlFor="spending-patterns" className="text-sm font-medium">
-                {useSpendingPatterns ? 'Spending Patterns' : 'Récurrents'}
+              <label htmlFor="spending-patterns" className="text-[10px] sm:text-xs font-medium">
+                {useSpendingPatterns ? 'Patterns' : 'Récur.'}
               </label>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 px-2 sm:px-4 pb-2 sm:pb-4">
           {balanceEvolutionData && balanceEvolutionData.length > 0 ? (
-            <div className="w-full h-[400px] md:h-[500px] overflow-hidden relative">
+            <div className="w-full h-[200px] sm:h-[300px] lg:h-[400px] overflow-hidden relative">
               <div className="absolute inset-0 p-2">
                 <ChartContainer config={chartConfig} className="w-full h-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -137,12 +138,12 @@ export const EvolutionTab = ({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Résumé des soldes</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3 px-2 sm:px-4 pt-2 sm:pt-4">
+            <CardTitle className="text-sm sm:text-base">Résumé</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-2 sm:pb-4">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Solde de début:</span>
               <span className="text-sm font-mono">

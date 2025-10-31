@@ -90,17 +90,17 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Charts Section - Double Chart Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Pie Chart */}
         <Card className="overflow-hidden">
-          <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-            <CardTitle className="text-base sm:text-lg">Répartition des dépenses</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Pourcentage par catégorie</CardDescription>
+          <CardHeader className="pb-1.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+            <CardTitle className="text-xs sm:text-sm lg:text-base">Répartition</CardTitle>
+            <CardDescription className="text-[10px] sm:text-xs">Par catégorie</CardDescription>
           </CardHeader>
-          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-            <div className="h-[400px] sm:h-96 flex items-center justify-center">
+          <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
+            <div className="h-[250px] sm:h-[350px] flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -164,12 +164,12 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
 
         {/* Stacked Bar Chart - Budget vs Dépenses */}
         <Card className="overflow-hidden">
-          <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-            <CardTitle className="text-base sm:text-lg">Budget vs Dépenses</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Comparaison par catégorie</CardDescription>
+          <CardHeader className="pb-1.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+            <CardTitle className="text-xs sm:text-sm lg:text-base">Budget</CardTitle>
+            <CardDescription className="text-[10px] sm:text-xs">Comparaison</CardDescription>
           </CardHeader>
-          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-            <div className="h-[400px] sm:h-96">
+          <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
+            <div className="h-[250px] sm:h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={stackedBarData}
@@ -292,11 +292,11 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
 
       {/* Budget Analysis - Mobile Optimized */}
       <Card>
-        <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-          <CardTitle className="text-base sm:text-lg">Analyse budgétaire</CardTitle>
+        <CardHeader className="pb-1.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+          <CardTitle className="text-xs sm:text-sm lg:text-base">Analyse</CardTitle>
         </CardHeader>
-        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-          <div className="space-y-2 sm:space-y-3 max-h-80 overflow-y-auto">
+        <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
+          <div className="space-y-1.5 sm:space-y-2 max-h-64 sm:max-h-80 overflow-y-auto">
             {categoryChartData.map((category, index) => (
               <div 
                 key={index} 

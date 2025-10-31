@@ -26,18 +26,18 @@ export const RecurringTab = ({
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Repeat className="h-5 w-5" />
-            Transactions récurrentes
+        <CardHeader className="pb-2 sm:pb-3 px-2 sm:px-4 pt-2 sm:pt-4">
+          <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+            <Repeat className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
+            Récurrentes
           </CardTitle>
-          <CardDescription>
-            Analyse de vos revenus et dépenses récurrents
+          <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
+            Revenus et dépenses
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-center">
               <div className="p-3 bg-muted/50 rounded-lg">
@@ -101,16 +101,16 @@ export const RecurringTab = ({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Analyse des patterns
+        <CardHeader className="pb-2 sm:pb-3 px-2 sm:px-4 pt-2 sm:pt-4">
+          <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
+            Patterns
           </CardTitle>
-          <CardDescription>
-            Patterns de dépenses basés sur votre historique
+          <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
+            Analyse historique
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
           {spendingPatternsData ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-center">

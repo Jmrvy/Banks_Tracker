@@ -96,69 +96,69 @@ const RecurringTransactions = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
         
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate("/")}
-            className="rounded-full"
+            className="rounded-full h-8 w-8 sm:h-10 sm:w-10"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <Repeat className="h-6 w-6 text-primary" />
-              Transactions Récurrentes
+            <h1 className="text-base sm:text-xl lg:text-2xl font-bold flex items-center gap-2">
+              <Repeat className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
+              Récurrentes
             </h1>
-            <p className="text-muted-foreground text-sm">
-              Gérez vos transactions automatiques programmées
+            <p className="text-muted-foreground text-[10px] sm:text-xs hidden sm:block">
+              Transactions automatiques
             </p>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Active</p>
-                  <p className="text-2xl font-bold">
+            <CardContent className="p-2 sm:p-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+                <div className="flex-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Active</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold">
                     {recurringTransactions.filter(t => t.is_active).length}
                   </p>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <Play className="h-4 w-4 text-green-600" />
+                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Play className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Inactive</p>
-                  <p className="text-2xl font-bold">
+            <CardContent className="p-2 sm:p-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+                <div className="flex-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Inactive</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold">
                     {recurringTransactions.filter(t => !t.is_active).length}
                   </p>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-gray-500/10 flex items-center justify-center">
-                  <Pause className="h-4 w-4 text-gray-600" />
+                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gray-500/10 flex items-center justify-center">
+                  <Pause className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Prochaines 7j</p>
-                  <p className="text-2xl font-bold">
+            <CardContent className="p-2 sm:p-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+                <div className="flex-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">7j</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold">
                     {recurringTransactions.filter(t => {
                       if (!t.is_active) return false;
                       const nextDue = new Date(t.next_due_date);
@@ -168,8 +168,8 @@ const RecurringTransactions = () => {
                     }).length}
                   </p>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-orange-500/10 flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-orange-600" />
+                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
                 </div>
               </div>
             </CardContent>

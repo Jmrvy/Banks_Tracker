@@ -124,77 +124,81 @@ const NewTransaction = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate("/")}
-            className="rounded-full"
+            className="rounded-full h-8 w-8 sm:h-10 sm:w-10"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Nouvelle Transaction</h1>
-            <p className="text-sm text-muted-foreground">
-              Créer une transaction ponctuelle ou récurrente
+            <h1 className="text-base sm:text-xl lg:text-2xl font-bold">Nouvelle Transaction</h1>
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
+              Créer une transaction
             </p>
           </div>
         </div>
 
 
-        <div className="space-y-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Transaction Type Toggle */}
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 sm:gap-2">
                 <Button
                   type="button"
                   variant={formData.type === 'income' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFormData({ ...formData, type: 'income' })}
-                  className="flex-1"
+                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
                 >
-                  <PlusCircle className="h-4 w-4 mr-1" />
-                  Revenus
+                  <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                  <span className="hidden sm:inline">Revenus</span>
+                  <span className="sm:hidden">+</span>
                 </Button>
                 <Button
                   type="button"
                   variant={formData.type === 'expense' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFormData({ ...formData, type: 'expense' })}
-                  className="flex-1"
+                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
                 >
-                  <MinusCircle className="h-4 w-4 mr-1" />
-                  Dépense
+                  <MinusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                  <span className="hidden sm:inline">Dépense</span>
+                  <span className="sm:hidden">-</span>
                 </Button>
                 <Button
                   type="button"
                   variant={formData.type === 'transfer' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFormData({ ...formData, type: 'transfer' })}
-                  className="flex-1"
+                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
                 >
-                  <ArrowRightLeft className="h-4 w-4 mr-1" />
-                  Transfert
+                  <ArrowRightLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                  <span className="hidden sm:inline">Transfert</span>
+                  <span className="sm:hidden">⇄</span>
                 </Button>
               </div>
 
               {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="description" className="text-xs sm:text-sm">Description *</Label>
                 <Textarea
                   id="description"
-                  placeholder="Saisissez la description de la transaction..."
+                  placeholder="Description..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
+                  className="min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm"
                 />
               </div>
 
               {/* Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="amount">Montant *</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="amount" className="text-xs sm:text-sm">Montant *</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -203,6 +207,7 @@ const NewTransaction = () => {
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   required
+                  className="h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
 

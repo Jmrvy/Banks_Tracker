@@ -20,15 +20,15 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2 lg:gap-3">
       <Card className="hover-scale cursor-pointer" onClick={onIncomeClick}>
-        <CardContent className="p-2 sm:p-3 lg:p-6">
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success flex-shrink-0" />
-            <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">Revenus</p>
+        <CardContent className="p-1.5 sm:p-2 lg:p-4">
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
+            <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-success flex-shrink-0" />
+            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Revenus</p>
           </div>
-          <div className="mt-1 sm:mt-2">
-            <p className="text-sm sm:text-lg lg:text-2xl font-bold text-success leading-tight">
+          <div className="mt-0.5 sm:mt-1">
+            <p className="text-xs sm:text-sm lg:text-lg font-bold text-success leading-tight">
               {formatCurrency(stats.income)}
             </p>
           </div>
@@ -36,13 +36,13 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </Card>
 
       <Card className="hover-scale cursor-pointer" onClick={onExpensesClick}>
-        <CardContent className="p-2 sm:p-3 lg:p-6">
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-destructive flex-shrink-0" />
-            <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">Dépenses</p>
+        <CardContent className="p-1.5 sm:p-2 lg:p-4">
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
+            <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-destructive flex-shrink-0" />
+            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Dépenses</p>
           </div>
-          <div className="mt-1 sm:mt-2">
-            <p className="text-sm sm:text-lg lg:text-2xl font-bold text-destructive leading-tight">
+          <div className="mt-0.5 sm:mt-1">
+            <p className="text-xs sm:text-sm lg:text-lg font-bold text-destructive leading-tight">
               {formatCurrency(stats.expenses)}
             </p>
           </div>
@@ -50,13 +50,13 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </Card>
 
       <Card className="hover-scale">
-        <CardContent className="p-2 sm:p-3 lg:p-6">
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
-            <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">Solde initial</p>
+        <CardContent className="p-1.5 sm:p-2 lg:p-4">
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
+            <Wallet className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-primary flex-shrink-0" />
+            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Initial</p>
           </div>
-          <div className="mt-1 sm:mt-2">
-            <p className="text-sm sm:text-lg lg:text-2xl font-bold leading-tight">
+          <div className="mt-0.5 sm:mt-1">
+            <p className="text-xs sm:text-sm lg:text-lg font-bold leading-tight">
               {formatCurrency(stats.initialBalance)}
             </p>
           </div>
@@ -64,14 +64,14 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </Card>
 
       <Card className="hover-scale">
-        <CardContent className="p-2 sm:p-3 lg:p-6">
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <Target className="h-3 w-3 sm:h-4 sm:w-4 text-accent-foreground flex-shrink-0" />
-            <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">Solde final</p>
+        <CardContent className="p-1.5 sm:p-2 lg:p-4">
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
+            <Target className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-accent-foreground flex-shrink-0" />
+            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Final</p>
           </div>
-          <div className="mt-1 sm:mt-2">
+          <div className="mt-0.5 sm:mt-1">
             <p className={cn(
-              "text-sm sm:text-lg lg:text-2xl font-bold leading-tight",
+              "text-xs sm:text-sm lg:text-lg font-bold leading-tight",
               stats.finalBalance >= 0 ? "text-success" : "text-destructive"
             )}>
               {formatCurrency(stats.finalBalance)}
@@ -81,13 +81,13 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </Card>
 
       <Card className="hover-scale col-span-2 sm:col-span-1">
-        <CardContent className="p-2 sm:p-3 lg:p-6">
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-            <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">Comptes</p>
+        <CardContent className="p-1.5 sm:p-2 lg:p-4">
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
+            <Wallet className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-muted-foreground flex-shrink-0" />
+            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Comptes</p>
           </div>
-          <div className="mt-1 sm:mt-2">
-            <p className="text-sm sm:text-lg lg:text-2xl font-bold leading-tight">
+          <div className="mt-0.5 sm:mt-1">
+            <p className="text-xs sm:text-sm lg:text-lg font-bold leading-tight">
               {accountsCount}
             </p>
           </div>
