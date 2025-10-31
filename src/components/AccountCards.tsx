@@ -134,7 +134,7 @@ export const AccountCards = () => {
             </div>
           </CardContent>
         </Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="border">
               <CardContent className="p-6">
@@ -188,7 +188,7 @@ export const AccountCards = () => {
       </Card>
 
       {/* Account Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {enrichedAccounts.map((account) => (
           <Card 
             key={account.id} 
