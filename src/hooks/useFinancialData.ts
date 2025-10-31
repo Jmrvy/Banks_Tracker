@@ -298,29 +298,45 @@ export function useFinancialData() {
         .select('*')
         .eq('id', id)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (currentTransaction) {
-        const startDate = new Date(updates.start_date || currentTransaction.start_date);
+        const baseStart = updates.start_date || currentTransaction.start_date;
         const recurrenceType = updates.recurrence_type || currentTransaction.recurrence_type;
-        let nextDueDate = new Date(startDate);
         
-        switch (recurrenceType) {
-          case 'weekly':
-            nextDueDate.setDate(startDate.getDate() + 7);
-            break;
-          case 'monthly':
-            nextDueDate.setMonth(startDate.getMonth() + 1);
-            break;
-          case 'quarterly':
-            nextDueDate.setMonth(startDate.getMonth() + 3);
-            break;
-          case 'yearly':
-            nextDueDate.setFullYear(startDate.getFullYear() + 1);
-            break;
+        // Use midnight to avoid timezone drift
+        const startDate = new Date(baseStart + 'T00:00:00');
+        const today = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00');
+        
+        // Helper to add one interval
+        const addInterval = (d: Date) => {
+          const next = new Date(d);
+          switch (recurrenceType) {
+            case 'weekly':
+              next.setDate(next.getDate() + 7);
+              break;
+            case 'monthly':
+              next.setMonth(next.getMonth() + 1);
+              break;
+            case 'quarterly':
+              next.setMonth(next.getMonth() + 3);
+              break;
+            case 'yearly':
+              next.setFullYear(next.getFullYear() + 1);
+              break;
+          }
+          return next;
+        };
+        
+        // Start from the first due after the start date
+        let nextDue = addInterval(startDate);
+        
+        // If that date is in the past, roll forward until strictly in the future (after today)
+        while (nextDue <= today) {
+          nextDue = addInterval(nextDue);
         }
         
-        updatedData.next_due_date = nextDueDate.toISOString().split('T')[0];
+        updatedData.next_due_date = nextDue.toISOString().split('T')[0];
       }
     }
     
