@@ -24,44 +24,50 @@ export const DashboardHeader = () => {
   };
 
   return (
-    <div className="flex flex-col space-y-6">
+    <div className="flex flex-col space-y-3 sm:space-y-4 lg:space-y-6">
       {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-xl bg-card border p-8">
-        <div className="flex items-center justify-between">
-          <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-2 text-foreground">Dashboard de vos Comptes Bancaires</h1>
-            <p className="text-lg text-muted-foreground">
+      <div className="relative overflow-hidden rounded-lg sm:rounded-xl bg-card border p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+          <div className="relative z-10 min-w-0">
+            <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 text-foreground truncate">
+              Dashboard de vos Comptes Bancaires
+            </h1>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground truncate">
               Bienvenue, {user?.user_metadata?.full_name || user?.email || 'Utilisateur'} • {currentMonth}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <ThemeToggle />
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleSignOut}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
             >
-              <LogOut className="h-4 w-4" />
-              Déconnexion
+              <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="sm:hidden">Déco</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3">
-        <Button variant="outline" onClick={() => setAccountModalOpen(true)}>
-          <CreditCard className="w-4 h-4 mr-2" />
-          Nouveau Compte
+      <div className="flex flex-wrap gap-2 sm:gap-3">
+        <Button variant="outline" size="sm" onClick={() => setAccountModalOpen(true)} className="text-xs sm:text-sm">
+          <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Nouveau Compte</span>
+          <span className="sm:hidden">Compte</span>
         </Button>
-        <Button variant="outline" onClick={() => setCategoryModalOpen(true)}>
-          <Tag className="w-4 h-4 mr-2" />
-          Nouvelle Catégorie
+        <Button variant="outline" size="sm" onClick={() => setCategoryModalOpen(true)} className="text-xs sm:text-sm">
+          <Tag className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Nouvelle Catégorie</span>
+          <span className="sm:hidden">Catégorie</span>
         </Button>
-        <Button variant="outline" onClick={() => setReportModalOpen(true)}>
-          <FileText className="w-4 h-4 mr-2" />
-          Générer un Rapport
+        <Button variant="outline" size="sm" onClick={() => setReportModalOpen(true)} className="text-xs sm:text-sm">
+          <FileText className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Générer un Rapport</span>
+          <span className="sm:hidden">Rapport</span>
         </Button>
       </div>
       

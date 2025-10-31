@@ -106,15 +106,15 @@ export const SpendingOverview = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Dépenses par Catégorie</span>
-          <span className="text-sm font-normal text-muted-foreground">
-            Mois en cours: {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
+      <CardHeader className="pb-2 sm:pb-4">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <span className="text-base sm:text-lg">Dépenses par Catégorie</span>
+          <span className="text-xs sm:text-sm font-normal text-muted-foreground">
+            Mois: {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-2 sm:space-y-3">
         {spendingData.map((category) => {
           const percentage = category.budget > 0 ? (category.amount / category.budget) * 100 : 0;
           const isOverBudget = percentage > 100;
@@ -122,26 +122,26 @@ export const SpendingOverview = () => {
           return (
             <div 
               key={category.name} 
-              className="space-y-2 cursor-pointer hover:bg-muted/50 rounded-lg p-2 transition-colors"
+              className="space-y-1 sm:space-y-2 cursor-pointer hover:bg-muted/50 rounded-lg p-2 transition-colors"
               onClick={() => handleCategoryClick(category.name)}
             >
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0 flex-1">
                   <div 
-                    className="w-3 h-3 rounded-full" 
+                    className="w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
                     style={{ backgroundColor: category.color }}
                   />
-                  <span className="font-medium">{category.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    ({category.transactionCount} transaction{category.transactionCount > 1 ? 's' : ''})
+                  <span className="font-medium truncate">{category.name}</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0">
+                    ({category.transactionCount})
                   </span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className={isOverBudget ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
+                <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
+                  <span className={`text-xs sm:text-sm ${isOverBudget ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                     {formatCurrency(category.amount)}
                   </span>
                   {category.budget > 0 && (
-                    <span className="text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                       / {formatCurrency(category.budget)}
                     </span>
                   )}
@@ -150,11 +150,11 @@ export const SpendingOverview = () => {
               {category.budget > 0 && (
                 <Progress 
                   value={Math.min(percentage, 100)} 
-                  className="h-2"
+                  className="h-1.5 sm:h-2"
                 />
               )}
               {isOverBudget && (
-                <p className="text-xs text-destructive">
+                <p className="text-[10px] sm:text-xs text-destructive">
                   Dépassement de {(percentage - 100).toFixed(1)}%
                 </p>
               )}

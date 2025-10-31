@@ -285,91 +285,91 @@ export const MonthlyProjections = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="w-5 h-5" />
-          Projections Mensuelles
+      <CardHeader className="pb-2 sm:pb-4">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base sm:text-lg">
+          <Target className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span>Projections Mensuelles</span>
           {!useSpendingPatterns && monthlyData.futureRecurringCount > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              <Repeat className="w-3 h-3 mr-1" />
-              {monthlyData.futureRecurringCount} récurrentes
+            <Badge variant="secondary" className="text-[10px] sm:text-xs">
+              <Repeat className="w-2 h-2 sm:w-3 sm:h-3 mr-1" />
+              {monthlyData.futureRecurringCount}
             </Badge>
           )}
           {useSpendingPatterns && (
-            <Badge variant="outline" className="ml-2">
-              <BarChart3 className="w-3 h-3 mr-1" />
+            <Badge variant="outline" className="text-[10px] sm:text-xs">
+              <BarChart3 className="w-2 h-2 sm:w-3 sm:h-3 mr-1" />
               Patterns
             </Badge>
           )}
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Jour {monthlyData.currentDay} sur {monthlyData.daysInMonth} • {monthlyData.daysRemaining} jours restants
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          Jour {monthlyData.currentDay}/{monthlyData.daysInMonth} • {monthlyData.daysRemaining}j restants
         </p>
         
         {/* Toggle Button */}
-        <div className="mt-3">
+        <div className="mt-2 sm:mt-3">
           <Button 
             variant={useSpendingPatterns ? "default" : "outline"}
             size="sm"
             onClick={() => setUseSpendingPatterns(!useSpendingPatterns)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-1.5 text-xs h-8"
           >
             <BarChart3 className="w-3 h-3" />
-            {useSpendingPatterns ? 'Utiliser récurrents' : 'Use spending patterns'}
+            {useSpendingPatterns ? 'Récurrents' : 'Patterns'}
           </Button>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3 sm:space-y-4 lg:space-y-6">
         {/* Financial Overview */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              Revenus ce mois
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+          <div className="space-y-1 sm:space-y-2">
+            <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+              <span className="truncate">Revenus</span>
             </div>
-            <div className="space-y-1">
-              <p className="text-xl font-semibold text-green-600">
+            <div className="space-y-0.5 sm:space-y-1">
+              <p className="text-base sm:text-lg lg:text-xl font-semibold text-green-600">
                 {formatCurrency(monthlyData.actualMonthlyIncome)}
               </p>
               <div className="space-y-0.5">
-                <p className="text-sm text-muted-foreground">
-                  Projection: {formatCurrency(monthlyData.projectedIncome)}
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  Proj: {formatCurrency(monthlyData.projectedIncome)}
                 </p>
                 {!useSpendingPatterns && monthlyData.projectedRecurringIncome > 0 && (
-                  <p className="text-xs text-blue-600">
-                    +{formatCurrency(monthlyData.projectedRecurringIncome)} récurrents
+                  <p className="text-[10px] sm:text-xs text-blue-600">
+                    +{formatCurrency(monthlyData.projectedRecurringIncome)}
                   </p>
                 )}
                 {useSpendingPatterns && monthlyData.futureIncomeFromPatterns > 0 && (
-                  <p className="text-xs text-orange-600">
-                    +{formatCurrency(monthlyData.futureIncomeFromPatterns)} patterns
+                  <p className="text-[10px] sm:text-xs text-orange-600">
+                    +{formatCurrency(monthlyData.futureIncomeFromPatterns)}
                   </p>
                 )}
               </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              Dépenses ce mois
+          <div className="space-y-1 sm:space-y-2">
+            <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
+              <span className="truncate">Dépenses</span>
             </div>
-            <div className="space-y-1">
-              <p className="text-xl font-semibold text-red-600">
+            <div className="space-y-0.5 sm:space-y-1">
+              <p className="text-base sm:text-lg lg:text-xl font-semibold text-red-600">
                 {formatCurrency(monthlyData.actualMonthlyExpenses)}
               </p>
               <div className="space-y-0.5">
-                <p className="text-sm text-muted-foreground">
-                  Projection: {formatCurrency(monthlyData.projectedExpenses)}
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  Proj: {formatCurrency(monthlyData.projectedExpenses)}
                 </p>
                 {!useSpendingPatterns && monthlyData.projectedRecurringExpenses > 0 && (
-                  <p className="text-xs text-red-600">
-                    +{formatCurrency(monthlyData.projectedRecurringExpenses)} récurrents
+                  <p className="text-[10px] sm:text-xs text-red-600">
+                    +{formatCurrency(monthlyData.projectedRecurringExpenses)}
                   </p>
                 )}
                 {useSpendingPatterns && monthlyData.futureExpensesFromPatterns > 0 && (
-                  <p className="text-xs text-orange-600">
-                    +{formatCurrency(monthlyData.futureExpensesFromPatterns)} patterns
+                  <p className="text-[10px] sm:text-xs text-orange-600">
+                    +{formatCurrency(monthlyData.futureExpensesFromPatterns)}
                   </p>
                 )}
               </div>
@@ -378,51 +378,52 @@ export const MonthlyProjections = () => {
         </div>
 
         {/* Progress bar for month */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{monthlyData.daysInMonth - monthlyData.daysRemaining} jours écoulés</span>
-            <span>{monthlyData.daysRemaining} jours restants</span>
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
+            <span>{monthlyData.daysInMonth - monthlyData.daysRemaining}j écoulés</span>
+            <span>{monthlyData.daysRemaining}j restants</span>
           </div>
-          <div className="w-full bg-muted rounded-full h-2">
+          <div className="w-full bg-muted rounded-full h-1.5 sm:h-2">
             <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
               style={{ width: `${((monthlyData.daysInMonth - monthlyData.daysRemaining) / monthlyData.daysInMonth) * 100}%` }}
             />
           </div>
         </div>
 
         {/* Two-Step Projection */}
-        <div className="space-y-4">
+        <div className="space-y-2 sm:space-y-3">
           {/* Step 1: Current Balance to End of Month */}
-          <div className="p-4 rounded-lg border bg-blue-50/50 border-blue-200">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-blue-800 flex items-center gap-2">
-                <Calculator className="w-4 h-4" />
-                Étape 1: Projection depuis solde actuel
+          <div className="p-2 sm:p-3 lg:p-4 rounded-lg border bg-blue-50/50 border-blue-200">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-xs sm:text-sm font-medium text-blue-800 flex items-center gap-1 sm:gap-2">
+                <Calculator className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Étape 1: Projection depuis solde actuel</span>
+                <span className="sm:hidden">Étape 1: Solde actuel</span>
               </span>
             </div>
             
-            <div className="space-y-2">
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm">Solde actuel</span>
-                <span className="font-medium">{formatCurrency(totalBalance)}</span>
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex justify-between items-center py-0.5 sm:py-1">
+                <span className="text-xs sm:text-sm">Solde actuel</span>
+                <span className="font-medium text-xs sm:text-sm">{formatCurrency(totalBalance)}</span>
               </div>
               
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm">
-                  Flux futurs ({useSpendingPatterns ? 'patterns' : 'récurrents'})
+              <div className="flex justify-between items-center py-0.5 sm:py-1">
+                <span className="text-xs sm:text-sm truncate mr-2">
+                  Flux ({useSpendingPatterns ? 'patterns' : 'récur.'})
                 </span>
-                <span className={`font-medium ${
+                <span className={`font-medium text-xs sm:text-sm ${
                   futureNetCashFlow >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {futureNetCashFlow >= 0 ? '+' : ''}{formatCurrency(futureNetCashFlow)}
                 </span>
               </div>
               
-              <div className="border-t pt-2">
+              <div className="border-t pt-1 sm:pt-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold">Solde projeté fin de mois</span>
-                  <span className={`text-lg font-bold ${
+                  <span className="text-xs sm:text-sm font-semibold">Fin de mois</span>
+                  <span className={`text-sm sm:text-base lg:text-lg font-bold ${
                     projectedBalanceFromCurrent >= totalBalance ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {formatCurrency(projectedBalanceFromCurrent)}
@@ -433,33 +434,34 @@ export const MonthlyProjections = () => {
           </div>
 
           {/* Step 2: Beginning of Month to End of Month */}
-          <div className="p-4 rounded-lg border bg-green-50/50 border-green-200">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-green-800 flex items-center gap-2">
-                <Target className="w-4 h-4" />
-                Étape 2: Projection mensuelle complète
+          <div className="p-2 sm:p-3 lg:p-4 rounded-lg border bg-green-50/50 border-green-200">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-xs sm:text-sm font-medium text-green-800 flex items-center gap-1 sm:gap-2">
+                <Target className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Étape 2: Projection mensuelle complète</span>
+                <span className="sm:hidden">Étape 2: Projection mois</span>
               </span>
             </div>
             
-            <div className="space-y-2">
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm">Solde début de mois</span>
-                <span className="font-medium">{formatCurrency(beginningOfMonthBalance)}</span>
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex justify-between items-center py-0.5 sm:py-1">
+                <span className="text-xs sm:text-sm">Début de mois</span>
+                <span className="font-medium text-xs sm:text-sm">{formatCurrency(beginningOfMonthBalance)}</span>
               </div>
               
-              <div className="flex justify-between items-center py-1">
-                <span className="text-sm">Net mensuel projeté</span>
-                <span className={`font-medium ${
+              <div className="flex justify-between items-center py-0.5 sm:py-1">
+                <span className="text-xs sm:text-sm">Net mensuel</span>
+                <span className={`font-medium text-xs sm:text-sm ${
                   monthlyData.projectedNet >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {monthlyData.projectedNet >= 0 ? '+' : ''}{formatCurrency(monthlyData.projectedNet)}
                 </span>
               </div>
               
-              <div className="border-t pt-2">
+              <div className="border-t pt-1 sm:pt-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold">Solde projeté fin de mois</span>
-                  <span className={`text-lg font-bold ${
+                  <span className="text-xs sm:text-sm font-semibold">Fin de mois</span>
+                  <span className={`text-sm sm:text-base lg:text-lg font-bold ${
                     projectedBalanceFromBeginning >= beginningOfMonthBalance ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {formatCurrency(projectedBalanceFromBeginning)}
@@ -469,9 +471,9 @@ export const MonthlyProjections = () => {
             </div>
           </div>
 
-          {/* Calculation verification */}
-          <div className="p-3 rounded-lg bg-muted/30 border">
-            <div className="text-xs text-muted-foreground space-y-1">
+          {/* Calculation verification - hide on mobile */}
+          <div className="hidden sm:block p-2 sm:p-3 rounded-lg bg-muted/30 border">
+            <div className="text-[10px] sm:text-xs text-muted-foreground space-y-1">
               <div>Étape 1: {formatCurrency(totalBalance)} + ({formatCurrency(futureNetCashFlow)}) = {formatCurrency(projectedBalanceFromCurrent)}</div>
               <div>Étape 2: {formatCurrency(beginningOfMonthBalance)} + ({formatCurrency(monthlyData.projectedNet)}) = {formatCurrency(projectedBalanceFromBeginning)}</div>
               <div className="pt-1 border-t border-muted text-center font-medium">
@@ -483,18 +485,18 @@ export const MonthlyProjections = () => {
 
         {/* Upcoming Recurring Transactions - Only show when not using spending patterns */}
         {!useSpendingPatterns && monthlyData.upcomingRecurring.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Repeat className="w-4 h-4" />
-              Prochaines Transactions Récurrentes
+          <div className="space-y-2 sm:space-y-3">
+            <h4 className="text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
+              <Repeat className="w-3 h-3 sm:w-4 sm:h-4" />
+              Prochaines Récurrentes
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               {monthlyData.upcomingRecurring.map((upcoming, index) => (
-                <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-sm">
-                  <div className="flex items-center space-x-2">
+                <div key={index} className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-muted/30 text-xs sm:text-sm">
+                  <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1">
                     {upcoming.category && (
                       <div 
-                        className="w-2 h-2 rounded-full" 
+                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0" 
                         style={{ backgroundColor: upcoming.category.color }}
                       />
                     )}

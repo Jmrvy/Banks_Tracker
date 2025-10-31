@@ -104,59 +104,59 @@ export const RecentTransactions = () => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Transactions Récentes</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-4">
+        <CardTitle className="text-base sm:text-lg">Transactions Récentes</CardTitle>
         {/* Add onClick handler and dynamic text */}
-        <Button variant="outline" size="sm" onClick={() => setShowAll(!showAll)}>
-          {showAll ? 'Voir moins' : `Voir tout (${transactions.length})`}
+        <Button variant="outline" size="sm" onClick={() => setShowAll(!showAll)} className="text-xs">
+          {showAll ? 'Voir moins' : `Tout (${transactions.length})`}
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-2 sm:space-y-3">
           {/* Use displayedTransactions instead of recentTransactions */}
           {displayedTransactions.map((transaction) => (
             <div 
               key={transaction.id} 
-              className="flex items-center justify-between p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors"
+              className="flex items-center justify-between p-2 sm:p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors"
             >
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-6 rounded-full ${
+              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+                  <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
                     bankColors[transaction.account?.bank || 'other'] || 'bg-gray-500'
                   }`} />
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
+                  <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-muted">
                     {transaction.type === 'income' ? (
-                      <ArrowDownRight className="w-4 h-4 text-green-600" />
+                      <ArrowDownRight className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                     ) : transaction.type === 'transfer' ? (
-                      <ArrowRightLeft className="w-4 h-4 text-blue-600" />
+                      <ArrowRightLeft className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
                     ) : (
-                      <ArrowUpRight className="w-4 h-4 text-red-600" />
+                      <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
                     )}
                   </div>
                 </div>
                 
-                <div>
-                  <p className="font-medium text-sm">{transaction.description}</p>
-                  <div className="flex items-center space-x-2 mt-1">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                  <div className="flex items-center space-x-1 sm:space-x-2 mt-0.5 sm:mt-1">
                     {transaction.category && (
                       <Badge 
                         variant="secondary" 
-                        className="text-xs"
+                        className="text-[10px] sm:text-xs px-1 sm:px-2 py-0"
                         style={{ backgroundColor: transaction.category.color, color: 'white' }}
                       >
                         {transaction.category.name}
                       </Badge>
                     )}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(transaction.transaction_date).toLocaleDateString('fr-FR')}
+                    <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                      {new Date(transaction.transaction_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                     </span>
                     {transaction.account && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline truncate">
                         • {transaction.account.name}
                       </span>
                     )}
                     {transaction.type === 'transfer' && transaction.transfer_to_account && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground hidden md:inline truncate">
                         → {transaction.transfer_to_account.name}
                       </span>
                     )}
@@ -164,9 +164,9 @@ export const RecentTransactions = () => {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
                 <span 
-                  className={`font-semibold ${
+                  className={`font-semibold text-xs sm:text-sm ${
                     transaction.type === 'income' ? 'text-green-600' : 
                     transaction.type === 'transfer' ? 'text-blue-600' : 
                     'text-foreground'
@@ -176,15 +176,15 @@ export const RecentTransactions = () => {
                    transaction.type === 'transfer' ? '↔' : 
                    '-'}{formatCurrency(Math.abs(transaction.amount))}
                   {transaction.type === 'transfer' && transaction.transfer_fee && transaction.transfer_fee > 0 && (
-                    <span className="text-xs text-muted-foreground ml-1">
+                    <span className="text-[10px] text-muted-foreground ml-0.5 hidden sm:inline">
                       (+{formatCurrency(transaction.transfer_fee)} frais)
                     </span>
                   )}
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                      <MoreHorizontal className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
