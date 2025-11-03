@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 interface BudgetProjectionModalProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface BudgetProjectionModalProps {
 export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns }: BudgetProjectionModalProps) => {
   const { transactions, categories, recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const [showNoBudget, setShowNoBudget] = useState(false);
 
   const budgetData = useMemo(() => {
     const now = new Date();
@@ -161,70 +163,58 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Utilisation du Budget Projeté</DialogTitle>
-          <DialogDescription>
-            Le solde projeté par catégorie = actuel + prévision du mois restant.
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-3 sm:p-6">
+        <DialogHeader className="space-y-1 sm:space-y-2">
+          <DialogTitle className="text-base sm:text-lg">Projections Budget</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Projection fin de mois basée sur vos {useSpendingPatterns ? 'dépenses actuelles' : 'transactions récurrentes'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {budgetData.totalBudget > 0 ? (
             <>
-              {/* Categories with Spending */}
               {budgetData.categoriesWithSpending.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {budgetData.categoriesWithSpending.map((cat) => (
-                    <div key={cat.name} className="space-y-2 p-3 rounded-lg border bg-card">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: cat.color }}
-                            />
-                            <span className="font-medium text-sm">{cat.name}</span>
-                            {cat.percentage >= 100 && (
-                              <Badge variant="destructive" className="text-xs">
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Dépassé
-                              </Badge>
-                            )}
-                            {cat.percentage >= 90 && cat.percentage < 100 && (
-                              <Badge variant="secondary" className="text-xs">
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Presque atteint
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex gap-3 text-xs text-muted-foreground">
-                            <span>Actuel: {formatCurrency(cat.actual)}</span>
-                            <span>Projeté: {formatCurrency(cat.used)}</span>
-                          </div>
+                    <div key={cat.name} className="space-y-2 p-2 sm:p-3 rounded-lg border bg-card">
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                          <div 
+                            className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          <span className="font-medium text-xs sm:text-sm truncate">{cat.name}</span>
+                          {cat.percentage >= 100 && (
+                            <Badge variant="destructive" className="text-[10px] sm:text-xs px-1 py-0 h-4 sm:h-5 flex-shrink-0">
+                              <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                            </Badge>
+                          )}
+                          {cat.percentage >= 90 && cat.percentage < 100 && (
+                            <Badge variant="secondary" className="text-[10px] sm:text-xs px-1 py-0 h-4 sm:h-5 flex-shrink-0">
+                              <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                            </Badge>
+                          )}
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold">
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-semibold text-xs sm:text-sm">
                             {formatCurrency(cat.used)}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            sur {formatCurrency(cat.budget)}
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">
+                            / {formatCurrency(cat.budget)}
                           </div>
                         </div>
                       </div>
                       <div className="space-y-1">
                         <Progress 
                           value={Math.min(cat.percentage, 100)} 
-                          className="h-2"
+                          className="h-1.5 sm:h-2"
                         />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{cat.percentage.toFixed(0)}% utilisé</span>
-                          <span>
-                            {cat.budget - cat.used > 0 
-                              ? `${formatCurrency(cat.budget - cat.used)} restant`
-                              : `${formatCurrency(cat.used - cat.budget)} au-dessus`
-                            }
-                          </span>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground">
+                          {cat.budget - cat.used > 0 
+                            ? `${formatCurrency(cat.budget - cat.used)} disponible`
+                            : `Dépassement de ${formatCurrency(cat.used - cat.budget)}`
+                          }
                         </div>
                       </div>
                     </div>
@@ -232,33 +222,35 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
                 </div>
               )}
 
-              {/* Categories without Spending */}
               {budgetData.categoriesWithoutSpending.length > 0 && (
-                <div className="pt-4 border-t">
-                  <p className="text-sm font-medium mb-3">Catégories sans dépenses ce mois</p>
-                  <div className="space-y-2">
+                <Collapsible open={showNoBudget} onOpenChange={setShowNoBudget} className="border-t pt-3 sm:pt-4">
+                  <CollapsibleTrigger className="flex items-center justify-between w-full text-xs sm:text-sm font-medium hover:text-primary transition-colors">
+                    <span>Budgets non utilisés ({budgetData.categoriesWithoutSpending.length})</span>
+                    <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showNoBudget ? 'rotate-180' : ''}`} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1.5 sm:space-y-2 mt-2 sm:mt-3">
                     {budgetData.categoriesWithoutSpending.map((cat) => (
-                      <div key={cat.name} className="flex items-center justify-between p-2 rounded bg-muted/30">
-                        <div className="flex items-center gap-2">
+                      <div key={cat.name} className="flex items-center justify-between p-1.5 sm:p-2 rounded bg-muted/30">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div 
-                            className="w-3 h-3 rounded-full" 
+                            className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full" 
                             style={{ backgroundColor: cat.color }}
                           />
-                          <span className="text-sm">{cat.name}</span>
+                          <span className="text-xs sm:text-sm">{cat.name}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          Budget: {formatCurrency(cat.budget)}
+                        <span className="text-xs sm:text-sm text-muted-foreground">
+                          {formatCurrency(cat.budget)}
                         </span>
                       </div>
                     ))}
-                  </div>
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Aucun budget défini</p>
-              <p className="text-sm mt-2">Ajoutez des budgets à vos catégories pour voir les projections</p>
+            <div className="text-center py-6 sm:py-8 text-muted-foreground">
+              <p className="text-sm sm:text-base">Aucun budget défini</p>
+              <p className="text-xs sm:text-sm mt-2">Définissez des budgets dans vos catégories</p>
             </div>
           )}
         </div>
