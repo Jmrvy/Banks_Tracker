@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MonthPicker } from "@/components/ui/month-picker";
+import { YearPicker } from "@/components/ui/year-picker";
 import { FileText, Loader2 } from "lucide-react";
-import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
+import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -35,11 +37,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const actualStartDate = periodType === 'custom' ? startDate : 
                           periodType === 'quarter' ? startOfQuarter(reportDate) :
                           periodType === 'year' ? startOfYear(reportDate) :
-                          new Date(reportDate.getFullYear(), reportDate.getMonth(), 1);
+                          startOfMonth(reportDate);
   const actualEndDate = periodType === 'custom' ? endDate :
                         periodType === 'quarter' ? endOfQuarter(reportDate) :
                         periodType === 'year' ? endOfYear(reportDate) :
-                        reportDate;
+                        endOfMonth(reportDate);
 
   const { stats, categoryChartData, balanceEvolutionData, incomeAnalysis } = useReportsData(
     periodType === 'custom' || periodType === 'quarter' ? 'custom' : periodType === 'year' ? 'year' : 'month',
@@ -194,38 +196,77 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Date du rapport */}
-          <div className="space-y-2">
-            <Label>Date du rapport</Label>
-            <div className="flex justify-center">
-              <Calendar
-                mode="single"
-                selected={reportDate}
-                onSelect={(date) => date && setReportDate(date)}
-                locale={fr}
-                className="rounded-md border"
-              />
-            </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Les soldes seront calculés à la date: {format(reportDate, 'dd MMMM yyyy', { locale: fr })}
-            </p>
-          </div>
-
           {/* Type de période */}
           <div className="space-y-2">
-            <Label>Période des transactions</Label>
+            <Label>Type de période</Label>
             <Select value={periodType} onValueChange={(value: 'month' | 'quarter' | 'year' | 'custom') => setPeriodType(value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="month">Mois en cours</SelectItem>
-                <SelectItem value="quarter">Trimestre en cours</SelectItem>
-                <SelectItem value="year">Année en cours</SelectItem>
+                <SelectItem value="month">Mois</SelectItem>
+                <SelectItem value="quarter">Trimestre</SelectItem>
+                <SelectItem value="year">Année</SelectItem>
                 <SelectItem value="custom">Période personnalisée</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Sélecteur de mois */}
+          {periodType === 'month' && (
+            <div className="space-y-2">
+              <Label>Sélectionner le mois</Label>
+              <MonthPicker
+                selected={reportDate}
+                onSelect={(date) => date && setReportDate(date)}
+                placeholder="Choisir un mois"
+              />
+            </div>
+          )}
+
+          {/* Sélecteur de trimestre */}
+          {periodType === 'quarter' && (
+            <div className="space-y-2">
+              <Label>Sélectionner le trimestre</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Select 
+                  value={Math.floor(reportDate.getMonth() / 3).toString()} 
+                  onValueChange={(value) => {
+                    const quarter = parseInt(value);
+                    const newDate = new Date(reportDate.getFullYear(), quarter * 3, 1);
+                    setReportDate(newDate);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Q1 (Jan-Mar)</SelectItem>
+                    <SelectItem value="1">Q2 (Avr-Juin)</SelectItem>
+                    <SelectItem value="2">Q3 (Juil-Sep)</SelectItem>
+                    <SelectItem value="3">Q4 (Oct-Déc)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <YearPicker
+                  selected={reportDate}
+                  onSelect={(date) => date && setReportDate(date)}
+                  placeholder="Année"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sélecteur d'année */}
+          {periodType === 'year' && (
+            <div className="space-y-2">
+              <Label>Sélectionner l'année</Label>
+              <YearPicker
+                selected={reportDate}
+                onSelect={(date) => date && setReportDate(date)}
+                placeholder="Choisir une année"
+              />
+            </div>
+          )}
 
           {/* Période personnalisée */}
           {periodType === 'custom' && (
@@ -256,6 +297,14 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               </div>
             </div>
           )}
+
+          {/* Résumé de la période sélectionnée */}
+          <div className="p-4 bg-muted rounded-lg">
+            <p className="text-sm font-medium mb-1">Période du rapport</p>
+            <p className="text-sm text-muted-foreground">
+              Du {format(actualStartDate, 'dd MMMM yyyy', { locale: fr })} au {format(actualEndDate, 'dd MMMM yyyy', { locale: fr })}
+            </p>
+          </div>
 
           {/* Hidden report content for PDF generation */}
           <div 
