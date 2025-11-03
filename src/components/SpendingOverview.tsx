@@ -160,10 +160,10 @@ export const SpendingOverview = () => {
               </ResponsiveContainer>
               
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center z-10">
-                <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
+                <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
                   {remainingPercentage.toFixed(0)}%
                 </div>
-                <div className="text-sm sm:text-base text-muted-foreground font-medium">
+                <div className="text-xs sm:text-sm text-muted-foreground font-medium">
                   restant
                 </div>
               </div>
