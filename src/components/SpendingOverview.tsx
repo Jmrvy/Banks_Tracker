@@ -137,9 +137,9 @@ export const SpendingOverview = () => {
         {/* Budget Gauge */}
         {totalBudget > 0 && (
           <div className="flex flex-col items-center pb-4 sm:pb-6 border-b">
-            <div className="relative w-full max-w-[280px] sm:max-w-[320px]">
+            <div className="relative w-full max-w-[320px] sm:max-w-[380px]">
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80 rounded-full blur-xl" />
-              <ResponsiveContainer width="100%" height={160}>
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
                     data={gaugeData}
@@ -147,7 +147,7 @@ export const SpendingOverview = () => {
                     cy="85%"
                     startAngle={180}
                     endAngle={0}
-                    innerRadius="70%"
+                    innerRadius="65%"
                     outerRadius="100%"
                     paddingAngle={0}
                     dataKey="value"
@@ -159,11 +159,11 @@ export const SpendingOverview = () => {
                 </PieChart>
               </ResponsiveContainer>
               
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center z-10">
-                <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center z-10">
+                <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
                   {remainingPercentage.toFixed(0)}%
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground font-medium">
+                <div className="text-sm sm:text-base text-muted-foreground font-medium">
                   restant
                 </div>
               </div>
