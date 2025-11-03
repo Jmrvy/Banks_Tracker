@@ -17,16 +17,6 @@ const navItems = [
     primary: true
   },
   {
-    path: "/insights",
-    icon: TrendingUp,
-    label: "Insights"
-  },
-  {
-    path: "/reports",
-    icon: BarChart3,
-    label: "Rapports"
-  },
-  {
     path: "/new-transaction",
     icon: Plus,
     label: "Ajouter"
@@ -35,6 +25,16 @@ const navItems = [
     path: "/recurring-transactions",
     icon: Repeat,
     label: "Récurrentes"
+  },
+  {
+    path: "/insights",
+    icon: TrendingUp,
+    label: "Insights"
+  },
+  {
+    path: "/reports",
+    icon: BarChart3,
+    label: "Rapports"
   },
   {
     path: "/settings",
