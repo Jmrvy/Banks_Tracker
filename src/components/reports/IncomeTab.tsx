@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
-import { TrendingUp, DollarSign, Hash } from "lucide-react";
+import { TrendingUp, DollarSign, Hash, Euro, PoundSterling } from "lucide-react";
 
 interface IncomeTabProps {
   incomeAnalysis: IncomeCategory[];
@@ -10,7 +10,22 @@ interface IncomeTabProps {
 }
 
 export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
+
+  // Sélectionner l'icône appropriée selon la devise
+  const getCurrencyIcon = () => {
+    switch (preferences.currency) {
+      case 'EUR':
+        return Euro;
+      case 'GBP':
+        return PoundSterling;
+      case 'USD':
+      default:
+        return DollarSign;
+    }
+  };
+
+  const CurrencyIcon = getCurrencyIcon();
 
   if (incomeAnalysis.length === 0) {
     return (
@@ -51,7 +66,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
         <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-500 rounded-lg">
-              <DollarSign className="h-5 w-5 text-white" />
+              <CurrencyIcon className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-green-700 dark:text-green-300">Total Revenus</p>
