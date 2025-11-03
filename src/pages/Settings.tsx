@@ -395,61 +395,70 @@ const Settings = () => {
             <CardContent className="p-3 sm:p-6">
               <div className="space-y-2 sm:space-y-3">
                 {accounts.map((account) => (
-                  <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      {editingAccount === account.id ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <Input
-                            value={editingValues.name || ""}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Nom du compte"
-                          />
-                          <Select
-                            value={editingValues.bank || ""}
-                            onValueChange={(value) => setEditingValues(prev => ({ ...prev, bank: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Banque" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="boursorama">Boursorama</SelectItem>
-                              <SelectItem value="revolut">Revolut</SelectItem>
-                              <SelectItem value="societe_generale">Société Générale</SelectItem>
-                              <SelectItem value="bnp_paribas">BNP Paribas</SelectItem>
-                              <SelectItem value="credit_agricole">Crédit Agricole</SelectItem>
-                              <SelectItem value="other">Autre</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="font-medium">{account.name}</p>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {account.bank} • {formatCurrency(Number(account.balance))}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                      {editingAccount === account.id ? (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => saveAccount(account.id)}>
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingAccount(null)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => startEditingAccount(account)}>
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => deleteAccount(account.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+                  <div key={account.id} className="p-3 border rounded-lg bg-muted/30 dark:bg-muted/20">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        {editingAccount === account.id ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <Input
+                              value={editingValues.name || ""}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="Nom du compte"
+                              className="h-8 sm:h-10 text-xs sm:text-sm"
+                            />
+                            <Select
+                              value={editingValues.bank || ""}
+                              onValueChange={(value) => setEditingValues(prev => ({ ...prev, bank: value }))}
+                            >
+                              <SelectTrigger className="h-8 sm:h-10 text-xs sm:text-sm">
+                                <SelectValue placeholder="Banque" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="boursorama">Boursorama</SelectItem>
+                                <SelectItem value="revolut">Revolut</SelectItem>
+                                <SelectItem value="societe_generale">Société Générale</SelectItem>
+                                <SelectItem value="bnp_paribas">BNP Paribas</SelectItem>
+                                <SelectItem value="credit_agricole">Crédit Agricole</SelectItem>
+                                <SelectItem value="other">Autre</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{account.name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {account.bank}
+                              </p>
+                              <span className="text-xs text-muted-foreground">•</span>
+                              <p className="text-xs font-semibold text-foreground">
+                                {formatCurrency(Number(account.balance))}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        {editingAccount === account.id ? (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => saveAccount(account.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingAccount(null)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => startEditingAccount(account)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => deleteAccount(account.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -459,80 +468,84 @@ const Settings = () => {
 
           {/* Gestion des Catégories */}
           <Card>
-            <CardHeader>
+            <CardHeader className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                <CardTitle>Mes Catégories</CardTitle>
+                <Database className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-sm sm:text-base">Mes Catégories</CardTitle>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm hidden sm:block">
                 Gérez vos catégories de dépenses
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <CardContent className="p-3 sm:p-6">
+              <div className="space-y-2 sm:space-y-3">
                 {categories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      {editingCategory === category.id ? (
-                        <div className="grid gap-2 sm:grid-cols-3">
-                          <Input
-                            value={editingValues.name || ""}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Nom de la catégorie"
-                          />
-                          <div className="flex gap-2">
+                  <div key={category.id} className="p-3 border rounded-lg bg-muted/30 dark:bg-muted/20">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        {editingCategory === category.id ? (
+                          <div className="grid gap-2 sm:grid-cols-3">
                             <Input
-                              type="color"
-                              value={editingValues.color || "#3B82F6"}
-                              onChange={(e) => setEditingValues(prev => ({ ...prev, color: e.target.value }))}
-                              className="w-16 h-10 p-1"
+                              value={editingValues.name || ""}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="Nom de la catégorie"
+                              className="h-8 sm:h-10 text-xs sm:text-sm"
                             />
-                            <Input
-                              type="number"
-                              value={editingValues.budget || ""}
-                              onChange={(e) => setEditingValues(prev => ({ ...prev, budget: e.target.value }))}
-                              placeholder="Budget €"
+                            <div className="flex gap-2">
+                              <Input
+                                type="color"
+                                value={editingValues.color || "#3B82F6"}
+                                onChange={(e) => setEditingValues(prev => ({ ...prev, color: e.target.value }))}
+                                className="w-12 sm:w-16 h-8 sm:h-10 p-1"
+                              />
+                              <Input
+                                type="number"
+                                value={editingValues.budget || ""}
+                                onChange={(e) => setEditingValues(prev => ({ ...prev, budget: e.target.value }))}
+                                placeholder="Budget €"
+                                className="h-8 sm:h-10 text-xs sm:text-sm"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-2">
+                            <div 
+                              className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mt-0.5 flex-shrink-0"
+                              style={{ backgroundColor: category.color }}
                             />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">{category.name}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {category.budget ? 
+                                  `Budget: ${formatCurrency(Number(category.budget))}` : 
+                                  'Pas de budget'
+                                }
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: category.color }}
-                          />
-                          <div>
-                            <p className="font-medium">{category.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {category.budget ? 
-                                `Budget: ${formatCurrency(Number(category.budget))}` : 
-                                'Pas de budget'
-                              }
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                      {editingCategory === category.id ? (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => saveCategory(category.id)}>
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => startEditingCategory(category)}>
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => deleteCategory(category.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        {editingCategory === category.id ? (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => saveCategory(category.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => startEditingCategory(category)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => deleteCategory(category.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -542,30 +555,30 @@ const Settings = () => {
 
           {/* Export des données */}
           <Card>
-            <CardHeader>
+            <CardHeader className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                <CardTitle>Export des Données</CardTitle>
+                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-sm sm:text-base">Export des Données</CardTitle>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm hidden sm:block">
                 Sauvegardez toutes vos données financières
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="font-medium">Exporter toutes les données</p>
-                  <p className="text-sm text-muted-foreground">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-muted/30 dark:bg-muted/20 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">Exporter toutes les données</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Télécharge un fichier JSON contenant tous vos comptes, transactions et catégories
                   </p>
                 </div>
-                <Button onClick={exportData} variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
+                <Button onClick={exportData} variant="outline" size="sm" className="w-full sm:w-auto flex-shrink-0">
+                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
                   Exporter
                 </Button>
               </div>
               
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
                 <p>• Format : JSON</p>
                 <p>• Contenu : Comptes, catégories, transactions</p>
                 <p>• Compatible avec les imports futurs</p>
@@ -575,17 +588,18 @@ const Settings = () => {
 
           {/* Zone de danger */}
           <Card className="border-destructive/50">
-            <CardHeader>
-              <CardTitle className="text-destructive">Zone de danger</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-destructive text-sm sm:text-base">Zone de danger</CardTitle>
+              <CardDescription className="text-xs sm:text-sm hidden sm:block">
                 Actions irréversibles sur votre compte
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6">
               <Button 
                 variant="destructive" 
                 onClick={signOut}
-                className="w-full sm:w-auto"
+                size="sm"
+                className="w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm"
               >
                 Se déconnecter
               </Button>
