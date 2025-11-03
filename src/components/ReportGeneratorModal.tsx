@@ -357,6 +357,75 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
               </div>
             </div>
 
+            {/* Budget Analysis Section */}
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse Budget vs Dépenses</h2>
+              <div className="p-6 border border-gray-200 rounded-lg bg-white">
+                <div className="grid grid-cols-2 gap-4">
+                  {categoryChartData
+                    .filter(cat => cat.budget > 0)
+                    .sort((a, b) => b.spent - a.spent)
+                    .map((category) => {
+                      const percentUsed = category.budget > 0 ? (category.spent / category.budget) * 100 : 0;
+                      const isOverBudget = category.spent > category.budget;
+                      const remaining = category.budget - category.spent;
+                      
+                      return (
+                        <div key={category.name} className="border border-gray-200 rounded-lg p-4 bg-gradient-to-br from-gray-50 to-white">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-gray-900 truncate">{category.name}</h3>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Budget: {formatCurrency(category.budget)}
+                              </p>
+                            </div>
+                            <div className="ml-3 text-right">
+                              <p className={`text-lg font-bold ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                                {formatCurrency(category.spent)}
+                              </p>
+                              <p className={`text-xs font-medium ${
+                                percentUsed >= 100 ? 'text-red-600' : 
+                                percentUsed >= 80 ? 'text-orange-600' : 
+                                'text-green-600'
+                              }`}>
+                                {percentUsed.toFixed(0)}%
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Progress bar */}
+                          <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                percentUsed >= 100 ? 'bg-red-500' : 
+                                percentUsed >= 80 ? 'bg-orange-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(percentUsed, 100)}%` }}
+                            />
+                          </div>
+                          
+                          <div className="mt-2 flex justify-between text-xs">
+                            <span className={isOverBudget ? 'text-red-600 font-semibold' : 'text-gray-600'}>
+                              {isOverBudget 
+                                ? `Dépassement: ${formatCurrency(Math.abs(remaining))}`
+                                : `Restant: ${formatCurrency(remaining)}`
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  
+                  {categoryChartData.filter(cat => cat.budget > 0).length === 0 && (
+                    <div className="col-span-2 text-center py-8 text-gray-500">
+                      Aucun budget défini pour cette période
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* All Transactions Table */}
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-gray-900">Détail des Transactions</h2>
