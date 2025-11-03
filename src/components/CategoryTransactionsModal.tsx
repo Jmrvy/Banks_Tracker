@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface Transaction {
   id: string;
@@ -50,6 +51,7 @@ export const CategoryTransactionsModal = ({
   categoryName, 
   transactions 
 }: CategoryTransactionsModalProps) => {
+  const { formatCurrency } = useUserPreferences();
   const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   return (
@@ -59,7 +61,7 @@ export const CategoryTransactionsModal = ({
           <DialogTitle className="flex items-center justify-between">
             <span>Transactions - {categoryName}</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {totalAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+              {formatCurrency(totalAmount)}
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -108,10 +110,7 @@ export const CategoryTransactionsModal = ({
                       transaction.type === 'income' ? 'text-green-600' : 'text-foreground'
                     }`}
                   >
-                    {transaction.amount.toLocaleString('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'EUR' 
-                    })}
+                    {formatCurrency(transaction.amount)}
                   </span>
                 </div>
               </div>

@@ -6,6 +6,9 @@ interface Transaction {
   amount: number;
   transaction_date: string;
   type: 'income' | 'expense' | 'transfer';
+  account?: {
+    name: string;
+  };
 }
 
 export interface IncomeCategory {

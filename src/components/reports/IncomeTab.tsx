@@ -3,6 +3,8 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { TrendingUp, DollarSign, Hash, Euro, PoundSterling } from "lucide-react";
+import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
+import { useState } from "react";
 
 interface IncomeTabProps {
   incomeAnalysis: IncomeCategory[];
@@ -11,6 +13,8 @@ interface IncomeTabProps {
 
 export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   const { formatCurrency, preferences } = useUserPreferences();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Sélectionner l'icône appropriée selon la devise
   const getCurrencyIcon = () => {
@@ -26,6 +30,21 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   };
 
   const CurrencyIcon = getCurrencyIcon();
+
+  const handleCategoryClick = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setModalOpen(true);
+  };
+
+  const selectedCategoryData = incomeAnalysis.find(cat => cat.category === selectedCategory);
+  const modalTransactions = selectedCategoryData?.transactions.map(t => ({
+    id: t.id,
+    description: t.description,
+    amount: t.amount,
+    bank: t.account?.name || 'other',
+    date: t.transaction_date,
+    type: 'income' as const
+  })) || [];
 
   if (incomeAnalysis.length === 0) {
     return (
@@ -199,7 +218,11 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
             const color = COLORS[index % COLORS.length];
             
             return (
-              <div key={category.category} className="border border-border rounded-lg p-3">
+              <div 
+                key={category.category} 
+                className="border border-border rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => handleCategoryClick(category.category)}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div 
@@ -249,6 +272,13 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
           })}
         </div>
       </Card>
+
+      <CategoryTransactionsModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        categoryName={selectedCategory || ''}
+        transactions={modalTransactions}
+      />
     </div>
   );
 };
