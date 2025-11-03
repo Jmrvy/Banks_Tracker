@@ -117,14 +117,14 @@ export const SpendingOverview = () => {
   ];
 
   const getRemainingColor = (percentage: number) => {
-    if (percentage <= 10) return 'hsl(var(--destructive))';
-    if (percentage <= 25) return 'hsl(var(--warning))';
-    if (percentage <= 50) return 'hsl(var(--chart-2))';
-    return 'hsl(var(--chart-1))';
+    if (percentage <= 10) return 'hsl(0, 84%, 60%)'; // Rouge
+    if (percentage <= 25) return 'hsl(38, 92%, 50%)'; // Orange
+    if (percentage <= 50) return 'hsl(142, 71%, 45%)'; // Vert moyen
+    return 'hsl(142, 76%, 36%)'; // Vert foncé
   };
 
   const remainingColor = getRemainingColor(remainingPercentage);
-  const spentColor = 'hsl(var(--muted))';
+  const spentColor = 'hsl(var(--muted) / 0.3)';
   const isOverBudget = budgetPercentage > 100;
   const remaining = totalBudget - totalSpent;
 
@@ -138,6 +138,7 @@ export const SpendingOverview = () => {
         {totalBudget > 0 && (
           <div className="flex flex-col items-center pb-3 sm:pb-4 border-b">
             <div className="relative w-full max-w-[180px] sm:max-w-[200px]">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80 rounded-full blur-xl" />
               <ResponsiveContainer width="100%" height={120}>
                 <PieChart>
                   <Pie
@@ -150,18 +151,19 @@ export const SpendingOverview = () => {
                     outerRadius="100%"
                     paddingAngle={0}
                     dataKey="value"
+                    strokeWidth={0}
                   >
-                    <Cell fill={remainingColor} />
+                    <Cell fill={remainingColor} className="drop-shadow-lg" />
                     <Cell fill={spentColor} />
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center">
-                <div className="text-xl sm:text-2xl font-bold">
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center z-10">
+                <div className="text-xl sm:text-2xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
                   {remainingPercentage.toFixed(0)}%
                 </div>
-                <div className="text-[10px] sm:text-xs text-muted-foreground">
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium">
                   restant
                 </div>
               </div>
