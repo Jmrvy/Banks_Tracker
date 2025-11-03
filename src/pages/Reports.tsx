@@ -11,6 +11,7 @@ import { StatsCards } from "@/components/reports/StatsCards";
 import { EvolutionTab } from "@/components/reports/EvolutionTab";
 import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
+import { IncomeTab } from "@/components/reports/IncomeTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 
 const Reports = () => {
@@ -34,6 +35,7 @@ const Reports = () => {
     categoryChartData,
     recurringData,
     spendingPatternsData,
+    incomeAnalysis,
     accounts,
     filteredTransactions
   } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns);
@@ -95,8 +97,9 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 sm:space-y-4">
-          <TabsList className="grid w-full grid-cols-3 mx-auto bg-muted/30 h-8 sm:h-9 p-0.5 sm:p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-4 mx-auto bg-muted/30 h-8 sm:h-9 p-0.5 sm:p-1 rounded-lg">
             <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Évolution</TabsTrigger>
+            <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Revenus</TabsTrigger>
             <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Catégories</TabsTrigger>
             <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Récap</TabsTrigger>
           </TabsList>
@@ -109,6 +112,13 @@ const Reports = () => {
               spendingPatternsData={spendingPatternsData}
               useSpendingPatterns={useSpendingPatterns}
               setUseSpendingPatterns={setUseSpendingPatterns}
+            />
+          </TabsContent>
+
+          <TabsContent value="income">
+            <IncomeTab 
+              incomeAnalysis={incomeAnalysis}
+              totalIncome={stats.income}
             />
           </TabsContent>
 

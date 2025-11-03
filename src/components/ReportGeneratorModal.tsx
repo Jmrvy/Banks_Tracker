@@ -41,7 +41,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                         periodType === 'year' ? endOfYear(reportDate) :
                         reportDate;
 
-  const { stats, categoryChartData, balanceEvolutionData } = useReportsData(
+  const { stats, categoryChartData, balanceEvolutionData, incomeAnalysis } = useReportsData(
     periodType === 'custom' || periodType === 'quarter' ? 'custom' : periodType === 'year' ? 'year' : 'month',
     reportDate,
     periodType === 'custom' || periodType === 'quarter' ? { from: actualStartDate, to: actualEndDate } : undefined,
@@ -166,6 +166,20 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       budget: cat.budget,
       color: cat.color
     }));
+
+  // Couleurs pour les catégories de revenus
+  const INCOME_COLORS = [
+    '#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899',
+    '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'
+  ];
+
+  const incomeChartData = incomeAnalysis.slice(0, 10).map((cat, index) => ({
+    name: cat.category.length > 15 ? cat.category.substring(0, 15) + '...' : cat.category,
+    fullName: cat.category,
+    amount: cat.totalAmount,
+    count: cat.count,
+    color: INCOME_COLORS[index % INCOME_COLORS.length]
+  }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -444,6 +458,79 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                 </div>
               )}
             </div>
+
+            {/* Income Analysis Section */}
+            {incomeAnalysis.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse des Revenus</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Income Chart */}
+                  <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenus par Catégorie</h3>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={incomeChartData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                        <XAxis 
+                          type="number"
+                          tick={{ fill: '#666', fontSize: 10 }}
+                          stroke="#999"
+                        />
+                        <YAxis 
+                          type="category"
+                          dataKey="name" 
+                          tick={{ fill: '#666', fontSize: 10 }}
+                          stroke="#999"
+                          width={100}
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
+                          formatter={(value: number) => formatCurrency(value)}
+                        />
+                        <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
+                          {incomeChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Income Categories Details */}
+                  <div className="border border-gray-200 rounded-lg bg-white p-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
+                    <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                      {incomeAnalysis.map((category, index) => {
+                        const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
+                        const color = INCOME_COLORS[index % INCOME_COLORS.length];
+                        
+                        return (
+                          <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div 
+                                  className="w-2 h-2 rounded-full flex-shrink-0" 
+                                  style={{ backgroundColor: color }}
+                                />
+                                <span className="text-xs font-medium text-gray-900 truncate">
+                                  {category.category}
+                                </span>
+                              </div>
+                              <span className="text-xs font-bold text-green-600 ml-2">
+                                {formatCurrency(category.totalAmount)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-gray-500 ml-4">
+                              <span>{category.count} transaction{category.count > 1 ? 's' : ''}</span>
+                              <span>{percentage}%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* All Transactions Table */}
             <div className="space-y-4">

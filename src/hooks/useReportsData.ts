@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -446,6 +447,9 @@ export const useReportsData = (
     };
   }, [useSpendingPatterns, filteredTransactions, stats, period]);
 
+  // Analyse des revenus par catégories automatiques
+  const incomeAnalysis = useIncomeAnalysis(filteredTransactions);
+
   return {
     loading,
     period,
@@ -455,6 +459,7 @@ export const useReportsData = (
     categoryChartData,
     recurringData,
     spendingPatternsData,
+    incomeAnalysis,
     accounts
   };
 };
