@@ -5,6 +5,8 @@ import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
 
 export const SpendingOverview = () => {
   const { transactions, categories, loading } = useFinancialData();
@@ -104,17 +106,100 @@ export const SpendingOverview = () => {
     );
   }
 
+  // Gauge data and colors
+  const budgetPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  const gaugeData = [
+    { name: 'Dépensé', value: budgetPercentage },
+    { name: 'Restant', value: Math.max(0, 100 - budgetPercentage) }
+  ];
+
+  const getColor = (percentage: number) => {
+    if (percentage >= 100) return 'hsl(var(--destructive))';
+    if (percentage >= 90) return 'hsl(var(--warning))';
+    if (percentage >= 75) return 'hsl(var(--chart-2))';
+    return 'hsl(var(--chart-1))';
+  };
+
+  const spentColor = getColor(budgetPercentage);
+  const remainingColor = 'hsl(var(--muted))';
+  const isOverBudget = budgetPercentage > 100;
+  const remaining = totalBudget - totalSpent;
+
   return (
     <Card>
       <CardHeader className="pb-2 sm:pb-4">
-        <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <span className="text-base sm:text-lg">Dépenses par Catégorie</span>
-          <span className="text-xs sm:text-sm font-normal text-muted-foreground">
-            Mois: {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
-          </span>
-        </CardTitle>
+        <CardTitle className="text-base sm:text-lg">Dépenses & Budget</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 sm:space-y-3">
+      <CardContent className="space-y-3 sm:space-y-4">
+        {/* Budget Gauge */}
+        {totalBudget > 0 && (
+          <div className="flex flex-col items-center pb-3 sm:pb-4 border-b">
+            <div className="relative w-full max-w-[180px] sm:max-w-[200px]">
+              <ResponsiveContainer width="100%" height={120}>
+                <PieChart>
+                  <Pie
+                    data={gaugeData}
+                    cx="50%"
+                    cy="85%"
+                    startAngle={180}
+                    endAngle={0}
+                    innerRadius="70%"
+                    outerRadius="100%"
+                    paddingAngle={0}
+                    dataKey="value"
+                  >
+                    <Cell fill={spentColor} />
+                    <Cell fill={remainingColor} />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center">
+                <div className="text-xl sm:text-2xl font-bold">
+                  {budgetPercentage.toFixed(0)}%
+                </div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground">
+                  utilisé
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 w-full space-y-2">
+              {isOverBudget ? (
+                <div className="flex items-center justify-center gap-1.5 text-destructive">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span className="text-xs font-medium">Budget dépassé</span>
+                </div>
+              ) : budgetPercentage >= 90 ? (
+                <div className="flex items-center justify-center gap-1.5 text-warning">
+                  <TrendingUp className="w-3 h-3" />
+                  <span className="text-xs font-medium">Presque atteint</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+                  <TrendingDown className="w-3 h-3" />
+                  <span className="text-xs font-medium">Sous contrôle</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                <div>
+                  <div className="text-[10px] text-muted-foreground">Dépensé</div>
+                  <div className="font-semibold">{formatCurrency(totalSpent)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {isOverBudget ? 'Dépassement' : 'Disponible'}
+                  </div>
+                  <div className="font-semibold">{formatCurrency(Math.abs(remaining))}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Categories List */}
+        <div className="space-y-2 sm:space-y-3">
         {spendingData.map((category) => {
           const percentage = category.budget > 0 ? (category.amount / category.budget) * 100 : 0;
           const isOverBudget = percentage > 100;
@@ -161,6 +246,7 @@ export const SpendingOverview = () => {
             </div>
           );
         })}
+        </div>
       </CardContent>
       
       <CategoryTransactionsModal
