@@ -345,7 +345,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
               <div className="space-y-3">
                 <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Dépenses par Catégorie</h2>
                 <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-                  <ResponsiveContainer width="100%" height={500}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={topCategories} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                       <XAxis 
@@ -467,7 +467,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                   {/* Income Chart */}
                   <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenus par Catégorie</h3>
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={320}>
                       <BarChart data={incomeChartData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                         <XAxis 
@@ -498,7 +498,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                   {/* Income Categories Details */}
                   <div className="border border-gray-200 rounded-lg bg-white p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
-                    <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[320px] overflow-y-auto">
                       {incomeAnalysis.map((category, index) => {
                         const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
                         const color = INCOME_COLORS[index % INCOME_COLORS.length];
