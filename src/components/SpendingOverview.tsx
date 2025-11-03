@@ -106,22 +106,25 @@ export const SpendingOverview = () => {
     );
   }
 
-  // Gauge data and colors
+  // Gauge data and colors - show remaining budget that decreases
   const budgetPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  const remainingPercentage = Math.max(0, 100 - budgetPercentage);
+  const spentPercentage = Math.min(budgetPercentage, 100);
+  
   const gaugeData = [
-    { name: 'Dépensé', value: budgetPercentage },
-    { name: 'Restant', value: Math.max(0, 100 - budgetPercentage) }
+    { name: 'Restant', value: remainingPercentage },
+    { name: 'Dépensé', value: spentPercentage }
   ];
 
-  const getColor = (percentage: number) => {
-    if (percentage >= 100) return 'hsl(var(--destructive))';
-    if (percentage >= 90) return 'hsl(var(--warning))';
-    if (percentage >= 75) return 'hsl(var(--chart-2))';
+  const getRemainingColor = (percentage: number) => {
+    if (percentage <= 10) return 'hsl(var(--destructive))';
+    if (percentage <= 25) return 'hsl(var(--warning))';
+    if (percentage <= 50) return 'hsl(var(--chart-2))';
     return 'hsl(var(--chart-1))';
   };
 
-  const spentColor = getColor(budgetPercentage);
-  const remainingColor = 'hsl(var(--muted))';
+  const remainingColor = getRemainingColor(remainingPercentage);
+  const spentColor = 'hsl(var(--muted))';
   const isOverBudget = budgetPercentage > 100;
   const remaining = totalBudget - totalSpent;
 
@@ -148,18 +151,18 @@ export const SpendingOverview = () => {
                     paddingAngle={0}
                     dataKey="value"
                   >
-                    <Cell fill={spentColor} />
                     <Cell fill={remainingColor} />
+                    <Cell fill={spentColor} />
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center">
                 <div className="text-xl sm:text-2xl font-bold">
-                  {budgetPercentage.toFixed(0)}%
+                  {remainingPercentage.toFixed(0)}%
                 </div>
                 <div className="text-[10px] sm:text-xs text-muted-foreground">
-                  utilisé
+                  restant
                 </div>
               </div>
             </div>
