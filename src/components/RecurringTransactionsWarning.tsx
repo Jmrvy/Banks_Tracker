@@ -111,43 +111,46 @@ export const RecurringTransactionsWarning = () => {
               {upcomingTransactions.slice(0, 3).map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50"
+                  className="p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50"
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-lg">{getTypeIcon(transaction.type)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{transaction.description}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{transaction.account?.name}</span>
-                        {transaction.category && (
-                          <>
-                            <span>•</span>
-                            <div className="flex items-center gap-1">
-                              <div 
-                                className="w-2 h-2 rounded-full" 
-                                style={{ backgroundColor: transaction.category.color }}
-                              />
-                              <span>{transaction.category.name}</span>
-                            </div>
-                          </>
-                        )}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                      <span className="text-base mt-0.5">{getTypeIcon(transaction.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-foreground">{transaction.description}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <span>{transaction.account?.name}</span>
+                          {transaction.category && (
+                            <>
+                              <span>•</span>
+                              <div className="flex items-center gap-1">
+                                <div 
+                                  className="w-2 h-2 rounded-full" 
+                                  style={{ backgroundColor: transaction.category.color }}
+                                />
+                                <span>{transaction.category.name}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-right">
-                    <div>
-                      <p className={`text-sm font-medium ${getTypeColor(transaction.type)}`}>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-semibold ${getTypeColor(transaction.type)}`}>
                         {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(transaction.next_due_date)}
-                      </p>
+                      <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(transaction.next_due_date)}
+                        </p>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <p className="text-xs text-muted-foreground">
+                          {transaction.recurrence_type === 'weekly' ? 'Hebdo' : 
+                           transaction.recurrence_type === 'monthly' ? 'Mensuel' : 
+                           transaction.recurrence_type === 'yearly' ? 'Annuel' : transaction.recurrence_type}
+                        </p>
+                      </div>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {transaction.recurrence_type === 'weekly' ? 'Hebdo' : 
-                       transaction.recurrence_type === 'monthly' ? 'Mensuel' : 
-                       transaction.recurrence_type === 'yearly' ? 'Annuel' : transaction.recurrence_type}
-                    </Badge>
                   </div>
                 </div>
               ))}
