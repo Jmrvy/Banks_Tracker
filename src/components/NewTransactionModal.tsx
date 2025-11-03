@@ -33,7 +33,10 @@ const NewTransaction = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.description || !formData.amount || !formData.account_id) {
+    // Pour les transferts, la description n'est pas obligatoire
+    const descriptionRequired = formData.type !== 'transfer';
+    
+    if ((descriptionRequired && !formData.description) || !formData.amount || !formData.account_id) {
       toast({
         title: "Informations manquantes",
         description: "Veuillez remplir tous les champs obligatoires.",
@@ -66,7 +69,7 @@ const NewTransaction = () => {
     
     if (formData.type === 'transfer') {
       const result = await createTransfer({
-        description: formData.description,
+        description: formData.description || 'Transfert',
         amount: parseFloat(formData.amount),
         from_account_id: formData.account_id,
         to_account_id: formData.to_account_id,
@@ -194,13 +197,15 @@ const NewTransaction = () => {
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description">
+                  Description {formData.type !== 'transfer' && '*'}
+                </Label>
                 <Textarea
                   id="description"
-                  placeholder="Saisissez la description de la transaction..."
+                  placeholder={formData.type === 'transfer' ? "Description (optionnelle)..." : "Saisissez la description de la transaction..."}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
+                  required={formData.type !== 'transfer'}
                 />
               </div>
 

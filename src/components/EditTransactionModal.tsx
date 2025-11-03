@@ -62,7 +62,10 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     e.preventDefault();
     if (!transaction) return;
     
-    if (!formData.description || !formData.amount || !formData.account_id) {
+    // Pour les transferts, la description n'est pas obligatoire
+    const descriptionRequired = formData.type !== 'transfer';
+    
+    if ((descriptionRequired && !formData.description) || !formData.amount || !formData.account_id) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires.",
@@ -74,7 +77,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     setLoading(true);
 
     const updates = {
-      description: formData.description,
+      description: formData.description || (formData.type === 'transfer' ? 'Transfert' : ''),
       amount: parseFloat(formData.amount),
       type: formData.type,
       account_id: formData.account_id,
@@ -115,12 +118,15 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">
+              Description {formData.type !== 'transfer' && '*'}
+            </Label>
             <Input
               id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Ex: Courses Carrefour"
+              placeholder={formData.type === 'transfer' ? "Description (optionnelle)" : "Ex: Courses Carrefour"}
+              required={formData.type !== 'transfer'}
             />
           </div>
 
