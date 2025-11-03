@@ -7,6 +7,7 @@ import { SpendingOverview } from "@/components/SpendingOverview";
 import { RecentTransactions } from "@/components/RecentTransactions";
 import { MonthlyProjections } from "@/components/MonthlyProjections";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
+import { BudgetGauge } from "@/components/BudgetGauge";
 
 const Index = () => {
   const { user } = useAuth();
@@ -30,7 +31,8 @@ const Index = () => {
         <DashboardHeader />
         <AccountCards />
         <RecurringTransactionsWarning />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          <BudgetGauge />
           <SpendingOverview />
           <MonthlyProjections />
         </div>
