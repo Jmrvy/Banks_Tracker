@@ -347,7 +347,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               <div className="space-y-3">
                 <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Dépenses par Catégorie</h2>
                 <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-                  <ResponsiveContainer width="100%" height={280}>
+                  <ResponsiveContainer width="100%" height={280 + 70 + (accountBalances.length * 60)}>
                     <BarChart data={topCategories} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                       <XAxis 
