@@ -394,9 +394,9 @@ export const MonthlyProjections = () => {
         {/* Two-Step Projection */}
         <div className="space-y-2 sm:space-y-3">
           {/* Step 1: Current Balance to End of Month */}
-          <div className="p-2 sm:p-3 lg:p-4 rounded-lg border bg-blue-50/50 border-blue-200">
+          <div className="p-2 sm:p-3 lg:p-4 rounded-lg border bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-xs sm:text-sm font-medium text-blue-800 flex items-center gap-1 sm:gap-2">
+              <span className="text-xs sm:text-sm font-medium text-blue-800 dark:text-blue-300 flex items-center gap-1 sm:gap-2">
                 <Calculator className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Étape 1: Projection depuis solde actuel</span>
                 <span className="sm:hidden">Étape 1: Solde actuel</span>
@@ -434,9 +434,9 @@ export const MonthlyProjections = () => {
           </div>
 
           {/* Step 2: Beginning of Month to End of Month */}
-          <div className="p-2 sm:p-3 lg:p-4 rounded-lg border bg-green-50/50 border-green-200">
+          <div className="p-2 sm:p-3 lg:p-4 rounded-lg border bg-green-50/50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-xs sm:text-sm font-medium text-green-800 flex items-center gap-1 sm:gap-2">
+              <span className="text-xs sm:text-sm font-medium text-green-800 dark:text-green-300 flex items-center gap-1 sm:gap-2">
                 <Target className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Étape 2: Projection mensuelle complète</span>
                 <span className="sm:hidden">Étape 2: Projection mois</span>
@@ -472,7 +472,7 @@ export const MonthlyProjections = () => {
           </div>
 
           {/* Calculation verification - hide on mobile */}
-          <div className="hidden sm:block p-2 sm:p-3 rounded-lg bg-muted/30 border">
+          <div className="hidden sm:block p-2 sm:p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border dark:border-muted/30">
             <div className="text-[10px] sm:text-xs text-muted-foreground space-y-1">
               <div>Étape 1: {formatCurrency(totalBalance)} + ({formatCurrency(futureNetCashFlow)}) = {formatCurrency(projectedBalanceFromCurrent)}</div>
               <div>Étape 2: {formatCurrency(beginningOfMonthBalance)} + ({formatCurrency(monthlyData.projectedNet)}) = {formatCurrency(projectedBalanceFromBeginning)}</div>
@@ -492,7 +492,7 @@ export const MonthlyProjections = () => {
             </h4>
             <div className="space-y-1 sm:space-y-2">
               {monthlyData.upcomingRecurring.map((upcoming, index) => (
-                <div key={index} className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-muted/30 text-xs sm:text-sm">
+                <div key={index} className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-muted/30 dark:bg-muted/20 text-xs sm:text-sm">
                   <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1">
                     {upcoming.category && (
                       <div 
@@ -555,15 +555,15 @@ export const MonthlyProjections = () => {
             
             {/* Top spending categories */}
             {monthlyData.categoriesWithSpending.length > 0 && (
-              <div className="mb-3 p-3 bg-yellow-50/50 rounded-lg border border-yellow-200">
-                <h5 className="text-xs font-medium text-yellow-800 mb-2">Catégories les plus impactées:</h5>
+              <div className="mb-3 p-3 bg-yellow-50/50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-800/50">
+                <h5 className="text-xs font-medium text-yellow-800 dark:text-yellow-300 mb-2">Catégories les plus impactées:</h5>
                 <div className="space-y-1">
                   {monthlyData.categoriesWithSpending.slice(0, 3).map(cat => (
-                    <div key={cat.name} className="text-xs text-yellow-700">
+                    <div key={cat.name} className="text-xs text-yellow-700 dark:text-yellow-400">
                       • <span className="font-medium">{cat.name}</span>: 
                       {cat.actual > 0 && <span> {formatCurrency(cat.actual)} dépensé</span>}
                       {cat.projected > 0 && <span> + {formatCurrency(cat.projected)} prévu</span>}
-                      {cat.percentage > 100 && <span className="text-red-600"> (dépassement!)</span>}
+                      {cat.percentage > 100 && <span className="text-red-600 dark:text-red-400"> (dépassement!)</span>}
                     </div>
                   ))}
                 </div>
