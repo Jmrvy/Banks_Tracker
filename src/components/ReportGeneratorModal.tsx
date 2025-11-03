@@ -5,7 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -23,7 +23,7 @@ interface ReportGeneratorModalProps {
 
 export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModalProps) => {
   const [reportDate, setReportDate] = useState<Date>(new Date());
-  const [periodType, setPeriodType] = useState<'month' | 'custom'>('month');
+  const [periodType, setPeriodType] = useState<'month' | 'quarter' | 'year' | 'custom'>('month');
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -32,13 +32,19 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
 
-  const actualStartDate = periodType === 'custom' ? startDate : new Date(reportDate.getFullYear(), reportDate.getMonth(), 1);
-  const actualEndDate = periodType === 'custom' ? endDate : reportDate;
+  const actualStartDate = periodType === 'custom' ? startDate : 
+                          periodType === 'quarter' ? startOfQuarter(reportDate) :
+                          periodType === 'year' ? startOfYear(reportDate) :
+                          new Date(reportDate.getFullYear(), reportDate.getMonth(), 1);
+  const actualEndDate = periodType === 'custom' ? endDate :
+                        periodType === 'quarter' ? endOfQuarter(reportDate) :
+                        periodType === 'year' ? endOfYear(reportDate) :
+                        reportDate;
 
   const { stats, categoryChartData, balanceEvolutionData } = useReportsData(
-    periodType === 'custom' ? 'custom' : 'month',
+    periodType === 'custom' || periodType === 'quarter' ? 'custom' : periodType === 'year' ? 'year' : 'month',
     reportDate,
-    periodType === 'custom' ? { from: actualStartDate, to: actualEndDate } : undefined,
+    periodType === 'custom' || periodType === 'quarter' ? { from: actualStartDate, to: actualEndDate } : undefined,
     false
   );
 
@@ -192,12 +198,14 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           {/* Type de période */}
           <div className="space-y-2">
             <Label>Période des transactions</Label>
-            <Select value={periodType} onValueChange={(value: 'month' | 'custom') => setPeriodType(value)}>
+            <Select value={periodType} onValueChange={(value: 'month' | 'quarter' | 'year' | 'custom') => setPeriodType(value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="month">Mois en cours</SelectItem>
+                <SelectItem value="quarter">Trimestre en cours</SelectItem>
+                <SelectItem value="year">Année en cours</SelectItem>
                 <SelectItem value="custom">Période personnalisée</SelectItem>
               </SelectContent>
             </Select>
