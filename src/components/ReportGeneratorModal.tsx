@@ -31,6 +31,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [isGenerating, setIsGenerating] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const transactionsSectionRef = useRef<HTMLDivElement>(null);
 
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
@@ -56,15 +57,26 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     
     setIsGenerating(true);
     try {
+      // Create PDF with proper sectioning
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
       // Temporarily make visible for rendering
       reportRef.current.style.left = '0';
       reportRef.current.style.position = 'fixed';
       reportRef.current.style.top = '0';
       reportRef.current.style.zIndex = '-1';
-      
+
+      // Hide transactions section during capture to avoid double rendering across pages
+      if (transactionsSectionRef.current) {
+        transactionsSectionRef.current.style.display = 'none';
+      }
+
       // Wait for charts and content to render
       await new Promise(resolve => setTimeout(resolve, 2000));
-
+      
+      // Generate charts and summary sections first
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
@@ -78,10 +90,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       reportRef.current.style.left = '-9999px';
       reportRef.current.style.position = 'absolute';
 
+      // Restore transactions section visibility for the rest of the app
+      if (transactionsSectionRef.current) {
+        transactionsSectionRef.current.style.display = 'block';
+      }
+
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
       
       // Convert canvas dimensions to PDF dimensions
       const imgWidth = pdfWidth;
@@ -90,11 +104,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       let heightLeft = imgHeight;
       let position = 0;
 
-      // Add first page
+      // Add first page with charts
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
 
-      // Add additional pages if content is longer than one page
+      // Add additional pages if charts content is longer than one page
       while (heightLeft > 0) {
         position = -(imgHeight - heightLeft);
         pdf.addPage();
@@ -159,7 +173,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
         },
         didDrawPage: (data: any) => {
-          // Add page number
+          // Add page number for transaction pages
           const pageCount = pdf.getNumberOfPages();
           pdf.setFontSize(8);
           pdf.setTextColor(128);
@@ -169,7 +183,18 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             pdf.internal.pageSize.getHeight() - 10,
             { align: 'center' }
           );
-        }
+          
+          // Add title on each new page (except first)
+          if (data.pageNumber > 1) {
+            pdf.setFontSize(12);
+            pdf.setTextColor(0);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Détail des Transactions (suite)', 14, 15);
+            pdf.setFont('helvetica', 'normal');
+          }
+        },
+        showHead: 'everyPage', // Show header on every page
+        margin: { top: 25 }
       });
 
       pdf.save(`rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.pdf`);
@@ -529,7 +554,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
             <div className="space-y-3">
               <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse Budget vs Dépenses</h2>
               {categoryChartData.filter(cat => cat.budget > 0).length === 0 ? (
-                <div className="p-6 border border-gray-200 rounded-lg bg-white">
+              <div className="p-6 border border-gray-200 rounded-lg bg-white" ref={transactionsSectionRef}>
                   <div className="text-center py-6 text-gray-500">
                     Aucun budget défini pour cette période
                   </div>
@@ -641,44 +666,44 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="border border-gray-200 rounded-lg bg-white p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
-                    <div className="space-y-2 max-h-[var(--income-height)] overflow-y-auto" style={{ ['--income-height' as any]: `${incomeChartHeight}px` }}>
-                      {incomeAnalysis.map((category, index) => {
-                        const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
-                        const color = INCOME_COLORS[index % INCOME_COLORS.length];
-                        
-                        return (
-                          <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <div 
-                                  className="w-2 h-2 rounded-full flex-shrink-0" 
-                                  style={{ backgroundColor: color }}
-                                />
-                                <span className="text-xs font-medium text-gray-900 truncate">
-                                  {category.category}
-                                </span>
-                              </div>
-                              <span className="text-xs font-bold text-green-600 ml-2">
-                                {formatCurrency(category.totalAmount)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-gray-500 ml-4">
-                              <span>{category.count} transaction{category.count > 1 ? 's' : ''}</span>
-                              <span>{percentage}%</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                   <div className="border border-gray-200 rounded-lg bg-white p-4">
+                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
+                     <div className="space-y-2 overflow-y-auto" style={{ maxHeight: `${incomeChartHeight}px` }}>
+                       {incomeAnalysis.map((category, index) => {
+                         const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
+                         const color = INCOME_COLORS[index % INCOME_COLORS.length];
+                         
+                         return (
+                           <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
+                             <div className="flex items-center justify-between mb-1">
+                               <div className="flex items-center gap-2 min-w-0 flex-1">
+                                 <div 
+                                   className="w-2 h-2 rounded-full flex-shrink-0" 
+                                   style={{ backgroundColor: color }}
+                                 />
+                                 <span className="text-xs font-medium text-gray-900 truncate">
+                                   {category.category}
+                                 </span>
+                               </div>
+                               <span className="text-xs font-bold text-green-600 ml-2 whitespace-nowrap">
+                                 {formatCurrency(category.totalAmount)}
+                               </span>
+                             </div>
+                             <div className="flex items-center justify-between text-xs text-gray-500 ml-4">
+                               <span>{category.count} transaction{category.count > 1 ? 's' : ''}</span>
+                               <span>{percentage}%</span>
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </div>
                 </div>
               </div>
             )}
 
             {/* All Transactions Table */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={transactionsSectionRef}>
               <h2 className="text-2xl font-bold text-gray-900">Détail des Transactions</h2>
               <div className="p-6 border border-gray-200 rounded-lg bg-white">
                 <div className="overflow-x-auto">
