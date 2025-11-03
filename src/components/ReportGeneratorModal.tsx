@@ -10,6 +10,7 @@ import { FileText, Loader2 } from "lucide-react";
 import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
 import html2canvas from "html2canvas";
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
@@ -101,7 +102,77 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         heightLeft -= pdfHeight;
       }
 
-      pdf.save(`rapport-financier-${format(reportDate, 'yyyy-MM-dd')}.pdf`);
+      // Add transactions table with autotable for proper pagination
+      const tableData = transactionsWithBalance.map(t => [
+        format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+        accounts.find(a => a.id === t.account_id)?.name || '-',
+        t.description,
+        t.category?.name || '-',
+        t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Dépense' : 'Virement',
+        (t.type === 'income' ? '+' : '-') + formatCurrency(Number(t.amount)),
+        formatCurrency(t.runningBalance)
+      ]);
+
+      pdf.addPage();
+      
+      // Add title for transactions page
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Détail des Transactions', 14, 15);
+      
+      // Add transactions table with autoTable
+      autoTable(pdf, {
+        head: [['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde']],
+        body: tableData,
+        foot: [
+          ['', '', '', '', 'Total transactions:', transactionsWithBalance.length.toString(), ''],
+          ['', '', '', '', 'Solde début:', '', formatCurrency(startingBalance)],
+          ['', '', '', '', 'Solde fin:', '', formatCurrency(totalBalance)]
+        ],
+        startY: 25,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [243, 244, 246],
+          textColor: [55, 65, 81],
+          fontStyle: 'bold',
+          lineWidth: 0.5,
+          lineColor: [209, 213, 219]
+        },
+        footStyles: {
+          fillColor: [249, 250, 251],
+          textColor: [17, 24, 39],
+          fontStyle: 'bold'
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [229, 231, 235],
+          lineWidth: 0.1
+        },
+        columnStyles: {
+          0: { cellWidth: 22 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 25, halign: 'right' },
+          6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+        },
+        didDrawPage: (data: any) => {
+          // Add page number
+          const pageCount = pdf.getNumberOfPages();
+          pdf.setFontSize(8);
+          pdf.setTextColor(128);
+          pdf.text(
+            `Page ${data.pageNumber} / ${pageCount}`,
+            pdf.internal.pageSize.getWidth() / 2,
+            pdf.internal.pageSize.getHeight() - 10,
+            { align: 'center' }
+          );
+        }
+      });
+
+      pdf.save(`rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.pdf`);
 
       toast({
         title: "Rapport généré",
@@ -121,10 +192,37 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     }
   };
 
-  // Filter transactions by date range
-  const filteredTransactions = transactions.filter(t => {
-    const transactionDate = new Date(t.transaction_date);
-    return transactionDate >= actualStartDate && transactionDate <= actualEndDate;
+  // Calculate total balance at end of period - needed first for other calculations
+  const totalBalance = stats.finalBalance;
+
+  // Filter transactions by date range and sort chronologically
+  const filteredTransactions = transactions
+    .filter(t => {
+      const transactionDate = new Date(t.transaction_date);
+      return transactionDate >= actualStartDate && transactionDate <= actualEndDate;
+    })
+    .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
+
+  // Calculate starting balance (beginning of period)
+  // Starting balance = final balance - net period balance
+  const startingBalance = totalBalance - stats.netPeriodBalance;
+  
+  // Add running balance to transactions
+  let runningBalance = startingBalance;
+  const transactionsWithBalance = filteredTransactions.map(transaction => {
+    const amount = Number(transaction.amount);
+    if (transaction.type === 'income') {
+      runningBalance += amount;
+    } else if (transaction.type === 'expense') {
+      runningBalance -= amount;
+    }
+    // For transfers, the amount was already subtracted from source account
+    // We don't modify running balance for transfers as it's internal movement
+    
+    return {
+      ...transaction,
+      runningBalance: runningBalance
+    };
   });
 
   // Calculate account balances at end of selected period
@@ -152,9 +250,6 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
 
     return { ...account, currentBalance: balanceAtEndDate };
   });
-
-  // Calculate total balance at end of period - this uses stats.finalBalance which is correct
-  const totalBalance = stats.finalBalance;
 
   // Prepare category chart data - top 10 categories by spending
   const topCategories = categoryChartData
@@ -596,12 +691,11 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                         <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Catégorie</th>
                         <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Type</th>
                         <th className="text-right p-2 text-gray-700 border-b-2 border-gray-300">Montant</th>
+                        <th className="text-right p-2 text-gray-700 border-b-2 border-gray-300">Solde</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTransactions
-                        .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-                        .map((transaction) => (
+                      {transactionsWithBalance.map((transaction) => (
                         <tr key={transaction.id} className="border-b border-gray-200">
                           <td className="p-2 text-gray-600">
                             {format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}
@@ -631,13 +725,24 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                             {transaction.type === 'income' ? '+' : '-'}
                             {formatCurrency(Number(transaction.amount))}
                           </td>
+                          <td className="p-2 text-right font-bold text-gray-900">
+                            {formatCurrency(transaction.runningBalance)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>
                         <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Total des transactions:</td>
-                        <td className="p-3 text-right font-bold text-gray-900">{filteredTransactions.length}</td>
+                        <td className="p-3 text-right font-bold text-gray-900" colSpan={2}>{transactionsWithBalance.length}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Solde début de période:</td>
+                        <td className="p-3 text-right font-bold text-blue-700" colSpan={2}>{formatCurrency(startingBalance)}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Solde fin de période:</td>
+                        <td className="p-3 text-right font-bold text-purple-700" colSpan={2}>{formatCurrency(totalBalance)}</td>
                       </tr>
                     </tfoot>
                   </table>
