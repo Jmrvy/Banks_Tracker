@@ -137,7 +137,7 @@ export const SpendingOverview = () => {
         {/* Budget Gauge */}
         {totalBudget > 0 && (
           <div className="flex flex-col items-center pb-4 sm:pb-6 border-b">
-            <div className="relative w-full max-w-[320px] sm:max-w-[380px]">
+            <div className="relative w-full max-w-[240px] sm:max-w-[320px]">
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80 rounded-full blur-xl" />
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
