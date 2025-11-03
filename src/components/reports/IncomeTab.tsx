@@ -155,7 +155,12 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                   return null;
                 }}
               />
-              <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
+              <Bar 
+                dataKey="amount" 
+                radius={[0, 4, 4, 0]}
+                cursor="pointer"
+                onClick={(data) => handleCategoryClick(data.fullName)}
+              >
                 {barChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
