@@ -26,13 +26,11 @@ export const RecentTransactions = () => {
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
 
-  // Add state to manage view mode
-  const [showAll, setShowAll] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Dynamically choose which transactions to display
-  const displayedTransactions = showAll ? transactions : transactions.slice(0, 5);
+  // Display only 10 most recent transactions
+  const displayedTransactions = transactions.slice(0, 10);
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -103,21 +101,17 @@ export const RecentTransactions = () => {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-4">
-        <CardTitle className="text-base sm:text-lg">Transactions Récentes</CardTitle>
-        {/* Add onClick handler and dynamic text */}
-        <Button variant="outline" size="sm" onClick={() => setShowAll(!showAll)} className="text-xs">
-          {showAll ? 'Voir moins' : `Tout (${transactions.length})`}
-        </Button>
+    <Card className="border-0 shadow-md">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Transactions Récentes</CardTitle>
+        <p className="text-xs text-muted-foreground">Les 10 dernières transactions</p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 sm:space-y-3">
-          {/* Use displayedTransactions instead of recentTransactions */}
+        <div className="space-y-2">
           {displayedTransactions.map((transaction) => (
             <div 
               key={transaction.id} 
-              className="flex items-center justify-between p-2 sm:p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors"
+              className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-card/80 hover:bg-accent/50 hover:border-accent transition-all duration-200 shadow-sm"
             >
               <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">

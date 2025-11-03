@@ -228,23 +228,23 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 pb-24">
+      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4">
         
         {/* Header */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate("/")}
-            className="rounded-full h-8 w-8 sm:h-10 sm:w-10"
+            className="h-9 w-9"
           >
-            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-base sm:text-xl lg:text-2xl font-bold">Paramètres</h1>
-            <p className="text-muted-foreground text-[10px] sm:text-xs hidden sm:block">
-              Gérez vos préférences
+            <h1 className="text-2xl sm:text-3xl font-bold">Paramètres</h1>
+            <p className="text-sm text-muted-foreground">
+              Gérer votre compte
             </p>
           </div>
         </div>

@@ -168,65 +168,67 @@ export const AccountCards = () => {
   return (
     <div className="space-y-6">
       {/* Total Overview */}
-      <Card className="border">
+      <Card className="border-0 shadow-md overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-muted-foreground text-xs sm:text-sm font-medium">Solde Total</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
+              <p className="text-muted-foreground text-xs sm:text-sm font-medium mb-1">Solde Total</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground truncate">
                 {formatCurrency(totalBalance)}
               </p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                 {accounts.length} compte{accounts.length > 1 ? 's' : ''} bancaire{accounts.length > 1 ? 's' : ''}
               </p>
             </div>
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <CreditCard className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Account Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {enrichedAccounts.map((account) => (
           <Card 
             key={account.id} 
-            className="hover:shadow-sm transition-all duration-200 border cursor-pointer hover:bg-muted/50"
+            className="hover:shadow-md transition-all duration-300 border-0 shadow-sm cursor-pointer hover:scale-[1.02] hover:bg-accent/30 overflow-hidden"
             onClick={() => handleAccountClick(account)}
           >
-            <CardContent className="p-3 sm:p-4 lg:p-5">
-              <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <div className={`w-2 sm:w-3 h-6 sm:h-8 rounded-full flex-shrink-0 ${bankColors[account.bank] || 'bg-gray-500'}`} />
+                  <div className={`w-1 sm:w-1.5 h-12 sm:h-14 rounded-full flex-shrink-0 shadow-sm ${bankColors[account.bank] || 'bg-gray-500'}`} />
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">{account.name}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    <h3 className="font-bold text-sm sm:text-base text-foreground truncate">{account.name}</h3>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
                       {bankNames[account.bank] || account.bank}
                     </p>
                   </div>
                 </div>
-                <Badge variant={account.monthlyChange >= 0 ? 'secondary' : 'destructive'} className="text-[10px] sm:text-xs flex-shrink-0 ml-1">
+                <Badge variant={account.monthlyChange >= 0 ? 'secondary' : 'destructive'} className="text-[10px] sm:text-xs flex-shrink-0 ml-1 shadow-sm">
                   {account.monthlyChange >= 0 ? (
-                    <TrendingUp className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                   ) : (
-                    <TrendingDown className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                    <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                   )}
                   <span className="hidden sm:inline">{formatCurrency(Math.abs(account.monthlyChange))}</span>
                   <span className="sm:hidden">{Math.abs(account.monthlyChange).toFixed(0)}</span>
                 </Badge>
               </div>
               
-              <div className="space-y-1 sm:space-y-2">
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">
+              <div className="space-y-2">
+                <p className="text-xl sm:text-2xl font-bold text-foreground">
                   {formatCurrency(account.balance)}
                 </p>
-                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
-                  Dernière: {account.lastTransaction}
-                </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">
-                  {account.transactionCount} transaction{account.transactionCount > 1 ? 's' : ''}
-                </p>
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    <span className="font-medium">Dernière:</span> {account.lastTransaction}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                    {account.transactionCount} transaction{account.transactionCount > 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

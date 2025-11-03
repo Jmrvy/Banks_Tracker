@@ -12,6 +12,7 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import RecurringTransactions from "@/pages/RecurringTransactions";
 import NewTransaction from "@/pages/NewTransaction";
+import Insights from "@/pages/Insights";
 import { MobileNavigation } from "@/components/MobileNavigation";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <NewTransaction />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/insights" 
+          element={
+            <ProtectedRoute>
+              <Insights />
             </ProtectedRoute>
           } 
         />
