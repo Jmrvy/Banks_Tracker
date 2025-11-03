@@ -173,13 +173,15 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'
   ];
 
-  const incomeChartData = incomeAnalysis.slice(0, 10).map((cat, index) => ({
-    name: cat.category.length > 15 ? cat.category.substring(0, 15) + '...' : cat.category,
-    fullName: cat.category,
-    amount: cat.totalAmount,
-    count: cat.count,
-    color: INCOME_COLORS[index % INCOME_COLORS.length]
-  }));
+const incomeChartData = incomeAnalysis.slice(0, 10).map((cat, index) => ({
+  name: cat.category.length > 15 ? cat.category.substring(0, 15) + '...' : cat.category,
+  fullName: cat.category,
+  amount: cat.totalAmount,
+  count: cat.count,
+  color: INCOME_COLORS[index % INCOME_COLORS.length]
+}));
+
+const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 40));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -467,7 +469,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                   {/* Income Chart */}
                   <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenus par Catégorie</h3>
-                    <ResponsiveContainer width="100%" height={320}>
+                    <ResponsiveContainer width="100%" height={incomeChartHeight}>
                       <BarChart data={incomeChartData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                         <XAxis 
@@ -495,10 +497,9 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Income Categories Details */}
                   <div className="border border-gray-200 rounded-lg bg-white p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
-                    <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[var(--income-height)] overflow-y-auto" style={{ ['--income-height' as any]: `${incomeChartHeight}px` }}>
                       {incomeAnalysis.map((category, index) => {
                         const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
                         const color = INCOME_COLORS[index % INCOME_COLORS.length];
