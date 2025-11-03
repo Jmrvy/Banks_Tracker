@@ -586,25 +586,16 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Zone de danger */}
-          <Card className="border-destructive/50">
-            <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-destructive text-sm sm:text-base">Zone de danger</CardTitle>
-              <CardDescription className="text-xs sm:text-sm hidden sm:block">
-                Actions irréversibles sur votre compte
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-6">
-              <Button 
-                variant="destructive" 
-                onClick={signOut}
-                size="sm"
-                className="w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm"
-              >
-                Se déconnecter
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Déconnexion */}
+          <div className="pt-2">
+            <Button 
+              variant="destructive" 
+              onClick={signOut}
+              className="w-full h-10 text-sm"
+            >
+              Se déconnecter
+            </Button>
+          </div>
         </div>
       </div>
     </div>
