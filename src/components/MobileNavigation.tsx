@@ -4,7 +4,7 @@ import {
   Home, 
   Plus, 
   TrendingUp,
-  BarChart3, 
+  Repeat,
   Settings
 } from "lucide-react";
 
@@ -26,9 +26,9 @@ const navItems = [
     label: "Ajouter"
   },
   {
-    path: "/reports",
-    icon: BarChart3,
-    label: "Rapports"
+    path: "/recurring-transactions",
+    icon: Repeat,
+    label: "Récurrentes"
   },
   {
     path: "/settings",

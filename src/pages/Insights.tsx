@@ -9,7 +9,7 @@ const Insights = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4 sm:space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button
@@ -21,8 +21,8 @@ const Insights = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <TrendingUp className="h-6 w-6 text-primary" />
               Insights
             </h1>
             <p className="text-sm text-muted-foreground">Analyses et projections</p>

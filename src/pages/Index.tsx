@@ -25,7 +25,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 pb-24">
-      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4 sm:space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4">
         <DashboardHeader />
         <AccountCards />
         <RecurringTransactionsWarning />

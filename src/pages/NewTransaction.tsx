@@ -136,8 +136,8 @@ const NewTransaction = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <Plus className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Plus className="h-6 w-6 text-primary" />
               Nouvelle Transaction
             </h1>
             <p className="text-sm text-muted-foreground">

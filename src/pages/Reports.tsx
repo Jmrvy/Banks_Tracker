@@ -64,8 +64,8 @@ const Reports = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold truncate flex items-center gap-2">
-                <BarChart3 className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+              <h1 className="text-2xl font-bold truncate flex items-center gap-2">
+                <BarChart3 className="h-6 w-6 text-primary" />
                 Rapports
               </h1>
               <p className="text-sm text-muted-foreground truncate">
