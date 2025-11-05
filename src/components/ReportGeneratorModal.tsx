@@ -168,10 +168,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           fontStyle: 'bold',
           lineWidth: 0.5,
           lineColor: [209, 213, 219],
-          halign: 'left'
+          halign: 'left',
+          fontSize: 7
         },
         styles: {
-          fontSize: 8,
+          fontSize: 7,
           cellPadding: 2,
           lineColor: [229, 231, 235],
           lineWidth: 0.1,
@@ -180,13 +181,13 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 22 }, // Date - largeur fixe
+          0: { cellWidth: 20 }, // Date
           1: { cellWidth: 'wrap' }, // Compte
           2: { cellWidth: 'wrap' }, // Description
           3: { cellWidth: 'wrap' }, // Catégorie
-          4: { cellWidth: 22 }, // Type - largeur fixe
-          5: { halign: 'right' }, // Montant
-          6: { halign: 'right', fontStyle: 'bold' } // Solde
+          4: { cellWidth: 18 }, // Type
+          5: { halign: 'right', cellWidth: 22 }, // Montant
+          6: { halign: 'right', fontStyle: 'bold', cellWidth: 22 } // Solde
         },
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
