@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,17 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
 
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
+
+  // PDF-only currency formatting to avoid non-breaking spaces turning into slashes
+  const pdfFormatAbs = (value: number) => {
+    const n = Math.abs(Number(value) || 0);
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+  };
+  const pdfFormatWithSign = (value: number) => {
+    const sign = (Number(value) || 0) < 0 ? '-' : '';
+    const n = Math.abs(Number(value) || 0);
+    return sign + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+  };
 
   const actualStartDate = periodType === 'custom' ? startDate : 
                           periodType === 'quarter' ? startOfQuarter(reportDate) :
@@ -117,15 +128,20 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       }
 
       // Add transactions table with autotable for proper pagination
-      const tableData = transactionsWithBalance.map(t => [
-        format(new Date(t.transaction_date), 'dd/MM/yyyy'),
-        accounts.find(a => a.id === t.account_id)?.name || '-',
-        t.description,
-        t.category?.name || '-',
-        t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Dépense' : 'Virement',
-        (t.type === 'income' ? '+' : '-') + formatCurrency(Number(t.amount)),
-        formatCurrency(t.runningBalance)
-      ]);
+      const tableData = transactionsWithBalance.map(t => {
+        const amountNum = Number(t.amount);
+        const amountStr = (t.type === 'income' ? '+' : '-') + pdfFormatAbs(amountNum);
+        const balanceStr = pdfFormatWithSign(t.runningBalance);
+        return [
+          format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+          accounts.find(a => a.id === t.account_id)?.name || '-',
+          t.description,
+          t.category?.name || '-',
+          t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Dépense' : 'Virement',
+          amountStr,
+          balanceStr,
+        ];
+      });
 
       pdf.addPage();
       
@@ -137,6 +153,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         body: tableData,
         startY: 25,
         theme: 'grid',
+        tableWidth: 'auto',
         headStyles: { 
           fillColor: [243, 244, 246],
           textColor: [55, 65, 81],
@@ -150,17 +167,13 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           cellPadding: 2,
           lineColor: [229, 231, 235],
           lineWidth: 0.1,
-          halign: 'left'
+          halign: 'left',
+          overflow: 'linebreak'
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 19 },   // Date
-          1: { cellWidth: 23 },   // Compte
-          2: { cellWidth: 32 },   // Description
-          3: { cellWidth: 21 },   // Catégorie
-          4: { cellWidth: 15 },   // Type
-          5: { cellWidth: 36, halign: 'right' }, // Montant
-          6: { cellWidth: 36, halign: 'right', fontStyle: 'bold' } // Solde
+          5: { halign: 'right' }, // Montant
+          6: { halign: 'right', fontStyle: 'bold' } // Solde
         },
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
@@ -177,15 +190,14 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             data.row.index === tableData.length - 1 &&
             data.column.index === 0
           ) {
-            // Use cell position directly from the first column
-            const leftX = data.cell.x;
+            // Use table metrics to compute dynamic widths
+            const leftX = data.table.startX;
             const finalY = data.cell.y + data.cell.height;
-            
-            // Calculate widths based on columnStyles defined above
-            const colWidths = [19, 23, 32, 21, 15, 36, 36];
-            const leftMergedWidth = colWidths.slice(0, 5).reduce((sum, w) => sum + w, 0); // Cols 0-4
+
+            const cols = data.table.columns || [];
+            const leftMergedWidth = cols.slice(0, 5).reduce((sum: number, c: any) => sum + (c.width || 0), 0);
             const rightX = leftX + leftMergedWidth;
-            const rightMergedWidth = colWidths[5] + colWidths[6]; // Cols 5-6
+            const rightMergedWidth = cols.slice(5).reduce((sum: number, c: any) => sum + (c.width || 0), 0);
 
             const rowH = 7;
 
@@ -234,10 +246,10 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             pdf.text(String(transactionsWithBalance.length), rightX + rightMergedWidth - 2, y1 + 5, { align: 'right' });
 
             pdf.text('Solde début:', leftX + 2, y2 + 5);
-            pdf.text(formatCurrency(startingBalance), rightX + rightMergedWidth - 2, y2 + 5, { align: 'right' });
+            pdf.text(pdfFormatWithSign(startingBalance), rightX + rightMergedWidth - 2, y2 + 5, { align: 'right' });
 
             pdf.text('Solde fin:', leftX + 2, y3 + 5);
-            pdf.text(formatCurrency(totalBalance), rightX + rightMergedWidth - 2, y3 + 5, { align: 'right' });
+            pdf.text(pdfFormatWithSign(totalBalance), rightX + rightMergedWidth - 2, y3 + 5, { align: 'right' });
 
             pdf.setFont('helvetica', 'normal');
           }
