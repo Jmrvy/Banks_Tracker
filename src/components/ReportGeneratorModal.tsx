@@ -171,9 +171,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         },
         didDrawCell: (data: any) => {
           // Draw summary only once after the last row, on the last page
-          if (data.section === 'body' && data.row.index === tableData.length - 1 && data.column.index === 0) {
+          if (data.section === 'body' && data.row.index === tableData.length - 1 && data.column.index === 0 && tableData.length > 0) {
             const finalY = data.cell.y + data.cell.height;
             const cols = (data as any).table.columns as Array<{ x: number; width: number }>; // from jspdf-autotable
+
+            // Verify that columns exist before proceeding
+            if (!cols || cols.length < 7) return;
 
             // Compute merged areas dynamically to stay aligned with the table
             const leftX = cols[0].x;
