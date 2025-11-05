@@ -234,12 +234,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                       className="w-3 h-3 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: color }}
                     />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-medium text-sm truncate">{category.category}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {category.count} transaction{category.count > 1 ? 's' : ''}
-                      </p>
-                    </div>
+                    <h4 className="font-medium text-sm truncate">{category.category}</h4>
                   </div>
                   <div className="text-right flex-shrink-0 ml-3">
                     <p className="font-bold text-sm text-green-600 dark:text-green-400">
