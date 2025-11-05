@@ -573,6 +573,79 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               </div>
             </div>
 
+            {/* Income Analysis Section */}
+            {incomeAnalysis.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse des Revenus</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Income Chart */}
+                  <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenus par Catégorie</h3>
+                    <ResponsiveContainer width="100%" height={incomeChartHeight}>
+                      <BarChart data={incomeChartData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                        <XAxis 
+                          type="number"
+                          tick={{ fill: '#666', fontSize: 10 }}
+                          stroke="#999"
+                        />
+                        <YAxis 
+                          type="category"
+                          dataKey="name" 
+                          tick={{ fill: '#666', fontSize: 9 }}
+                          stroke="#999"
+                          width={140}
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
+                          formatter={(value: number) => formatCurrency(value)}
+                        />
+                        <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
+                          {incomeChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                   <div className="border border-gray-200 rounded-lg bg-white p-4">
+                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
+                     <div className="space-y-2 overflow-y-auto" style={{ maxHeight: `${incomeChartHeight}px` }}>
+                       {incomeAnalysis.map((category, index) => {
+                         const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
+                         const color = INCOME_COLORS[index % INCOME_COLORS.length];
+                         
+                         return (
+                           <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 min-w-0 flex-1">
+                                  <div 
+                                    className="w-2 h-2 rounded-full flex-shrink-0 mt-1" 
+                                    style={{ backgroundColor: color }}
+                                  />
+                                  <span className="text-xs font-medium text-gray-900 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                                    {category.category}
+                                  </span>
+                                </div>
+                                <div className="text-right flex-shrink-0 ml-2 whitespace-nowrap">
+                                  <div className="text-xs font-bold text-green-600">
+                                    {formatCurrency(category.totalAmount)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {percentage}%
+                                  </div>
+                                </div>
+                              </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </div>
+                </div>
+              </div>
+            )}
+
             {/* Budget Analysis Section */}
             <div className="space-y-3">
               <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse Budget vs Dépenses</h2>
@@ -652,79 +725,6 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                 </div>
               )}
             </div>
-
-            {/* Income Analysis Section */}
-            {incomeAnalysis.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse des Revenus</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Income Chart */}
-                  <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenus par Catégorie</h3>
-                    <ResponsiveContainer width="100%" height={incomeChartHeight}>
-                      <BarChart data={incomeChartData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                        <XAxis 
-                          type="number"
-                          tick={{ fill: '#666', fontSize: 10 }}
-                          stroke="#999"
-                        />
-                        <YAxis 
-                          type="category"
-                          dataKey="name" 
-                          tick={{ fill: '#666', fontSize: 9 }}
-                          stroke="#999"
-                          width={140}
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
-                          formatter={(value: number) => formatCurrency(value)}
-                        />
-                        <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
-                          {incomeChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                   <div className="border border-gray-200 rounded-lg bg-white p-4">
-                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
-                     <div className="space-y-2 overflow-y-auto" style={{ maxHeight: `${incomeChartHeight}px` }}>
-                       {incomeAnalysis.map((category, index) => {
-                         const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
-                         const color = INCOME_COLORS[index % INCOME_COLORS.length];
-                         
-                         return (
-                           <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-start gap-2 min-w-0 flex-1">
-                                  <div 
-                                    className="w-2 h-2 rounded-full flex-shrink-0 mt-1" 
-                                    style={{ backgroundColor: color }}
-                                  />
-                                  <span className="text-xs font-medium text-gray-900 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                                    {category.category}
-                                  </span>
-                                </div>
-                                <div className="text-right flex-shrink-0 ml-2 whitespace-nowrap">
-                                  <div className="text-xs font-bold text-green-600">
-                                    {formatCurrency(category.totalAmount)}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {percentage}%
-                                  </div>
-                                </div>
-                              </div>
-                           </div>
-                         );
-                       })}
-                     </div>
-                   </div>
-                </div>
-              </div>
-            )}
 
             {/* All Transactions Table */}
             <div className="space-y-4" ref={transactionsSectionRef}>
