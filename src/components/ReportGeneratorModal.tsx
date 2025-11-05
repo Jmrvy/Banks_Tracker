@@ -675,17 +675,17 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                          
                          return (
                            <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 min-w-0 flex-1">
                                   <div 
-                                    className="w-2 h-2 rounded-full flex-shrink-0" 
+                                    className="w-2 h-2 rounded-full flex-shrink-0 mt-1" 
                                     style={{ backgroundColor: color }}
                                   />
-                                  <span className="text-xs font-medium text-gray-900 truncate">
+                                  <span className="text-xs font-medium text-gray-900 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                     {category.category}
                                   </span>
                                 </div>
-                                <div className="text-right ml-2 whitespace-nowrap">
+                                <div className="text-right flex-shrink-0 ml-2 whitespace-nowrap">
                                   <div className="text-xs font-bold text-green-600">
                                     {formatCurrency(category.totalAmount)}
                                   </div>
