@@ -145,9 +145,9 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
 
       // Append summary rows (rendered as merged rows via didParseCell colSpan)
       const summaryRows = [
-        ['__SUM__TOTAL', 'Total transactions', '', '', '', '', String(transactionsWithBalance.length)],
         ['__SUM__START', 'Solde début', '', '', '', '', pdfFormatWithSign(startingBalance)],
         ['__SUM__END', 'Solde fin', '', '', '', '', pdfFormatWithSign(totalBalance)],
+        ['__SUM__TOTAL', 'Total transactions', '', '', '', '', String(transactionsWithBalance.length)],
       ];
       const tableBody = [...tableData, ...summaryRows];
 
