@@ -154,13 +154,13 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 20 },   // Date
-          1: { cellWidth: 26 },   // Compte
-          2: { cellWidth: 40 },   // Description
-          3: { cellWidth: 24 },   // Catégorie
-          4: { cellWidth: 18 },   // Type
-          5: { cellWidth: 27, halign: 'right' }, // Montant
-          6: { cellWidth: 27, halign: 'right', fontStyle: 'bold' } // Solde
+          0: { cellWidth: 19 },   // Date
+          1: { cellWidth: 25 },   // Compte
+          2: { cellWidth: 36 },   // Description
+          3: { cellWidth: 23 },   // Catégorie
+          4: { cellWidth: 17 },   // Type
+          5: { cellWidth: 31, halign: 'right' }, // Montant
+          6: { cellWidth: 31, halign: 'right', fontStyle: 'bold' } // Solde
         },
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
@@ -170,60 +170,54 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           txFirstPage = false;
         },
         didDrawCell: (data: any) => {
-          // On the last page, after the last row, add the footer summary
-          if (data.section === 'body' && data.row.index === tableData.length - 1) {
+          // Draw summary only once after the last row, on the last page
+          if (data.section === 'body' && data.row.index === tableData.length - 1 && data.column.index === 0) {
             const finalY = data.cell.y + data.cell.height;
-            
-            // Add some spacing
-            const summaryStartY = finalY + 3;
-            
-            // Total transactions row
+            const cols = (data as any).table.columns as Array<{ x: number; width: number }>; // from jspdf-autotable
+
+            // Compute merged areas dynamically to stay aligned with the table
+            const leftX = cols[0].x;
+            const leftMergedWidth = cols.slice(0, 5).reduce((sum, c) => sum + c.width, 0);
+            const rightX = cols[5].x;
+            const rightMergedWidth = cols[5].width + cols[6].width; // merge last two columns
+
+            const rowH = 7;
+            const y1 = finalY + 3;       // Total transactions
+            const y2 = y1 + rowH;        // Solde début
+            const y3 = y2 + rowH;        // Solde fin
+
+            // Background (fill)
             pdf.setFillColor(249, 250, 251);
-            pdf.rect(14, summaryStartY, 118, 7, 'F'); // Merged first 5 columns
-            pdf.rect(132, summaryStartY, 27, 7, 'F'); // Montant column
-            pdf.rect(159, summaryStartY, 27, 7, 'F'); // Solde column
-            
+            pdf.rect(leftX, y1, leftMergedWidth, rowH, 'F');
+            pdf.rect(rightX, y1, rightMergedWidth, rowH, 'F');
+            pdf.rect(leftX, y2, leftMergedWidth, rowH, 'F');
+            pdf.rect(rightX, y2, rightMergedWidth, rowH, 'F');
+            pdf.rect(leftX, y3, leftMergedWidth, rowH, 'F');
+            pdf.rect(rightX, y3, rightMergedWidth, rowH, 'F');
+
+            // Borders (stroke)
             pdf.setDrawColor(209, 213, 219);
-            pdf.rect(14, summaryStartY, 118, 7, 'S');
-            pdf.rect(132, summaryStartY, 27, 7, 'S');
-            pdf.rect(159, summaryStartY, 27, 7, 'S');
-            
+            pdf.rect(leftX, y1, leftMergedWidth, rowH, 'S');
+            pdf.rect(rightX, y1, rightMergedWidth, rowH, 'S');
+            pdf.rect(leftX, y2, leftMergedWidth, rowH, 'S');
+            pdf.rect(rightX, y2, rightMergedWidth, rowH, 'S');
+            pdf.rect(leftX, y3, leftMergedWidth, rowH, 'S');
+            pdf.rect(rightX, y3, rightMergedWidth, rowH, 'S');
+
+            // Text
             pdf.setFontSize(8);
             pdf.setFont('helvetica', 'bold');
             pdf.setTextColor(17, 24, 39);
-            pdf.text('Total transactions:', 16, summaryStartY + 5);
-            pdf.text(transactionsWithBalance.length.toString(), 156, summaryStartY + 5, { align: 'right' });
-            
-            // Solde début row
-            const soldeDebutY = summaryStartY + 7;
-            pdf.setFillColor(249, 250, 251);
-            pdf.rect(14, soldeDebutY, 118, 7, 'F');
-            pdf.rect(132, soldeDebutY, 27, 7, 'F');
-            pdf.rect(159, soldeDebutY, 27, 7, 'F');
-            
-            pdf.setDrawColor(209, 213, 219);
-            pdf.rect(14, soldeDebutY, 118, 7, 'S');
-            pdf.rect(132, soldeDebutY, 27, 7, 'S');
-            pdf.rect(159, soldeDebutY, 27, 7, 'S');
-            
-            pdf.text('Solde début:', 16, soldeDebutY + 5);
-            pdf.text(formatCurrency(startingBalance), 183, soldeDebutY + 5, { align: 'right' });
-            
-            // Solde fin row
-            const soldeFinY = soldeDebutY + 7;
-            pdf.setFillColor(249, 250, 251);
-            pdf.rect(14, soldeFinY, 118, 7, 'F');
-            pdf.rect(132, soldeFinY, 27, 7, 'F');
-            pdf.rect(159, soldeFinY, 27, 7, 'F');
-            
-            pdf.setDrawColor(209, 213, 219);
-            pdf.rect(14, soldeFinY, 118, 7, 'S');
-            pdf.rect(132, soldeFinY, 27, 7, 'S');
-            pdf.rect(159, soldeFinY, 27, 7, 'S');
-            
-            pdf.text('Solde fin:', 16, soldeFinY + 5);
-            pdf.text(formatCurrency(totalBalance), 183, soldeFinY + 5, { align: 'right' });
-            
+
+            pdf.text('Total transactions:', leftX + 2, y1 + 5);
+            pdf.text(String(transactionsWithBalance.length), rightX + rightMergedWidth - 2, y1 + 5, { align: 'right' });
+
+            pdf.text('Solde début:', leftX + 2, y2 + 5);
+            pdf.text(formatCurrency(startingBalance), rightX + rightMergedWidth - 2, y2 + 5, { align: 'right' });
+
+            pdf.text('Solde fin:', leftX + 2, y3 + 5);
+            pdf.text(formatCurrency(totalBalance), rightX + rightMergedWidth - 2, y3 + 5, { align: 'right' });
+
             pdf.setFont('helvetica', 'normal');
           }
         },
