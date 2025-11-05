@@ -129,20 +129,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
 
       pdf.addPage();
       
-      // Add title for transactions page
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Détail des Transactions', 14, 15);
+      let txFirstPage = true;
       
       // Add transactions table with autoTable
       autoTable(pdf, {
         head: [['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde']],
         body: tableData,
-        foot: [
-          ['', '', '', '', 'Total transactions:', transactionsWithBalance.length.toString(), ''],
-          ['', '', '', '', 'Solde début:', '', formatCurrency(startingBalance)],
-          ['', '', '', '', 'Solde fin:', '', formatCurrency(totalBalance)]
-        ],
         startY: 25,
         theme: 'grid',
         headStyles: { 
@@ -150,51 +142,94 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           textColor: [55, 65, 81],
           fontStyle: 'bold',
           lineWidth: 0.5,
-          lineColor: [209, 213, 219]
-        },
-        footStyles: {
-          fillColor: [249, 250, 251],
-          textColor: [17, 24, 39],
-          fontStyle: 'bold'
+          lineColor: [209, 213, 219],
+          halign: 'left'
         },
         styles: {
           fontSize: 8,
           cellPadding: 2,
           lineColor: [229, 231, 235],
-          lineWidth: 0.1
+          lineWidth: 0.1,
+          halign: 'left'
         },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 22 },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 45 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 20 },
-          5: { cellWidth: 25, halign: 'right' },
-          6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+          0: { cellWidth: 20 },   // Date
+          1: { cellWidth: 26 },   // Compte
+          2: { cellWidth: 40 },   // Description
+          3: { cellWidth: 24 },   // Catégorie
+          4: { cellWidth: 18 },   // Type
+          5: { cellWidth: 27, halign: 'right' }, // Montant
+          6: { cellWidth: 27, halign: 'right', fontStyle: 'bold' } // Solde
         },
         didDrawPage: (data: any) => {
-          // Add page number for transaction pages
-          const pageCount = pdf.getNumberOfPages();
-          pdf.setFontSize(8);
-          pdf.setTextColor(128);
-          pdf.text(
-            `Page ${data.pageNumber} / ${pageCount}`,
-            pdf.internal.pageSize.getWidth() / 2,
-            pdf.internal.pageSize.getHeight() - 10,
-            { align: 'center' }
-          );
-          
-          // Add title on each new page (except first)
-          if (data.pageNumber > 1) {
-            pdf.setFontSize(12);
-            pdf.setTextColor(0);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(0);
+          pdf.setFontSize(txFirstPage ? 16 : 14);
+          pdf.text(txFirstPage ? 'Détail des Transactions' : 'Détail des Transactions (suite)', 14, 15);
+          txFirstPage = false;
+        },
+        didDrawCell: (data: any) => {
+          // On the last page, after the last row, add the footer summary
+          if (data.section === 'body' && data.row.index === tableData.length - 1) {
+            const finalY = data.cell.y + data.cell.height;
+            
+            // Add some spacing
+            const summaryStartY = finalY + 3;
+            
+            // Total transactions row
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(14, summaryStartY, 118, 7, 'F'); // Merged first 5 columns
+            pdf.rect(132, summaryStartY, 27, 7, 'F'); // Montant column
+            pdf.rect(159, summaryStartY, 27, 7, 'F'); // Solde column
+            
+            pdf.setDrawColor(209, 213, 219);
+            pdf.rect(14, summaryStartY, 118, 7, 'S');
+            pdf.rect(132, summaryStartY, 27, 7, 'S');
+            pdf.rect(159, summaryStartY, 27, 7, 'S');
+            
+            pdf.setFontSize(8);
             pdf.setFont('helvetica', 'bold');
-            pdf.text('Détail des Transactions (suite)', 14, 15);
+            pdf.setTextColor(17, 24, 39);
+            pdf.text('Total transactions:', 16, summaryStartY + 5);
+            pdf.text(transactionsWithBalance.length.toString(), 156, summaryStartY + 5, { align: 'right' });
+            
+            // Solde début row
+            const soldeDebutY = summaryStartY + 7;
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(14, soldeDebutY, 118, 7, 'F');
+            pdf.rect(132, soldeDebutY, 27, 7, 'F');
+            pdf.rect(159, soldeDebutY, 27, 7, 'F');
+            
+            pdf.setDrawColor(209, 213, 219);
+            pdf.rect(14, soldeDebutY, 118, 7, 'S');
+            pdf.rect(132, soldeDebutY, 27, 7, 'S');
+            pdf.rect(159, soldeDebutY, 27, 7, 'S');
+            
+            pdf.text('Solde début:', 16, soldeDebutY + 5);
+            pdf.text(formatCurrency(startingBalance), 183, soldeDebutY + 5, { align: 'right' });
+            
+            // Solde fin row
+            const soldeFinY = soldeDebutY + 7;
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(14, soldeFinY, 118, 7, 'F');
+            pdf.rect(132, soldeFinY, 27, 7, 'F');
+            pdf.rect(159, soldeFinY, 27, 7, 'F');
+            
+            pdf.setDrawColor(209, 213, 219);
+            pdf.rect(14, soldeFinY, 118, 7, 'S');
+            pdf.rect(132, soldeFinY, 27, 7, 'S');
+            pdf.rect(159, soldeFinY, 27, 7, 'S');
+            
+            pdf.text('Solde fin:', 16, soldeFinY + 5);
+            pdf.text(formatCurrency(totalBalance), 183, soldeFinY + 5, { align: 'right' });
+            
             pdf.setFont('helvetica', 'normal');
           }
         },
-        showHead: 'everyPage', // Show header on every page
-        margin: { top: 25 }
+        showHead: 'everyPage',
+        showFoot: 'never', // Don't use autoTable's foot, we'll draw it manually
+        margin: { top: 25, bottom: 15, left: 14, right: 14 }
       });
 
       pdf.save(`rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.pdf`);
