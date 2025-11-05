@@ -296,7 +296,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   ];
 
 const incomeChartData = incomeAnalysis.slice(0, 10).map((cat, index) => ({
-  name: cat.category.length > 15 ? cat.category.substring(0, 15) + '...' : cat.category,
+  name: cat.category.length > 20 ? cat.category.substring(0, 20) + '...' : cat.category,
   fullName: cat.category,
   amount: cat.totalAmount,
   count: cat.count,
@@ -649,9 +649,9 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                         <YAxis 
                           type="category"
                           dataKey="name" 
-                          tick={{ fill: '#666', fontSize: 10 }}
+                          tick={{ fill: '#666', fontSize: 9 }}
                           stroke="#999"
-                          width={100}
+                          width={140}
                         />
                         <Tooltip 
                           contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
