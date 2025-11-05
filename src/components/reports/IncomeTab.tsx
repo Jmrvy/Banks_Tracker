@@ -255,17 +255,12 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                   />
                 </div>
                 
-                {/* Exemples de transactions */}
+                {/* Dernière transaction */}
                 <div className="mt-2 text-xs text-muted-foreground">
-                  <p className="font-medium mb-1">Exemples:</p>
-                  <ul className="space-y-0.5">
-                    {category.transactions.slice(0, 3).map((t, i) => (
-                      <li key={i} className="truncate">• {t.description}</li>
-                    ))}
-                    {category.transactions.length > 3 && (
-                      <li className="text-primary">+ {category.transactions.length - 3} autre{category.transactions.length - 3 > 1 ? 's' : ''}</li>
-                    )}
-                  </ul>
+                  <p className="font-medium mb-1">Dernière transaction:</p>
+                  {category.transactions.length > 0 && (
+                    <p className="truncate">• {category.transactions[0].description}</p>
+                  )}
                 </div>
               </div>
             );
