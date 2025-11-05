@@ -32,8 +32,6 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const [isGenerating, setIsGenerating] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const transactionsSectionRef = useRef<HTMLDivElement>(null);
-  const budgetSectionRef = useRef<HTMLDivElement>(null);
-  const incomeSectionRef = useRef<HTMLDivElement>(null);
 
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
@@ -55,7 +53,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   );
 
   const handleGenerate = async () => {
-    if (!reportRef.current) return;
+    if (!reportRef.current || !transactionsSectionRef.current) return;
     
     setIsGenerating(true);
     try {
@@ -69,15 +67,13 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       reportRef.current.style.top = '0';
       reportRef.current.style.zIndex = '-1';
 
-      // Hide sections we will render with autoTable from html2canvas capture
-      if (transactionsSectionRef.current) transactionsSectionRef.current.style.visibility = 'hidden';
-      if (budgetSectionRef.current) budgetSectionRef.current.style.visibility = 'hidden';
-      if (incomeSectionRef.current) incomeSectionRef.current.style.visibility = 'hidden';
+      // Hide transactions section from html2canvas capture
+      transactionsSectionRef.current.style.visibility = 'hidden';
 
       // Wait for charts to render
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Capture visual sections with html2canvas
+      // Capture everything except transactions table with html2canvas
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
@@ -87,12 +83,10 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         width: 1200,
       });
 
-      // Hide report and restore hidden sections visibility
+      // Hide report and restore transactions visibility
       reportRef.current.style.left = '-9999px';
       reportRef.current.style.position = 'absolute';
-      if (transactionsSectionRef.current) transactionsSectionRef.current.style.visibility = 'visible';
-      if (budgetSectionRef.current) budgetSectionRef.current.style.visibility = 'visible';
-      if (incomeSectionRef.current) incomeSectionRef.current.style.visibility = 'visible';
+      transactionsSectionRef.current.style.visibility = 'visible';
 
       const imgData = canvas.toDataURL('image/png');
       const imgWidth = pdfWidth;
@@ -113,7 +107,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         heightLeft -= pdfHeight;
       }
 
-      // Now add transactions table with autoTable for proper pagination and modern styling
+      // Now add transactions table with autoTable for proper pagination
       const tableData = transactionsWithBalance.map(t => [
         format(new Date(t.transaction_date), 'dd/MM/yyyy'),
         accounts.find(a => a.id === t.account_id)?.name || '-',
@@ -125,8 +119,10 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       ]);
 
       pdf.addPage();
-
-      let txFirstPage = true;
+      
+      let currentPageNumber = 1;
+      const totalTransactionPages = Math.ceil(tableData.length / 30); // Estimate pages
+      
       autoTable(pdf, {
         head: [['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde']],
         body: tableData,
@@ -157,140 +153,47 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           lineWidth: 0.1,
           halign: 'left'
         },
-        alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 20 },   // Date
-          1: { cellWidth: 26 },   // Compte
-          2: { cellWidth: 40 },   // Description
-          3: { cellWidth: 24 },   // Catégorie
-          4: { cellWidth: 18 },   // Type
-          5: { cellWidth: 27, halign: 'right' }, // Montant
-          6: { cellWidth: 27, halign: 'right', fontStyle: 'bold' } // Solde
+          0: { cellWidth: 22 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 25, halign: 'right' },
+          6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
         },
-        didDrawPage: () => {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(0);
-          pdf.setFontSize(txFirstPage ? 16 : 14);
-          pdf.text(txFirstPage ? 'Détail des Transactions' : 'Détail des Transactions (suite)', 14, 15);
-          txFirstPage = false;
+        didDrawPage: (data: any) => {
+          // Add title on first transaction page
+          if (currentPageNumber === 1) {
+            pdf.setFontSize(16);
+            pdf.setTextColor(0);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Détail des Transactions', 14, 15);
+          } else {
+            // Add title on subsequent pages
+            pdf.setFontSize(14);
+            pdf.setTextColor(0);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Détail des Transactions (suite)', 14, 15);
+          }
+          
+          // Add page number
+          const totalPages = pdf.getNumberOfPages();
+          pdf.setFontSize(8);
+          pdf.setTextColor(128);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(
+            `Page ${currentPageNumber} / ${totalTransactionPages}`,
+            pdfWidth / 2,
+            pdfHeight - 10,
+            { align: 'center' }
+          );
+          
+          currentPageNumber++;
         },
         showHead: 'everyPage',
-        margin: { top: 25, bottom: 15, left: 14, right: 14 }
+        margin: { top: 25, bottom: 15 }
       });
-
-      // Budget vs Dépenses table
-      const budgetRows = categoryChartData
-        .filter(cat => cat.budget > 0)
-        .sort((a, b) => b.spent - a.spent)
-        .map(cat => {
-          const percentUsed = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0;
-          const status = percentUsed >= 100 ? 'Dépassé' : percentUsed >= 80 ? 'Attention' : 'OK';
-          return [
-            cat.name,
-            formatCurrency(cat.budget),
-            formatCurrency(cat.spent),
-            formatCurrency(cat.budget - cat.spent),
-            `${percentUsed.toFixed(0)}%`,
-            status
-          ];
-        });
-
-      if (budgetRows.length > 0) {
-        pdf.addPage();
-        let budgetFirstPage = true;
-        autoTable(pdf, {
-          head: [['Catégorie', 'Budget', 'Dépenses', 'Écart', '% utilisé', 'Statut']],
-          body: budgetRows,
-          startY: 25,
-          theme: 'grid',
-          headStyles: { 
-            fillColor: [243, 244, 246],
-            textColor: [55, 65, 81],
-            fontStyle: 'bold',
-            lineWidth: 0.5,
-            lineColor: [209, 213, 219],
-            halign: 'left'
-          },
-          styles: {
-            fontSize: 9,
-            cellPadding: 2,
-            lineColor: [229, 231, 235],
-            lineWidth: 0.1,
-          },
-          alternateRowStyles: { fillColor: [250, 250, 250] },
-          columnStyles: {
-            0: { cellWidth: 56 },               // Catégorie
-            1: { cellWidth: 26, halign: 'right' }, // Budget
-            2: { cellWidth: 26, halign: 'right' }, // Dépenses
-            3: { cellWidth: 26, halign: 'right' }, // Écart
-            4: { cellWidth: 24, halign: 'center' }, // %
-            5: { cellWidth: 24, halign: 'center' }, // Statut
-          },
-          didDrawPage: () => {
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(0);
-            pdf.setFontSize(budgetFirstPage ? 16 : 14);
-            pdf.text(budgetFirstPage ? 'Analyse Budget vs Dépenses' : 'Analyse Budget vs Dépenses (suite)', 14, 15);
-            budgetFirstPage = false;
-          },
-          showHead: 'everyPage',
-          margin: { top: 25, bottom: 15, left: 14, right: 14 }
-        });
-      }
-
-      // Revenus par Catégorie table
-      const totalIncomeAmount = stats.income || 0;
-      const incomeRows = incomeAnalysis
-        .map(cat => {
-          const percent = totalIncomeAmount > 0 ? (cat.totalAmount / totalIncomeAmount) * 100 : 0;
-          return [
-            cat.category,
-            formatCurrency(cat.totalAmount),
-            String(cat.count),
-            `${percent.toFixed(1)}%`
-          ];
-        });
-
-      if (incomeRows.length > 0) {
-        pdf.addPage();
-        let incomeFirstPage = true;
-        autoTable(pdf, {
-          head: [['Catégorie', 'Montant', 'Nb', 'Part']],
-          body: incomeRows,
-          startY: 25,
-          theme: 'grid',
-          headStyles: { 
-            fillColor: [243, 244, 246],
-            textColor: [55, 65, 81],
-            fontStyle: 'bold',
-            lineWidth: 0.5,
-            lineColor: [209, 213, 219],
-            halign: 'left'
-          },
-          styles: {
-            fontSize: 9,
-            cellPadding: 2,
-            lineColor: [229, 231, 235],
-            lineWidth: 0.1,
-          },
-          alternateRowStyles: { fillColor: [250, 250, 250] },
-          columnStyles: {
-            0: { cellWidth: 90 },              // Catégorie
-            1: { cellWidth: 42, halign: 'right' }, // Montant
-            2: { cellWidth: 20, halign: 'center' }, // Nb
-            3: { cellWidth: 30, halign: 'center' }, // Part
-          },
-          didDrawPage: () => {
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(0);
-            pdf.setFontSize(incomeFirstPage ? 16 : 14);
-            pdf.text(incomeFirstPage ? 'Revenus par Catégorie' : 'Revenus par Catégorie (suite)', 14, 15);
-            incomeFirstPage = false;
-          },
-          showHead: 'everyPage',
-          margin: { top: 25, bottom: 15, left: 14, right: 14 }
-        });
-      }
 
       pdf.save(`rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.pdf`);
 
@@ -559,7 +462,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
             {/* Two Column Layout for Charts */}
             <div className="grid grid-cols-2 gap-6">
               {/* Left Column: Balance Evolution */}
-             <div className="space-y-3" ref={budgetSectionRef}>
+              <div className="space-y-3">
                 <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Évolution du Solde</h2>
                 <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
                   <ResponsiveContainer width="100%" height={280}>
@@ -646,7 +549,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
             </div>
 
             {/* Budget Analysis Section */}
-               <div className="space-y-3" ref={incomeSectionRef}>
+            <div className="space-y-3">
               <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse Budget vs Dépenses</h2>
               {categoryChartData.filter(cat => cat.budget > 0).length === 0 ? (
                 <div className="p-6 border border-gray-200 rounded-lg bg-white">
