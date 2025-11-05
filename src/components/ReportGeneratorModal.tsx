@@ -143,13 +143,13 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         ];
       });
 
-      // Append summary rows (rendered as merged rows via didParseCell colSpan)
-      const summaryRows = [
+      // Build table body with summary rows in correct order
+      const tableBody = [
         ['__SUM__START', 'Solde début', '', '', '', '', pdfFormatWithSign(startingBalance)],
+        ...tableData,
         ['__SUM__END', 'Solde fin', '', '', '', '', pdfFormatWithSign(totalBalance)],
         ['__SUM__TOTAL', 'Total transactions', '', '', '', '', String(transactionsWithBalance.length)],
       ];
-      const tableBody = [...tableData, ...summaryRows];
 
       pdf.addPage();
       
