@@ -155,12 +155,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
           0: { cellWidth: 19 },   // Date
-          1: { cellWidth: 25 },   // Compte
-          2: { cellWidth: 36 },   // Description
-          3: { cellWidth: 23 },   // Catégorie
-          4: { cellWidth: 17 },   // Type
-          5: { cellWidth: 31, halign: 'right' }, // Montant
-          6: { cellWidth: 31, halign: 'right', fontStyle: 'bold' } // Solde
+          1: { cellWidth: 24 },   // Compte
+          2: { cellWidth: 33 },   // Description
+          3: { cellWidth: 22 },   // Catégorie
+          4: { cellWidth: 16 },   // Type
+          5: { cellWidth: 35, halign: 'right' }, // Montant
+          6: { cellWidth: 35, halign: 'right', fontStyle: 'bold' } // Solde
         },
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
@@ -170,92 +170,116 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           txFirstPage = false;
         },
         didDrawCell: (data: any) => {
-          try {
-            // Draw summary only once after the last row, on the last page
-            if (
-              data.section === 'body' &&
-              tableData.length > 0 &&
-              data.row.index === tableData.length - 1 &&
-              data.column.index === 0
-            ) {
-              const table = (data as any).table;
-              const cols = table?.columns as Array<{ x: number; width: number }>;
-              if (!cols || cols.length < 7) return;
+          // Draw summary only once after the last row, on the last page
+          if (
+            data.section === 'body' &&
+            tableData.length > 0 &&
+            data.row.index === tableData.length - 1 &&
+            data.column.index === 0
+          ) {
+            const table = (data as any).table;
+            const cols = table?.columns as Array<{ x: number; width: number }>;
+            
+            console.log('Drawing summary rows', {
+              hasTable: !!table,
+              colsLength: cols?.length,
+              lastRowIndex: data.row.index,
+              tableDataLength: tableData.length
+            });
 
-              // Compute merged areas dynamically to stay aligned with the table
-              const leftX = Number(cols[0].x);
-              const leftMergedWidth = cols
-                .slice(0, 5)
-                .reduce((sum, c) => sum + (Number(c.width) || 0), 0);
-              const rightX = Number(cols[5].x);
-              const rightMergedWidth = (Number(cols[5].width) || 0) + (Number(cols[6].width) || 0); // merge last two columns
-
-              const finalY = Number(data.cell.y) + Number(data.cell.height);
-              const rowH = 7;
-
-              // Initial positions
-              let y1 = finalY + 3; // Total transactions
-              let y2 = y1 + rowH;  // Solde début
-              let y3 = y2 + rowH;  // Solde fin
-
-              // Page metrics
-              const pageHeight = typeof (pdf as any).internal?.pageSize?.getHeight === 'function'
-                ? (pdf as any).internal.pageSize.getHeight()
-                : ((pdf as any).internal?.pageSize?.height ?? 297);
-              const bottomMargin = 15;
-              const topMargin = 25;
-
-              // Validate numbers
-              const values = [leftX, leftMergedWidth, rightX, rightMergedWidth, y1, y2, y3];
-              if (values.some((v) => typeof v !== 'number' || !isFinite(v))) return;
-
-              // If not enough room on current page, move to next page
-              if (y3 > pageHeight - bottomMargin) {
-                pdf.addPage();
-                y1 = topMargin;
-                y2 = y1 + rowH;
-                y3 = y2 + rowH;
-              }
-
-              const LMW = Math.max(0, leftMergedWidth);
-              const RMW = Math.max(0, rightMergedWidth);
-
-              // Background (fill)
-              pdf.setFillColor(249, 250, 251);
-              pdf.rect(leftX, y1, LMW, rowH, 'F');
-              pdf.rect(rightX, y1, RMW, rowH, 'F');
-              pdf.rect(leftX, y2, LMW, rowH, 'F');
-              pdf.rect(rightX, y2, RMW, rowH, 'F');
-              pdf.rect(leftX, y3, LMW, rowH, 'F');
-              pdf.rect(rightX, y3, RMW, rowH, 'F');
-
-              // Borders (stroke)
-              pdf.setDrawColor(209, 213, 219);
-              pdf.rect(leftX, y1, LMW, rowH, 'S');
-              pdf.rect(rightX, y1, RMW, rowH, 'S');
-              pdf.rect(leftX, y2, LMW, rowH, 'S');
-              pdf.rect(rightX, y2, RMW, rowH, 'S');
-              pdf.rect(leftX, y3, LMW, rowH, 'S');
-              pdf.rect(rightX, y3, RMW, rowH, 'S');
-
-              // Text
-              pdf.setFontSize(8);
-              pdf.setFont('helvetica', 'bold');
-              pdf.setTextColor(17, 24, 39);
-
-              pdf.text('Total transactions:', leftX + 2, y1 + 5);
-              pdf.text(String(transactionsWithBalance.length), rightX + RMW - 2, y1 + 5, { align: 'right' });
-
-              pdf.text('Solde début:', leftX + 2, y2 + 5);
-              pdf.text(formatCurrency(startingBalance), rightX + RMW - 2, y2 + 5, { align: 'right' });
-
-              pdf.text('Solde fin:', leftX + 2, y3 + 5);
-              pdf.text(formatCurrency(totalBalance), rightX + RMW - 2, y3 + 5, { align: 'right' });
-
-              pdf.setFont('helvetica', 'normal');
+            if (!cols || cols.length < 7) {
+              console.warn('Not enough columns', cols?.length);
+              return;
             }
-          } catch (err) {
-            console.warn('Skipped drawing summary rows due to error', err);
+
+            // Compute merged areas dynamically to stay aligned with the table
+            const leftX = Number(cols[0].x);
+            const leftMergedWidth = cols
+              .slice(0, 5)
+              .reduce((sum, c) => sum + (Number(c.width) || 0), 0);
+            const rightX = Number(cols[5].x);
+            const rightMergedWidth = (Number(cols[5].width) || 0) + (Number(cols[6].width) || 0);
+
+            const finalY = Number(data.cell.y) + Number(data.cell.height);
+            const rowH = 7;
+
+            // Initial positions
+            let y1 = finalY + 3; // Total transactions
+            let y2 = y1 + rowH;  // Solde début
+            let y3 = y2 + rowH;  // Solde fin
+
+            // Page metrics
+            const pageHeight = typeof (pdf as any).internal?.pageSize?.getHeight === 'function'
+              ? (pdf as any).internal.pageSize.getHeight()
+              : ((pdf as any).internal?.pageSize?.height ?? 297);
+            const bottomMargin = 15;
+            const topMargin = 25;
+
+            console.log('Computed values', {
+              leftX,
+              leftMergedWidth,
+              rightX,
+              rightMergedWidth,
+              finalY,
+              y1,
+              y2,
+              y3,
+              pageHeight
+            });
+
+            // Validate numbers
+            const values = [leftX, leftMergedWidth, rightX, rightMergedWidth, y1, y2, y3];
+            if (values.some((v) => typeof v !== 'number' || !isFinite(v) || v <= 0)) {
+              console.warn('Invalid values detected', values);
+              return;
+            }
+
+            // If not enough room on current page, move to next page
+            if (y3 + rowH > pageHeight - bottomMargin) {
+              pdf.addPage();
+              y1 = topMargin;
+              y2 = y1 + rowH;
+              y3 = y2 + rowH;
+            }
+
+            const LMW = leftMergedWidth;
+            const RMW = rightMergedWidth;
+
+            // Background (fill)
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(leftX, y1, LMW, rowH, 'F');
+            pdf.rect(rightX, y1, RMW, rowH, 'F');
+            pdf.rect(leftX, y2, LMW, rowH, 'F');
+            pdf.rect(rightX, y2, RMW, rowH, 'F');
+            pdf.rect(leftX, y3, LMW, rowH, 'F');
+            pdf.rect(rightX, y3, RMW, rowH, 'F');
+
+            // Borders (stroke)
+            pdf.setDrawColor(209, 213, 219);
+            pdf.rect(leftX, y1, LMW, rowH, 'S');
+            pdf.rect(rightX, y1, RMW, rowH, 'S');
+            pdf.rect(leftX, y2, LMW, rowH, 'S');
+            pdf.rect(rightX, y2, RMW, rowH, 'S');
+            pdf.rect(leftX, y3, LMW, rowH, 'S');
+            pdf.rect(rightX, y3, RMW, rowH, 'S');
+
+            // Text
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(17, 24, 39);
+
+            pdf.text('Total transactions:', leftX + 2, y1 + 5);
+            pdf.text(String(transactionsWithBalance.length), rightX + RMW - 2, y1 + 5, { align: 'right' });
+
+            pdf.text('Solde début:', leftX + 2, y2 + 5);
+            pdf.text(formatCurrency(startingBalance), rightX + RMW - 2, y2 + 5, { align: 'right' });
+
+            pdf.text('Solde fin:', leftX + 2, y3 + 5);
+            pdf.text(formatCurrency(totalBalance), rightX + RMW - 2, y3 + 5, { align: 'right' });
+
+            pdf.setFont('helvetica', 'normal');
+            
+            console.log('Summary rows drawn successfully');
           }
         },
         showHead: 'everyPage',
