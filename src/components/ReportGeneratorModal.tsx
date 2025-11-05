@@ -177,30 +177,16 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             data.row.index === tableData.length - 1 &&
             data.column.index === 0
           ) {
-            const table = (data as any).table;
-            const cols = table?.columns as Array<{ x: number; width: number }>;
+            // Use cell position directly from the first column
+            const leftX = data.cell.x;
+            const finalY = data.cell.y + data.cell.height;
             
-            console.log('Drawing summary rows', {
-              hasTable: !!table,
-              colsLength: cols?.length,
-              lastRowIndex: data.row.index,
-              tableDataLength: tableData.length
-            });
+            // Calculate widths based on columnStyles defined above
+            const colWidths = [19, 24, 33, 22, 16, 35, 35];
+            const leftMergedWidth = colWidths.slice(0, 5).reduce((sum, w) => sum + w, 0); // Cols 0-4
+            const rightX = leftX + leftMergedWidth;
+            const rightMergedWidth = colWidths[5] + colWidths[6]; // Cols 5-6
 
-            if (!cols || cols.length < 7) {
-              console.warn('Not enough columns', cols?.length);
-              return;
-            }
-
-            // Compute merged areas dynamically to stay aligned with the table
-            const leftX = Number(cols[0].x);
-            const leftMergedWidth = cols
-              .slice(0, 5)
-              .reduce((sum, c) => sum + (Number(c.width) || 0), 0);
-            const rightX = Number(cols[5].x);
-            const rightMergedWidth = (Number(cols[5].width) || 0) + (Number(cols[6].width) || 0);
-
-            const finalY = Number(data.cell.y) + Number(data.cell.height);
             const rowH = 7;
 
             // Initial positions
@@ -209,30 +195,9 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             let y3 = y2 + rowH;  // Solde fin
 
             // Page metrics
-            const pageHeight = typeof (pdf as any).internal?.pageSize?.getHeight === 'function'
-              ? (pdf as any).internal.pageSize.getHeight()
-              : ((pdf as any).internal?.pageSize?.height ?? 297);
+            const pageHeight = pdf.internal.pageSize.getHeight();
             const bottomMargin = 15;
             const topMargin = 25;
-
-            console.log('Computed values', {
-              leftX,
-              leftMergedWidth,
-              rightX,
-              rightMergedWidth,
-              finalY,
-              y1,
-              y2,
-              y3,
-              pageHeight
-            });
-
-            // Validate numbers
-            const values = [leftX, leftMergedWidth, rightX, rightMergedWidth, y1, y2, y3];
-            if (values.some((v) => typeof v !== 'number' || !isFinite(v) || v <= 0)) {
-              console.warn('Invalid values detected', values);
-              return;
-            }
 
             // If not enough room on current page, move to next page
             if (y3 + rowH > pageHeight - bottomMargin) {
@@ -242,26 +207,23 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
               y3 = y2 + rowH;
             }
 
-            const LMW = leftMergedWidth;
-            const RMW = rightMergedWidth;
-
             // Background (fill)
             pdf.setFillColor(249, 250, 251);
-            pdf.rect(leftX, y1, LMW, rowH, 'F');
-            pdf.rect(rightX, y1, RMW, rowH, 'F');
-            pdf.rect(leftX, y2, LMW, rowH, 'F');
-            pdf.rect(rightX, y2, RMW, rowH, 'F');
-            pdf.rect(leftX, y3, LMW, rowH, 'F');
-            pdf.rect(rightX, y3, RMW, rowH, 'F');
+            pdf.rect(leftX, y1, leftMergedWidth, rowH, 'F');
+            pdf.rect(rightX, y1, rightMergedWidth, rowH, 'F');
+            pdf.rect(leftX, y2, leftMergedWidth, rowH, 'F');
+            pdf.rect(rightX, y2, rightMergedWidth, rowH, 'F');
+            pdf.rect(leftX, y3, leftMergedWidth, rowH, 'F');
+            pdf.rect(rightX, y3, rightMergedWidth, rowH, 'F');
 
             // Borders (stroke)
             pdf.setDrawColor(209, 213, 219);
-            pdf.rect(leftX, y1, LMW, rowH, 'S');
-            pdf.rect(rightX, y1, RMW, rowH, 'S');
-            pdf.rect(leftX, y2, LMW, rowH, 'S');
-            pdf.rect(rightX, y2, RMW, rowH, 'S');
-            pdf.rect(leftX, y3, LMW, rowH, 'S');
-            pdf.rect(rightX, y3, RMW, rowH, 'S');
+            pdf.rect(leftX, y1, leftMergedWidth, rowH, 'S');
+            pdf.rect(rightX, y1, rightMergedWidth, rowH, 'S');
+            pdf.rect(leftX, y2, leftMergedWidth, rowH, 'S');
+            pdf.rect(rightX, y2, rightMergedWidth, rowH, 'S');
+            pdf.rect(leftX, y3, leftMergedWidth, rowH, 'S');
+            pdf.rect(rightX, y3, rightMergedWidth, rowH, 'S');
 
             // Text
             pdf.setFontSize(8);
@@ -269,17 +231,15 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             pdf.setTextColor(17, 24, 39);
 
             pdf.text('Total transactions:', leftX + 2, y1 + 5);
-            pdf.text(String(transactionsWithBalance.length), rightX + RMW - 2, y1 + 5, { align: 'right' });
+            pdf.text(String(transactionsWithBalance.length), rightX + rightMergedWidth - 2, y1 + 5, { align: 'right' });
 
             pdf.text('Solde début:', leftX + 2, y2 + 5);
-            pdf.text(formatCurrency(startingBalance), rightX + RMW - 2, y2 + 5, { align: 'right' });
+            pdf.text(formatCurrency(startingBalance), rightX + rightMergedWidth - 2, y2 + 5, { align: 'right' });
 
             pdf.text('Solde fin:', leftX + 2, y3 + 5);
-            pdf.text(formatCurrency(totalBalance), rightX + RMW - 2, y3 + 5, { align: 'right' });
+            pdf.text(formatCurrency(totalBalance), rightX + rightMergedWidth - 2, y3 + 5, { align: 'right' });
 
             pdf.setFont('helvetica', 'normal');
-            
-            console.log('Summary rows drawn successfully');
           }
         },
         showHead: 'everyPage',
