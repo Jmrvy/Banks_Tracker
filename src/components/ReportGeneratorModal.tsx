@@ -180,9 +180,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
+          0: { cellWidth: 22 }, // Date - largeur fixe
           1: { cellWidth: 'wrap' }, // Compte
           2: { cellWidth: 'wrap' }, // Description
           3: { cellWidth: 'wrap' }, // Catégorie
+          4: { cellWidth: 22 }, // Type - largeur fixe
           5: { halign: 'right' }, // Montant
           6: { halign: 'right', fontStyle: 'bold' } // Solde
         },
