@@ -155,12 +155,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
           0: { cellWidth: 19 },   // Date
-          1: { cellWidth: 24 },   // Compte
-          2: { cellWidth: 33 },   // Description
-          3: { cellWidth: 22 },   // Catégorie
-          4: { cellWidth: 16 },   // Type
-          5: { cellWidth: 35, halign: 'right' }, // Montant
-          6: { cellWidth: 35, halign: 'right', fontStyle: 'bold' } // Solde
+          1: { cellWidth: 23 },   // Compte
+          2: { cellWidth: 32 },   // Description
+          3: { cellWidth: 21 },   // Catégorie
+          4: { cellWidth: 15 },   // Type
+          5: { cellWidth: 36, halign: 'right' }, // Montant
+          6: { cellWidth: 36, halign: 'right', fontStyle: 'bold' } // Solde
         },
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
@@ -182,7 +182,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             const finalY = data.cell.y + data.cell.height;
             
             // Calculate widths based on columnStyles defined above
-            const colWidths = [19, 24, 33, 22, 16, 35, 35];
+            const colWidths = [19, 23, 32, 21, 15, 36, 36];
             const leftMergedWidth = colWidths.slice(0, 5).reduce((sum, w) => sum + w, 0); // Cols 0-4
             const rightX = leftX + leftMergedWidth;
             const rightMergedWidth = colWidths[5] + colWidths[6]; // Cols 5-6
