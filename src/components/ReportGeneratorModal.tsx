@@ -53,10 +53,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   );
 
   const handleGenerate = async () => {
-    if (!reportRef.current || !transactionsSectionRef.current) return;
+    if (!reportRef.current) return;
     
     setIsGenerating(true);
     try {
+      // Create PDF with proper sectioning
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -67,13 +68,15 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       reportRef.current.style.top = '0';
       reportRef.current.style.zIndex = '-1';
 
-      // Hide transactions section from html2canvas capture
-      transactionsSectionRef.current.style.visibility = 'hidden';
+      // Hide transactions section during capture to avoid double rendering across pages
+      if (transactionsSectionRef.current) {
+        transactionsSectionRef.current.style.display = 'none';
+      }
 
-      // Wait for charts to render
+      // Wait for charts and content to render
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Capture everything except transactions table with html2canvas
+      // Generate charts and summary sections first
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
@@ -83,23 +86,29 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         width: 1200,
       });
 
-      // Hide report and restore transactions visibility
+      // Hide again
       reportRef.current.style.left = '-9999px';
       reportRef.current.style.position = 'absolute';
-      transactionsSectionRef.current.style.visibility = 'visible';
+
+      // Restore transactions section visibility for the rest of the app
+      if (transactionsSectionRef.current) {
+        transactionsSectionRef.current.style.display = 'block';
+      }
 
       const imgData = canvas.toDataURL('image/png');
+      
+      // Convert canvas dimensions to PDF dimensions
       const imgWidth = pdfWidth;
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
       let heightLeft = imgHeight;
       let position = 0;
 
-      // Add first page with all visual sections
+      // Add first page with charts
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
 
-      // Add additional pages if content spans multiple pages
+      // Add additional pages if charts content is longer than one page
       while (heightLeft > 0) {
         position = -(imgHeight - heightLeft);
         pdf.addPage();
@@ -107,7 +116,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         heightLeft -= pdfHeight;
       }
 
-      // Now add transactions table with autoTable for proper pagination
+      // Add transactions table with autotable for proper pagination
       const tableData = transactionsWithBalance.map(t => [
         format(new Date(t.transaction_date), 'dd/MM/yyyy'),
         accounts.find(a => a.id === t.account_id)?.name || '-',
@@ -120,9 +129,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
 
       pdf.addPage();
       
-      let currentPageNumber = 1;
-      const totalTransactionPages = Math.ceil(tableData.length / 30); // Estimate pages
+      // Add title for transactions page
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Détail des Transactions', 14, 15);
       
+      // Add transactions table with autoTable
       autoTable(pdf, {
         head: [['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde']],
         body: tableData,
@@ -138,8 +150,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           textColor: [55, 65, 81],
           fontStyle: 'bold',
           lineWidth: 0.5,
-          lineColor: [209, 213, 219],
-          halign: 'left'
+          lineColor: [209, 213, 219]
         },
         footStyles: {
           fillColor: [249, 250, 251],
@@ -150,8 +161,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           fontSize: 8,
           cellPadding: 2,
           lineColor: [229, 231, 235],
-          lineWidth: 0.1,
-          halign: 'left'
+          lineWidth: 0.1
         },
         columnStyles: {
           0: { cellWidth: 22 },
@@ -163,36 +173,28 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
         },
         didDrawPage: (data: any) => {
-          // Add title on first transaction page
-          if (currentPageNumber === 1) {
-            pdf.setFontSize(16);
-            pdf.setTextColor(0);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Détail des Transactions', 14, 15);
-          } else {
-            // Add title on subsequent pages
-            pdf.setFontSize(14);
-            pdf.setTextColor(0);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Détail des Transactions (suite)', 14, 15);
-          }
-          
-          // Add page number
-          const totalPages = pdf.getNumberOfPages();
+          // Add page number for transaction pages
+          const pageCount = pdf.getNumberOfPages();
           pdf.setFontSize(8);
           pdf.setTextColor(128);
-          pdf.setFont('helvetica', 'normal');
           pdf.text(
-            `Page ${currentPageNumber} / ${totalTransactionPages}`,
-            pdfWidth / 2,
-            pdfHeight - 10,
+            `Page ${data.pageNumber} / ${pageCount}`,
+            pdf.internal.pageSize.getWidth() / 2,
+            pdf.internal.pageSize.getHeight() - 10,
             { align: 'center' }
           );
           
-          currentPageNumber++;
+          // Add title on each new page (except first)
+          if (data.pageNumber > 1) {
+            pdf.setFontSize(12);
+            pdf.setTextColor(0);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Détail des Transactions (suite)', 14, 15);
+            pdf.setFont('helvetica', 'normal');
+          }
         },
-        showHead: 'everyPage',
-        margin: { top: 25, bottom: 15 }
+        showHead: 'everyPage', // Show header on every page
+        margin: { top: 25 }
       });
 
       pdf.save(`rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.pdf`);
@@ -552,7 +554,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
             <div className="space-y-3">
               <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse Budget vs Dépenses</h2>
               {categoryChartData.filter(cat => cat.budget > 0).length === 0 ? (
-                <div className="p-6 border border-gray-200 rounded-lg bg-white">
+              <div className="p-6 border border-gray-200 rounded-lg bg-white" ref={transactionsSectionRef}>
                   <div className="text-center py-6 text-gray-500">
                     Aucun budget défini pour cette période
                   </div>
