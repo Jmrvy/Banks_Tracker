@@ -324,28 +324,15 @@ const Settings = () => {
 
               <Separator />
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Recevoir des alertes sur les budgets</p>
-                  </div>
-                  <Switch
-                    checked={preferences.enableNotifications}
-                    onCheckedChange={(checked) => updatePreferences({ enableNotifications: checked })}
-                  />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Notifications</Label>
+                  <p className="text-sm text-muted-foreground">Recevoir des alertes sur les budgets et rapports mensuels</p>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Export automatique</Label>
-                    <p className="text-sm text-muted-foreground">Sauvegarder automatiquement vos données</p>
-                  </div>
-                  <Switch
-                    checked={preferences.autoExport}
-                    onCheckedChange={(checked) => updatePreferences({ autoExport: checked })}
-                  />
-                </div>
+                <Switch
+                  checked={preferences.enableNotifications}
+                  onCheckedChange={(checked) => updatePreferences({ enableNotifications: checked })}
+                />
               </div>
 
               <Separator />

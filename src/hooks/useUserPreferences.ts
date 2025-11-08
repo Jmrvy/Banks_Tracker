@@ -4,7 +4,6 @@ export interface UserPreferences {
   currency: string;
   dateFormat: string;
   enableNotifications: boolean;
-  autoExport: boolean;
   dateType: 'accounting' | 'value'; // Date utilisée pour les calculs
 }
 
@@ -12,7 +11,6 @@ const defaultPreferences: UserPreferences = {
   currency: "EUR",
   dateFormat: "DD/MM/YYYY",
   enableNotifications: true,
-  autoExport: false,
   dateType: "accounting" // Par défaut, utiliser la date comptable
 };
 
