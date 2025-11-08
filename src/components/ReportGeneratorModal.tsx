@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { YearPicker } from "@/components/ui/year-picker";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, FileSpreadsheet } from "lucide-react";
 import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import html2canvas from "html2canvas";
+import * as XLSX from 'xlsx';
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useReportsData } from "@/hooks/useReportsData";
@@ -30,6 +31,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [dateType, setDateType] = useState<'accounting' | 'value'>('accounting');
+  const [reportFormat, setReportFormat] = useState<'pdf' | 'excel'>('pdf');
   const [isGenerating, setIsGenerating] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const transactionsSectionRef = useRef<HTMLDivElement>(null);
@@ -248,6 +250,125 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     }
   };
 
+  const handleGenerateExcel = async () => {
+    setIsGenerating(true);
+    try {
+      // Helper function to format currency for Excel
+      const excelFormatCurrency = (value: number) => Number(value).toFixed(2);
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Soldes
+      const balanceData = [
+        ['Rapport Financier'],
+        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        [`Type de date: ${dateType === 'accounting' ? 'Date Comptable' : 'Date Valeur'}`],
+        [`Généré le: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr })}`],
+        [],
+        ['Résumé des Soldes'],
+        ['Revenus', excelFormatCurrency(stats.income)],
+        ['Dépenses', excelFormatCurrency(stats.expenses)],
+        ['Net Période', excelFormatCurrency(stats.netPeriodBalance)],
+        ['Solde Initial', excelFormatCurrency(stats.initialBalance)],
+        ['Solde Final', excelFormatCurrency(stats.finalBalance)],
+        [],
+        ['Soldes des Comptes'],
+        ['Compte', 'Banque', 'Type', 'Solde'],
+        ...accountBalances.map(acc => [
+          acc.name,
+          acc.bank,
+          acc.account_type,
+          excelFormatCurrency(acc.currentBalance)
+        ])
+      ];
+      const wsBalance = XLSX.utils.aoa_to_sheet(balanceData);
+      XLSX.utils.book_append_sheet(wb, wsBalance, 'Soldes');
+
+      // Sheet 2: Dépenses par catégorie vs budget
+      const expensesData = [
+        ['Dépenses par Catégorie vs Budget'],
+        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        [],
+        ['Catégorie', 'Dépensé', 'Budget', 'Restant', '% Utilisé'],
+        ...categoryChartData.map(cat => [
+          cat.name,
+          excelFormatCurrency(cat.spent),
+          excelFormatCurrency(cat.budget),
+          excelFormatCurrency(cat.remaining),
+          cat.percentage + '%'
+        ])
+      ];
+      const wsExpenses = XLSX.utils.aoa_to_sheet(expensesData);
+      XLSX.utils.book_append_sheet(wb, wsExpenses, 'Dépenses');
+
+      // Sheet 3: Revenus par catégorie
+      const totalIncome = incomeAnalysis.reduce((sum, cat) => sum + cat.totalAmount, 0);
+      const incomeData = [
+        ['Revenus par Catégorie'],
+        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        [],
+        ['Catégorie', 'Montant', 'Nombre', '% du Total'],
+        ...incomeAnalysis.map(cat => [
+          cat.category,
+          excelFormatCurrency(cat.totalAmount),
+          cat.count,
+          totalIncome > 0 ? ((cat.totalAmount / totalIncome) * 100).toFixed(1) + '%' : '0%'
+        ])
+      ];
+      const wsIncome = XLSX.utils.aoa_to_sheet(incomeData);
+      XLSX.utils.book_append_sheet(wb, wsIncome, 'Revenus');
+
+      // Sheet 4: Historique des transactions
+      const transactionsData = [
+        ['Historique des Transactions'],
+        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        [`Type de date: ${dateType === 'accounting' ? 'Date Comptable' : 'Date Valeur'}`],
+        [],
+        ['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde'],
+        ...transactionsWithBalance.map(t => {
+          const displayDate = dateType === 'value' 
+            ? new Date(t.value_date || t.transaction_date)
+            : new Date(t.transaction_date);
+          return [
+            format(displayDate, 'dd/MM/yyyy'),
+            accounts.find(a => a.id === t.account_id)?.name || '-',
+            t.description,
+            t.category?.name || '-',
+            t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Dépense' : 'Virement',
+            (t.type === 'income' ? '' : '-') + excelFormatCurrency(Number(t.amount)),
+            excelFormatCurrency(t.runningBalance)
+          ];
+        }),
+        [],
+        ['Solde début de période', '', '', '', '', '', excelFormatCurrency(startingBalance)],
+        ['Solde fin de période', '', '', '', '', '', excelFormatCurrency(totalBalance)],
+        ['Total transactions', '', '', '', '', '', String(transactionsWithBalance.length)]
+      ];
+      const wsTransactions = XLSX.utils.aoa_to_sheet(transactionsData);
+      XLSX.utils.book_append_sheet(wb, wsTransactions, 'Transactions');
+
+      // Generate and download Excel file
+      XLSX.writeFile(wb, `rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.xlsx`);
+
+      toast({
+        title: "Rapport généré",
+        description: "Le fichier Excel a été téléchargé avec succès",
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error generating Excel report:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de générer le rapport Excel",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Calculate total balance at end of period - needed first for other calculations
   const totalBalance = stats.finalBalance;
 
@@ -389,6 +510,25 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
             </Select>
             <p className="text-xs text-muted-foreground">
               Indépendant du paramètre global dans les préférences
+            </p>
+          </div>
+
+          {/* Format de rapport */}
+          <div className="space-y-2">
+            <Label>Format du rapport</Label>
+            <Select value={reportFormat} onValueChange={(value: 'pdf' | 'excel') => setReportFormat(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pdf">PDF (avec graphiques)</SelectItem>
+                <SelectItem value="excel">Excel (tableaux détaillés)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {reportFormat === 'pdf' 
+                ? 'Rapport visuel avec graphiques et mise en page professionnelle' 
+                : 'Données structurées en plusieurs feuilles pour analyse approfondie'}
             </p>
           </div>
 
@@ -847,7 +987,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button onClick={handleGenerate} disabled={isGenerating}>
+            <Button onClick={reportFormat === 'pdf' ? handleGenerate : handleGenerateExcel} disabled={isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -855,8 +995,17 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                 </>
               ) : (
                 <>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Générer et Télécharger le PDF
+                  {reportFormat === 'pdf' ? (
+                    <>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Générer le PDF
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Générer l'Excel
+                    </>
+                  )}
                 </>
               )}
             </Button>

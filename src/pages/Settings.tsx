@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Palette, Database, Download, Trash2, Edit3, Save, X } from "lucide-react";
+import { ArrowLeft, User, Palette, Database, Trash2, Edit3, Save, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -67,33 +67,6 @@ const Settings = () => {
     }
   };
 
-  const exportData = () => {
-    const data = {
-      accounts,
-      categories,
-      transactions,
-      exportDate: new Date().toISOString(),
-      user: user?.email
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json'
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `financial-data-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Données exportées",
-      description: "Vos données financières ont été téléchargées.",
-    });
-  };
 
   const startEditingCategory = (category: any) => {
     setEditingCategory(category.id);
@@ -574,38 +547,6 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Export des données */}
-          <Card>
-            <CardHeader className="p-3 sm:p-6">
-              <div className="flex items-center gap-2">
-                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
-                <CardTitle className="text-sm sm:text-base">Export des Données</CardTitle>
-              </div>
-              <CardDescription className="text-xs sm:text-sm hidden sm:block">
-                Sauvegardez toutes vos données financières
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-muted/30 dark:bg-muted/20 rounded-lg">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Exporter toutes les données</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Télécharge un fichier JSON contenant tous vos comptes, transactions et catégories
-                  </p>
-                </div>
-                <Button onClick={exportData} variant="outline" size="sm" className="w-full sm:w-auto flex-shrink-0">
-                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                  Exporter
-                </Button>
-              </div>
-              
-              <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                <p>• Format : JSON</p>
-                <p>• Contenu : Comptes, catégories, transactions</p>
-                <p>• Compatible avec les imports futurs</p>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Déconnexion */}
           <div className="pt-2">
