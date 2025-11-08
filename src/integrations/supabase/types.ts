@@ -90,6 +90,63 @@ export type Database = {
           },
         ]
       }
+      notification_logs: {
+        Row: {
+          error_message: string | null
+          id: string
+          notification_type: string
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          notification_type: string
+          sent_at?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          notification_type?: string
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          budget_alerts: boolean
+          created_at: string
+          email: string
+          id: string
+          monthly_reports: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget_alerts?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          monthly_reports?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget_alerts?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          monthly_reports?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
