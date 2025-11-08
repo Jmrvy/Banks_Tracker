@@ -198,6 +198,7 @@ export type Database = {
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string | null
           user_id: string
+          value_date: string
         }
         Insert: {
           account_id: string
@@ -212,6 +213,7 @@ export type Database = {
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id: string
+          value_date?: string
         }
         Update: {
           account_id?: string
@@ -226,6 +228,7 @@ export type Database = {
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id?: string
+          value_date?: string
         }
         Relationships: [
           {

@@ -24,6 +24,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     account_id: '',
     category_id: '',
     transaction_date: '',
+    value_date: '',
     transfer_to_account_id: '',
     transfer_fee: ''
   });
@@ -39,6 +40,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         account_id: transaction.account_id,
         category_id: transaction.category?.id || '',
         transaction_date: transaction.transaction_date,
+        value_date: transaction.value_date || transaction.transaction_date,
         transfer_to_account_id: transaction.transfer_to_account_id || '',
         transfer_fee: transaction.transfer_fee?.toString() || ''
       });
@@ -53,6 +55,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       account_id: '',
       category_id: '',
       transaction_date: '',
+      value_date: '',
       transfer_to_account_id: '',
       transfer_fee: ''
     });
@@ -83,6 +86,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
       transaction_date: formData.transaction_date,
+      value_date: formData.value_date,
       ...(formData.type === 'transfer' && {
         transfer_to_account_id: formData.transfer_to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0
@@ -235,12 +239,32 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           )}
 
           <div className="space-y-2">
-            <Label>Date *</Label>
+            <Label>Date Comptable *</Label>
             <Input
               type="date"
               value={formData.transaction_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
+              onChange={(e) => {
+                const newDate = e.target.value;
+                setFormData(prev => ({ 
+                  ...prev, 
+                  transaction_date: newDate,
+                  // Mettre à jour value_date seulement si elle est égale à l'ancienne transaction_date
+                  value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
+                }));
+              }}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Date Valeur *</Label>
+            <Input
+              type="date"
+              value={formData.value_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, value_date: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Date effective de la transaction
+            </p>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

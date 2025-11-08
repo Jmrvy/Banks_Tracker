@@ -18,7 +18,8 @@ export interface Transaction {
   description: string;
   amount: number;
   type: 'income' | 'expense' | 'transfer';
-  transaction_date: string;
+  transaction_date: string; // Date comptable
+  value_date: string; // Date de valeur
   account: { name: string; bank: string };
   category: { id: string; name: string; color: string } | null;
   transfer_to_account_id?: string;
@@ -161,13 +162,20 @@ export function useFinancialData() {
     return { error };
   };
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string }) => {
+  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string }) => {
     if (!user) return;
     console.log('Creating transaction:', transaction);
     
+    // Si value_date n'est pas fournie, utiliser transaction_date
+    const transactionData = {
+      ...transaction,
+      value_date: transaction.value_date || transaction.transaction_date,
+      user_id: user.id
+    };
+    
     const { error } = await supabase
       .from('transactions')
-      .insert([{ ...transaction, user_id: user.id }]);
+      .insert([transactionData]);
 
     if (error) {
       console.error('Error creating transaction:', error);
@@ -188,6 +196,7 @@ export function useFinancialData() {
     to_account_id: string;
     transfer_fee?: number;
     transaction_date: string;
+    value_date?: string;
   }) => {
     if (!user) return;
     console.log('Creating transfer:', transfer);
@@ -202,6 +211,7 @@ export function useFinancialData() {
         transfer_to_account_id: transfer.to_account_id,
         transfer_fee: transfer.transfer_fee || 0,
         transaction_date: transfer.transaction_date,
+        value_date: transfer.value_date || transfer.transaction_date,
         user_id: user.id
       }]);
 
@@ -373,6 +383,7 @@ export function useFinancialData() {
     account_id?: string;
     category_id?: string;
     transaction_date?: string;
+    value_date?: string;
     transfer_to_account_id?: string;
     transfer_fee?: number;
   }) => {
@@ -473,7 +484,8 @@ export function useFinancialData() {
             description: `${rt.description} (Récurrence automatique)`,
             amount: rt.amount,
             type: rt.type,
-            transaction_date: currentDueDateString
+            transaction_date: currentDueDateString,
+            value_date: currentDueDateString // Pour les récurrences, value_date = transaction_date
           });
 
           occurrencesProcessed++;

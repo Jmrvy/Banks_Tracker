@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -58,6 +59,7 @@ export const useReportsData = (
   useSpendingPatterns: boolean
 ) => {
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
+  const { preferences } = useUserPreferences();
 
   // Calcul de la période sélectionnée
   const period = useMemo<ReportsPeriod>(() => {
@@ -84,12 +86,15 @@ export const useReportsData = (
   }, [periodType, selectedDate, dateRange]);
 
   // Filtrage des transactions pour la période
+  // Utiliser la préférence de date (comptable ou valeur)
   const filteredTransactions = useMemo(() => {
     return transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.transaction_date);
-      return isWithinInterval(transactionDate, { start: period.from, end: period.to });
+      const dateToUse = preferences.dateType === 'value' 
+        ? new Date(transaction.value_date || transaction.transaction_date)
+        : new Date(transaction.transaction_date);
+      return isWithinInterval(dateToUse, { start: period.from, end: period.to });
     });
-  }, [transactions, period]);
+  }, [transactions, period, preferences.dateType]);
 
   // Calculs des statistiques avec soldes initiaux
   const stats = useMemo<ReportsStats>(() => {

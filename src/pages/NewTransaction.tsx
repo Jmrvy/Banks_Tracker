@@ -26,7 +26,8 @@ const NewTransaction = () => {
     to_account_id: '',
     category_id: '',
     transfer_fee: '',
-    transaction_date: new Date().toISOString().split('T')[0]
+    transaction_date: new Date().toISOString().split('T')[0],
+    value_date: new Date().toISOString().split('T')[0]
   });
   const [loading, setLoading] = useState(false);
 
@@ -75,6 +76,7 @@ const NewTransaction = () => {
         to_account_id: formData.to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
         transaction_date: formData.transaction_date,
+        value_date: formData.value_date,
       });
       error = result?.error;
     } else {
@@ -85,6 +87,7 @@ const NewTransaction = () => {
         account_id: formData.account_id,
         category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
+        value_date: formData.value_date,
       });
       error = result?.error;
     }
@@ -112,7 +115,8 @@ const NewTransaction = () => {
         to_account_id: '',
         category_id: '',
         transfer_fee: '',
-        transaction_date: new Date().toISOString().split('T')[0]
+        transaction_date: new Date().toISOString().split('T')[0],
+        value_date: new Date().toISOString().split('T')[0]
       });
       
       navigate('/');
@@ -332,13 +336,37 @@ const NewTransaction = () => {
 
               {/* Transaction Date */}
               <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date">Date Comptable *</Label>
                 <Input
                   id="date"
                   type="date"
                   value={formData.transaction_date}
-                  onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setFormData({ 
+                      ...formData, 
+                      transaction_date: newDate,
+                      // Mettre à jour value_date seulement si elle est égale à l'ancienne transaction_date
+                      value_date: formData.value_date === formData.transaction_date ? newDate : formData.value_date
+                    });
+                  }}
+                  required
                 />
+              </div>
+
+              {/* Value Date */}
+              <div className="space-y-2">
+                <Label htmlFor="value_date">Date Valeur *</Label>
+                <Input
+                  id="value_date"
+                  type="date"
+                  value={formData.value_date}
+                  onChange={(e) => setFormData({ ...formData, value_date: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Date effective de la transaction (par défaut = date comptable)
+                </p>
               </div>
 
               {/* Actions */}

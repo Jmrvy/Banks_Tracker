@@ -85,6 +85,7 @@ const NewTransaction = () => {
         account_id: formData.account_id,
         category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
+        value_date: formData.transaction_date, // Par défaut, value_date = transaction_date
       });
       error = result?.error;
     }

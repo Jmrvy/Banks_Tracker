@@ -375,6 +375,27 @@ const Settings = () => {
                 </div>
               </div>
 
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>Type de date pour les calculs</Label>
+                <Select 
+                  value={preferences.dateType} 
+                  onValueChange={(value: 'accounting' | 'value') => updatePreferences({ dateType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="accounting">Date Comptable</SelectItem>
+                    <SelectItem value="value">Date de Valeur</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Choisissez quelle date utiliser pour les calculs de soldes et rapports
+                </p>
+              </div>
+
               <Button onClick={savePreferences} className="w-full sm:w-auto">
                 Sauvegarder les préférences
               </Button>
