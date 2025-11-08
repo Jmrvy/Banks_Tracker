@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Palette, Database, Trash2, Edit3, Save, X } from "lucide-react";
+import { ArrowLeft, User, Palette, Database, Trash2, Edit3, Save, X, Bell } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,12 +35,74 @@ const Settings = () => {
   const [editingValues, setEditingValues] = useState<any>({});
 
   const [updateLoading, setUpdateLoading] = useState(false);
+  
+  // Notification preferences state
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    email: user?.email || "",
+    budgetAlerts: true,
+    monthlyReports: true
+  });
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  // Load notification preferences on mount
+  useEffect(() => {
+    const loadNotificationPrefs = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!error && data) {
+        setNotificationPrefs({
+          email: data.email,
+          budgetAlerts: data.budget_alerts,
+          monthlyReports: data.monthly_reports
+        });
+      }
+    };
+
+    loadNotificationPrefs();
+  }, [user]);
 
   const savePreferences = () => {
     toast({
       title: "Préférences sauvegardées",
       description: "Vos préférences ont été mises à jour avec succès.",
     });
+  };
+
+  const saveNotificationPreferences = async () => {
+    if (!user) return;
+    
+    setNotifLoading(true);
+    try {
+      const { error } = await supabase
+        .from('notification_preferences')
+        .upsert({
+          user_id: user.id,
+          email: notificationPrefs.email,
+          budget_alerts: notificationPrefs.budgetAlerts,
+          monthly_reports: notificationPrefs.monthlyReports
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Notifications configurées",
+        description: "Vos préférences de notification ont été sauvegardées.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder les préférences de notification.",
+        variant: "destructive"
+      });
+    } finally {
+      setNotifLoading(false);
+    }
   };
 
   const updateProfile = async () => {
@@ -361,6 +423,71 @@ const Settings = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Notifications par Email */}
+          {preferences.enableNotifications && (
+            <Card>
+              <CardHeader className="p-3 sm:p-6">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <CardTitle className="text-sm sm:text-base">Notifications par Email</CardTitle>
+                </div>
+                <CardDescription className="text-xs sm:text-sm hidden sm:block">
+                  Configurez vos alertes et rapports
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+                <div className="space-y-2">
+                  <Label htmlFor="notif-email" className="text-xs sm:text-sm">Email pour les notifications</Label>
+                  <Input
+                    id="notif-email"
+                    type="email"
+                    value={notificationPrefs.email}
+                    onChange={(e) => setNotificationPrefs(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="votre@email.com"
+                    className="h-8 sm:h-10 text-xs sm:text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Cet email sera utilisé pour toutes les notifications
+                  </p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs sm:text-sm">Alertes de budget</Label>
+                      <p className="text-xs text-muted-foreground">Recevoir un email quand un budget est dépassé</p>
+                    </div>
+                    <Switch
+                      checked={notificationPrefs.budgetAlerts}
+                      onCheckedChange={(checked) => setNotificationPrefs(prev => ({ ...prev, budgetAlerts: checked }))}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs sm:text-sm">Rapports mensuels</Label>
+                      <p className="text-xs text-muted-foreground">Recevoir un résumé financier chaque début de mois</p>
+                    </div>
+                    <Switch
+                      checked={notificationPrefs.monthlyReports}
+                      onCheckedChange={(checked) => setNotificationPrefs(prev => ({ ...prev, monthlyReports: checked }))}
+                    />
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={saveNotificationPreferences} 
+                  disabled={notifLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {notifLoading ? "Sauvegarde..." : "Sauvegarder les notifications"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Gestion des Comptes */}
           <Card>
