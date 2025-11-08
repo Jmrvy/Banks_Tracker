@@ -388,7 +388,7 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="accounting">Date Comptable</SelectItem>
-                    <SelectItem value="value">Date de Valeur</SelectItem>
+                    <SelectItem value="value">Date Valeur</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">

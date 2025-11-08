@@ -29,6 +29,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const [periodType, setPeriodType] = useState<'month' | 'quarter' | 'year' | 'custom'>('month');
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [endDate, setEndDate] = useState<Date>(new Date());
+  const [dateType, setDateType] = useState<'accounting' | 'value'>('accounting');
   const [isGenerating, setIsGenerating] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const transactionsSectionRef = useRef<HTMLDivElement>(null);
@@ -60,7 +61,8 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     periodType === 'custom' || periodType === 'quarter' ? 'custom' : periodType === 'year' ? 'year' : 'month',
     reportDate,
     periodType === 'custom' || periodType === 'quarter' ? { from: actualStartDate, to: actualEndDate } : undefined,
-    false
+    false,
+    dateType
   );
 
   const handleGenerate = async () => {
@@ -356,6 +358,23 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                 <SelectItem value="custom">Période personnalisée</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Type de date */}
+          <div className="space-y-2">
+            <Label>Type de date pour les calculs</Label>
+            <Select value={dateType} onValueChange={(value: 'accounting' | 'value') => setDateType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="accounting">Date Comptable</SelectItem>
+                <SelectItem value="value">Date Valeur</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Indépendant du paramètre global dans les préférences
+            </p>
           </div>
 
           {/* Sélecteur de mois */}

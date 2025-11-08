@@ -56,10 +56,14 @@ export const useReportsData = (
   periodType: "month" | "year" | "custom",
   selectedDate: Date,
   dateRange: { from: Date; to: Date },
-  useSpendingPatterns: boolean
+  useSpendingPatterns: boolean,
+  overrideDateType?: 'accounting' | 'value'
 ) => {
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
   const { preferences } = useUserPreferences();
+  
+  // Use override dateType if provided, otherwise use preference
+  const activeDateType = overrideDateType ?? preferences.dateType;
 
   // Calcul de la période sélectionnée
   const period = useMemo<ReportsPeriod>(() => {
@@ -89,12 +93,12 @@ export const useReportsData = (
   // Utiliser la préférence de date (comptable ou valeur)
   const filteredTransactions = useMemo(() => {
     return transactions.filter(transaction => {
-      const dateToUse = preferences.dateType === 'value' 
+      const dateToUse = activeDateType === 'value' 
         ? new Date(transaction.value_date || transaction.transaction_date)
         : new Date(transaction.transaction_date);
       return isWithinInterval(dateToUse, { start: period.from, end: period.to });
     });
-  }, [transactions, period, preferences.dateType]);
+  }, [transactions, period, activeDateType]);
 
   // Calculs des statistiques avec soldes initiaux
   const stats = useMemo<ReportsStats>(() => {
