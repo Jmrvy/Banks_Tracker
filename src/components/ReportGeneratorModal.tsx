@@ -134,8 +134,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         const amountNum = Number(t.amount);
         const amountStr = (t.type === 'income' ? '+' : '-') + pdfFormatAbs(amountNum);
         const balanceStr = pdfFormatWithSign(t.runningBalance);
+        const displayDate = dateType === 'value' 
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
         return [
-          format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+          format(displayDate, 'dd/MM/yyyy'),
           accounts.find(a => a.id === t.account_id)?.name || '-',
           t.description,
           t.category?.name || '-',
@@ -248,13 +251,23 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   // Calculate total balance at end of period - needed first for other calculations
   const totalBalance = stats.finalBalance;
 
-  // Filter transactions by date range and sort chronologically
+  // Filter transactions by date range using selected date type and sort chronologically
   const filteredTransactions = transactions
     .filter(t => {
-      const transactionDate = new Date(t.transaction_date);
-      return transactionDate >= actualStartDate && transactionDate <= actualEndDate;
+      const dateToUse = dateType === 'value' 
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
+      return dateToUse >= actualStartDate && dateToUse <= actualEndDate;
     })
-    .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
+    .sort((a, b) => {
+      const dateA = dateType === 'value' 
+        ? new Date(a.value_date || a.transaction_date)
+        : new Date(a.transaction_date);
+      const dateB = dateType === 'value' 
+        ? new Date(b.value_date || b.transaction_date)
+        : new Date(b.transaction_date);
+      return dateA.getTime() - dateB.getTime();
+    });
 
   // Calculate starting balance (beginning of period)
   // Starting balance = final balance - net period balance
@@ -283,9 +296,11 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const accountBalances = accounts.map(account => {
     // Get transactions that happened AFTER the end date
     const transactionsAfterEndDate = transactions.filter(t => {
-      const transactionDate = new Date(t.transaction_date);
+      const dateToUse = dateType === 'value' 
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
       return (t.account_id === account.id || t.transfer_to_account_id === account.id) && 
-             transactionDate > actualEndDate;
+             dateToUse > actualEndDate;
     });
 
     // Start with current balance and reverse transactions after end date
