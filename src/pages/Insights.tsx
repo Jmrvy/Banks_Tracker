@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MonthlyProjections } from "@/components/MonthlyProjections";
 import { CategorySpendingList } from "@/components/CategorySpendingList";
+import { TransactionHistory } from "@/components/TransactionHistory";
 
 const Insights = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 pb-24">
       <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -33,6 +34,7 @@ const Insights = () => {
         <div className="space-y-4 sm:space-y-6">
           <MonthlyProjections />
           <CategorySpendingList />
+          <TransactionHistory />
         </div>
       </div>
     </div>
