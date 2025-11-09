@@ -22,6 +22,18 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate shared secret for inter-function calls
+    const authHeader = req.headers.get('x-function-secret');
+    const expectedSecret = Deno.env.get('FUNCTION_SECRET');
+    
+    if (!authHeader || !expectedSecret || authHeader !== expectedSecret) {
+      console.error('Unauthorized: Invalid or missing function secret');
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { userId, type, data }: EmailRequest = await req.json();
 
     console.log(`Processing email request for user ${userId}, type: ${type}`);
