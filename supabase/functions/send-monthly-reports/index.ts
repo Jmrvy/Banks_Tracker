@@ -90,6 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              'x-function-secret': Deno.env.get("FUNCTION_SECRET") || "",
             },
             body: JSON.stringify({
               userId: userPref.user_id,
