@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, History } from "lucide-react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, History, Pencil, Trash2 } from "lucide-react";
+import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { EditTransactionModal } from "@/components/EditTransactionModal";
+import { useToast } from "@/hooks/use-toast";
 
 const bankColors = {
   societe_generale: 'bg-red-500',
@@ -20,9 +23,13 @@ const bankColors = {
 };
 
 export const TransactionHistory = () => {
-  const { transactions, loading } = useFinancialData();
+  const { transactions, loading, deleteTransaction } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
+  const { toast } = useToast();
   const [displayCount, setDisplayCount] = useState<string>("25");
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Utiliser la préférence de date pour l'affichage et le tri
   const sortedTransactions = useMemo(() => {
@@ -38,6 +45,29 @@ export const TransactionHistory = () => {
   }, [transactions, preferences.dateType]);
 
   const displayedTransactions = sortedTransactions.slice(0, parseInt(displayCount));
+
+  const handleDelete = async () => {
+    if (!deletingTransaction) return;
+
+    setIsDeleting(true);
+    const { error } = await deleteTransaction(deletingTransaction.id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Erreur lors de la suppression",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Succès",
+        description: "Transaction supprimée avec succès",
+      });
+    }
+
+    setIsDeleting(false);
+    setDeletingTransaction(null);
+  };
 
   if (loading) {
     return (
@@ -198,6 +228,24 @@ export const TransactionHistory = () => {
                       </span>
                     )}
                   </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 sm:h-8 sm:w-8"
+                      onClick={() => setEditingTransaction(transaction)}
+                    >
+                      <Pencil className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 sm:h-8 sm:w-8"
+                      onClick={() => setDeletingTransaction(transaction)}
+                    >
+                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             );
@@ -210,6 +258,39 @@ export const TransactionHistory = () => {
           </div>
         )}
       </CardContent>
+
+      <EditTransactionModal
+        open={!!editingTransaction}
+        onOpenChange={(open) => !open && setEditingTransaction(null)}
+        transaction={editingTransaction}
+      />
+
+      <AlertDialog open={!!deletingTransaction} onOpenChange={(open) => !open && setDeletingTransaction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.
+              {deletingTransaction && (
+                <div className="mt-2 p-2 bg-muted rounded-md">
+                  <p className="font-medium">{deletingTransaction.description}</p>
+                  <p className="text-sm">{formatCurrency(deletingTransaction.amount)}</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
