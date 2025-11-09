@@ -43,6 +43,7 @@ const Settings = () => {
     monthlyReports: true
   });
   const [notifLoading, setNotifLoading] = useState(false);
+  const [testBudgetLoading, setTestBudgetLoading] = useState(false);
 
   // Load notification preferences on mount
   useEffect(() => {
@@ -72,6 +73,28 @@ const Settings = () => {
       title: "Préférences sauvegardées",
       description: "Vos préférences ont été mises à jour avec succès.",
     });
+  };
+
+  const testBudgetCheck = async () => {
+    setTestBudgetLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-budgets');
+      
+      if (error) throw error;
+
+      toast({
+        title: "Vérification effectuée",
+        description: "La vérification des budgets a été lancée. Consultez les logs pour voir les résultats.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de lancer la vérification des budgets.",
+        variant: "destructive",
+      });
+    } finally {
+      setTestBudgetLoading(false);
+    }
   };
 
   const saveNotificationPreferences = async () => {
@@ -478,13 +501,26 @@ const Settings = () => {
                   </div>
                 </div>
 
-                <Button 
-                  onClick={saveNotificationPreferences} 
-                  disabled={notifLoading}
-                  className="w-full sm:w-auto"
-                >
-                  {notifLoading ? "Sauvegarde..." : "Sauvegarder les notifications"}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    onClick={saveNotificationPreferences} 
+                    disabled={notifLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {notifLoading ? "Sauvegarde..." : "Sauvegarder les notifications"}
+                  </Button>
+                  <Button 
+                    onClick={testBudgetCheck} 
+                    disabled={testBudgetLoading}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    {testBudgetLoading ? "Vérification..." : "Tester la vérification des budgets"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  💡 Le bouton de test déclenche manuellement la vérification des budgets. En production, cela sera automatique via un cron job quotidien.
+                </p>
               </CardContent>
             </Card>
           )}
