@@ -7,6 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
+import { z } from 'zod';
+
+const signInSchema = z.object({
+  email: z.string().email('Format email invalide').max(255, 'Email trop long'),
+  password: z.string().min(1, 'Mot de passe requis'),
+});
+
+const signUpSchema = z.object({
+  fullName: z.string().trim().min(1, 'Nom requis').max(100, 'Nom trop long'),
+  email: z.string().email('Format email invalide').max(255, 'Email trop long'),
+  password: z.string()
+    .min(8, 'Minimum 8 caractères')
+    .regex(/[A-Z]/, 'Au moins une majuscule')
+    .regex(/[a-z]/, 'Au moins une minuscule')
+    .regex(/[0-9]/, 'Au moins un chiffre'),
+});
 
 export default function Auth() {
   const [email, setEmail] = useState('');
@@ -30,15 +46,35 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const validation = signInSchema.safeParse({ email, password });
+      if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        toast({
+          title: "Erreur de validation",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: validation.data.email,
+        password: validation.data.password,
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur de connexion",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Erreur de connexion",
-        description: error.message,
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
         variant: "destructive",
       });
     }
@@ -50,27 +86,47 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
+    try {
+      const validation = signUpSchema.safeParse({ fullName, email, password });
+      if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        toast({
+          title: "Erreur de validation",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      toast({
-        title: "Erreur d'inscription",
-        description: error.message,
-        variant: "destructive",
+      const { error } = await supabase.auth.signUp({
+        email: validation.data.email,
+        password: validation.data.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: validation.data.fullName,
+          },
+        },
       });
-    } else {
+
+      if (error) {
+        toast({
+          title: "Erreur d'inscription",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Vérifiez votre email",
+          description: "Nous vous avons envoyé un lien de confirmation.",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Vérifiez votre email",
-        description: "Nous vous avons envoyé un lien de confirmation.",
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
       });
     }
 

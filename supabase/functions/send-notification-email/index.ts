@@ -16,6 +16,16 @@ interface EmailRequest {
   data: any;
 }
 
+function escapeHtml(unsafe: string): string {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -80,29 +90,29 @@ const handler = async (req: Request): Promise<Response> => {
     let html = '';
 
     if (type === 'budget_alert') {
-      subject = `⚠️ Budget dépassé - ${data.categoryName}`;
+      subject = `⚠️ Budget dépassé - ${escapeHtml(data.categoryName)}`;
       html = `
         <h2>Alerte Budget</h2>
         <p>Bonjour,</p>
-        <p>Votre budget pour la catégorie <strong>${data.categoryName}</strong> a été dépassé.</p>
+        <p>Votre budget pour la catégorie <strong>${escapeHtml(data.categoryName)}</strong> a été dépassé.</p>
         <ul>
-          <li>Budget mensuel : ${data.budget}€</li>
-          <li>Dépensé : ${data.spent}€</li>
-          <li>Dépassement : ${data.overspent}€</li>
+          <li>Budget mensuel : ${escapeHtml(String(data.budget))}€</li>
+          <li>Dépensé : ${escapeHtml(String(data.spent))}€</li>
+          <li>Dépassement : ${escapeHtml(String(data.overspent))}€</li>
         </ul>
         <p>Connectez-vous à votre application pour plus de détails.</p>
       `;
     } else if (type === 'monthly_report') {
-      subject = `📊 Rapport mensuel - ${data.period}`;
+      subject = `📊 Rapport mensuel - ${escapeHtml(data.period)}`;
       html = `
         <h2>Rapport Mensuel</h2>
         <p>Bonjour,</p>
-        <p>Voici votre rapport financier pour ${data.period}.</p>
+        <p>Voici votre rapport financier pour ${escapeHtml(data.period)}.</p>
         <h3>Résumé</h3>
         <ul>
-          <li>Revenus : ${data.income}€</li>
-          <li>Dépenses : ${data.expenses}€</li>
-          <li>Solde final : ${data.balance}€</li>
+          <li>Revenus : ${escapeHtml(String(data.income))}€</li>
+          <li>Dépenses : ${escapeHtml(String(data.expenses))}€</li>
+          <li>Solde final : ${escapeHtml(String(data.balance))}€</li>
         </ul>
         <p>Les rapports PDF et Excel détaillés sont disponibles dans votre application.</p>
       `;
