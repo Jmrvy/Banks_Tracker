@@ -9,6 +9,7 @@ import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { useToast } from "@/hooks/use-toast";
+import { TransactionFilters } from "./TransactionSearch";
 
 const bankColors = {
   societe_generale: 'bg-red-500',
@@ -22,7 +23,11 @@ const bankColors = {
   other: 'bg-gray-500'
 };
 
-export const TransactionHistory = () => {
+interface TransactionHistoryProps {
+  filters?: TransactionFilters;
+}
+
+export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const { transactions, loading, deleteTransaction } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { toast } = useToast();
@@ -31,9 +36,75 @@ export const TransactionHistory = () => {
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Utiliser la préférence de date pour l'affichage et le tri
-  const sortedTransactions = useMemo(() => {
-    return [...transactions].sort((a, b) => {
+  // Appliquer les filtres et trier les transactions
+  const filteredAndSortedTransactions = useMemo(() => {
+    let filtered = [...transactions];
+
+    if (filters) {
+      // Filtre par texte de recherche
+      if (filters.searchText) {
+        const searchLower = filters.searchText.toLowerCase();
+        filtered = filtered.filter(t => 
+          t.description.toLowerCase().includes(searchLower) ||
+          t.category?.name.toLowerCase().includes(searchLower) ||
+          t.account?.name.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Filtre par type
+      if (filters.type !== 'all') {
+        filtered = filtered.filter(t => t.type === filters.type);
+      }
+
+      // Filtre par catégorie
+      if (filters.categoryId !== 'all') {
+        filtered = filtered.filter(t => t.category?.id === filters.categoryId);
+      }
+
+      // Filtre par compte
+      if (filters.accountId !== 'all') {
+        filtered = filtered.filter(t => 
+          t.account_id === filters.accountId || 
+          t.transfer_to_account_id === filters.accountId
+        );
+      }
+
+      // Filtre par date
+      if (filters.dateFrom) {
+        const fromDate = new Date(filters.dateFrom);
+        filtered = filtered.filter(t => {
+          const transDate = preferences.dateType === 'value'
+            ? new Date(t.value_date || t.transaction_date)
+            : new Date(t.transaction_date);
+          return transDate >= fromDate;
+        });
+      }
+
+      if (filters.dateTo) {
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(t => {
+          const transDate = preferences.dateType === 'value'
+            ? new Date(t.value_date || t.transaction_date)
+            : new Date(t.transaction_date);
+          return transDate <= toDate;
+        });
+      }
+
+      // Filtre par montant
+      if (filters.amountMin) {
+        const min = parseFloat(filters.amountMin);
+        filtered = filtered.filter(t => Math.abs(t.amount) >= min);
+      }
+
+      if (filters.amountMax) {
+        const max = parseFloat(filters.amountMax);
+        filtered = filtered.filter(t => Math.abs(t.amount) <= max);
+      }
+    }
+
+    // Trier par date
+    return filtered.sort((a, b) => {
       const dateA = preferences.dateType === 'value' 
         ? new Date(a.value_date || a.transaction_date)
         : new Date(a.transaction_date);
@@ -42,9 +113,9 @@ export const TransactionHistory = () => {
         : new Date(b.transaction_date);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [transactions, preferences.dateType]);
+  }, [transactions, preferences.dateType, filters]);
 
-  const displayedTransactions = sortedTransactions.slice(0, parseInt(displayCount));
+  const displayedTransactions = filteredAndSortedTransactions.slice(0, parseInt(displayCount));
 
   const handleDelete = async () => {
     if (!deletingTransaction) return;
@@ -106,7 +177,7 @@ export const TransactionHistory = () => {
     );
   }
 
-  if (transactions.length === 0) {
+  if (filteredAndSortedTransactions.length === 0) {
     return (
       <Card className="border-0 shadow-md">
         <CardHeader className="pb-3">
@@ -117,9 +188,13 @@ export const TransactionHistory = () => {
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Aucune transaction trouvée</p>
+            <p className="text-muted-foreground">
+              {transactions.length === 0 ? 'Aucune transaction trouvée' : 'Aucun résultat pour ces filtres'}
+            </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Commencez par créer votre première transaction
+              {transactions.length === 0 
+                ? 'Commencez par créer votre première transaction'
+                : 'Essayez de modifier vos critères de recherche'}
             </p>
           </div>
         </CardContent>
@@ -149,7 +224,9 @@ export const TransactionHistory = () => {
               <SelectItem value="25">25 dernières</SelectItem>
               <SelectItem value="50">50 dernières</SelectItem>
               <SelectItem value="100">100 dernières</SelectItem>
-              <SelectItem value={transactions.length.toString()}>Toutes ({transactions.length})</SelectItem>
+              <SelectItem value={filteredAndSortedTransactions.length.toString()}>
+                Toutes ({filteredAndSortedTransactions.length})
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -252,9 +329,14 @@ export const TransactionHistory = () => {
           })}
         </div>
         
-        {displayedTransactions.length < transactions.length && (
+        {displayedTransactions.length < filteredAndSortedTransactions.length && (
           <div className="mt-4 text-center text-xs text-muted-foreground">
-            Affichage de {displayedTransactions.length} sur {transactions.length} transactions
+            Affichage de {displayedTransactions.length} sur {filteredAndSortedTransactions.length} transactions
+            {filters && (
+              <span className="ml-1">
+                (sur {transactions.length} au total)
+              </span>
+            )}
           </div>
         )}
       </CardContent>
