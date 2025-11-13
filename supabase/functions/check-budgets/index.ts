@@ -52,6 +52,7 @@ const handler = async (req: Request): Promise<Response> => {
     const now = new Date();
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
+    const currentMonth = monthStart.toISOString().split('T')[0]; // YYYY-MM-01 format
 
     for (const userPref of usersWithNotifs || []) {
       try {
@@ -68,6 +69,23 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Check each category
         for (const category of categories) {
+          // Check if alert was already sent for this category this month
+          const { data: existingAlert } = await supabaseAdmin
+            .from('notification_logs')
+            .select('id')
+            .eq('user_id', userPref.user_id)
+            .eq('category_id', category.id)
+            .eq('notification_type', 'budget_alert')
+            .eq('alert_month', currentMonth)
+            .eq('status', 'sent')
+            .limit(1)
+            .single();
+
+          if (existingAlert) {
+            console.log(`Budget alert already sent this month for user ${userPref.user_id}, category ${category.name}`);
+            continue; // Skip this category, alert already sent
+          }
+
           // Get total spent in this category this month (using accounting date)
           const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
@@ -105,6 +123,8 @@ const handler = async (req: Request): Promise<Response> => {
                 body: JSON.stringify({
                   userId: userPref.user_id,
                   type: 'budget_alert',
+                  categoryId: category.id,
+                  alertMonth: currentMonth,
                   data: {
                     categoryName: category.name,
                     budget: budget.toFixed(2),
