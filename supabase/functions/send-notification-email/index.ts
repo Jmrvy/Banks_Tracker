@@ -14,6 +14,8 @@ interface EmailRequest {
   userId: string;
   type: 'budget_alert' | 'monthly_report';
   data: any;
+  categoryId?: string;
+  alertMonth?: string;
 }
 
 function escapeHtml(unsafe: string): string {
@@ -44,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { userId, type, data }: EmailRequest = await req.json();
+    const { userId, type, data, categoryId, alertMonth }: EmailRequest = await req.json();
 
     console.log(`Processing email request for user ${userId}, type: ${type}`);
 
@@ -133,7 +135,9 @@ const handler = async (req: Request): Promise<Response> => {
       .insert({
         user_id: userId,
         notification_type: type,
-        status: 'sent'
+        status: 'sent',
+        category_id: categoryId || null,
+        alert_month: alertMonth || null
       });
 
     return new Response(JSON.stringify(emailResponse), {
