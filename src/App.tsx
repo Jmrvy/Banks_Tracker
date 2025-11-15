@@ -14,6 +14,7 @@ import RecurringTransactions from "@/pages/RecurringTransactions";
 import NewTransaction from "@/pages/NewTransaction";
 import Insights from "@/pages/Insights";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />
+            <OfflineIndicator />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
