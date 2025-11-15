@@ -92,6 +92,8 @@ export type Database = {
       }
       notification_logs: {
         Row: {
+          alert_month: string | null
+          category_id: string | null
           error_message: string | null
           id: string
           notification_type: string
@@ -100,6 +102,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alert_month?: string | null
+          category_id?: string | null
           error_message?: string | null
           id?: string
           notification_type: string
@@ -108,6 +112,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alert_month?: string | null
+          category_id?: string | null
           error_message?: string | null
           id?: string
           notification_type?: string
@@ -115,7 +121,15 @@ export type Database = {
           status?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_preferences: {
         Row: {

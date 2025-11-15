@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, History, Pencil, Trash2 } from "lucide-react";
 import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
@@ -31,7 +30,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const { transactions, loading, deleteTransaction } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { toast } = useToast();
-  const [displayCount, setDisplayCount] = useState<string>("25");
+  const [displayCount, setDisplayCount] = useState<number>(25);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -115,7 +114,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
     });
   }, [transactions, preferences.dateType, filters]);
 
-  const displayedTransactions = filteredAndSortedTransactions.slice(0, parseInt(displayCount));
+  const displayedTransactions = filteredAndSortedTransactions.slice(0, displayCount);
 
   const handleDelete = async () => {
     if (!deletingTransaction) return;
@@ -215,20 +214,6 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
               Basé sur la date {preferences.dateType === 'value' ? 'de valeur' : 'comptable'}
             </p>
           </div>
-          <Select value={displayCount} onValueChange={setDisplayCount}>
-            <SelectTrigger className="w-[140px] h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 dernières</SelectItem>
-              <SelectItem value="25">25 dernières</SelectItem>
-              <SelectItem value="50">50 dernières</SelectItem>
-              <SelectItem value="100">100 dernières</SelectItem>
-              <SelectItem value={filteredAndSortedTransactions.length.toString()}>
-                Toutes ({filteredAndSortedTransactions.length})
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </CardHeader>
       <CardContent>
@@ -330,13 +315,23 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
         </div>
         
         {displayedTransactions.length < filteredAndSortedTransactions.length && (
-          <div className="mt-4 text-center text-xs text-muted-foreground">
-            Affichage de {displayedTransactions.length} sur {filteredAndSortedTransactions.length} transactions
-            {filters && (
-              <span className="ml-1">
-                (sur {transactions.length} au total)
-              </span>
-            )}
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="text-center text-xs text-muted-foreground">
+              Affichage de {displayedTransactions.length} sur {filteredAndSortedTransactions.length} transactions
+              {filters && (
+                <span className="ml-1">
+                  (sur {transactions.length} au total)
+                </span>
+              )}
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setDisplayCount(prev => prev + 25)}
+              className="w-full sm:w-auto"
+            >
+              Afficher plus (25)
+            </Button>
           </div>
         )}
       </CardContent>
