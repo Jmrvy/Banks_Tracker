@@ -17,6 +17,9 @@ export interface Debt {
   contact_name: string | null;
   contact_info: string | null;
   notes: string | null;
+  payment_frequency: string | null;
+  payment_amount: number;
+  loan_type: string | null;
   created_at: string;
   updated_at: string;
 }
