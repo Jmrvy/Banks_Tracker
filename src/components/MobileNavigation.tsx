@@ -6,7 +6,8 @@ import {
   TrendingUp,
   Repeat,
   Settings,
-  BarChart3
+  BarChart3,
+  Wallet
 } from "lucide-react";
 
 const navItems = [
@@ -25,6 +26,11 @@ const navItems = [
     path: "/recurring-transactions",
     icon: Repeat,
     label: "Récurrentes"
+  },
+  {
+    path: "/debts",
+    icon: Wallet,
+    label: "Dettes"
   },
   {
     path: "/insights",
