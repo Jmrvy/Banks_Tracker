@@ -144,7 +144,10 @@ export type Database = {
           end_date: string | null
           id: string
           interest_rate: number | null
+          loan_type: string | null
           notes: string | null
+          payment_amount: number | null
+          payment_frequency: string | null
           remaining_amount: number
           start_date: string
           status: Database["public"]["Enums"]["debt_status"]
@@ -161,7 +164,10 @@ export type Database = {
           end_date?: string | null
           id?: string
           interest_rate?: number | null
+          loan_type?: string | null
           notes?: string | null
+          payment_amount?: number | null
+          payment_frequency?: string | null
           remaining_amount: number
           start_date: string
           status?: Database["public"]["Enums"]["debt_status"]
@@ -178,7 +184,10 @@ export type Database = {
           end_date?: string | null
           id?: string
           interest_rate?: number | null
+          loan_type?: string | null
           notes?: string | null
+          payment_amount?: number | null
+          payment_frequency?: string | null
           remaining_amount?: number
           start_date?: string
           status?: Database["public"]["Enums"]["debt_status"]
@@ -355,6 +364,57 @@ export type Database = {
           },
           {
             foreignKeyName: "recurring_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_debt_payments: {
+        Row: {
+          actual_amount: number | null
+          created_at: string | null
+          debt_id: string
+          id: string
+          is_paid: boolean | null
+          paid_date: string | null
+          scheduled_amount: number
+          scheduled_date: string
+          user_id: string
+        }
+        Insert: {
+          actual_amount?: number | null
+          created_at?: string | null
+          debt_id: string
+          id?: string
+          is_paid?: boolean | null
+          paid_date?: string | null
+          scheduled_amount: number
+          scheduled_date: string
+          user_id: string
+        }
+        Update: {
+          actual_amount?: number | null
+          created_at?: string | null
+          debt_id?: string
+          id?: string
+          is_paid?: boolean | null
+          paid_date?: string | null
+          scheduled_amount?: number
+          scheduled_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_debt_payments_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_debt_payments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

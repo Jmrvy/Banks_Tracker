@@ -4,23 +4,24 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Debt } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { CalendarIcon, DollarSign, TrendingUp, User, Trash2 } from 'lucide-react';
+import { CalendarIcon, DollarSign, TrendingUp, User, Trash2, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 interface DebtCardProps {
   debt: Debt;
   onAddPayment: (debt: Debt) => void;
+  onEdit: (debt: Debt) => void;
   onDelete: (id: string) => void;
 }
 
-export const DebtCard = ({ debt, onAddPayment, onDelete }: DebtCardProps) => {
+export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps) => {
   const { formatCurrency } = useUserPreferences();
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'loan_given': return 'Prêt donné';
-      case 'loan_received': return 'Prêt reçu';
+      case 'loan_given': return 'Prêt accordé';
+      case 'loan_received': return 'Prêt contracté';
       case 'credit': return 'Crédit';
       default: return type;
     }
@@ -46,6 +47,17 @@ export const DebtCard = ({ debt, onAddPayment, onDelete }: DebtCardProps) => {
 
   const progress = ((debt.total_amount - debt.remaining_amount) / debt.total_amount) * 100;
 
+  const getFrequencyLabel = (freq: string | null) => {
+    if (!freq) return null;
+    switch (freq) {
+      case 'monthly': return 'Mensuel';
+      case 'quarterly': return 'Trimestriel';
+      case 'semi_annual': return 'Semestriel';
+      case 'annual': return 'Annuel';
+      default: return freq;
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -59,14 +71,23 @@ export const DebtCard = ({ debt, onAddPayment, onDelete }: DebtCardProps) => {
               </Badge>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(debt.id)}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(debt)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(debt.id)}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       
@@ -101,6 +122,13 @@ export const DebtCard = ({ debt, onAddPayment, onDelete }: DebtCardProps) => {
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Taux d'intérêt</span>
             <span className="font-medium">{debt.interest_rate}%</span>
+          </div>
+        )}
+
+        {debt.payment_frequency && debt.payment_amount > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Paiement {getFrequencyLabel(debt.payment_frequency)?.toLowerCase()}</span>
+            <span className="font-medium">{formatCurrency(debt.payment_amount)}</span>
           </div>
         )}
 

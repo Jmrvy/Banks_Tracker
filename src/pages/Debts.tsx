@@ -3,6 +3,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { Button } from '@/components/ui/button';
 import { Plus, Wallet } from 'lucide-react';
 import { NewDebtModal } from '@/components/NewDebtModal';
+import { EditDebtModal } from '@/components/EditDebtModal';
 import { AddPaymentModal } from '@/components/AddPaymentModal';
 import { DebtCard } from '@/components/DebtCard';
 import { useDebts, Debt } from '@/hooks/useDebts';
@@ -14,12 +15,18 @@ const Debts = () => {
   const { debts, loading, deleteDebt } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const [newDebtModalOpen, setNewDebtModalOpen] = useState(false);
+  const [editDebtModalOpen, setEditDebtModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
 
   const handleAddPayment = (debt: Debt) => {
     setSelectedDebt(debt);
     setPaymentModalOpen(true);
+  };
+
+  const handleEditDebt = (debt: Debt) => {
+    setSelectedDebt(debt);
+    setEditDebtModalOpen(true);
   };
 
   const activeDebts = debts.filter(d => d.status === 'active');
@@ -64,7 +71,7 @@ const Debts = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Prêts donnés</p>
+                  <p className="text-sm text-muted-foreground">Prêts accordés</p>
                   <p className="text-2xl font-bold text-success">{formatCurrency(totalLoansGiven)}</p>
                 </div>
                 <Wallet className="h-8 w-8 text-success" />
@@ -104,8 +111,8 @@ const Debts = () => {
         <Tabs defaultValue="all" className="space-y-4">
           <TabsList>
             <TabsTrigger value="all">Tous ({activeDebts.length})</TabsTrigger>
-            <TabsTrigger value="loans_given">Prêts donnés ({loansGiven.length})</TabsTrigger>
-            <TabsTrigger value="loans_received">Prêts reçus ({loansReceived.length})</TabsTrigger>
+            <TabsTrigger value="loans_given">Prêts accordés ({loansGiven.length})</TabsTrigger>
+            <TabsTrigger value="loans_received">Prêts contractés ({loansReceived.length})</TabsTrigger>
             <TabsTrigger value="credits">Crédits ({credits.length})</TabsTrigger>
           </TabsList>
 
@@ -126,6 +133,7 @@ const Debts = () => {
                     key={debt.id} 
                     debt={debt} 
                     onAddPayment={handleAddPayment}
+                    onEdit={handleEditDebt}
                     onDelete={deleteDebt}
                   />
                 ))}
@@ -140,6 +148,7 @@ const Debts = () => {
                   key={debt.id} 
                   debt={debt} 
                   onAddPayment={handleAddPayment}
+                  onEdit={handleEditDebt}
                   onDelete={deleteDebt}
                 />
               ))}
@@ -153,6 +162,7 @@ const Debts = () => {
                   key={debt.id} 
                   debt={debt} 
                   onAddPayment={handleAddPayment}
+                  onEdit={handleEditDebt}
                   onDelete={deleteDebt}
                 />
               ))}
@@ -166,6 +176,7 @@ const Debts = () => {
                   key={debt.id} 
                   debt={debt} 
                   onAddPayment={handleAddPayment}
+                  onEdit={handleEditDebt}
                   onDelete={deleteDebt}
                 />
               ))}
@@ -175,6 +186,11 @@ const Debts = () => {
       </main>
 
       <NewDebtModal open={newDebtModalOpen} onOpenChange={setNewDebtModalOpen} />
+      <EditDebtModal 
+        open={editDebtModalOpen} 
+        onOpenChange={setEditDebtModalOpen}
+        debt={selectedDebt}
+      />
       <AddPaymentModal 
         open={paymentModalOpen} 
         onOpenChange={setPaymentModalOpen}
