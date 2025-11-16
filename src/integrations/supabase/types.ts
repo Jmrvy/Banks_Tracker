@@ -90,6 +90,113 @@ export type Database = {
           },
         ]
       }
+      debt_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          debt_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          debt_id: string
+          id?: string
+          notes?: string | null
+          payment_date: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          debt_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debt_payments_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debt_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debts: {
+        Row: {
+          contact_info: string | null
+          contact_name: string | null
+          created_at: string | null
+          description: string
+          end_date: string | null
+          id: string
+          interest_rate: number | null
+          notes: string | null
+          remaining_amount: number
+          start_date: string
+          status: Database["public"]["Enums"]["debt_status"]
+          total_amount: number
+          type: Database["public"]["Enums"]["debt_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_info?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          description: string
+          end_date?: string | null
+          id?: string
+          interest_rate?: number | null
+          notes?: string | null
+          remaining_amount: number
+          start_date: string
+          status?: Database["public"]["Enums"]["debt_status"]
+          total_amount: number
+          type: Database["public"]["Enums"]["debt_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_info?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          description?: string
+          end_date?: string | null
+          id?: string
+          interest_rate?: number | null
+          notes?: string | null
+          remaining_amount?: number
+          start_date?: string
+          status?: Database["public"]["Enums"]["debt_status"]
+          total_amount?: number
+          type?: Database["public"]["Enums"]["debt_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_logs: {
         Row: {
           alert_month: string | null
@@ -356,6 +463,8 @@ export type Database = {
         | "lcl"
         | "caisse_epargne"
         | "credit_mutuel"
+      debt_status: "active" | "completed" | "defaulted"
+      debt_type: "loan_given" | "loan_received" | "credit"
       recurrence_type: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"
       transaction_type: "income" | "expense" | "transfer"
     }
@@ -502,6 +611,8 @@ export const Constants = {
         "caisse_epargne",
         "credit_mutuel",
       ],
+      debt_status: ["active", "completed", "defaulted"],
+      debt_type: ["loan_given", "loan_received", "credit"],
       recurrence_type: ["daily", "weekly", "monthly", "quarterly", "yearly"],
       transaction_type: ["income", "expense", "transfer"],
     },

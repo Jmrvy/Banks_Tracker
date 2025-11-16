@@ -13,6 +13,7 @@ import Settings from "@/pages/Settings";
 import RecurringTransactions from "@/pages/RecurringTransactions";
 import NewTransaction from "@/pages/NewTransaction";
 import Insights from "@/pages/Insights";
+import Debts from "@/pages/Debts";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 
@@ -87,6 +88,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <RecurringTransactions />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/debts" 
+          element={
+            <ProtectedRoute>
+              <Debts />
             </ProtectedRoute>
           } 
         />
