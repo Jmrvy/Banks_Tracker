@@ -25,7 +25,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
   const [loanParams, setLoanParams] = useState<LoanParams | null>(null);
   const [formData, setFormData] = useState({
     description: '',
-    type: 'loan_received' as 'loan_given' | 'loan_received' | 'credit',
+    type: 'loan_received' as 'loan_given' | 'loan_received',
     contact_name: '',
     contact_info: '',
     notes: ''
@@ -138,11 +138,10 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="loan_received">Prêt contracté</SelectItem>
-                    <SelectItem value="loan_given">Prêt accordé</SelectItem>
-                    <SelectItem value="credit">Crédit</SelectItem>
-                  </SelectContent>
+              <SelectContent>
+                <SelectItem value="loan_received">Prêt contracté</SelectItem>
+                <SelectItem value="loan_given">Prêt accordé</SelectItem>
+              </SelectContent>
                 </Select>
               </div>
 
