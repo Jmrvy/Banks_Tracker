@@ -32,12 +32,10 @@ const Debts = () => {
   const activeDebts = debts.filter(d => d.status === 'active');
   const loansGiven = activeDebts.filter(d => d.type === 'loan_given');
   const loansReceived = activeDebts.filter(d => d.type === 'loan_received');
-  const credits = activeDebts.filter(d => d.type === 'credit');
 
   const totalLoansGiven = loansGiven.reduce((sum, d) => sum + d.remaining_amount, 0);
   const totalLoansReceived = loansReceived.reduce((sum, d) => sum + d.remaining_amount, 0);
-  const totalCredits = credits.reduce((sum, d) => sum + d.remaining_amount, 0);
-  const netPosition = totalLoansGiven - totalLoansReceived - totalCredits;
+  const netPosition = totalLoansGiven - totalLoansReceived;
 
   if (loading) {
     return (
@@ -83,9 +81,9 @@ const Debts = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Prêts + Crédits</p>
+                  <p className="text-sm text-muted-foreground">Prêts contractés</p>
                   <p className="text-2xl font-bold text-destructive">
-                    {formatCurrency(totalLoansReceived + totalCredits)}
+                    {formatCurrency(totalLoansReceived)}
                   </p>
                 </div>
                 <Wallet className="h-8 w-8 text-destructive" />
@@ -113,7 +111,6 @@ const Debts = () => {
             <TabsTrigger value="all">Tous ({activeDebts.length})</TabsTrigger>
             <TabsTrigger value="loans_given">Prêts accordés ({loansGiven.length})</TabsTrigger>
             <TabsTrigger value="loans_received">Prêts contractés ({loansReceived.length})</TabsTrigger>
-            <TabsTrigger value="credits">Crédits ({credits.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -158,20 +155,6 @@ const Debts = () => {
           <TabsContent value="loans_received" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               {loansReceived.map(debt => (
-                <DebtCard 
-                  key={debt.id} 
-                  debt={debt} 
-                  onAddPayment={handleAddPayment}
-                  onEdit={handleEditDebt}
-                  onDelete={deleteDebt}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="credits" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {credits.map(debt => (
                 <DebtCard 
                   key={debt.id} 
                   debt={debt} 

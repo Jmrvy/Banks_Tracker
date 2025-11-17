@@ -7,7 +7,7 @@ export interface Debt {
   id: string;
   user_id: string;
   description: string;
-  type: 'loan_given' | 'loan_received' | 'credit';
+  type: 'loan_given' | 'loan_received';
   total_amount: number;
   remaining_amount: number;
   interest_rate: number;

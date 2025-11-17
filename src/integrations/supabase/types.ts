@@ -524,7 +524,7 @@ export type Database = {
         | "caisse_epargne"
         | "credit_mutuel"
       debt_status: "active" | "completed" | "defaulted"
-      debt_type: "loan_given" | "loan_received" | "credit"
+      debt_type: "loan_given" | "loan_received"
       recurrence_type: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"
       transaction_type: "income" | "expense" | "transfer"
     }
@@ -672,7 +672,7 @@ export const Constants = {
         "credit_mutuel",
       ],
       debt_status: ["active", "completed", "defaulted"],
-      debt_type: ["loan_given", "loan_received", "credit"],
+      debt_type: ["loan_given", "loan_received"],
       recurrence_type: ["daily", "weekly", "monthly", "quarterly", "yearly"],
       transaction_type: ["income", "expense", "transfer"],
     },

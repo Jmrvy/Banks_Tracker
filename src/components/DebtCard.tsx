@@ -22,7 +22,6 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
     switch (type) {
       case 'loan_given': return 'Prêt accordé';
       case 'loan_received': return 'Prêt contracté';
-      case 'credit': return 'Crédit';
       default: return type;
     }
   };

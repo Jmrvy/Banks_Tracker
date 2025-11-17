@@ -19,7 +19,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
-    type: 'loan_received' as 'loan_given' | 'loan_received' | 'credit',
+    type: 'loan_received' as 'loan_given' | 'loan_received',
     payment_frequency: 'monthly',
     payment_amount: '',
     interest_rate: '',
@@ -103,7 +103,6 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
               <SelectContent>
                 <SelectItem value="loan_received">Prêt contracté</SelectItem>
                 <SelectItem value="loan_given">Prêt accordé</SelectItem>
-                <SelectItem value="credit">Crédit</SelectItem>
               </SelectContent>
             </Select>
           </div>
