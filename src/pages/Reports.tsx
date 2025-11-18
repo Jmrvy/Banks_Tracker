@@ -12,6 +12,7 @@ import { EvolutionTab } from "@/components/reports/EvolutionTab";
 import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
+import { SavingsGoalsTab } from "@/components/reports/SavingsGoalsTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 
 const Reports = () => {
@@ -97,11 +98,12 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 sm:space-y-4">
-          <TabsList className="grid w-full grid-cols-4 mx-auto bg-muted/30 h-8 sm:h-9 p-0.5 sm:p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-5 mx-auto bg-muted/30 h-8 sm:h-9 p-0.5 sm:p-1 rounded-lg">
             <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Évolution</TabsTrigger>
             <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Revenus</TabsTrigger>
             <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Catégories</TabsTrigger>
             <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Récap</TabsTrigger>
+            <TabsTrigger value="savings" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Épargne</TabsTrigger>
           </TabsList>
 
           <TabsContent value="evolution">
@@ -137,6 +139,10 @@ const Reports = () => {
               useSpendingPatterns={useSpendingPatterns}
               setUseSpendingPatterns={setUseSpendingPatterns}
             />
+          </TabsContent>
+
+          <TabsContent value="savings">
+            <SavingsGoalsTab />
           </TabsContent>
         </Tabs>
       </div>
