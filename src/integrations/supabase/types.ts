@@ -371,6 +371,48 @@ export type Database = {
           },
         ]
       }
+      savings_goals: {
+        Row: {
+          category: string | null
+          color: string | null
+          created_at: string
+          current_amount: number
+          description: string | null
+          id: string
+          name: string
+          target_amount: number
+          target_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          color?: string | null
+          created_at?: string
+          current_amount?: number
+          description?: string | null
+          id?: string
+          name: string
+          target_amount: number
+          target_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          color?: string | null
+          created_at?: string
+          current_amount?: number
+          description?: string | null
+          id?: string
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_debt_payments: {
         Row: {
           actual_amount: number | null
