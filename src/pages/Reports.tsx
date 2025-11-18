@@ -142,7 +142,10 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="savings">
-            <SavingsGoalsTab />
+            <SavingsGoalsTab 
+              transactions={filteredTransactions}
+              period={period}
+            />
           </TabsContent>
         </Tabs>
       </div>
