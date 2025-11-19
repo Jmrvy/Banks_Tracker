@@ -14,6 +14,7 @@ import RecurringTransactions from "@/pages/RecurringTransactions";
 import NewTransaction from "@/pages/NewTransaction";
 import Insights from "@/pages/Insights";
 import Debts from "@/pages/Debts";
+import Install from "@/pages/Install";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 
@@ -99,6 +100,7 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route path="/install" element={<Install />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {user && <MobileNavigation />}

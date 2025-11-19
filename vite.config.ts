@@ -15,26 +15,33 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico'],
+      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Gestion des comptes CB',
         short_name: 'Finance Tracker',
-        description: 'Application de suivi des dépenses mensuelles',
+        description: 'Application de suivi des dépenses mensuelles pour vos comptes bancaires',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
-            src: '/placeholder.svg',
+            src: '/icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
-            src: '/placeholder.svg',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
-        ]
+        ],
+        categories: ['finance', 'productivity'],
+        screenshots: []
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
