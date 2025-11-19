@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, TrendingUp, Calendar, PiggyBank } from 'lucide-react';
+import { Plus, TrendingUp, Calendar, PiggyBank, TrendingDown, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -10,8 +10,9 @@ import { NewSavingsGoalModal } from '@/components/NewSavingsGoalModal';
 import { EditSavingsGoalModal } from '@/components/EditSavingsGoalModal';
 import type { SavingsGoal } from '@/hooks/useSavingsGoals';
 import type { ReportsPeriod } from '@/hooks/useReportsData';
-import { differenceInDays, format, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { differenceInDays, format, startOfMonth, endOfMonth, eachMonthOfInterval, eachDayOfInterval, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 interface SavingsGoalsTabProps {
   transactions: Transaction[];
@@ -34,7 +35,14 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     );
     
     if (!investmentCategory) {
-      return { total: 0, monthlyAverage: 0, monthlyData: [] };
+      return { 
+        total: 0, 
+        monthlyAverage: 0, 
+        monthlyData: [], 
+        evolutionData: [],
+        trend: 0,
+        count: 0
+      };
     }
 
     const investmentTransactions = transactions.filter(
@@ -42,6 +50,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     );
 
     const total = investmentTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const count = investmentTransactions.length;
 
     // Calculate monthly breakdown
     const monthlyMap = new Map<string, number>();
@@ -56,7 +65,37 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
 
     const monthlyAverage = monthlyData.length > 0 ? total / monthlyData.length : 0;
 
-    return { total, monthlyAverage, monthlyData };
+    // Calculate trend (comparing first half vs second half)
+    const halfPoint = Math.floor(monthlyData.length / 2);
+    const firstHalfAvg = monthlyData.slice(0, halfPoint).reduce((sum, d) => sum + d.amount, 0) / halfPoint || 0;
+    const secondHalfAvg = monthlyData.slice(halfPoint).reduce((sum, d) => sum + d.amount, 0) / (monthlyData.length - halfPoint) || 0;
+    const trend = firstHalfAvg > 0 ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100 : 0;
+
+    // Calculate evolution data (cumulative)
+    const evolutionData: Array<{ date: string; amount: number; cumulative: number }> = [];
+    let cumulative = 0;
+    
+    const sortedTransactions = [...investmentTransactions].sort(
+      (a, b) => new Date(a.value_date).getTime() - new Date(b.value_date).getTime()
+    );
+
+    sortedTransactions.forEach(t => {
+      cumulative += t.amount;
+      evolutionData.push({
+        date: format(new Date(t.value_date), 'dd/MM/yyyy'),
+        amount: t.amount,
+        cumulative
+      });
+    });
+
+    return { 
+      total, 
+      monthlyAverage, 
+      monthlyData, 
+      evolutionData,
+      trend,
+      count
+    };
   }, [transactions, categories]);
 
   const calculateProjection = (goal: SavingsGoal) => {
@@ -87,7 +126,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     <div className="space-y-6">
       {/* Investment Statistics Section */}
       <Card className="p-6">
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -100,7 +139,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card className="p-4 bg-primary/5 border-primary/20">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -127,26 +166,82 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
 
             <Card className="p-4 bg-secondary/5 border-secondary/20">
               <div className="space-y-1">
-                <div className="text-sm text-muted-foreground">
-                  Nombre de transactions
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Activity className="w-4 h-4" />
+                  Transactions
                 </div>
                 <div className="text-2xl font-bold text-foreground">
-                  {transactions.filter(t => {
-                    const investmentCategory = categories.find(cat => 
-                      cat.name.toLowerCase() === 'investissements' || 
-                      cat.name.toLowerCase() === 'investissement' ||
-                      cat.name.toLowerCase() === 'épargne'
-                    );
-                    return t.type === 'expense' && t.category?.id === investmentCategory?.id;
-                  }).length}
+                  {investmentStats.count}
+                </div>
+              </div>
+            </Card>
+
+            <Card className={`p-4 ${investmentStats.trend >= 0 ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {investmentStats.trend >= 0 ? (
+                    <TrendingUp className="w-4 h-4" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4" />
+                  )}
+                  Tendance
+                </div>
+                <div className={`text-2xl font-bold ${investmentStats.trend >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {investmentStats.trend >= 0 ? '+' : ''}{investmentStats.trend.toFixed(1)}%
                 </div>
               </div>
             </Card>
           </div>
 
+          {/* Evolution Chart */}
+          {investmentStats.evolutionData.length > 0 && (
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-4">Évolution de l'épargne cumulée</h4>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={investmentStats.evolutionData}>
+                    <defs>
+                      <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value: number) => [formatCurrency(value), 'Épargne cumulée']}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="cumulative" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      fill="url(#colorCumulative)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Monthly Breakdown */}
           {investmentStats.monthlyData.length > 0 && (
             <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Évolution mensuelle</h4>
+              <h4 className="text-sm font-medium mb-3">Répartition mensuelle (6 derniers mois)</h4>
               <div className="space-y-2">
                 {investmentStats.monthlyData.slice(-6).map(({ month, amount }) => (
                   <div key={month} className="flex items-center gap-3">
