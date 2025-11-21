@@ -52,6 +52,30 @@ x-api-key: VOTRE_CLE_API
 
 ## 📤 Réponse
 
+### Structure des données
+
+#### Chaque transaction contient :
+- **id** : Identifiant unique de la transaction
+- **description** : Description de la transaction
+- **amount** : Montant de la transaction
+- **type** : Type de transaction (`expense` pour dépense, `income` pour revenu, `transfer` pour transfert)
+- **transaction_date** : Date comptable de la transaction
+- **value_date** : Date de valeur de la transaction
+- **created_at** : Date de création dans le système
+- **category_id** : ID de la catégorie associée
+- **categories** : Objet contenant les détails de la catégorie (id, name, color)
+- **account_id** : ID du compte associé
+- **accounts** : Objet contenant les détails du compte (id, name, account_type)
+
+#### Le résumé (summary) contient :
+- **total_transactions** : Nombre total de transactions trouvées
+- **expense_count** : Nombre de transactions de type dépense
+- **income_count** : Nombre de transactions de type revenu
+- **total_expenses** : Montant total des dépenses
+- **total_income** : Montant total des revenus
+- **net_total** : Total net (revenus - dépenses)
+- **categories** : Liste des catégories trouvées
+
 ### Succès (200)
 ```json
 {
@@ -81,7 +105,11 @@ x-api-key: VOTRE_CLE_API
   ],
   "summary": {
     "total_transactions": 42,
-    "total_amount": 15750.50,
+    "expense_count": 30,
+    "income_count": 12,
+    "total_expenses": 25750.50,
+    "total_income": 10000.00,
+    "net_total": -15750.50,
     "categories": ["Investissements", "PEA"]
   }
 }
@@ -120,7 +148,12 @@ response = requests.post(API_URL, headers=headers, json=payload)
 data = response.json()
 
 print(f"Transactions: {data['summary']['total_transactions']}")
-print(f"Montant total: {data['summary']['total_amount']}")
+print(f"  - Dépenses: {data['summary']['expense_count']}")
+print(f"  - Revenus: {data['summary']['income_count']}")
+print(f"Montants:")
+print(f"  - Total dépenses: {data['summary']['total_expenses']}€")
+print(f"  - Total revenus: {data['summary']['total_income']}€")
+print(f"  - Total net: {data['summary']['net_total']}€")
 ```
 
 ### cURL
@@ -160,7 +193,10 @@ async function getTransactions() {
   });
   
   const data = await response.json();
-  console.log(`Total: ${data.summary.total_amount}€`);
+  console.log(`Total transactions: ${data.summary.total_transactions}`);
+  console.log(`Total dépenses: ${data.summary.total_expenses}€`);
+  console.log(`Total revenus: ${data.summary.total_income}€`);
+  console.log(`Total net: ${data.summary.net_total}€`);
   return data;
 }
 

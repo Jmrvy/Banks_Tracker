@@ -156,11 +156,21 @@ Deno.serve(async (req) => {
 
     console.log(`Retrieved ${transactions?.length || 0} transactions`);
 
-    // Calculate summary statistics
-    const totalAmount = transactions?.reduce((sum, tx) => sum + Number(tx.amount), 0) || 0;
+    // Calculate detailed summary statistics
+    const expenses = transactions?.filter(tx => tx.type === 'expense') || [];
+    const income = transactions?.filter(tx => tx.type === 'income') || [];
+    
+    const totalExpenses = expenses.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const totalIncome = income.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const netTotal = totalIncome - totalExpenses;
+    
     const summary = {
       total_transactions: transactions?.length || 0,
-      total_amount: totalAmount,
+      expense_count: expenses.length,
+      income_count: income.length,
+      total_expenses: totalExpenses,
+      total_income: totalIncome,
+      net_total: netTotal,
       categories: Array.from(new Set(transactions?.map(tx => tx.categories?.name).filter(Boolean))),
     };
 

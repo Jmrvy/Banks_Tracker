@@ -57,10 +57,14 @@ def get_investment_transactions(
         response = requests.post(API_URL, headers=headers, json=payload)
         
         # Vérifier le statut de la réponse
-        if response.status_code == 200:
+    if response.status_code == 200:
             data = response.json()
             print(f"✅ Succès! {data['summary']['total_transactions']} transactions récupérées")
-            print(f"   Montant total: {data['summary']['total_amount']:.2f} €")
+            print(f"   Dépenses: {data['summary']['expense_count']} transactions")
+            print(f"   Revenus: {data['summary']['income_count']} transactions")
+            print(f"   Total dépenses: {data['summary']['total_expenses']:.2f} €")
+            print(f"   Total revenus: {data['summary']['total_income']:.2f} €")
+            print(f"   Total net: {data['summary']['net_total']:.2f} €")
             print(f"   Catégories: {', '.join(data['summary']['categories'])}")
             return data
         else:
