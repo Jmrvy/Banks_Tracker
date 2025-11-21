@@ -11,6 +11,7 @@ interface RequestBody {
   categories?: string[]; // Optional: filter by specific categories
   start_date?: string; // Optional: filter by date range
   end_date?: string; // Optional: filter by date range
+  description_filter?: string; // Optional: filter by description keyword (case-insensitive)
 }
 
 Deno.serve(async (req) => {
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { email, password, categories, start_date, end_date }: RequestBody = await req.json();
+    const { email, password, categories, start_date, end_date, description_filter }: RequestBody = await req.json();
 
     if (!email || !password) {
       return new Response(
@@ -129,6 +130,11 @@ Deno.serve(async (req) => {
     }
     if (end_date) {
       query = query.lte('value_date', end_date);
+    }
+
+    // Filter by description keyword if provided (case-insensitive search)
+    if (description_filter) {
+      query = query.ilike('description', `%${description_filter}%`);
     }
 
     // Order by date descending

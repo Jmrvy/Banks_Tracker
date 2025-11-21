@@ -13,6 +13,7 @@ PASSWORD = "votre_mot_de_passe"  # Votre mot de passe Supabase
 
 def get_investment_transactions(
     categories=None,
+    description_filter=None,
     start_date=None,
     end_date=None
 ):
@@ -21,6 +22,7 @@ def get_investment_transactions(
     
     Args:
         categories (list, optional): Liste des catégories à filtrer (ex: ["Investissements", "PEA"])
+        description_filter (str, optional): Mot-clé à rechercher dans la description (ex: "PEA")
         start_date (str, optional): Date de début au format YYYY-MM-DD
         end_date (str, optional): Date de fin au format YYYY-MM-DD
     
@@ -43,6 +45,8 @@ def get_investment_transactions(
     # Ajouter les filtres optionnels
     if categories:
         payload["categories"] = categories
+    if description_filter:
+        payload["description_filter"] = description_filter
     if start_date:
         payload["start_date"] = start_date
     if end_date:
@@ -129,22 +133,40 @@ if __name__ == "__main__":
     
     print("\n" + "-" * 60 + "\n")
     
-    # Exemple 2: Récupérer les transactions du dernier mois
-    print("📊 Exemple 2: Transactions du dernier mois")
+    # Exemple 2: Récupérer uniquement les transactions PEA
+    print("📊 Exemple 2: Transactions PEA uniquement (filtre par description)")
+    result = get_investment_transactions(
+        categories=["Investissements"],
+        description_filter="PEA"  # Recherche "PEA" dans la description
+    )
+    
+    if result and result['data']:
+        print(f"\nPremière transaction PEA:")
+        tx = result['data'][0]
+        print(f"  - {tx['value_date']}: {tx['description']} - {tx['amount']}€")
+    
+    print("\n" + "-" * 60 + "\n")
+    
+    # Exemple 3: Récupérer les transactions du dernier mois
+    print("📊 Exemple 3: Transactions PEA du dernier mois")
     today = datetime.now()
     last_month = today - timedelta(days=30)
     
     result = get_investment_transactions(
-        categories=["Investissements", "PEA"],
+        categories=["Investissements"],
+        description_filter="PEA",
         start_date=last_month.strftime("%Y-%m-%d"),
         end_date=today.strftime("%Y-%m-%d")
     )
     
     print("\n" + "-" * 60 + "\n")
     
-    # Exemple 3: Exporter vers CSV
-    print("📊 Exemple 3: Export vers CSV")
-    result = get_investment_transactions(categories=["Investissements", "PEA"])
+    # Exemple 4: Exporter vers CSV
+    print("📊 Exemple 4: Export vers CSV")
+    result = get_investment_transactions(
+        categories=["Investissements"],
+        description_filter="PEA"
+    )
     
     if result and result.get('data'):
         export_to_csv(result['data'], "mes_investissements.csv")

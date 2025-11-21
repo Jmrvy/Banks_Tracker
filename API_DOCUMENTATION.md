@@ -33,6 +33,7 @@ x-api-key: VOTRE_CLE_API
   "email": "votre.email@example.com",
   "password": "votre_mot_de_passe",
   "categories": ["Investissements", "PEA"],  // Optionnel
+  "description_filter": "PEA",                // Optionnel - recherche dans la description
   "start_date": "2024-01-01",                 // Optionnel (YYYY-MM-DD)
   "end_date": "2024-12-31"                    // Optionnel (YYYY-MM-DD)
 }
@@ -45,6 +46,7 @@ x-api-key: VOTRE_CLE_API
 | `email` | string | ✅ Oui | Votre email de connexion Supabase |
 | `password` | string | ✅ Oui | Votre mot de passe Supabase |
 | `categories` | array | ❌ Non | Liste des noms de catégories à filtrer |
+| `description_filter` | string | ❌ Non | Mot-clé à rechercher dans la description (insensible à la casse) |
 | `start_date` | string | ❌ Non | Date de début (format YYYY-MM-DD) |
 | `end_date` | string | ❌ Non | Date de fin (format YYYY-MM-DD) |
 
@@ -110,7 +112,8 @@ headers = {
 payload = {
     "email": "votre.email@example.com",
     "password": "votre_mot_de_passe",
-    "categories": ["Investissements", "PEA"]
+    "categories": ["Investissements", "PEA"],
+    "description_filter": "PEA"  # Filtre par description
 }
 
 response = requests.post(API_URL, headers=headers, json=payload)
@@ -130,6 +133,7 @@ curl -X POST \
     "email": "votre.email@example.com",
     "password": "votre_mot_de_passe",
     "categories": ["Investissements", "PEA"],
+    "description_filter": "PEA",
     "start_date": "2024-01-01",
     "end_date": "2024-12-31"
   }'
@@ -150,7 +154,8 @@ async function getTransactions() {
     body: JSON.stringify({
       email: "votre.email@example.com",
       password: "votre_mot_de_passe",
-      categories: ["Investissements", "PEA"]
+      categories: ["Investissements", "PEA"],
+      description_filter: "PEA"
     })
   });
   
@@ -200,7 +205,17 @@ payload = {
 }
 ```
 
-### 2. Transactions du dernier mois
+### 2. Transactions PEA uniquement (filtre par description)
+```python
+payload = {
+    "email": EMAIL,
+    "password": PASSWORD,
+    "categories": ["Investissements"],
+    "description_filter": "PEA"  # Recherche "PEA" dans la description
+}
+```
+
+### 3. Transactions du dernier mois avec filtre
 ```python
 from datetime import datetime, timedelta
 
@@ -211,12 +226,13 @@ payload = {
     "email": EMAIL,
     "password": PASSWORD,
     "categories": ["Investissements"],
+    "description_filter": "PEA",
     "start_date": last_month.strftime("%Y-%m-%d"),
     "end_date": today.strftime("%Y-%m-%d")
 }
 ```
 
-### 3. Analyse annuelle
+### 4. Analyse annuelle
 ```python
 payload = {
     "email": EMAIL,
