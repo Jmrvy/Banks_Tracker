@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
           color
         ),
         account_id,
-        accounts (
+        accounts!transactions_account_id_fkey (
           id,
           name,
           account_type
