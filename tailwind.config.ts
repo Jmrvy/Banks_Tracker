@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        inter: ['Inter', 'sans-serif'],
+      },
       fontSize: {
         xs: ['0.6875rem', { lineHeight: '1rem' }],    // 11px instead of 12px
         sm: ['0.8125rem', { lineHeight: '1.25rem' }], // 13px instead of 14px

@@ -15,7 +15,7 @@ import NewTransaction from "@/pages/NewTransaction";
 import Insights from "@/pages/Insights";
 import Debts from "@/pages/Debts";
 import Install from "@/pages/Install";
-import { MobileNavigation } from "@/components/MobileNavigation";
+import { AppSidebar } from "@/components/AppSidebar";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 const queryClient = new QueryClient();
@@ -35,75 +35,88 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <div>Chargement...</div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <>
-      <Routes>
-        <Route 
-          path="/auth" 
-          element={user ? <Navigate to="/" replace /> : <Auth />} 
-        />
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/new-transaction" 
-          element={
-            <ProtectedRoute>
-              <NewTransaction />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/insights" 
-          element={
-            <ProtectedRoute>
-              <Insights />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/reports" 
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings" 
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/recurring-transactions" 
-          element={
-            <ProtectedRoute>
-              <RecurringTransactions />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/debts" 
-          element={
-            <ProtectedRoute>
-              <Debts />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="/install" element={<Install />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      {user && <MobileNavigation />}
+      {user && <AppSidebar />}
+      <div className={user ? "ml-64 min-h-screen" : "min-h-screen"}>
+        <Routes>
+          <Route 
+            path="/auth" 
+            element={user ? <Navigate to="/" replace /> : <Auth />} 
+          />
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/new-transaction" 
+            element={
+              <ProtectedRoute>
+                <NewTransaction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/insights" 
+            element={
+              <ProtectedRoute>
+                <Insights />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/reports" 
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/recurring-transactions" 
+            element={
+              <ProtectedRoute>
+                <RecurringTransactions />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/debts" 
+            element={
+              <ProtectedRoute>
+                <Debts />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/install" element={<Install />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
     </>
   );
 }
