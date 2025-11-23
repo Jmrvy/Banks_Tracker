@@ -8,134 +8,101 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Modern clean backgrounds - Apple/Revolut inspired */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Finary-inspired Dark Theme - Primary palette */
+    --background: 220 18% 8%;          /* Very dark blue-black #111318 */
+    --foreground: 210 20% 98%;         /* Near white text */
     
-    /* Clean card system */
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    /* Card surfaces */
+    --card: 220 16% 12%;               /* Slightly lighter than background #1A1D24 */
+    --card-foreground: 210 20% 98%;
     
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    /* Popover surfaces */
+    --popover: 220 16% 14%;            /* #1E2229 */
+    --popover-foreground: 210 20% 98%;
     
-    /* Modern primary - clean blue */
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 98%;
+    /* Primary accent - Golden/Beige like Finary */
+    --primary: 38 70% 68%;             /* Warm gold #E5B77E */
+    --primary-foreground: 220 18% 8%;  /* Dark text on gold */
     
-    /* Subtle secondary */
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    /* Secondary surfaces */
+    --secondary: 220 14% 18%;          /* #252A33 */
+    --secondary-foreground: 210 20% 98%;
     
-    /* Clean muted tones */
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    /* Muted elements */
+    --muted: 220 14% 20%;              /* #2A2F38 */
+    --muted-foreground: 210 10% 65%;   /* #9BA3AF */
     
-    /* Refined accent */
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    /* Accent colors */
+    --accent: 220 14% 18%;
+    --accent-foreground: 210 20% 98%;
     
-    /* Status colors - modern and clean */
+    /* Status colors */
     --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 20% 98%;
     
     --success: 142 71% 45%;
-    --success-foreground: 0 0% 98%;
+    --success-foreground: 210 20% 98%;
     
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
+    --warning-foreground: 220 18% 8%;
     
-    /* Clean borders */
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 221 83% 53%;
+    /* Borders */
+    --border: 220 14% 22%;             /* Subtle borders #2E333D */
+    --input: 220 14% 22%;
+    --ring: 38 70% 68%;                /* Gold ring on focus */
     
-    /* Banking brand colors */
-    --bank-sg: 0 84% 55%;
-    --bank-revolut: 0 0% 15%;
-    --bank-boursorama: 207 90% 54%;
+    /* Banking colors */
+    --bank-sg: 0 84% 60%;
+    --bank-revolut: 231 48% 48%;
+    --bank-boursorama: 195 100% 39%;
     
-    /* Modern gradients - Banking style */
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(221 83% 65%));
-    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(240 4.8% 98%));
-    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%), hsl(240 4.8% 99%));
+    /* Sidebar specific */
+    --sidebar-background: 220 18% 10%; /* Slightly darker sidebar #13161B */
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 38 70% 68%;
+    --sidebar-primary-foreground: 220 18% 8%;
+    --sidebar-accent: 220 14% 16%;     /* Hover state #222731 */
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 38 70% 68%;
     
-    /* Smooth transitions - Banking smooth */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    /* Shadows - Banking depth */
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
-    --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.06);
-    
-    --radius: 0.5rem;
-    
-    /* Sidebar tokens */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 240 5.9% 90%;
-    --sidebar-ring: 221 83% 53%;
+    /* Radius */
+    --radius: 0.75rem;
   }
-
+  
   .dark {
-    /* Dark mode - Apple/Revolut inspired */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    
-    /* Dark mode primary */
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 98%;
-    
-    /* Dark secondary */
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    
-    /* Dark muted */
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    
-    /* Dark accent */
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    
-    /* Dark status colors */
+    /* Keep same values as root since we're dark by default */
+    --background: 220 18% 8%;
+    --foreground: 210 20% 98%;
+    --card: 220 16% 12%;
+    --card-foreground: 210 20% 98%;
+    --popover: 220 16% 14%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 38 70% 68%;
+    --primary-foreground: 220 18% 8%;
+    --secondary: 220 14% 18%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 220 14% 20%;
+    --muted-foreground: 210 10% 65%;
+    --accent: 220 14% 18%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    
+    --destructive-foreground: 210 20% 98%;
     --success: 142 71% 45%;
-    --success-foreground: 0 0% 98%;
-    
+    --success-foreground: 210 20% 98%;
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-    
-    /* Dark borders */
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 221 83% 53%;
-    
-    /* Dark sidebar */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 221 83% 53%;
+    --warning-foreground: 220 18% 8%;
+    --border: 220 14% 22%;
+    --input: 220 14% 22%;
+    --ring: 38 70% 68%;
+    --sidebar-background: 220 18% 10%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 38 70% 68%;
+    --sidebar-primary-foreground: 220 18% 8%;
+    --sidebar-accent: 220 14% 16%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 38 70% 68%;
   }
 }
 
@@ -145,7 +112,7 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter antialiased;
   }
 }
 
