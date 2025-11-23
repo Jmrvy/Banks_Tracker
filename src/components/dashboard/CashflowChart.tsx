@@ -1,0 +1,135 @@
+import { useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useFinancialData } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from "date-fns";
+import { fr } from "date-fns/locale";
+
+export function CashflowChart() {
+  const { transactions, accounts } = useFinancialData();
+  const { formatCurrency } = useUserPreferences();
+
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    
+    // Get all days in the current month
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    // Calculate initial balance (sum of all account balances minus current month's net change)
+    const currentMonthTransactions = transactions.filter(t => {
+      const date = new Date(t.transaction_date);
+      return date >= monthStart && date <= monthEnd;
+    });
+    
+    const currentMonthNet = currentMonthTransactions.reduce((sum, t) => {
+      if (t.type === 'income') return sum + t.amount;
+      if (t.type === 'expense') return sum - t.amount;
+      return sum;
+    }, 0);
+    
+    const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+    const initialBalance = totalBalance - currentMonthNet;
+    
+    // Build cumulative data for each day
+    let runningBalance = initialBalance;
+    const data = days.map(day => {
+      // Get transactions for this day
+      const dayTransactions = transactions.filter(t => 
+        isSameDay(new Date(t.transaction_date), day)
+      );
+      
+      // Calculate day's net change
+      const dayNet = dayTransactions.reduce((sum, t) => {
+        if (t.type === 'income') return sum + t.amount;
+        if (t.type === 'expense') return sum - t.amount;
+        return sum;
+      }, 0);
+      
+      runningBalance += dayNet;
+      
+      return {
+        date: format(day, 'd MMM', { locale: fr }),
+        balance: runningBalance,
+        income: dayTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
+        expense: dayTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+      };
+    });
+    
+    return data;
+  }, [transactions, accounts]);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+          <p className="text-sm font-medium mb-2">{payload[0].payload.date}</p>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Balance:</span>
+              <span className="font-semibold">{formatCurrency(payload[0].value)}</span>
+            </div>
+            {payload[0].payload.income > 0 && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-success">Income:</span>
+                <span className="font-semibold text-success">+{formatCurrency(payload[0].payload.income)}</span>
+              </div>
+            )}
+            {payload[0].payload.expense > 0 && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-destructive">Expense:</span>
+                <span className="font-semibold text-destructive">-{formatCurrency(payload[0].payload.expense)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <Card className="border-border bg-card">
+      <CardContent className="p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold">Cashflow</h3>
+          <p className="text-sm text-muted-foreground">Évolution de votre solde ce mois-ci</p>
+        </div>
+        
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis 
+              dataKey="date" 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              tickLine={false}
+            />
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              tickLine={false}
+              tickFormatter={(value) => `${value}€`}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area 
+              type="monotone" 
+              dataKey="balance" 
+              stroke="hsl(var(--primary))" 
+              strokeWidth={2}
+              fill="url(#colorBalance)" 
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}

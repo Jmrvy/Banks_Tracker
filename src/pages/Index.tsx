@@ -1,16 +1,18 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { DashboardHeader } from "@/components/DashboardHeader";
-import { AccountCards } from "@/components/AccountCards";
-import { BudgetGauge } from "@/components/BudgetGauge";
-import { RecentTransactions } from "@/components/RecentTransactions";
+import { useState } from "react";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { CashflowChart } from "@/components/dashboard/CashflowChart";
+import { DistributionChart } from "@/components/dashboard/DistributionChart";
+import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
 
 const Index = () => {
   const { user } = useAuth();
   const { loading } = useFinancialData();
   const { isOnboarding } = useOnboarding();
+  const [selectedPeriod, setSelectedPeriod] = useState("1m");
 
   if (loading || isOnboarding) {
     return (
@@ -24,13 +26,27 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 pb-24">
-      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4">
-        <DashboardHeader />
-        <AccountCards />
-        <BudgetGauge />
+    <div className="min-h-screen bg-background">
+      <DashboardHeader 
+        selectedPeriod={selectedPeriod}
+        onPeriodChange={setSelectedPeriod}
+      />
+      
+      <div className="p-6 space-y-6">
         <RecurringTransactionsWarning />
-        <RecentTransactions />
+        
+        {/* Main content: Cashflow + Distribution */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <CashflowChart />
+          </div>
+          <div className="lg:col-span-1">
+            <DistributionChart />
+          </div>
+        </div>
+
+        {/* Stats cards */}
+        <StatsCards />
       </div>
     </div>
   );
