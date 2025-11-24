@@ -53,28 +53,18 @@ const Reports = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 pb-24">
-      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-4">
+    <div className="min-h-screen bg-background pb-24">
+      <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate("/")}
-              className="h-9 w-9"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold truncate flex items-center gap-2">
-                <BarChart3 className="h-6 w-6 text-primary" />
-                Rapports
-              </h1>
-              <p className="text-sm text-muted-foreground truncate">
-                {period.label}
-              </p>
-            </div>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-primary" />
+              Rapports
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {period.label}
+            </p>
           </div>
         </div>
 
