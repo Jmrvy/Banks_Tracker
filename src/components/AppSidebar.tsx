@@ -19,11 +19,11 @@ const navigation = [
   { name: "Budget", path: "/reports", icon: PieChart },
   { 
     name: "Comptes", 
-    path: "#", 
+    path: "/accounts", 
     icon: Wallet,
     subItems: [
-      { name: "Tous les comptes", path: "/reports" },
-      { name: "Transactions", path: "/new-transaction" },
+      { name: "Tous les comptes", path: "/accounts" },
+      { name: "Transactions", path: "/accounts" },
     ]
   },
   { name: "Récurrents", path: "/recurring-transactions", icon: Receipt },
@@ -50,7 +50,7 @@ export function AppSidebar() {
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-        <span className="text-2xl font-bold text-primary">⚡ finary</span>
+        <span className="text-2xl font-bold text-primary">⚡ JMRVY CB</span>
       </div>
 
       {/* Navigation */}
