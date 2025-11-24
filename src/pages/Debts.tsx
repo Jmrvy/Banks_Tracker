@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { DashboardHeader } from '@/components/DashboardHeader';
 import { Button } from '@/components/ui/button';
 import { Plus, Wallet } from 'lucide-react';
 import { NewDebtModal } from '@/components/NewDebtModal';
@@ -40,9 +39,11 @@ const Debts = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <DashboardHeader />
         <div className="flex items-center justify-center min-h-[400px]">
-          <p>Chargement...</p>
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p>Chargement...</p>
+          </div>
         </div>
       </div>
     );
@@ -50,9 +51,7 @@ const Debts = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <DashboardHeader />
-      
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="p-6 space-y-6 max-w-[1600px] mx-auto">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Gestion des dettes</h1>
