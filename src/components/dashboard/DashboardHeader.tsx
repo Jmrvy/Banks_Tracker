@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings, Plus, FileText, LayoutList } from "lucide-react";
+import { Calendar, Settings, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,13 +67,13 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
+            variant="default"
             size="sm"
             onClick={() => navigate("/new-transaction")}
-            className="text-muted-foreground hover:text-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            <LayoutList className="h-4 w-4 mr-2" />
-            See all transactions
+            <Plus className="h-4 w-4 mr-2" />
+            New Transaction
           </Button>
 
           <DropdownMenu>
@@ -91,10 +91,6 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               <DropdownMenuItem onClick={() => setShowCategoryModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 New Category
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/new-transaction")}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Transaction
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
