@@ -1,22 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, MinusCircle, ArrowRightLeft, Repeat, ArrowLeft } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PlusCircle, MinusCircle, ArrowRightLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
-import { useNavigate } from 'react-router-dom';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 
-const NewTransaction = () => {
+interface NewTransactionModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalProps) => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { formatCurrency } = useUserPreferences();
-  const { accounts, categories, transactions, createTransaction, createTransfer } = useFinancialData();
+  const { accounts, categories, createTransaction, createTransfer } = useFinancialData();
   
   const [formData, setFormData] = useState({
     description: '',
@@ -30,10 +33,22 @@ const NewTransaction = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  const resetForm = () => {
+    setFormData({
+      description: '',
+      amount: '',
+      type: 'expense',
+      account_id: '',
+      to_account_id: '',
+      category_id: '',
+      transfer_fee: '',
+      transaction_date: new Date().toISOString().split('T')[0]
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Pour les transferts, la description n'est pas obligatoire
     const descriptionRequired = formData.type !== 'transfer';
     
     if ((descriptionRequired && !formData.description) || !formData.amount || !formData.account_id) {
@@ -85,7 +100,7 @@ const NewTransaction = () => {
         account_id: formData.account_id,
         category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
-        value_date: formData.transaction_date, // Par défaut, value_date = transaction_date
+        value_date: formData.transaction_date,
       });
       error = result?.error;
     }
@@ -104,19 +119,8 @@ const NewTransaction = () => {
         description: `${typeLabel} de ${formData.amount}€ ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
       });
       
-      // Reset form
-      setFormData({
-        description: '',
-        amount: '',
-        type: 'expense',
-        account_id: '',
-        to_account_id: '',
-        category_id: '',
-        transfer_fee: '',
-        transaction_date: new Date().toISOString().split('T')[0]
-      });
-      
-      navigate('/');
+      resetForm();
+      onOpenChange(false);
     }
     
     setLoading(false);
@@ -124,248 +128,217 @@ const NewTransaction = () => {
 
   const selectedAccount = accounts.find(acc => acc.id === formData.account_id);
   const selectedToAccount = accounts.find(acc => acc.id === formData.to_account_id);
-  const selectedCategory = categories.find(cat => cat.id === formData.category_id);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate("/")}
-            className="rounded-full"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Nouvelle Transaction</h1>
-            <p className="text-sm text-muted-foreground">
-              Créer une transaction ponctuelle ou récurrente
-            </p>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nouvelle Transaction</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {/* Transaction Type Toggle */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={formData.type === 'income' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFormData({ ...formData, type: 'income' })}
+              className="flex-1"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Revenus
+            </Button>
+            <Button
+              type="button"
+              variant={formData.type === 'expense' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFormData({ ...formData, type: 'expense' })}
+              className="flex-1"
+            >
+              <MinusCircle className="h-4 w-4 mr-1" />
+              Dépense
+            </Button>
+            <Button
+              type="button"
+              variant={formData.type === 'transfer' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFormData({ ...formData, type: 'transfer' })}
+              className="flex-1"
+            >
+              <ArrowRightLeft className="h-4 w-4 mr-1" />
+              Transfert
+            </Button>
           </div>
-        </div>
 
-        {/* Simple button to access recurring transactions management */}
-        <div className="flex justify-end mb-6">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate('/recurring-transactions')}
-            className="flex items-center gap-2"
-          >
-            <Repeat className="h-4 w-4" />
-            Gérer les récurrentes
-          </Button>
-        </div>
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="description">
+              Description {formData.type !== 'transfer' && '*'}
+            </Label>
+            <Textarea
+              id="description"
+              placeholder={formData.type === 'transfer' ? "Description (optionnelle)..." : "Saisissez la description..."}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              required={formData.type !== 'transfer'}
+              rows={2}
+            />
+          </div>
 
-        <div className="space-y-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Transaction Type Toggle */}
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={formData.type === 'income' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData({ ...formData, type: 'income' })}
-                  className="flex-1"
-                >
-                  <PlusCircle className="h-4 w-4 mr-1" />
-                  Revenus
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.type === 'expense' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData({ ...formData, type: 'expense' })}
-                  className="flex-1"
-                >
-                  <MinusCircle className="h-4 w-4 mr-1" />
-                  Dépense
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.type === 'transfer' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData({ ...formData, type: 'transfer' })}
-                  className="flex-1"
-                >
-                  <ArrowRightLeft className="h-4 w-4 mr-1" />
-                  Transfert
-                </Button>
-              </div>
+          {/* Amount */}
+          <div className="space-y-2">
+            <Label htmlFor="amount">Montant *</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              required
+            />
+          </div>
 
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description">
-                  Description {formData.type !== 'transfer' && '*'}
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder={formData.type === 'transfer' ? "Description (optionnelle)..." : "Saisissez la description de la transaction..."}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required={formData.type !== 'transfer'}
-                />
-              </div>
-
-              {/* Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="amount">Montant *</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                />
-              </div>
-
-              {/* Account Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="account">Compte *</Label>
-                <Select 
-                  value={formData.account_id} 
-                  onValueChange={(value) => setFormData({ ...formData, account_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un compte" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.length === 0 ? (
-                      <SelectItem value="no-accounts" disabled>
-                        Aucun compte disponible
-                      </SelectItem>
-                    ) : (
-                      accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{account.name}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {account.bank.replace(/_/g, ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {selectedAccount && (
-                  <div className="text-sm text-muted-foreground">
-                    Solde actuel: {formatCurrency(selectedAccount.balance)}
-                  </div>
+          {/* Account Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="account">Compte *</Label>
+            <Select 
+              value={formData.account_id} 
+              onValueChange={(value) => setFormData({ ...formData, account_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un compte" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.length === 0 ? (
+                  <SelectItem value="no-accounts" disabled>
+                    Aucun compte disponible
+                  </SelectItem>
+                ) : (
+                  accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{account.name}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {formatCurrency(account.balance)}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))
                 )}
+              </SelectContent>
+            </Select>
+            {selectedAccount && (
+              <div className="text-sm text-muted-foreground">
+                Solde actuel: {formatCurrency(selectedAccount.balance)}
               </div>
+            )}
+          </div>
 
-              {/* Destination Account Selection (Transfer only) */}
-              {formData.type === 'transfer' && (
-                <div className="space-y-2">
-                  <Label htmlFor="to_account">Compte de destination *</Label>
-                  <Select 
-                    value={formData.to_account_id} 
-                    onValueChange={(value) => setFormData({ ...formData, to_account_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner le compte de destination" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{account.name}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {account.bank.replace(/_/g, ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedToAccount && (
-                    <div className="text-sm text-muted-foreground">
-                      Solde actuel: {formatCurrency(selectedToAccount.balance)}
-                    </div>
-                  )}
+          {/* Destination Account Selection (Transfer only) */}
+          {formData.type === 'transfer' && (
+            <div className="space-y-2">
+              <Label htmlFor="to_account">Compte de destination *</Label>
+              <Select 
+                value={formData.to_account_id} 
+                onValueChange={(value) => setFormData({ ...formData, to_account_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner le compte de destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{account.name}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {formatCurrency(account.balance)}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedToAccount && (
+                <div className="text-sm text-muted-foreground">
+                  Solde actuel: {formatCurrency(selectedToAccount.balance)}
                 </div>
               )}
+            </div>
+          )}
 
-              {/* Transfer Fee (Transfer only) */}
-              {formData.type === 'transfer' && (
-                <div className="space-y-2">
-                  <Label htmlFor="transfer_fee">Frais de transfert (optionnel)</Label>
-                  <Input
-                    id="transfer_fee"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.transfer_fee}
-                    onChange={(e) => setFormData({ ...formData, transfer_fee: e.target.value })}
-                  />
-                </div>
-              )}
+          {/* Transfer Fee (Transfer only) */}
+          {formData.type === 'transfer' && (
+            <div className="space-y-2">
+              <Label htmlFor="transfer_fee">Frais de transfert (optionnel)</Label>
+              <Input
+                id="transfer_fee"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.transfer_fee}
+                onChange={(e) => setFormData({ ...formData, transfer_fee: e.target.value })}
+              />
+            </div>
+          )}
 
-              {/* Category Selection (Not for transfers) */}
-              {formData.type !== 'transfer' && (
-                <div className="space-y-2">
-                  <Label htmlFor="category">Catégorie</Label>
-                  <Select 
-                    value={formData.category_id} 
-                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+          {/* Category Selection (Not for transfers) */}
+          {formData.type !== 'transfer' && (
+            <div className="space-y-2">
+              <Label htmlFor="category">Catégorie</Label>
+              <Select 
+                value={formData.category_id} 
+                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: category.color }}
+                        />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-              {/* Transaction Date */}
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.transaction_date}
-                  onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
-                />
-              </div>
+          {/* Transaction Date */}
+          <div className="space-y-2">
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={formData.transaction_date}
+              onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+            />
+          </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/')}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? 'Création...' : 'Créer'}
-                </Button>
-              </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          {/* Actions */}
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+              className="flex-1"
+            >
+              Annuler
+            </Button>
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? 'Création...' : 'Créer'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default NewTransaction;

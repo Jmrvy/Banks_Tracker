@@ -2,10 +2,9 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Plus, Edit, Trash2 } from "lucide-react";
+import { Wallet, Plus } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { TransactionHistory } from "@/components/TransactionHistory";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { AccountTransactionsModal } from "@/components/AccountTransactionsModal";
 
@@ -132,21 +131,6 @@ const Accounts = () => {
               </Card>
             ))}
           </div>
-        </div>
-
-        {/* Transaction History */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Historique des transactions</h2>
-          <TransactionHistory filters={{
-            searchText: '',
-            type: 'all',
-            categoryId: 'all',
-            accountId: 'all',
-            dateFrom: '',
-            dateTo: '',
-            amountMin: '',
-            amountMax: '',
-          }} />
         </div>
       </div>
 

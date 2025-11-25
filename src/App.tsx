@@ -15,6 +15,7 @@ import NewTransaction from "@/pages/NewTransaction";
 import Insights from "@/pages/Insights";
 import Debts from "@/pages/Debts";
 import Accounts from "@/pages/Accounts";
+import Transactions from "@/pages/Transactions";
 import Install from "@/pages/Install";
 import { AppSidebar } from "@/components/AppSidebar";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -111,6 +112,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <Accounts />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/transactions" 
+            element={
+              <ProtectedRoute>
+                <Transactions />
               </ProtectedRoute>
             } 
           />
