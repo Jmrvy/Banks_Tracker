@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
-import { ReportGeneratorModal } from "@/components/ReportGeneratorModal";
+import { NewTransactionModal } from "@/components/NewTransactionModal";
 import { useNavigate } from "react-router-dom";
 
 interface DashboardHeaderProps {
@@ -20,7 +20,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHeaderProps) {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
   const navigate = useNavigate();
 
   const periods = [
@@ -69,7 +69,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
           <Button
             variant="default"
             size="sm"
-            onClick={() => navigate("/new-transaction")}
+            onClick={() => setShowTransactionModal(true)}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -109,7 +109,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
 
       <NewAccountModal open={showAccountModal} onOpenChange={setShowAccountModal} />
       <NewCategoryModal open={showCategoryModal} onOpenChange={setShowCategoryModal} />
-      <ReportGeneratorModal open={showReportModal} onOpenChange={setShowReportModal} />
+      <NewTransactionModal open={showTransactionModal} onOpenChange={setShowTransactionModal} />
     </>
   );
 }
