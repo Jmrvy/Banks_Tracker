@@ -206,6 +206,137 @@ export type Database = {
           },
         ]
       }
+      installment_payment_records: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          installment_payment_id: string
+          is_paid: boolean | null
+          payment_date: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          installment_payment_id: string
+          is_paid?: boolean | null
+          payment_date: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          installment_payment_id?: string
+          is_paid?: boolean | null
+          payment_date?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_payment_records_installment_payment_id_fkey"
+            columns: ["installment_payment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_payment_records_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_payment_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installment_payments: {
+        Row: {
+          account_id: string
+          category_id: string | null
+          created_at: string | null
+          description: string
+          end_date: string | null
+          frequency: string
+          id: string
+          installment_amount: number
+          is_active: boolean | null
+          next_payment_date: string
+          remaining_amount: number
+          start_date: string
+          total_amount: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          category_id?: string | null
+          created_at?: string | null
+          description: string
+          end_date?: string | null
+          frequency: string
+          id?: string
+          installment_amount: number
+          is_active?: boolean | null
+          next_payment_date: string
+          remaining_amount: number
+          start_date: string
+          total_amount: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          category_id?: string | null
+          created_at?: string | null
+          description?: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          installment_amount?: number
+          is_active?: boolean | null
+          next_payment_date?: string
+          remaining_amount?: number
+          start_date?: string
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_payments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_payments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_logs: {
         Row: {
           alert_month: string | null
