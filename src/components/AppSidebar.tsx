@@ -10,6 +10,7 @@ import {
   History,
   ChevronDown,
   Wrench,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -35,7 +36,8 @@ const mainNavigation = [
 const accountsGroup = [
   { name: "Comptes", path: "/accounts", icon: Wallet },
   { name: "Transactions", path: "/transactions", icon: History },
-  { name: "Dettes", path: "/debts", icon: CreditCard },
+  { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
+  { name: "Dettes", path: "/debts", icon: Scale },
 ];
 
 const toolsGroup = [
