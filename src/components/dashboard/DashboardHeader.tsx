@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings, Plus } from "lucide-react";
+import { Calendar, Settings, Plus, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +10,7 @@ import {
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { NewTransactionModal } from "@/components/NewTransactionModal";
+import { ReportGeneratorModal } from "@/components/ReportGeneratorModal";
 import { useNavigate } from "react-router-dom";
 
 interface DashboardHeaderProps {
@@ -21,6 +22,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
 
   const periods = [
@@ -73,7 +75,17 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4 mr-2" />
-            New Transaction
+            Nouvelle Transaction
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowReportModal(true)}
+            className="border-border hover:bg-accent"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Générer Rapport
           </Button>
 
           <DropdownMenu>
@@ -110,6 +122,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
       <NewAccountModal open={showAccountModal} onOpenChange={setShowAccountModal} />
       <NewCategoryModal open={showCategoryModal} onOpenChange={setShowCategoryModal} />
       <NewTransactionModal open={showTransactionModal} onOpenChange={setShowTransactionModal} />
+      <ReportGeneratorModal open={showReportModal} onOpenChange={setShowReportModal} />
     </>
   );
 }

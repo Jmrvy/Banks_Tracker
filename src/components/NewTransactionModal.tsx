@@ -29,7 +29,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     to_account_id: '',
     category_id: '',
     transfer_fee: '',
-    transaction_date: new Date().toISOString().split('T')[0]
+    transaction_date: new Date().toISOString().split('T')[0],
+    value_date: new Date().toISOString().split('T')[0]
   });
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +43,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
       to_account_id: '',
       category_id: '',
       transfer_fee: '',
-      transaction_date: new Date().toISOString().split('T')[0]
+      transaction_date: new Date().toISOString().split('T')[0],
+      value_date: new Date().toISOString().split('T')[0]
     });
   };
 
@@ -100,7 +102,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         account_id: formData.account_id,
         category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
-        value_date: formData.transaction_date,
+        value_date: formData.value_date,
       });
       error = result?.error;
     }
@@ -311,15 +313,29 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
             </div>
           )}
 
-          {/* Transaction Date */}
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input
-              id="date"
-              type="date"
-              value={formData.transaction_date}
-              onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
-            />
+          {/* Transaction Dates */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="transaction_date">Date Comptable *</Label>
+              <Input
+                id="transaction_date"
+                type="date"
+                value={formData.transaction_date}
+                onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="value_date">Date Valeur *</Label>
+              <Input
+                id="value_date"
+                type="date"
+                value={formData.value_date}
+                onChange={(e) => setFormData({ ...formData, value_date: e.target.value })}
+                required
+              />
+            </div>
           </div>
 
           {/* Actions */}
