@@ -41,28 +41,28 @@ export function StatsCards() {
 
   const cards = [
     {
-      label: "Money in",
+      label: "Revenus",
       value: stats.moneyIn,
       icon: TrendingUp,
       color: "text-success",
       bgColor: "bg-success/10"
     },
     {
-      label: "Money out",
+      label: "Dépenses",
       value: stats.moneyOut,
       icon: TrendingDown,
       color: "text-destructive",
       bgColor: "bg-destructive/10"
     },
     {
-      label: "Available",
+      label: "Disponible",
       value: stats.available,
       icon: Wallet,
       color: "text-primary",
       bgColor: "bg-primary/10"
     },
     {
-      label: "Recurring",
+      label: "Récurrents",
       value: stats.recurring,
       icon: Repeat,
       color: "text-muted-foreground",
