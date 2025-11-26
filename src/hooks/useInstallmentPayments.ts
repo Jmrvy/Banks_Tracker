@@ -1,0 +1,256 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
+export interface InstallmentPayment {
+  id: string;
+  user_id: string;
+  description: string;
+  total_amount: number;
+  remaining_amount: number;
+  installment_amount: number;
+  frequency: 'weekly' | 'monthly' | 'quarterly';
+  start_date: string;
+  next_payment_date: string;
+  end_date: string | null;
+  account_id: string;
+  category_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstallmentPaymentRecord {
+  id: string;
+  user_id: string;
+  installment_payment_id: string;
+  payment_date: string;
+  amount: number;
+  transaction_id: string | null;
+  is_paid: boolean;
+  created_at: string;
+}
+
+export const useInstallmentPayments = () => {
+  const { user } = useAuth();
+  const [installmentPayments, setInstallmentPayments] = useState<InstallmentPayment[]>([]);
+  const [paymentRecords, setPaymentRecords] = useState<InstallmentPaymentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchInstallmentPayments = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('installment_payments')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching installment payments:', error);
+    } else {
+      setInstallmentPayments((data || []) as InstallmentPayment[]);
+    }
+  };
+
+  const fetchPaymentRecords = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('installment_payment_records')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('payment_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching payment records:', error);
+    } else {
+      setPaymentRecords(data || []);
+    }
+  };
+
+  const createInstallmentPayment = async (data: {
+    description: string;
+    total_amount: number;
+    installment_amount: number;
+    frequency: 'weekly' | 'monthly' | 'quarterly';
+    start_date: string;
+    account_id: string;
+    category_id?: string;
+  }) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const { error } = await supabase
+      .from('installment_payments')
+      .insert({
+        user_id: user.id,
+        description: data.description,
+        total_amount: data.total_amount,
+        remaining_amount: data.total_amount,
+        installment_amount: data.installment_amount,
+        frequency: data.frequency,
+        start_date: data.start_date,
+        next_payment_date: data.start_date,
+        account_id: data.account_id,
+        category_id: data.category_id || null,
+      });
+
+    if (error) {
+      console.error('Error creating installment payment:', error);
+      return { error };
+    }
+
+    await fetchInstallmentPayments();
+    return { error: null };
+  };
+
+  const updateInstallmentPayment = async (id: string, updates: Partial<InstallmentPayment>) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const { error } = await supabase
+      .from('installment_payments')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error updating installment payment:', error);
+      return { error };
+    }
+
+    await fetchInstallmentPayments();
+    return { error: null };
+  };
+
+  const deleteInstallmentPayment = async (id: string) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const { error } = await supabase
+      .from('installment_payments')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting installment payment:', error);
+      return { error };
+    }
+
+    await fetchInstallmentPayments();
+    return { error: null };
+  };
+
+  const recordPayment = async (installmentPaymentId: string, amount: number, transactionId: string | null = null) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const installmentPayment = installmentPayments.find(ip => ip.id === installmentPaymentId);
+    if (!installmentPayment) return { error: new Error('Installment payment not found') };
+
+    // Create payment record
+    const { error: recordError } = await supabase
+      .from('installment_payment_records')
+      .insert({
+        user_id: user.id,
+        installment_payment_id: installmentPaymentId,
+        payment_date: new Date().toISOString().split('T')[0],
+        amount,
+        transaction_id: transactionId,
+        is_paid: true,
+      });
+
+    if (recordError) {
+      console.error('Error recording payment:', recordError);
+      return { error: recordError };
+    }
+
+    // Update remaining amount and next payment date
+    const newRemainingAmount = installmentPayment.remaining_amount - amount;
+    const nextPaymentDate = calculateNextPaymentDate(installmentPayment.next_payment_date, installmentPayment.frequency);
+
+    await updateInstallmentPayment(installmentPaymentId, {
+      remaining_amount: newRemainingAmount,
+      next_payment_date: nextPaymentDate,
+      is_active: newRemainingAmount > 0,
+    });
+
+    await fetchPaymentRecords();
+    return { error: null };
+  };
+
+  const calculateNextPaymentDate = (currentDate: string, frequency: 'weekly' | 'monthly' | 'quarterly'): string => {
+    const date = new Date(currentDate);
+    
+    switch (frequency) {
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'monthly':
+        date.setMonth(date.getMonth() + 1);
+        break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3);
+        break;
+    }
+    
+    return date.toISOString().split('T')[0];
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchInstallmentPayments(), fetchPaymentRecords()]);
+      setLoading(false);
+    };
+
+    if (user) {
+      loadData();
+
+      const installmentPaymentsSubscription = supabase
+        .channel('installment_payments_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'installment_payments',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            fetchInstallmentPayments();
+          }
+        )
+        .subscribe();
+
+      const recordsSubscription = supabase
+        .channel('installment_payment_records_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'installment_payment_records',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            fetchPaymentRecords();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        installmentPaymentsSubscription.unsubscribe();
+        recordsSubscription.unsubscribe();
+      };
+    }
+  }, [user]);
+
+  return {
+    installmentPayments,
+    paymentRecords,
+    loading,
+    createInstallmentPayment,
+    updateInstallmentPayment,
+    deleteInstallmentPayment,
+    recordPayment,
+  };
+};
