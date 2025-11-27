@@ -11,6 +11,7 @@ import { PlusCircle, MinusCircle, Repeat, Clock, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface EditRecurringTransactionModalProps {
   open: boolean;
@@ -306,25 +307,21 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
 
               {/* Start Date */}
               <div className="space-y-2">
-                <Label htmlFor="start_date">Date de début *</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  required
+                <Label>Date de début *</Label>
+                <DatePicker
+                  date={formData.start_date ? new Date(formData.start_date) : undefined}
+                  onDateChange={(date) => setFormData({ ...formData, start_date: date ? date.toISOString().split('T')[0] : '' })}
+                  placeholder="Sélectionner la date de début"
                 />
               </div>
 
               {/* End Date */}
               <div className="space-y-2">
-                <Label htmlFor="end_date">Date de fin (optionnel)</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  min={formData.start_date}
+                <Label>Date de fin (optionnel)</Label>
+                <DatePicker
+                  date={formData.end_date ? new Date(formData.end_date) : undefined}
+                  onDateChange={(date) => setFormData({ ...formData, end_date: date ? date.toISOString().split('T')[0] : '' })}
+                  placeholder="Sélectionner la date de fin"
                 />
                 <div className="text-xs text-muted-foreground">
                   Laissez vide pour une récurrence sans fin
