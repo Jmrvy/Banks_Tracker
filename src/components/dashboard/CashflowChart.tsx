@@ -3,17 +3,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from "date-fns";
+import { eachDayOfInterval, format, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 
-export function CashflowChart() {
+interface CashflowChartProps {
+  startDate: Date;
+  endDate: Date;
+}
+
+export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
   const { transactions, accounts } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
   const chartData = useMemo(() => {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    const monthStart = startDate;
+    const monthEnd = endDate;
     
     // Get all days in the current month
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -59,7 +63,7 @@ export function CashflowChart() {
     });
     
     return data;
-  }, [transactions, accounts]);
+  }, [transactions, accounts, startDate, endDate]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {

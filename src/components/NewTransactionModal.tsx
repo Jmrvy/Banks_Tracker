@@ -10,6 +10,7 @@ import { PlusCircle, MinusCircle, ArrowRightLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface NewTransactionModalProps {
   open: boolean;
@@ -316,24 +317,20 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
           {/* Transaction Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="transaction_date">Date Comptable *</Label>
-              <Input
-                id="transaction_date"
-                type="date"
-                value={formData.transaction_date}
-                onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
-                required
+              <Label>Date Comptable *</Label>
+              <DatePicker
+                date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+                onDateChange={(date) => setFormData({ ...formData, transaction_date: date ? date.toISOString().split('T')[0] : '' })}
+                placeholder="Sélectionner la date comptable"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="value_date">Date Valeur *</Label>
-              <Input
-                id="value_date"
-                type="date"
-                value={formData.value_date}
-                onChange={(e) => setFormData({ ...formData, value_date: e.target.value })}
-                required
+              <Label>Date Valeur *</Label>
+              <DatePicker
+                date={formData.value_date ? new Date(formData.value_date) : undefined}
+                onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
+                placeholder="Sélectionner la date valeur"
               />
             </div>
           </div>

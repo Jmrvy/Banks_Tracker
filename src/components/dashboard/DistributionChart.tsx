@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { startOfMonth, endOfMonth } from "date-fns";
 
 const COLORS = [
   'hsl(340, 75%, 60%)', // Pink
@@ -15,14 +14,18 @@ const COLORS = [
   'hsl(210, 15%, 50%)', // Gray
 ];
 
-export function DistributionChart() {
+interface DistributionChartProps {
+  startDate: Date;
+  endDate: Date;
+}
+
+export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
   const { transactions, categories } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
   const { chartData, totalExpenses } = useMemo(() => {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    const monthStart = startDate;
+    const monthEnd = endDate;
     
     const monthTransactions = transactions.filter(t => {
       const date = new Date(t.transaction_date);
@@ -47,7 +50,7 @@ export function DistributionChart() {
       .sort((a, b) => b.value - a.value);
 
     return { chartData: data, totalExpenses: total };
-  }, [transactions]);
+  }, [transactions, startDate, endDate]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -240,11 +241,10 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
           <div className="space-y-2">
             <Label>Date Comptable *</Label>
-            <Input
-              type="date"
-              value={formData.transaction_date}
-              onChange={(e) => {
-                const newDate = e.target.value;
+            <DatePicker
+              date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+              onDateChange={(date) => {
+                const newDate = date ? date.toISOString().split('T')[0] : '';
                 setFormData(prev => ({ 
                   ...prev, 
                   transaction_date: newDate,
@@ -252,15 +252,16 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
                 }));
               }}
+              placeholder="Sélectionner la date comptable"
             />
           </div>
 
           <div className="space-y-2">
             <Label>Date Valeur *</Label>
-            <Input
-              type="date"
-              value={formData.value_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, value_date: e.target.value }))}
+            <DatePicker
+              date={formData.value_date ? new Date(formData.value_date) : undefined}
+              onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
+              placeholder="Sélectionner la date valeur"
             />
             <p className="text-xs text-muted-foreground">
               Date effective de la transaction
