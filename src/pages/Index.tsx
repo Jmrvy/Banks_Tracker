@@ -64,7 +64,7 @@ const Index = () => {
         <RecurringTransactionsWarning />
         
         {/* Stats cards */}
-        <StatsCards />
+        <StatsCards startDate={dateRange.start} endDate={dateRange.end} />
         
         {/* Main content: Cashflow + Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

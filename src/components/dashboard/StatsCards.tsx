@@ -3,27 +3,27 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, Repeat } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { startOfMonth, endOfMonth } from "date-fns";
 
-export function StatsCards() {
+interface StatsCardsProps {
+  startDate: Date;
+  endDate: Date;
+}
+
+export function StatsCards({ startDate, endDate }: StatsCardsProps) {
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
   const stats = useMemo(() => {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
-    
-    const monthTransactions = transactions.filter(t => {
+    const filteredTransactions = transactions.filter(t => {
       const date = new Date(t.transaction_date);
-      return date >= monthStart && date <= monthEnd;
+      return date >= startDate && date <= endDate;
     });
 
-    const moneyIn = monthTransactions
+    const moneyIn = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const moneyOut = monthTransactions
+    const moneyOut = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
@@ -37,7 +37,7 @@ export function StatsCards() {
       available,
       recurring: activeRecurring
     };
-  }, [transactions, accounts, recurringTransactions]);
+  }, [transactions, accounts, recurringTransactions, startDate, endDate]);
 
   const cards = [
     {
