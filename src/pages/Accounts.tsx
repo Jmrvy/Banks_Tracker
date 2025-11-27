@@ -2,11 +2,11 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Plus } from "lucide-react";
+import { Wallet, Plus, ArrowLeft } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { NewAccountModal } from "@/components/NewAccountModal";
-import { AccountTransactionsModal } from "@/components/AccountTransactionsModal";
+import { AccountDetails } from "@/components/AccountDetails";
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
@@ -20,10 +20,6 @@ const Accounts = () => {
     return accounts.find(acc => acc.id === selectedAccountId);
   }, [accounts, selectedAccountId]);
 
-  const selectedAccountTransactions = useMemo(() => {
-    if (!selectedAccountId) return [];
-    return transactions.filter(t => t.account_id === selectedAccountId);
-  }, [transactions, selectedAccountId]);
 
   const getBankLabel = (bank: string) => {
     const labels: Record<string, string> = {
@@ -58,6 +54,45 @@ const Accounts = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p>Chargement...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If an account is selected, show its details
+  if (selectedAccountId && selectedAccount) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+          {/* Header with back button */}
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setSelectedAccountId(null)}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold">{selectedAccount.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                {getBankLabel(selectedAccount.bank)} • {getAccountTypeLabel(selectedAccount.account_type)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Solde actuel</p>
+              <p className={`text-2xl font-bold ${selectedAccount.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {formatCurrency(selectedAccount.balance)}
+              </p>
+            </div>
+          </div>
+
+          {/* Account Details with Charts */}
+          <AccountDetails 
+            accountId={selectedAccountId}
+            transactions={transactions}
+            balance={selectedAccount.balance}
+          />
         </div>
       </div>
     );
@@ -138,17 +173,6 @@ const Accounts = () => {
         open={showNewAccountModal} 
         onOpenChange={setShowNewAccountModal} 
       />
-
-      {selectedAccount && (
-        <AccountTransactionsModal
-          accountName={selectedAccount.name}
-          bankName={getBankLabel(selectedAccount.bank)}
-          transactions={selectedAccountTransactions}
-          balance={selectedAccount.balance}
-          open={!!selectedAccountId}
-          onOpenChange={(open) => !open && setSelectedAccountId(null)}
-        />
-      )}
     </div>
   );
 };
