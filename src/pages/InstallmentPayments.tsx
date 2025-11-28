@@ -43,20 +43,26 @@ const InstallmentPayments = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <CreditCard className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CreditCard className="h-5 w-5 text-primary" />
+              </div>
               Paiements en Plusieurs Fois
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-2 ml-13">
               Gérez vos paiements échelonnés financés par votre épargne
             </p>
           </div>
-          <Button onClick={() => setShowNewModal(true)}>
+          <Button 
+            onClick={() => setShowNewModal(true)}
+            size="lg"
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Nouveau Paiement
           </Button>
@@ -64,14 +70,19 @@ const InstallmentPayments = () => {
 
         {/* Installment Payments List */}
         {installmentPayments.length === 0 ? (
-          <Card>
+          <Card className="bg-card/50 backdrop-blur border-border/50">
             <CardContent className="p-12 text-center">
-              <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="h-8 w-8 text-muted-foreground" />
+              </div>
               <h3 className="text-lg font-semibold mb-2">Aucun paiement échelonné</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Créez votre premier paiement en plusieurs fois pour commencer
               </p>
-              <Button onClick={() => setShowNewModal(true)}>
+              <Button 
+                onClick={() => setShowNewModal(true)}
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un paiement
               </Button>
@@ -85,11 +96,14 @@ const InstallmentPayments = () => {
               const progress = ((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 100;
 
               return (
-                <Card key={payment.id} className="hover:bg-accent/50 transition-colors">
+                <Card key={payment.id} className="bg-card/50 backdrop-blur border-border/50 hover:shadow-lg transition-all duration-200">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{payment.description}</CardTitle>
-                      <Badge variant={payment.is_active ? "default" : "secondary"}>
+                      <CardTitle className="text-lg font-semibold">{payment.description}</CardTitle>
+                      <Badge 
+                        variant={payment.is_active ? "default" : "secondary"}
+                        className={payment.is_active ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white' : ''}
+                      >
                         {payment.is_active ? "Actif" : "Terminé"}
                       </Badge>
                     </div>
@@ -97,45 +111,45 @@ const InstallmentPayments = () => {
                   <CardContent className="space-y-4">
                     <div>
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">Progression</span>
-                        <span className="font-medium">{progress.toFixed(0)}%</span>
+                        <span className="text-muted-foreground text-xs">Progression</span>
+                        <span className="font-semibold">{progress.toFixed(0)}%</span>
                       </div>
-                      <Progress value={progress} className="h-2" />
+                      <Progress value={progress} className="h-2.5" />
                     </div>
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total:</span>
-                        <span className="font-medium">{formatCurrency(payment.total_amount)}</span>
+                    <div className="space-y-2.5 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">Total:</span>
+                        <span className="font-bold text-base">{formatCurrency(payment.total_amount)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Restant:</span>
-                        <span className="font-medium text-primary">{formatCurrency(payment.remaining_amount)}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">Restant:</span>
+                        <span className="font-bold text-base text-orange-500">{formatCurrency(payment.remaining_amount)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Mensualité:</span>
-                        <span className="font-medium">{formatCurrency(payment.installment_amount)}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">Mensualité:</span>
+                        <span className="font-semibold">{formatCurrency(payment.installment_amount)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Fréquence:</span>
-                        <span>{getFrequencyLabel(payment.frequency)}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">Fréquence:</span>
+                        <span className="font-medium">{getFrequencyLabel(payment.frequency)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Prochain paiement:</span>
-                        <span>{format(new Date(payment.next_payment_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">Prochain paiement:</span>
+                        <span className="font-medium">{format(new Date(payment.next_payment_date), 'dd MMM yyyy', { locale: fr })}</span>
                       </div>
                       {account && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Compte:</span>
-                          <span>{account.name}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground text-xs">Compte:</span>
+                          <span className="font-medium">{account.name}</span>
                         </div>
                       )}
                       {category && (
                         <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Catégorie:</span>
-                          <Badge variant="outline" className="gap-1">
+                          <span className="text-muted-foreground text-xs">Catégorie:</span>
+                          <Badge variant="outline" className="gap-1.5">
                             <div 
-                              className="w-2 h-2 rounded-full" 
+                              className="w-2.5 h-2.5 rounded-full" 
                               style={{ backgroundColor: category.color }}
                             />
                             {category.name}
@@ -147,7 +161,7 @@ const InstallmentPayments = () => {
                     {payment.is_active && (
                       <Button 
                         onClick={() => handleRecordPayment(payment.id)} 
-                        className="w-full"
+                        className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
                         size="sm"
                       >
                         Enregistrer un paiement

@@ -95,60 +95,62 @@ const RecurringTransactions = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
         
         {/* Header */}
-        <div className="mb-2">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Repeat className="h-6 w-6 text-primary" />
-            Récurrentes
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Repeat className="h-5 w-5 text-primary" />
+            </div>
+            Transactions Récurrentes
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Transactions automatiques
+          <p className="text-sm text-muted-foreground mt-2 ml-13">
+            Gérez vos transactions automatiques récurrentes
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <Card>
-            <CardContent className="p-2 sm:p-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="bg-card/50 backdrop-blur border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Active</p>
-                  <p className="text-base sm:text-xl lg:text-2xl font-bold">
+                  <p className="text-xs text-muted-foreground mb-1">Active</p>
+                  <p className="text-2xl font-bold">
                     {recurringTransactions.filter(t => t.is_active).length}
                   </p>
                 </div>
-                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <Play className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Play className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="p-2 sm:p-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+          <Card className="bg-card/50 backdrop-blur border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Inactive</p>
-                  <p className="text-base sm:text-xl lg:text-2xl font-bold">
+                  <p className="text-xs text-muted-foreground mb-1">Inactive</p>
+                  <p className="text-2xl font-bold">
                     {recurringTransactions.filter(t => !t.is_active).length}
                   </p>
                 </div>
-                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gray-500/10 flex items-center justify-center">
-                  <Pause className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
+                <div className="h-10 w-10 rounded-full bg-gray-500/10 flex items-center justify-center">
+                  <Pause className="h-5 w-5 text-gray-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="p-2 sm:p-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+          <Card className="bg-card/50 backdrop-blur border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">7j</p>
-                  <p className="text-base sm:text-xl lg:text-2xl font-bold">
+                  <p className="text-xs text-muted-foreground mb-1">Prochains 7j</p>
+                  <p className="text-2xl font-bold">
                     {recurringTransactions.filter(t => {
                       if (!t.is_active) return false;
                       const nextDue = new Date(t.next_due_date);
@@ -158,8 +160,8 @@ const RecurringTransactions = () => {
                     }).length}
                   </p>
                 </div>
-                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-orange-500/10 flex items-center justify-center">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
+                <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-orange-600" />
                 </div>
               </div>
             </CardContent>
@@ -167,16 +169,20 @@ const RecurringTransactions = () => {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-semibold">Toutes les Récurrentes</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mt-1">
               {recurringTransactions.length} transaction{recurringTransactions.length > 1 ? 's' : ''} récurrente{recurringTransactions.length > 1 ? 's' : ''}
             </p>
           </div>
-          <Button onClick={() => setShowNewRecurring(true)} size="sm">
+          <Button 
+            onClick={() => setShowNewRecurring(true)} 
+            size="lg"
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg"
+          >
             <Plus className="h-4 w-4 mr-2" />
-            Nouvelle
+            Nouvelle Récurrente
           </Button>
         </div>
 
@@ -190,17 +196,22 @@ const RecurringTransactions = () => {
             ))}
           </div>
         ) : recurringTransactions.length === 0 ? (
-          <Card>
+          <Card className="bg-card/50 backdrop-blur border-border/50">
             <CardContent className="p-12">
               <div className="text-center">
-                <Repeat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                  <Repeat className="h-8 w-8 text-muted-foreground" />
+                </div>
                 <h3 className="text-lg font-medium mb-2">Aucune récurrente</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Créez votre première transaction récurrente.
                 </p>
-                <Button onClick={() => setShowNewRecurring(true)} size="sm">
+                <Button 
+                  onClick={() => setShowNewRecurring(true)} 
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Créer
+                  Créer une Récurrente
                 </Button>
               </div>
             </CardContent>
@@ -208,105 +219,120 @@ const RecurringTransactions = () => {
         ) : (
           <div className="space-y-4">
             {recurringTransactions.map((recurring) => (
-              <Card key={recurring.id} className={`border-l-4 ${
+              <Card key={recurring.id} className={`bg-card/50 backdrop-blur border-l-4 ${
                 recurring.is_active 
                   ? recurring.type === 'income' 
                     ? 'border-l-green-500' 
                     : 'border-l-red-500'
                   : 'border-l-gray-400 opacity-60'
-              }`}>
+              } hover:shadow-lg transition-all duration-200`}>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        <h4 className="font-semibold text-base">{recurring.description}</h4>
-                        <Badge variant={recurring.is_active ? 'secondary' : 'outline'}>
-                          {recurring.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <Badge variant="outline">
-                          {getRecurrenceLabel(recurring.recurrence_type)}
+                      <div className="flex items-center gap-2 mb-4 flex-wrap">
+                        <h4 className="font-semibold text-lg">{recurring.description}</h4>
+                        <Badge 
+                          variant={recurring.is_active ? 'default' : 'outline'}
+                          className={recurring.is_active ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white' : ''}
+                        >
+                          {recurring.is_active ? 'Actif' : 'Inactif'}
                         </Badge>
                       </div>
                       
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Montant:</span>
-                            <span className={`font-semibold ${getTypeColor(recurring.type)}`}>
-                              {recurring.type === 'income' ? '+' : '-'}{formatCurrency(recurring.amount)}
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Total:</span>
+                            <span className={`font-bold text-base ${getTypeColor(recurring.type)}`}>
+                              {formatCurrency(recurring.amount)}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Type:</span>
-                            <span>{getTypeLabel(recurring.type)}</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Mensualité:</span>
+                            <span className="font-semibold">{formatCurrency(recurring.amount)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Fréquence:</span>
+                            <span className="font-medium">{getRecurrenceLabel(recurring.recurrence_type)}</span>
                           </div>
                         </div>
                         
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Compte:</span>
-                            <span className="truncate">{recurring.account?.name}</span>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Prochain paiement:</span>
+                            <span className={`font-medium ${
+                              recurring.is_active && new Date(recurring.next_due_date) <= new Date() 
+                                ? 'text-orange-500' 
+                                : ''
+                            }`}>
+                              {new Date(recurring.next_due_date).toLocaleDateString('fr-FR', { 
+                                day: '2-digit', 
+                                month: 'short', 
+                                year: 'numeric' 
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Compte:</span>
+                            <span className="font-medium truncate">{recurring.account?.name}</span>
                           </div>
                           {recurring.category && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Catégorie:</span>
-                              <div className="flex items-center gap-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground text-xs">Catégorie:</span>
+                              <div className="flex items-center gap-1.5">
                                 <div 
-                                  className="w-2 h-2 rounded-full" 
+                                  className="w-2.5 h-2.5 rounded-full" 
                                   style={{ backgroundColor: recurring.category.color }}
                                 />
-                                <span className="truncate text-xs">{recurring.category.name}</span>
+                                <span className="font-medium text-xs">{recurring.category.name}</span>
                               </div>
                             </div>
                           )}
                         </div>
                         
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Prochaine:</span>
-                            <span className={`font-medium ${
-                              recurring.is_active && new Date(recurring.next_due_date) <= new Date() 
-                                ? 'text-orange-600' 
-                                : ''
-                            }`}>
-                              {new Date(recurring.next_due_date).toLocaleDateString('fr-FR')}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Début:</span>
+                            <span className="font-medium">
+                              {new Date(recurring.start_date).toLocaleDateString('fr-FR', { 
+                                day: '2-digit', 
+                                month: 'short', 
+                                year: 'numeric' 
+                              })}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Début:</span>
-                            <span>{new Date(recurring.start_date).toLocaleDateString('fr-FR')}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
                           {recurring.end_date && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Fin:</span>
-                              <span>{new Date(recurring.end_date).toLocaleDateString('fr-FR')}</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground text-xs">Fin:</span>
+                              <span className="font-medium">
+                                {new Date(recurring.end_date).toLocaleDateString('fr-FR', { 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                })}
+                              </span>
                             </div>
                           )}
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Créée:</span>
-                            <span>{new Date(recurring.created_at).toLocaleDateString('fr-FR')}</span>
-                          </div>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 ml-4">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => setEditingTransaction(recurring)}
                         title="Modifier"
+                        className="hover:bg-muted"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => handleToggleActive(recurring.id, recurring.is_active)}
                         title={recurring.is_active ? 'Désactiver' : 'Activer'}
+                        className="hover:bg-muted"
                       >
                         {recurring.is_active ? (
                           <Pause className="h-4 w-4" />
@@ -316,9 +342,10 @@ const RecurringTransactions = () => {
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => handleDelete(recurring.id, recurring.description)}
                         title="Supprimer"
+                        className="hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
