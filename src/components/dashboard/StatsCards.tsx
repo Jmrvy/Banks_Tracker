@@ -72,19 +72,19 @@ export function StatsCards({ startDate, endDate }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
       {cards.map((card) => (
         <Card key={card.label} className="border-border bg-card hover:bg-accent/50 transition-colors">
-          <CardContent className="p-6">
+          <CardContent className="p-3 md:p-4 lg:p-6">
             <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground mb-2">{card.label}</p>
-                <p className="text-2xl font-bold">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2 truncate">{card.label}</p>
+                <p className="text-base md:text-xl lg:text-2xl font-bold truncate">
                   {card.isCount ? card.value : formatCurrency(card.value)}
                 </p>
               </div>
-              <div className={`h-12 w-12 rounded-full ${card.bgColor} flex items-center justify-center`}>
-                <card.icon className={`h-6 w-6 ${card.color}`} />
+              <div className={`h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-full ${card.bgColor} flex items-center justify-center flex-shrink-0 ml-2`}>
+                <card.icon className={`h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ${card.color}`} />
               </div>
             </div>
           </CardContent>
