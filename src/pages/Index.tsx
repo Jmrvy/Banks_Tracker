@@ -54,18 +54,18 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader 
+    <div className="min-h-screen bg-background pb-24">
+      <DashboardHeader
         selectedPeriod={selectedPeriod}
         onPeriodChange={setSelectedPeriod}
       />
-      
+
       <div className="p-6 space-y-6">
         <RecurringTransactionsWarning />
-        
+
         {/* Stats cards */}
         <StatsCards startDate={dateRange.start} endDate={dateRange.end} />
-        
+
         {/* Main content: Cashflow + Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">

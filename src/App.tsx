@@ -19,7 +19,9 @@ import Transactions from "@/pages/Transactions";
 import InstallmentPayments from "@/pages/InstallmentPayments";
 import Install from "@/pages/Install";
 import { AppSidebar } from "@/components/AppSidebar";
+import { MobileNavigation } from "@/components/MobileNavigation";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const queryClient = new QueryClient();
 
@@ -39,7 +41,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  
+  const isMobile = useIsMobile();
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -50,11 +53,11 @@ function AppRoutes() {
       </div>
     );
   }
-  
+
   return (
     <>
-      {user && <AppSidebar />}
-      <div className={user ? "ml-64 min-h-screen" : "min-h-screen"}>
+      {user && !isMobile && <AppSidebar />}
+      <div className={user && !isMobile ? "ml-64 min-h-screen" : "min-h-screen"}>
         <Routes>
           <Route 
             path="/auth" 
@@ -144,6 +147,7 @@ function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
+      {user && isMobile && <MobileNavigation />}
     </>
   );
 }
