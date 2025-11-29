@@ -10,6 +10,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentModal";
 import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
 import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
+import { AdjustInstallmentPlanModal } from "@/components/AdjustInstallmentPlanModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,10 +41,16 @@ const InstallmentPayments = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
+  const [adjustmentData, setAdjustmentData] = useState<{
+    payment: InstallmentPayment;
+    paymentAmount: number;
+    newRemainingAmount: number;
+  } | null>(null);
 
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
@@ -105,6 +112,22 @@ const InstallmentPayments = () => {
         title: "Paiement terminé",
         description: "Le paiement échelonné a été marqué comme terminé et archivé.",
       });
+    }
+  };
+
+  const handlePaymentRecorded = (
+    payment: InstallmentPayment,
+    paymentAmount: number,
+    newRemainingAmount: number
+  ) => {
+    // Only show adjustment modal if there's still remaining amount
+    if (newRemainingAmount > 0) {
+      setAdjustmentData({
+        payment,
+        paymentAmount,
+        newRemainingAmount,
+      });
+      setShowAdjustModal(true);
     }
   };
 
@@ -315,8 +338,19 @@ const InstallmentPayments = () => {
             open={showRecordModal}
             onOpenChange={setShowRecordModal}
             installmentPaymentId={selectedPayment.id}
+            onPaymentRecorded={handlePaymentRecorded}
           />
         </>
+      )}
+
+      {adjustmentData && (
+        <AdjustInstallmentPlanModal
+          open={showAdjustModal}
+          onOpenChange={setShowAdjustModal}
+          installmentPayment={adjustmentData.payment}
+          paymentAmount={adjustmentData.paymentAmount}
+          newRemainingAmount={adjustmentData.newRemainingAmount}
+        />
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
