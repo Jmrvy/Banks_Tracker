@@ -20,21 +20,45 @@ interface AccountTransactionsModalProps {
   balance: number;
 }
 
-export const AccountTransactionsModal = ({ 
-  open, 
-  onOpenChange, 
-  accountName, 
-  bankName, 
-  transactions, 
-  balance 
+export const AccountTransactionsModal = ({
+  open,
+  onOpenChange,
+  accountName,
+  bankName,
+  transactions,
+  balance
 }: AccountTransactionsModalProps) => {
-  const sortedTransactions = transactions.sort((a, b) => 
+  const sortedTransactions = transactions.sort((a, b) =>
     new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
   );
 
+  // Calculate running balance for each transaction
+  // Start with current balance and work backwards through transactions
+  const transactionsWithBalance = sortedTransactions.map((transaction, index) => {
+    // For the first (newest) transaction, the balance after is the current balance
+    // For subsequent transactions, subtract the previous transaction's impact
+    let balanceAfter = balance;
+
+    // Work backwards: subtract all transactions that came after this one
+    for (let i = 0; i < index; i++) {
+      const prevTransaction = sortedTransactions[i];
+      if (prevTransaction.type === 'income') {
+        balanceAfter -= prevTransaction.amount;
+      } else if (prevTransaction.type === 'expense') {
+        balanceAfter += Math.abs(prevTransaction.amount);
+      }
+      // For transfers, the amount is already reflected in the balance
+    }
+
+    return {
+      ...transaction,
+      balanceAfter
+    };
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex flex-col gap-1">
             <span>{accountName}</span>
@@ -49,38 +73,38 @@ export const AccountTransactionsModal = ({
             Historique des transactions pour ce compte
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-          {sortedTransactions.length === 0 ? (
+
+        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+          {transactionsWithBalance.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Aucune transaction trouvée pour ce compte
             </div>
           ) : (
-            sortedTransactions.map((transaction) => (
-              <div 
-                key={transaction.id} 
-                className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+            transactionsWithBalance.map((transaction) => (
+              <div
+                key={transaction.id}
+                className="flex items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
               >
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
+                <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                  <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex-shrink-0">
                     {transaction.type === 'income' ? (
-                      <ArrowDownRight className="w-5 h-5 text-green-600" />
+                      <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     ) : transaction.type === 'transfer' ? (
-                      <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                      <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                     ) : (
-                      <ArrowUpRight className="w-5 h-5 text-red-600" />
+                      <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                     )}
                   </div>
-                  
-                  <div>
-                    <span className="text-sm">{transaction.description}</span>
-                    <div className="flex items-center gap-2 mt-1">
+
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs sm:text-sm block truncate">{transaction.description}</span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
                       {transaction.category && (
-                        <Badge 
-                          variant="outline" 
-                          className="text-xs px-2 py-0.5"
-                          style={{ 
-                            backgroundColor: transaction.category.color, 
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5"
+                          style={{
+                            backgroundColor: transaction.category.color,
                             color: 'white',
                             borderColor: transaction.category.color
                           }}
@@ -88,33 +112,45 @@ export const AccountTransactionsModal = ({
                           {transaction.category.name}
                         </Badge>
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">
                         {new Date(transaction.transaction_date).toLocaleDateString('fr-FR')}
                       </span>
                     </div>
                   </div>
                 </div>
-                
-                <div className="text-right">
-                  <span 
-                    className={`font-medium ${
-                      transaction.type === 'income' 
-                        ? 'text-green-600' 
+
+                <div className="text-right ml-2 flex-shrink-0">
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`font-medium text-xs sm:text-sm ${
+                        transaction.type === 'income'
+                          ? 'text-green-600'
+                          : transaction.type === 'transfer'
+                          ? 'text-blue-600'
+                          : 'text-foreground'
+                      }`}
+                    >
+                      {transaction.type === 'income'
+                        ? '+'
                         : transaction.type === 'transfer'
-                        ? 'text-blue-600'
-                        : 'text-foreground'
-                    }`}
-                  >
-                    {transaction.type === 'income' 
-                      ? '+' 
-                      : transaction.type === 'transfer'
-                      ? '→'
-                      : '-'
-                    }{Math.abs(transaction.amount).toLocaleString('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'EUR' 
-                    })}
-                  </span>
+                        ? '→'
+                        : '-'
+                      }{Math.abs(transaction.amount).toLocaleString('fr-FR', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                      Solde: {transaction.balanceAfter.toLocaleString('fr-FR', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))
