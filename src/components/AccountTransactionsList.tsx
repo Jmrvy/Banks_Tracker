@@ -23,8 +23,8 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
 
     let runningBalance = initialBalance;
     
-    // Calculate initial balance by reversing all transactions
-    accountTransactions.forEach(t => {
+    // Calculate initial balance by reversing all transactions from current balance
+    [...accountTransactions].reverse().forEach(t => {
       if (t.account_id === accountId) {
         if (t.type === 'income') {
           runningBalance -= t.amount;
@@ -39,29 +39,33 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
     });
 
     const startBalance = runningBalance;
+    const result = [];
 
-    // Build transactions with running balance
-    return accountTransactions.reverse().map((t) => {
-      let balanceBefore = runningBalance;
+    // Now FORWARD through transactions chronologically
+    accountTransactions.forEach((t) => {
+      const balanceBefore = runningBalance;
       
       if (t.account_id === accountId) {
         if (t.type === 'income') {
-          runningBalance -= t.amount;
-        } else if (t.type === 'expense') {
           runningBalance += t.amount;
+        } else if (t.type === 'expense') {
+          runningBalance -= t.amount;
         } else if (t.type === 'transfer') {
-          runningBalance += t.amount + (t.transfer_fee || 0);
+          runningBalance -= t.amount + (t.transfer_fee || 0);
         }
       } else if (t.transfer_to_account_id === accountId) {
-        runningBalance -= t.amount;
+        runningBalance += t.amount;
       }
 
-      return {
+      result.push({
         ...t,
         balanceBefore,
         balanceAfter: runningBalance,
-      };
-    }).reverse();
+      });
+    });
+
+    // Return in reverse order (most recent first) for display
+    return result.reverse();
   }, [transactions, accountId, initialBalance]);
 
   const getTransactionIcon = (type: string) => {
