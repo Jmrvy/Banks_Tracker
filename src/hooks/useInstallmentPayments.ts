@@ -80,7 +80,8 @@ export const useInstallmentPayments = () => {
   }) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    const { error } = await supabase
+    // First, create the installment payment
+    const { data: installmentData, error: installmentError } = await supabase
       .from('installment_payments')
       .insert({
         user_id: user.id,
@@ -93,11 +94,43 @@ export const useInstallmentPayments = () => {
         next_payment_date: data.start_date,
         account_id: data.account_id,
         category_id: data.category_id || null,
+      })
+      .select()
+      .single();
+
+    if (installmentError) {
+      console.error('Error creating installment payment:', installmentError);
+      return { error: installmentError };
+    }
+
+    // Then, create the corresponding recurring transaction
+    const recurringFrequency = data.frequency === 'weekly' ? 'weekly' :
+                               data.frequency === 'monthly' ? 'monthly' :
+                               'quarterly';
+
+    const { error: recurringError } = await supabase
+      .from('recurring_transactions')
+      .insert({
+        user_id: user.id,
+        description: `${data.description} (Paiement échelonné)`,
+        amount: data.installment_amount,
+        type: 'expense',
+        recurrence_type: recurringFrequency,
+        start_date: data.start_date,
+        account_id: data.account_id,
+        category_id: data.category_id || null,
+        is_active: true,
+        installment_payment_id: installmentData.id, // Link to installment payment
       });
 
-    if (error) {
-      console.error('Error creating installment payment:', error);
-      return { error };
+    if (recurringError) {
+      console.error('Error creating recurring transaction:', recurringError);
+      // Rollback: delete the installment payment
+      await supabase
+        .from('installment_payments')
+        .delete()
+        .eq('id', installmentData.id);
+      return { error: recurringError };
     }
 
     await fetchInstallmentPayments();
@@ -125,6 +158,14 @@ export const useInstallmentPayments = () => {
   const deleteInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
+    // First, delete the linked recurring transaction
+    await supabase
+      .from('recurring_transactions')
+      .delete()
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    // Then delete the installment payment
     const { error } = await supabase
       .from('installment_payments')
       .delete()
@@ -166,12 +207,22 @@ export const useInstallmentPayments = () => {
     // Update remaining amount and next payment date
     const newRemainingAmount = installmentPayment.remaining_amount - amount;
     const nextPaymentDate = calculateNextPaymentDate(installmentPayment.next_payment_date, installmentPayment.frequency);
+    const isComplete = newRemainingAmount <= 0;
 
     await updateInstallmentPayment(installmentPaymentId, {
       remaining_amount: newRemainingAmount,
       next_payment_date: nextPaymentDate,
-      is_active: newRemainingAmount > 0,
+      is_active: !isComplete,
     });
+
+    // If installment is complete, also disable the linked recurring transaction
+    if (isComplete) {
+      await supabase
+        .from('recurring_transactions')
+        .update({ is_active: false })
+        .eq('installment_payment_id', installmentPaymentId)
+        .eq('user_id', user.id);
+    }
 
     await fetchPaymentRecords();
     return { error: null };
@@ -244,6 +295,25 @@ export const useInstallmentPayments = () => {
     }
   }, [user]);
 
+  const completeInstallmentPayment = async (id: string) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    // Mark installment as complete
+    await updateInstallmentPayment(id, {
+      is_active: false,
+      remaining_amount: 0,
+    });
+
+    // Also disable the linked recurring transaction
+    await supabase
+      .from('recurring_transactions')
+      .update({ is_active: false })
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    return { error: null };
+  };
+
   return {
     installmentPayments,
     paymentRecords,
@@ -251,6 +321,7 @@ export const useInstallmentPayments = () => {
     createInstallmentPayment,
     updateInstallmentPayment,
     deleteInstallmentPayment,
+    completeInstallmentPayment,
     recordPayment,
   };
 };
