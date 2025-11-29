@@ -20,6 +20,7 @@ import InstallmentPayments from "@/pages/InstallmentPayments";
 import Install from "@/pages/Install";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { MobileHeader } from "@/components/MobileHeader";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -57,7 +58,8 @@ function AppRoutes() {
   return (
     <>
       {user && !isMobile && <AppSidebar />}
-      <div className={user && !isMobile ? "ml-64 min-h-screen" : "min-h-screen"}>
+      {user && isMobile && <MobileHeader />}
+      <div className={user && !isMobile ? "ml-64 min-h-screen" : user && isMobile ? "pt-14 min-h-screen" : "min-h-screen"}>
         <Routes>
           <Route 
             path="/auth" 
