@@ -80,10 +80,14 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
       }];
     }
 
+    // Take only last 10 transactions for the chart
+    const last10 = sortedTransactions.slice(-10);
+    
     let runningBalance = balance;
     
-    // Calculate initial balance by reversing all transactions from current balance
-    sortedTransactions.forEach(t => {
+    // Calculate balance BEFORE the first of the last 10 transactions
+    // by reversing only those 10 transactions from current balance
+    [...last10].reverse().forEach(t => {
       if (t.account_id === accountId) {
         if (t.type === 'income') {
           runningBalance -= t.amount;
@@ -99,10 +103,7 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
 
     const evolution = [];
 
-    // Take only last 10 transactions for the chart
-    const last10 = sortedTransactions.slice(-10);
-    
-    // Build evolution from the point where we have 10 transactions
+    // Now FORWARD through the last 10 transactions from the starting balance
     last10.forEach((t) => {
       if (t.account_id === accountId) {
         if (t.type === 'income') {
