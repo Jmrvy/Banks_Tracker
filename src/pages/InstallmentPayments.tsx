@@ -1,24 +1,49 @@
 import { useState } from "react";
-import { CreditCard, Plus } from "lucide-react";
+import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentModal";
+import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
 import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const InstallmentPayments = () => {
-  const { installmentPayments, loading } = useInstallmentPayments();
+  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment } = useInstallmentPayments();
   const { accounts, categories } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { toast } = useToast();
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showRecordModal, setShowRecordModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
 
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
@@ -29,10 +54,66 @@ const InstallmentPayments = () => {
     }
   };
 
-  const handleRecordPayment = (paymentId: string) => {
-    setSelectedPayment(paymentId);
+  const handleRecordPayment = (payment: InstallmentPayment) => {
+    setSelectedPayment(payment);
     setShowRecordModal(true);
   };
+
+  const handleEdit = (payment: InstallmentPayment) => {
+    setSelectedPayment(payment);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteClick = (paymentId: string) => {
+    setPaymentToDelete(paymentId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!paymentToDelete) return;
+
+    const { error } = await deleteInstallmentPayment(paymentToDelete);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le paiement échelonné.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Paiement supprimé",
+        description: "Le paiement échelonné et sa transaction récurrente associée ont été supprimés.",
+      });
+    }
+
+    setDeleteDialogOpen(false);
+    setPaymentToDelete(null);
+  };
+
+  const handleComplete = async (payment: InstallmentPayment) => {
+    const { error } = await completeInstallmentPayment(payment.id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de marquer le paiement comme terminé.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Paiement terminé",
+        description: "Le paiement échelonné a été marqué comme terminé et archivé.",
+      });
+    }
+  };
+
+  // Filter payments based on selected tab
+  const filteredPayments = installmentPayments.filter(payment => {
+    if (filter === 'active') return payment.is_active;
+    if (filter === 'completed') return !payment.is_active;
+    return true; // 'all'
+  });
 
   if (loading) {
     return (
@@ -43,35 +124,45 @@ const InstallmentPayments = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
+      <div className="p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <CreditCard className="h-5 w-5 text-primary" />
+            <h1 className="text-xl md:text-2xl font-bold flex items-center gap-3">
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
-              Paiements en Plusieurs Fois
+              Paiements Échelonnés
             </h1>
-            <p className="text-sm text-muted-foreground mt-2 ml-13">
+            <p className="text-xs md:text-sm text-muted-foreground mt-2 ml-11 md:ml-13">
               Gérez vos paiements échelonnés financés par votre épargne
             </p>
-            <p className="text-xs text-muted-foreground mt-1 ml-13">
-              💡 Chaque paiement échelonné crée automatiquement une transaction récurrente
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 ml-11 md:ml-13">
+              💡 Chaque paiement crée automatiquement une transaction récurrente
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setShowNewModal(true)}
-            size="lg"
+            size="default"
+            className="w-full md:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             Nouveau Paiement
           </Button>
         </div>
 
+        {/* Filter Tabs */}
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="active">Actifs ({installmentPayments.filter(p => p.is_active).length})</TabsTrigger>
+            <TabsTrigger value="completed">Terminés ({installmentPayments.filter(p => !p.is_active).length})</TabsTrigger>
+            <TabsTrigger value="all">Tous ({installmentPayments.length})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Installment Payments List */}
-        {installmentPayments.length === 0 ? (
+        {filteredPayments.length === 0 ? (
           <Card className="bg-card/50 backdrop-blur border-border/50">
             <CardContent className="p-12 text-center">
               <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
@@ -90,8 +181,8 @@ const InstallmentPayments = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {installmentPayments.map((payment) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            {filteredPayments.map((payment) => {
               const account = accounts.find(a => a.id === payment.account_id);
               const category = categories.find(c => c.id === payment.category_id);
               const progress = ((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 100;
@@ -99,13 +190,45 @@ const InstallmentPayments = () => {
               return (
                 <Card key={payment.id} className="bg-card/50 backdrop-blur border-border/50 hover:shadow-lg transition-all duration-200">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold">{payment.description}</CardTitle>
-                      <Badge 
-                        variant={payment.is_active ? "default" : "secondary"}
-                      >
-                        {payment.is_active ? "Actif" : "Terminé"}
-                      </Badge>
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-base md:text-lg font-semibold flex-1 min-w-0 truncate">{payment.description}</CardTitle>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge
+                          variant={payment.is_active ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {payment.is_active ? "Actif" : "Terminé"}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(payment)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Modifier
+                            </DropdownMenuItem>
+                            {payment.is_active && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleComplete(payment)}>
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Marquer comme terminé
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(payment.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -159,8 +282,8 @@ const InstallmentPayments = () => {
                     </div>
 
                     {payment.is_active && (
-                      <Button 
-                        onClick={() => handleRecordPayment(payment.id)} 
+                      <Button
+                        onClick={() => handleRecordPayment(payment)}
                         className="w-full"
                         size="sm"
                       >
@@ -175,18 +298,43 @@ const InstallmentPayments = () => {
         )}
       </div>
 
-      <NewInstallmentPaymentModal 
-        open={showNewModal} 
-        onOpenChange={setShowNewModal} 
+      <NewInstallmentPaymentModal
+        open={showNewModal}
+        onOpenChange={setShowNewModal}
       />
-      
+
       {selectedPayment && (
-        <RecordInstallmentPaymentModal 
-          open={showRecordModal} 
-          onOpenChange={setShowRecordModal}
-          installmentPaymentId={selectedPayment}
-        />
+        <>
+          <EditInstallmentPaymentModal
+            open={showEditModal}
+            onOpenChange={setShowEditModal}
+            installmentPayment={selectedPayment}
+          />
+
+          <RecordInstallmentPaymentModal
+            open={showRecordModal}
+            onOpenChange={setShowRecordModal}
+            installmentPaymentId={selectedPayment.id}
+          />
+        </>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le paiement échelonné ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Le paiement échelonné et sa transaction récurrente associée seront définitivement supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
