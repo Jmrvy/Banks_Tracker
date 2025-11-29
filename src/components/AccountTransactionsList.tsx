@@ -107,28 +107,28 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
         ) : (
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
             {transactionsWithBalance.map((t) => (
-              <div 
-                key={t.id} 
-                className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+              <div
+                key={t.id}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-3"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
                     {getTransactionIcon(t.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{t.description}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <p className="font-medium truncate text-sm sm:text-base">{t.description}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
-                      <span>•</span>
-                      <Badge variant="outline" className="text-xs">
+                      <span className="hidden sm:inline">•</span>
+                      <Badge variant="outline" className="text-[10px] sm:text-xs">
                         {getTypeLabel(t.type)}
                       </Badge>
                       {t.category && (
                         <>
-                          <span>•</span>
-                          <Badge variant="outline" className="gap-1 text-xs">
-                            <div 
-                              className="w-2 h-2 rounded-full" 
+                          <span className="hidden sm:inline">•</span>
+                          <Badge variant="outline" className="gap-1 text-[10px] sm:text-xs">
+                            <div
+                              className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: t.category.color }}
                             />
                             {t.category.name}
@@ -138,11 +138,11 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-                  <div className="text-right">
-                    <p className={`font-bold ${
-                      t.type === 'income' ? 'text-success' : 
-                      t.type === 'expense' ? 'text-destructive' : 
+                <div className="flex items-center justify-between sm:gap-4 flex-shrink-0">
+                  <div className="text-left sm:text-right">
+                    <p className={`font-bold text-sm sm:text-base ${
+                      t.type === 'income' ? 'text-success' :
+                      t.type === 'expense' ? 'text-destructive' :
                       'text-primary'
                     }`}>
                       {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
@@ -153,12 +153,12 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                       </p>
                     )}
                   </div>
-                  <div className="text-right w-32">
-                    <p className="text-xs text-muted-foreground">Solde après</p>
+                  <div className="text-right min-w-[100px] sm:w-32">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Solde après</p>
                     <p className={`font-bold text-sm ${
-                      t.balanceBefore >= 0 ? 'text-success' : 'text-destructive'
+                      t.balanceAfter >= 0 ? 'text-success' : 'text-destructive'
                     }`}>
-                      {formatCurrency(t.balanceBefore)}
+                      {formatCurrency(t.balanceAfter)}
                     </p>
                   </div>
                 </div>
