@@ -64,7 +64,6 @@ const InstallmentPayments = () => {
           <Button 
             onClick={() => setShowNewModal(true)}
             size="lg"
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg"
           >
             <Plus className="h-4 w-4 mr-2" />
             Nouveau Paiement
@@ -84,7 +83,6 @@ const InstallmentPayments = () => {
               </p>
               <Button 
                 onClick={() => setShowNewModal(true)}
-                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un paiement
@@ -105,7 +103,6 @@ const InstallmentPayments = () => {
                       <CardTitle className="text-lg font-semibold">{payment.description}</CardTitle>
                       <Badge 
                         variant={payment.is_active ? "default" : "secondary"}
-                        className={payment.is_active ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white' : ''}
                       >
                         {payment.is_active ? "Actif" : "Terminé"}
                       </Badge>
@@ -164,7 +161,7 @@ const InstallmentPayments = () => {
                     {payment.is_active && (
                       <Button 
                         onClick={() => handleRecordPayment(payment.id)} 
-                        className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+                        className="w-full"
                         size="sm"
                       >
                         Enregistrer un paiement
