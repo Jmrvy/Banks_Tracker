@@ -117,6 +117,7 @@ export const useInstallmentPayments = () => {
         type: 'expense',
         recurrence_type: recurringFrequency,
         start_date: data.start_date,
+        next_due_date: data.start_date, // Set next due date to start date
         account_id: data.account_id,
         category_id: data.category_id || null,
         is_active: true,
