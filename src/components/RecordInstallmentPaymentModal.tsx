@@ -4,18 +4,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
+import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
 
 interface RecordInstallmentPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   installmentPaymentId: string;
+  onPaymentRecorded?: (
+    payment: InstallmentPayment,
+    paymentAmount: number,
+    newRemainingAmount: number
+  ) => void;
 }
 
-export const RecordInstallmentPaymentModal = ({ 
-  open, 
+export const RecordInstallmentPaymentModal = ({
+  open,
   onOpenChange,
-  installmentPaymentId 
+  installmentPaymentId,
+  onPaymentRecorded
 }: RecordInstallmentPaymentModalProps) => {
   const { toast } = useToast();
   const { recordPayment, installmentPayments } = useInstallmentPayments();
@@ -47,7 +53,8 @@ export const RecordInstallmentPaymentModal = ({
 
     setLoading(true);
 
-    const { error } = await recordPayment(installmentPaymentId, parseFloat(amount));
+    const paymentAmount = parseFloat(amount);
+    const { error } = await recordPayment(installmentPaymentId, paymentAmount);
 
     if (error) {
       toast({
@@ -55,16 +62,24 @@ export const RecordInstallmentPaymentModal = ({
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false);
     } else {
       toast({
         title: "Paiement enregistré",
         description: "Le paiement a été enregistré avec succès.",
       });
+
+      const newRemainingAmount = installmentPayment.remaining_amount - paymentAmount;
+
       setAmount('');
       onOpenChange(false);
-    }
+      setLoading(false);
 
-    setLoading(false);
+      // Trigger the adjustment modal if there's remaining amount
+      if (onPaymentRecorded && installmentPayment) {
+        onPaymentRecorded(installmentPayment, paymentAmount, newRemainingAmount);
+      }
+    }
   };
 
   return (

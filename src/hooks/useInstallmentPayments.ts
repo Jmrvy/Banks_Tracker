@@ -315,6 +315,57 @@ export const useInstallmentPayments = () => {
     return { error: null };
   };
 
+  const adjustInstallmentPlan = async (
+    id: string,
+    adjustmentType: 'keep_current' | 'reduce_amount' | 'reduce_count' | 'custom',
+    newInstallmentAmount: number
+  ) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const installmentPayment = installmentPayments.find(ip => ip.id === id);
+    if (!installmentPayment) return { error: new Error('Installment payment not found') };
+
+    // Update installment amount based on adjustment type
+    let updatedAmount = installmentPayment.installment_amount;
+
+    switch (adjustmentType) {
+      case 'keep_current':
+      case 'reduce_count':
+        // Keep the current installment amount
+        updatedAmount = installmentPayment.installment_amount;
+        break;
+      case 'reduce_amount':
+      case 'custom':
+        // Use the new amount provided
+        updatedAmount = newInstallmentAmount;
+        break;
+    }
+
+    // Update the installment payment
+    const { error: updateError } = await updateInstallmentPayment(id, {
+      installment_amount: updatedAmount,
+    });
+
+    if (updateError) {
+      return { error: updateError };
+    }
+
+    // Also update the linked recurring transaction amount
+    const { error: recurringError } = await supabase
+      .from('recurring_transactions')
+      .update({ amount: updatedAmount })
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    if (recurringError) {
+      console.error('Error updating recurring transaction amount:', recurringError);
+      return { error: recurringError };
+    }
+
+    await fetchInstallmentPayments();
+    return { error: null };
+  };
+
   return {
     installmentPayments,
     paymentRecords,
@@ -324,5 +375,6 @@ export const useInstallmentPayments = () => {
     deleteInstallmentPayment,
     completeInstallmentPayment,
     recordPayment,
+    adjustInstallmentPlan,
   };
 };
