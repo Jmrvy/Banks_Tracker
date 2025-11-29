@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
+import { AccountTransactionsList } from "./AccountTransactionsList";
 
 interface AccountDetailsProps {
   accountId: string;
@@ -72,9 +73,16 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
       (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
     );
 
+    if (sortedTransactions.length === 0) {
+      return [{
+        date: format(new Date(), 'dd/MM', { locale: fr }),
+        balance: balance,
+      }];
+    }
+
     let runningBalance = balance;
     
-    // Calculate initial balance by reversing all transactions
+    // Calculate initial balance by reversing all transactions from current balance
     sortedTransactions.forEach(t => {
       if (t.account_id === accountId) {
         if (t.type === 'income') {
@@ -89,11 +97,13 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
       }
     });
 
-    const initialBalance = runningBalance;
     const evolution = [];
 
-    // Build evolution from initial balance
-    sortedTransactions.slice(-10).forEach((t, index) => {
+    // Take only last 10 transactions for the chart
+    const last10 = sortedTransactions.slice(-10);
+    
+    // Build evolution from the point where we have 10 transactions
+    last10.forEach((t) => {
       if (t.account_id === accountId) {
         if (t.type === 'income') {
           runningBalance += t.amount;
@@ -111,13 +121,6 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
         balance: runningBalance,
       });
     });
-
-    if (evolution.length === 0) {
-      evolution.push({
-        date: format(new Date(), 'dd/MM', { locale: fr }),
-        balance: initialBalance,
-      });
-    }
 
     return evolution;
   }, [accountTransactions, balance, accountId]);
@@ -241,6 +244,13 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Account Transactions List with Balance */}
+      <AccountTransactionsList 
+        accountId={accountId}
+        transactions={transactions}
+        initialBalance={balance}
+      />
     </div>
   );
 }

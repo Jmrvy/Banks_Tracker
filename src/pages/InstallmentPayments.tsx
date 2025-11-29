@@ -57,6 +57,9 @@ const InstallmentPayments = () => {
             <p className="text-sm text-muted-foreground mt-2 ml-13">
               Gérez vos paiements échelonnés financés par votre épargne
             </p>
+            <p className="text-xs text-muted-foreground mt-1 ml-13">
+              💡 Chaque paiement échelonné crée automatiquement une transaction récurrente
+            </p>
           </div>
           <Button 
             onClick={() => setShowNewModal(true)}
