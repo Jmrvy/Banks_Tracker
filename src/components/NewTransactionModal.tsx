@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { PlusCircle, MinusCircle, ArrowRightLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
@@ -31,7 +32,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     category_id: '',
     transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0],
-    value_date: new Date().toISOString().split('T')[0]
+    value_date: new Date().toISOString().split('T')[0],
+    include_in_stats: true
   });
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +47,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
       category_id: '',
       transfer_fee: '',
       transaction_date: new Date().toISOString().split('T')[0],
-      value_date: new Date().toISOString().split('T')[0]
+      value_date: new Date().toISOString().split('T')[0],
+      include_in_stats: true
     });
   };
 
@@ -104,6 +107,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
         value_date: formData.value_date,
+        include_in_stats: formData.include_in_stats,
       });
       error = result?.error;
     }
@@ -333,6 +337,23 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 placeholder="Sélectionner la date valeur"
               />
             </div>
+          </div>
+
+          {/* Include in Stats Toggle */}
+          <div className="flex items-center justify-between space-x-2 p-4 border border-border rounded-lg bg-accent/30">
+            <div className="space-y-0.5">
+              <Label htmlFor="include_in_stats" className="text-sm font-medium">
+                Inclure dans les statistiques
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Si désactivé, cette transaction n'apparaîtra pas dans les calculs de revenus/dépenses
+              </p>
+            </div>
+            <Switch
+              id="include_in_stats"
+              checked={formData.include_in_stats}
+              onCheckedChange={(checked) => setFormData({ ...formData, include_in_stats: checked })}
+            />
           </div>
 
           {/* Actions */}

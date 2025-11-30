@@ -613,6 +613,7 @@ export type Database = {
           created_at: string | null
           description: string
           id: string
+          include_in_stats: boolean
           transaction_date: string
           transfer_fee: number | null
           transfer_to_account_id: string | null
@@ -628,6 +629,7 @@ export type Database = {
           created_at?: string | null
           description: string
           id?: string
+          include_in_stats?: boolean
           transaction_date?: string
           transfer_fee?: number | null
           transfer_to_account_id?: string | null
@@ -643,6 +645,7 @@ export type Database = {
           created_at?: string | null
           description?: string
           id?: string
+          include_in_stats?: boolean
           transaction_date?: string
           transfer_fee?: number | null
           transfer_to_account_id?: string | null

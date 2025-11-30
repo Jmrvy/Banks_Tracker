@@ -102,15 +102,18 @@ export const useReportsData = (
 
   // Calculs des statistiques avec soldes initiaux
   const stats = useMemo<ReportsStats>(() => {
-    const income = filteredTransactions
+    // Filtrer uniquement les transactions qui doivent être incluses dans les stats
+    const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
+    
+    const income = statsTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     
-    const expenses = filteredTransactions
+    const expenses = statsTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const transferFees = filteredTransactions
+    const transferFees = statsTransactions
       .filter(t => t.type === 'transfer')
       .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
 
@@ -361,8 +364,9 @@ export const useReportsData = (
     }
     // periodType === 'month' → budgetMultiplier = 1 (pas de changement)
     
+    // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     const expensesByCategory = filteredTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'expense' && t.include_in_stats !== false)
       .reduce((acc, t) => {
         const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';
@@ -440,7 +444,9 @@ export const useReportsData = (
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {
-    if (!useSpendingPatterns || filteredTransactions.length === 0) return null;
+    // Filtrer uniquement les transactions qui doivent être incluses dans les stats
+    const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
+    if (!useSpendingPatterns || statsTransactions.length === 0) return null;
 
     const daysInPeriod = differenceInDays(period.to, period.from) + 1;
     const dailyAvgIncome = stats.income / daysInPeriod;
