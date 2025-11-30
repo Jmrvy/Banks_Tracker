@@ -438,6 +438,7 @@ export type Database = {
           description: string
           end_date: string | null
           id: string
+          installment_payment_id: string | null
           is_active: boolean | null
           next_due_date: string
           recurrence_type: Database["public"]["Enums"]["recurrence_type"]
@@ -454,6 +455,7 @@ export type Database = {
           description: string
           end_date?: string | null
           id?: string
+          installment_payment_id?: string | null
           is_active?: boolean | null
           next_due_date: string
           recurrence_type: Database["public"]["Enums"]["recurrence_type"]
@@ -470,6 +472,7 @@ export type Database = {
           description?: string
           end_date?: string | null
           id?: string
+          installment_payment_id?: string | null
           is_active?: boolean | null
           next_due_date?: string
           recurrence_type?: Database["public"]["Enums"]["recurrence_type"]
@@ -479,6 +482,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_recurring_transactions_installment_payment"
+            columns: ["installment_payment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recurring_transactions_account_id_fkey"
             columns: ["account_id"]
