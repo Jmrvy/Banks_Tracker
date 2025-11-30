@@ -19,11 +19,14 @@ export function StatsCards({ startDate, endDate }: StatsCardsProps) {
       return date >= startDate && date <= endDate;
     });
 
-    const moneyIn = filteredTransactions
+    // Filtrer uniquement les transactions qui doivent être incluses dans les stats
+    const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
+
+    const moneyIn = statsTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const moneyOut = filteredTransactions
+    const moneyOut = statsTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 

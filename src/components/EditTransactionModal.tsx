@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -27,7 +28,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     transaction_date: '',
     value_date: '',
     transfer_to_account_id: '',
-    transfer_fee: ''
+    transfer_fee: '',
+    include_in_stats: true
   });
   const [loading, setLoading] = useState(false);
 
@@ -43,7 +45,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         transaction_date: transaction.transaction_date,
         value_date: transaction.value_date || transaction.transaction_date,
         transfer_to_account_id: transaction.transfer_to_account_id || '',
-        transfer_fee: transaction.transfer_fee?.toString() || ''
+        transfer_fee: transaction.transfer_fee?.toString() || '',
+        include_in_stats: transaction.include_in_stats ?? true
       });
     }
   }, [transaction]);
@@ -58,7 +61,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       transaction_date: '',
       value_date: '',
       transfer_to_account_id: '',
-      transfer_fee: ''
+      transfer_fee: '',
+      include_in_stats: true
     });
   };
 
@@ -88,6 +92,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       category_id: formData.category_id || undefined,
       transaction_date: formData.transaction_date,
       value_date: formData.value_date,
+      include_in_stats: formData.include_in_stats,
       ...(formData.type === 'transfer' && {
         transfer_to_account_id: formData.transfer_to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0
@@ -266,6 +271,23 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
             <p className="text-xs text-muted-foreground">
               Date effective de la transaction
             </p>
+          </div>
+
+          {/* Include in Stats Toggle */}
+          <div className="flex items-center justify-between space-x-2 p-4 border border-border rounded-lg bg-accent/30">
+            <div className="space-y-0.5">
+              <Label htmlFor="include_in_stats" className="text-sm font-medium">
+                Inclure dans les statistiques
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Si désactivé, cette transaction n'apparaîtra pas dans les calculs de revenus/dépenses
+              </p>
+            </div>
+            <Switch
+              id="include_in_stats"
+              checked={formData.include_in_stats}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, include_in_stats: checked }))}
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

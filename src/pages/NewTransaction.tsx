@@ -88,6 +88,7 @@ const NewTransaction = () => {
         category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
         value_date: formData.value_date,
+        include_in_stats: true, // Valeur par défaut pour les transactions manuelles
       });
       error = result?.error;
     }

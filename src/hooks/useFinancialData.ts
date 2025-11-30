@@ -20,6 +20,7 @@ export interface Transaction {
   type: 'income' | 'expense' | 'transfer';
   transaction_date: string; // Date comptable
   value_date: string; // Date de valeur
+  include_in_stats: boolean; // Si la transaction doit être incluse dans les stats
   account: { name: string; bank: string };
   category: { id: string; name: string; color: string } | null;
   transfer_to_account_id?: string;
@@ -162,14 +163,16 @@ export function useFinancialData() {
     return { error };
   };
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string }) => {
+  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean }) => {
     if (!user) return;
     console.log('Creating transaction:', transaction);
     
     // Si value_date n'est pas fournie, utiliser transaction_date
+    // Si include_in_stats n'est pas fourni, utiliser true par défaut
     const transactionData = {
       ...transaction,
       value_date: transaction.value_date || transaction.transaction_date,
+      include_in_stats: transaction.include_in_stats ?? true,
       user_id: user.id
     };
     
@@ -386,6 +389,7 @@ export function useFinancialData() {
     value_date?: string;
     transfer_to_account_id?: string;
     transfer_fee?: number;
+    include_in_stats?: boolean;
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
     
@@ -485,7 +489,8 @@ export function useFinancialData() {
             amount: rt.amount,
             type: rt.type,
             transaction_date: currentDueDateString,
-            value_date: currentDueDateString // Pour les récurrences, value_date = transaction_date
+            value_date: currentDueDateString, // Pour les récurrences, value_date = transaction_date
+            include_in_stats: true // Les récurrences sont toujours incluses dans les stats
           });
 
           occurrencesProcessed++;
