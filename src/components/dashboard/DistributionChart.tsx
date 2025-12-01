@@ -29,7 +29,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     
     const monthTransactions = transactions.filter(t => {
       const date = new Date(t.transaction_date);
-      return date >= monthStart && date <= monthEnd && t.type === 'expense';
+      return date >= monthStart && date <= monthEnd && t.type === 'expense' && t.include_in_stats !== false;
     });
 
     const categoryTotals = new Map<string, number>();
