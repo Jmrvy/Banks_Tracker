@@ -44,76 +44,86 @@ export const TransactionTypeModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Icon className={`h-5 w-5 ${colorClass}`} />
-            {title} - {period}
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogHeader className="pb-4 border-b">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className={`p-2 rounded-lg ${type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+              <Icon className={`h-5 w-5 ${colorClass}`} />
+            </div>
+            <div>
+              <div className="font-semibold">{title}</div>
+              <div className="text-sm font-normal text-muted-foreground">{period}</div>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">Total</p>
+        <div className="flex-1 overflow-y-auto space-y-4 py-4">
+          {/* Summary Card */}
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="bg-muted/30">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Total</p>
                 <p className={`text-2xl font-bold ${colorClass}`}>
                   {formatCurrency(totalAmount)}
                 </p>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-sm text-muted-foreground">Nombre de transactions</p>
-                <p className="text-lg font-semibold">{transactions.length}</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            <Card className="bg-muted/30">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Transactions</p>
+                <p className="text-2xl font-bold">{transactions.length}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-          <div className="space-y-2">
-            {transactions.map((transaction) => (
-              <Card key={transaction.id} className="hover-scale">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{transaction.description}</p>
-                      <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
-                        <span>{format(new Date(transaction.transaction_date), "d MMMM yyyy", { locale: fr })}</span>
-                        {transaction.account && (
-                          <>
-                            <span>•</span>
-                            <span>{transaction.account.name}</span>
-                          </>
-                        )}
-                        {transaction.category && (
-                          <>
-                            <span>•</span>
+          {/* Transactions List */}
+          {transactions.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="p-12 text-center">
+                <Icon className={`h-12 w-12 mx-auto mb-3 ${colorClass} opacity-20`} />
+                <p className="text-muted-foreground">Aucune transaction pour cette période</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {transactions.map((transaction) => (
+                <Card key={transaction.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <p className="font-medium text-base">{transaction.description}</p>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="px-2 py-1 bg-muted rounded text-muted-foreground">
+                            {format(new Date(transaction.transaction_date), "d MMM yyyy", { locale: fr })}
+                          </span>
+                          {transaction.account && (
+                            <span className="px-2 py-1 bg-muted rounded text-muted-foreground">
+                              {transaction.account.name}
+                            </span>
+                          )}
+                          {transaction.category && (
                             <span 
-                              className="px-2 py-0.5 rounded"
+                              className="px-2 py-1 rounded font-medium"
                               style={{ 
-                                backgroundColor: `${transaction.category.color}20`,
+                                backgroundColor: `${transaction.category.color}15`,
                                 color: transaction.category.color
                               }}
                             >
                               {transaction.category.name}
                             </span>
-                          </>
-                        )}
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <p className={`text-xl font-bold ${colorClass}`}>
+                          {formatCurrency(transaction.amount)}
+                        </p>
                       </div>
                     </div>
-                    <p className={`text-lg font-bold whitespace-nowrap ${colorClass}`}>
-                      {formatCurrency(transaction.amount)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {transactions.length === 0 && (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                Aucune transaction pour cette période
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </DialogContent>
