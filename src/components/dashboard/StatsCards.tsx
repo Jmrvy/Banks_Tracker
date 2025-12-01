@@ -1,26 +1,29 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, Repeat } from "lucide-react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface StatsCardsProps {
   startDate: Date;
   endDate: Date;
+  onIncomeClick?: () => void;
+  onExpensesClick?: () => void;
+  onTransactionsFiltered?: (transactions: Transaction[]) => void;
 }
 
-export function StatsCards({ startDate, endDate }: StatsCardsProps) {
+export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick, onTransactionsFiltered }: StatsCardsProps) {
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
-  const stats = useMemo(() => {
-    const filteredTransactions = transactions.filter(t => {
+  const { stats, filteredTransactions } = useMemo(() => {
+    const filtered = transactions.filter(t => {
       const date = new Date(t.transaction_date);
       return date >= startDate && date <= endDate;
     });
 
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
-    const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
+    const statsTransactions = filtered.filter(t => t.include_in_stats !== false);
 
     const moneyIn = statsTransactions
       .filter(t => t.type === 'income')
@@ -35,12 +38,22 @@ export function StatsCards({ startDate, endDate }: StatsCardsProps) {
     const activeRecurring = recurringTransactions.filter(rt => rt.is_active).length;
 
     return {
-      moneyIn,
-      moneyOut,
-      available,
-      recurring: activeRecurring
+      stats: {
+        moneyIn,
+        moneyOut,
+        available,
+        recurring: activeRecurring
+      },
+      filteredTransactions: filtered
     };
   }, [transactions, accounts, recurringTransactions, startDate, endDate]);
+
+  // Notify parent of filtered transactions
+  useMemo(() => {
+    if (onTransactionsFiltered) {
+      onTransactionsFiltered(filteredTransactions);
+    }
+  }, [filteredTransactions, onTransactionsFiltered]);
 
   const cards = [
     {
@@ -74,10 +87,24 @@ export function StatsCards({ startDate, endDate }: StatsCardsProps) {
     }
   ];
 
+  const handleCardClick = (label: string) => {
+    if (label === "Revenus" && onIncomeClick) {
+      onIncomeClick();
+    } else if (label === "Dépenses" && onExpensesClick) {
+      onExpensesClick();
+    }
+  };
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
       {cards.map((card) => (
-        <Card key={card.label} className="border-border bg-card hover:bg-accent/50 transition-colors">
+        <Card 
+          key={card.label} 
+          className={`border-border bg-card hover:bg-accent/50 transition-colors ${
+            (card.label === "Revenus" || card.label === "Dépenses") ? "cursor-pointer" : ""
+          }`}
+          onClick={() => handleCardClick(card.label)}
+        >
           <CardContent className="p-3 md:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
