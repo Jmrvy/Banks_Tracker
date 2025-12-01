@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
         transaction_date,
         value_date,
         created_at,
+        include_in_stats,
         category_id,
         categories (
           id,
@@ -96,7 +97,8 @@ Deno.serve(async (req) => {
           account_type
         )
       `)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('include_in_stats', true);
 
     // Filter by categories if provided
     if (categories && categories.length > 0) {
