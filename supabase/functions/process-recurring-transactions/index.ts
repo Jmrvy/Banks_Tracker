@@ -129,6 +129,47 @@ serve(async (req) => {
           continue;
         }
 
+        // If this recurring transaction is linked to an installment payment, update the remaining amount
+        if (recurring.installment_payment_id) {
+          console.log(`Updating installment payment ${recurring.installment_payment_id} for recurring ${recurring.id}`);
+          
+          // Get current installment payment
+          const { data: installmentPayment, error: fetchInstallmentError } = await supabase
+            .from('installment_payments')
+            .select('remaining_amount, is_active')
+            .eq('id', recurring.installment_payment_id)
+            .single();
+
+          if (fetchInstallmentError) {
+            console.error(`Error fetching installment payment ${recurring.installment_payment_id}:`, fetchInstallmentError);
+          } else if (installmentPayment) {
+            // Calculate new remaining amount
+            const newRemainingAmount = installmentPayment.remaining_amount - Math.abs(recurring.amount);
+            
+            // Update installment payment
+            const installmentUpdate: any = {
+              remaining_amount: Math.max(0, newRemainingAmount)
+            };
+
+            // If fully paid, deactivate the installment payment
+            if (newRemainingAmount <= 0) {
+              installmentUpdate.is_active = false;
+              console.log(`Installment payment ${recurring.installment_payment_id} is now fully paid`);
+            }
+
+            const { error: updateInstallmentError } = await supabase
+              .from('installment_payments')
+              .update(installmentUpdate)
+              .eq('id', recurring.installment_payment_id);
+
+            if (updateInstallmentError) {
+              console.error(`Error updating installment payment ${recurring.installment_payment_id}:`, updateInstallmentError);
+            } else {
+              console.log(`Successfully updated installment payment ${recurring.installment_payment_id}, new remaining: ${Math.max(0, newRemainingAmount)}`);
+            }
+          }
+        }
+
         processedCount++;
         processedTransactions.push({
           id: recurring.id,
