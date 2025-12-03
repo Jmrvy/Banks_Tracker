@@ -25,6 +25,14 @@ export const PeriodSelector = ({
   dateRange,
   setDateRange
 }: PeriodSelectorProps) => {
+  // Fix timezone issue: create date at noon local time
+  const fixTimezone = (date: Date) => new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    12, 0, 0, 0
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -84,8 +92,9 @@ export const PeriodSelector = ({
                       <Calendar
                         mode="single"
                         selected={dateRange.from}
-                        onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
+                        onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: fixTimezone(date) }))}
                         initialFocus
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
@@ -103,8 +112,9 @@ export const PeriodSelector = ({
                       <Calendar
                         mode="single"
                         selected={dateRange.to}
-                        onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
+                        onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: fixTimezone(date) }))}
                         initialFocus
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>

@@ -27,6 +27,23 @@ export function DatePicker({
   disabled = false,
   className
 }: DatePickerProps) {
+  // Fix timezone issue: react-day-picker v8 returns dates at midnight UTC
+  // which can shift to the previous day in positive UTC offset timezones
+  const handleSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      // Create a new date at noon local time to avoid timezone issues
+      const correctedDate = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
+        12, 0, 0, 0
+      );
+      onDateChange(correctedDate);
+    } else {
+      onDateChange(undefined);
+    }
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -47,7 +64,7 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onDateChange}
+          onSelect={handleSelect}
           initialFocus
           className="pointer-events-auto"
         />
