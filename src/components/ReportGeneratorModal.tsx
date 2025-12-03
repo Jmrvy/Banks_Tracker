@@ -36,6 +36,14 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const reportRef = useRef<HTMLDivElement>(null);
   const transactionsSectionRef = useRef<HTMLDivElement>(null);
 
+  // Fix timezone issue: create date at noon local time
+  const fixTimezone = (date: Date) => new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    12, 0, 0, 0
+  );
+
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
 
@@ -597,9 +605,9 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                   <Calendar
                     mode="single"
                     selected={startDate}
-                    onSelect={(date) => date && setStartDate(date)}
+                    onSelect={(date) => date && setStartDate(fixTimezone(date))}
                     locale={fr}
-                    className="rounded-md border"
+                    className="rounded-md border pointer-events-auto"
                   />
                 </div>
               </div>
@@ -609,9 +617,9 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                   <Calendar
                     mode="single"
                     selected={endDate}
-                    onSelect={(date) => date && setEndDate(date)}
+                    onSelect={(date) => date && setEndDate(fixTimezone(date))}
                     locale={fr}
-                    className="rounded-md border"
+                    className="rounded-md border pointer-events-auto"
                   />
                 </div>
               </div>
