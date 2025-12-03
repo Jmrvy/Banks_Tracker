@@ -138,43 +138,46 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Nouvelle Transaction</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Nouvelle Transaction</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 pt-2 sm:pt-4">
           {/* Transaction Type Toggle */}
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <Button
               type="button"
               variant={formData.type === 'income' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFormData({ ...formData, type: 'income' })}
-              className="flex-1"
+              className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Revenus
+              <PlusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+              <span className="hidden xs:inline">Revenus</span>
+              <span className="xs:hidden">+</span>
             </Button>
             <Button
               type="button"
               variant={formData.type === 'expense' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFormData({ ...formData, type: 'expense' })}
-              className="flex-1"
+              className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <MinusCircle className="h-4 w-4 mr-1" />
-              Dépense
+              <MinusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+              <span className="hidden xs:inline">Dépense</span>
+              <span className="xs:hidden">-</span>
             </Button>
             <Button
               type="button"
               variant={formData.type === 'transfer' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFormData({ ...formData, type: 'transfer' })}
-              className="flex-1"
+              className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <ArrowRightLeft className="h-4 w-4 mr-1" />
-              Transfert
+              <ArrowRightLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+              <span className="hidden xs:inline">Transfert</span>
+              <span className="xs:hidden">⇄</span>
             </Button>
           </div>
 
@@ -319,9 +322,9 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
           )}
 
           {/* Transaction Dates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Date Comptable *</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label className="text-xs sm:text-sm">Date Comptable *</Label>
               <DatePicker
                 date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
                 onDateChange={(date) => {
@@ -333,18 +336,18 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                     value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
                   }));
                 }}
-                placeholder="Sélectionner la date comptable"
+                placeholder="Date comptable"
               />
             </div>
             
-            <div className="space-y-2">
-              <Label>Date Valeur *</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label className="text-xs sm:text-sm">Date Valeur *</Label>
               <DatePicker
                 date={formData.value_date ? new Date(formData.value_date) : undefined}
                 onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
-                placeholder="Sélectionner la date valeur"
+                placeholder="Date valeur"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Par défaut = date comptable
               </p>
             </div>

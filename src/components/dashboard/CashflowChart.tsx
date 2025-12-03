@@ -96,13 +96,47 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
 
   return (
     <Card className="border-border bg-card">
-      <CardContent className="p-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold">Cashflow</h3>
-          <p className="text-sm text-muted-foreground">Évolution de votre solde ce mois-ci</p>
+      <CardContent className="p-3 sm:p-4 md:p-6">
+        <div className="mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold">Cashflow</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">Évolution de votre solde</p>
         </div>
         
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={200} className="sm:hidden">
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="colorBalanceMobile" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis 
+              dataKey="date" 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={9}
+              tickLine={false}
+              interval="preserveStartEnd"
+            />
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={9}
+              tickLine={false}
+              tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
+              width={30}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area 
+              type="monotone" 
+              dataKey="balance" 
+              stroke="hsl(var(--primary))" 
+              strokeWidth={2}
+              fill="url(#colorBalanceMobile)" 
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+        
+        <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
