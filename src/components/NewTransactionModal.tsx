@@ -324,7 +324,15 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <Label>Date Comptable *</Label>
               <DatePicker
                 date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
-                onDateChange={(date) => setFormData({ ...formData, transaction_date: date ? date.toISOString().split('T')[0] : '' })}
+                onDateChange={(date) => {
+                  const newDate = date ? date.toISOString().split('T')[0] : '';
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    transaction_date: newDate,
+                    // Sync value_date only if it matches the old transaction_date
+                    value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
+                  }));
+                }}
                 placeholder="Sélectionner la date comptable"
               />
             </div>
@@ -336,6 +344,9 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
                 placeholder="Sélectionner la date valeur"
               />
+              <p className="text-xs text-muted-foreground">
+                Par défaut = date comptable
+              </p>
             </div>
           </div>
 
