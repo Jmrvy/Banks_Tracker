@@ -285,94 +285,94 @@ export const MonthlyProjections = () => {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="w-5 h-5" />
+      <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Target className="w-4 h-4 sm:w-5 sm:h-5" />
             Projections du Mois
           </CardTitle>
           <Button 
             variant={useSpendingPatterns ? "default" : "outline"}
             size="sm"
             onClick={() => setUseSpendingPatterns(!useSpendingPatterns)}
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1.5 h-7 sm:h-8 text-xs sm:text-sm w-fit"
           >
             {useSpendingPatterns ? (
               <>
-                <BarChart3 className="w-3.5 h-3.5" />
+                <BarChart3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span>Patterns</span>
               </>
             ) : (
               <>
-                <Repeat className="w-3.5 h-3.5" />
+                <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span>Récurrents</span>
               </>
             )}
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Jour {monthlyData.currentDay}/{monthlyData.daysInMonth} • {monthlyData.daysRemaining} jours restants
         </p>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
         {/* Progress bar */}
         <div className="space-y-2">
-          <div className="w-full bg-muted rounded-full h-2">
+          <div className="w-full bg-muted rounded-full h-1.5 sm:h-2">
             <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
               style={{ width: `${((monthlyData.daysInMonth - monthlyData.daysRemaining) / monthlyData.daysInMonth) * 100}%` }}
             />
           </div>
         </div>
 
         {/* Financial Overview */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingUp className="w-4 h-4 text-green-600" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="space-y-1 sm:space-y-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
               Revenus
             </div>
             <div>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-lg sm:text-2xl font-bold text-green-600">
                 {formatCurrency(monthlyData.actualMonthlyIncome)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Projection: {formatCurrency(monthlyData.projectedIncome)}
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                Proj: {formatCurrency(monthlyData.projectedIncome)}
               </p>
             </div>
           </div>
           
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingDown className="w-4 h-4 text-red-600" />
+          <div className="space-y-1 sm:space-y-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
               Dépenses
             </div>
             <div>
-              <p className="text-2xl font-bold text-red-600">
+              <p className="text-lg sm:text-2xl font-bold text-red-600">
                 {formatCurrency(monthlyData.actualMonthlyExpenses)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Projection: {formatCurrency(monthlyData.projectedExpenses)}
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                Proj: {formatCurrency(monthlyData.projectedExpenses)}
               </p>
             </div>
           </div>
         </div>
 
         {/* Projected Balance */}
-        <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
+        <div className="p-3 sm:p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Solde fin de mois projeté</p>
-              <p className={`text-2xl font-bold ${
+              <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Solde fin de mois</p>
+              <p className={`text-lg sm:text-2xl font-bold ${
                 projectedBalanceFromCurrent >= totalBalance ? 'text-green-600' : 'text-red-600'
               }`}>
                 {formatCurrency(projectedBalanceFromCurrent)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Variation</p>
-              <p className={`text-lg font-semibold ${
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Variation</p>
+              <p className={`text-sm sm:text-lg font-semibold ${
                 futureNetCashFlow >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
                 {futureNetCashFlow >= 0 ? '+' : ''}{formatCurrency(futureNetCashFlow)}
@@ -383,12 +383,12 @@ export const MonthlyProjections = () => {
 
         {/* Budget Alert */}
         {monthlyData.isOverBudget && monthlyData.totalBudget > 0 && (
-          <div className="flex items-start gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-            <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 sm:gap-3 p-2.5 sm:p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-destructive">Dépassement de budget prévu</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(monthlyData.budgetOverage)} au-dessus du budget
+              <p className="text-xs sm:text-sm font-medium text-destructive">Dépassement prévu</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                {formatCurrency(monthlyData.budgetOverage)} au-dessus
               </p>
             </div>
           </div>
@@ -398,20 +398,20 @@ export const MonthlyProjections = () => {
         {monthlyData.totalBudget > 0 && (
           <Button 
             variant="outline" 
-            className="w-full"
+            className="w-full h-9 sm:h-10 text-xs sm:text-sm"
             onClick={() => setShowBudgetModal(true)}
           >
-            <DollarSign className="w-4 h-4 mr-2" />
-            Budget disponible: {formatCurrency(monthlyData.remainingBudget)}
+            <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+            Budget: {formatCurrency(monthlyData.remainingBudget)}
           </Button>
         )}
 
         {/* No budget message */}
         {monthlyData.totalBudget === 0 && (
-          <div className="text-center py-6 text-muted-foreground">
-            <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Aucun budget défini</p>
-            <p className="text-xs mt-1">
+          <div className="text-center py-4 sm:py-6 text-muted-foreground">
+            <Target className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-xs sm:text-sm">Aucun budget défini</p>
+            <p className="text-[10px] sm:text-xs mt-1">
               Définissez des budgets pour vos catégories
             </p>
           </div>

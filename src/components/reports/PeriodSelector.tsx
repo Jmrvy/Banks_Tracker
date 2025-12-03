@@ -35,16 +35,16 @@ export const PeriodSelector = ({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Sélectionner la période</CardTitle>
+      <CardHeader className="p-3 sm:p-6">
+        <CardTitle className="text-base sm:text-lg">Sélectionner la période</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Type de période</label>
+      <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="space-y-1.5 sm:space-y-2">
+              <label className="text-xs sm:text-sm font-medium">Type de période</label>
               <Select value={periodType} onValueChange={(value: "month" | "year" | "custom") => setPeriodType(value)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-9 sm:h-10 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -56,8 +56,8 @@ export const PeriodSelector = ({
             </div>
 
             {periodType === "month" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Mois</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-medium">Mois</label>
                 <MonthPicker
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
@@ -67,8 +67,8 @@ export const PeriodSelector = ({
             )}
 
             {periodType === "year" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Année</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-medium">Année</label>
                 <YearPicker
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
@@ -79,12 +79,12 @@ export const PeriodSelector = ({
 
             {periodType === "custom" && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date début</label>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="text-xs sm:text-sm font-medium">Début</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left">
-                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <Button variant="outline" className="w-full h-9 sm:h-10 justify-start text-left text-xs sm:text-sm px-2 sm:px-3">
+                        <CalendarIcon className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                         <span className="truncate">{format(dateRange.from, "dd/MM/yy")}</span>
                       </Button>
                     </PopoverTrigger>
@@ -99,12 +99,12 @@ export const PeriodSelector = ({
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date fin</label>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="text-xs sm:text-sm font-medium">Fin</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left">
-                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <Button variant="outline" className="w-full h-9 sm:h-10 justify-start text-left text-xs sm:text-sm px-2 sm:px-3">
+                        <CalendarIcon className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                         <span className="truncate">{format(dateRange.to, "dd/MM/yy")}</span>
                       </Button>
                     </PopoverTrigger>

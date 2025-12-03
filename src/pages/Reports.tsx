@@ -54,15 +54,15 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-primary" />
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               Rapports
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               {period.label}
             </p>
           </div>
@@ -88,12 +88,12 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 sm:space-y-4">
-          <TabsList className="grid w-full grid-cols-5 mx-auto bg-muted/30 h-8 sm:h-9 p-0.5 sm:p-1 rounded-lg">
-            <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Évolution</TabsTrigger>
-            <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Revenus</TabsTrigger>
-            <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Catégories</TabsTrigger>
-            <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Récap</TabsTrigger>
-            <TabsTrigger value="savings" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3">Épargne</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5 mx-auto bg-muted/30 h-9 sm:h-10 p-0.5 sm:p-1 rounded-lg overflow-x-auto">
+            <TabsTrigger value="evolution" className="text-[9px] sm:text-xs lg:text-sm px-1 sm:px-3 whitespace-nowrap">Évolution</TabsTrigger>
+            <TabsTrigger value="income" className="text-[9px] sm:text-xs lg:text-sm px-1 sm:px-3 whitespace-nowrap">Revenus</TabsTrigger>
+            <TabsTrigger value="categories" className="text-[9px] sm:text-xs lg:text-sm px-1 sm:px-3 whitespace-nowrap">Catégories</TabsTrigger>
+            <TabsTrigger value="recurring" className="text-[9px] sm:text-xs lg:text-sm px-1 sm:px-3 whitespace-nowrap">Récap</TabsTrigger>
+            <TabsTrigger value="savings" className="text-[9px] sm:text-xs lg:text-sm px-1 sm:px-3 whitespace-nowrap">Épargne</TabsTrigger>
           </TabsList>
 
           <TabsContent value="evolution">
