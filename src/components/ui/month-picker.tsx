@@ -32,13 +32,13 @@ export function MonthPicker({ selected, onSelect, placeholder = "Sélectionner u
         <Button
           variant="outline"
           className={cn(
-            "w-[280px] justify-start text-left font-normal",
+            "w-full justify-start text-left font-normal h-9 sm:h-10 text-xs sm:text-sm",
             !selected && "text-muted-foreground",
             className
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {selected ? format(selected, "MMMM yyyy", { locale: fr }) : placeholder}
+          <CalendarIcon className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="truncate">{selected ? format(selected, "MMM yyyy", { locale: fr }) : placeholder}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
