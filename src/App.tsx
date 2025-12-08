@@ -59,7 +59,7 @@ function AppRoutes() {
     <>
       {user && !isMobile && <AppSidebar />}
       {user && isMobile && <MobileHeader />}
-      <div className={user && !isMobile ? "ml-64 min-h-screen" : user && isMobile ? "pt-14 min-h-screen" : "min-h-screen"}>
+      <div className={user && !isMobile ? "ml-64 min-h-screen" : user && isMobile ? "pt-14 pb-20 min-h-screen" : "min-h-screen"}>
         <Routes>
           <Route 
             path="/auth" 

@@ -127,46 +127,46 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
   }, [accountTransactions, balance, accountId]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card className="border-border bg-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Revenus</p>
-                <p className="text-2xl font-bold text-success">{formatCurrency(stats.income)}</p>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Revenus</p>
+                <p className="text-sm sm:text-2xl font-bold text-success truncate">{formatCurrency(stats.income)}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-success" />
+              <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-success" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-border bg-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Dépenses</p>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(stats.expenses)}</p>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Dépenses</p>
+                <p className="text-sm sm:text-2xl font-bold text-destructive truncate">{formatCurrency(stats.expenses)}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                <TrendingDown className="h-6 w-6 text-destructive" />
+              <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <TrendingDown className="h-4 w-4 sm:h-6 sm:w-6 text-destructive" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-border bg-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Virements</p>
-                <p className="text-2xl font-bold">{stats.transfers}</p>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Virements</p>
+                <p className="text-sm sm:text-2xl font-bold">{stats.transfers}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <ArrowRightLeft className="h-6 w-6 text-primary" />
+              <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 hidden sm:flex">
+                <ArrowRightLeft className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -175,11 +175,41 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
 
       {/* Balance Evolution Chart */}
       <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle>Évolution du solde (10 dernières transactions)</CardTitle>
+        <CardHeader className="p-3 sm:p-6">
+          <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+        <CardContent className="p-3 sm:p-6 pt-0">
+          <ResponsiveContainer width="100%" height={200} className="sm:hidden">
+            <LineChart data={balanceEvolution}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              />
+              <YAxis 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                tickFormatter={(value) => `${value.toFixed(0)}`}
+                width={40}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                }}
+                formatter={(value: number) => formatCurrency(value)}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="balance" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
             <LineChart data={balanceEvolution}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
@@ -214,11 +244,36 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
 
       {/* Monthly Income vs Expenses */}
       <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle>Revenus vs Dépenses (6 derniers mois)</CardTitle>
+        <CardHeader className="p-3 sm:p-6">
+          <CardTitle className="text-sm sm:text-base">Revenus vs Dépenses</CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+        <CardContent className="p-3 sm:p-6 pt-0">
+          <ResponsiveContainer width="100%" height={200} className="sm:hidden">
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis 
+                dataKey="month" 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              />
+              <YAxis 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                tickFormatter={(value) => `${value.toFixed(0)}`}
+                width={40}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                }}
+                formatter={(value: number) => formatCurrency(value)}
+              />
+              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
             <BarChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 

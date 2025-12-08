@@ -41,8 +41,8 @@ export const MobileNavigation = () => {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-lg border-t border-border/50 shadow-lg z-50 md:hidden">
-      <div className="flex items-center justify-around px-2 py-1.5 safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-lg border-t border-border/50 shadow-lg z-50 md:hidden safe-area-inset-bottom">
+      <div className="flex items-center justify-around px-1 py-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -53,14 +53,14 @@ export const MobileNavigation = () => {
               variant="ghost"
               size="sm"
               onClick={() => navigate(item.path)}
-              className={`flex flex-col h-14 flex-1 max-w-[80px] gap-1 transition-all duration-200 ${
+              className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 transition-all duration-200 ${
                 isActive
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <Icon className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-              <span className={`text-[9px] leading-tight font-medium ${isActive ? 'font-semibold' : ''}`}>
+              <span className={`text-[10px] leading-tight font-medium ${isActive ? 'font-semibold' : ''}`}>
                 {item.label}
               </span>
             </Button>
