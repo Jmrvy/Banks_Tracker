@@ -50,80 +50,80 @@ const Debts = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <main className="p-6 space-y-6 max-w-[1600px] mx-auto">
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-background pb-24">
+      <main className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Gestion des dettes</h1>
-            <p className="text-muted-foreground">Suivez vos prêts, crédits et remboursements</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Gestion des dettes</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Suivez vos prêts et remboursements</p>
           </div>
-          <Button onClick={() => setNewDebtModalOpen(true)}>
+          <Button onClick={() => setNewDebtModalOpen(true)} className="w-full sm:w-auto h-9 sm:h-10 text-xs sm:text-sm">
             <Plus className="mr-2 h-4 w-4" />
             Nouvelle dette
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-3 sm:p-4 pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Prêts accordés</p>
-                  <p className="text-2xl font-bold text-success">{formatCurrency(totalLoansGiven)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Prêts accordés</p>
+                  <p className="text-lg sm:text-2xl font-bold text-success">{formatCurrency(totalLoansGiven)}</p>
                 </div>
-                <Wallet className="h-8 w-8 text-success" />
+                <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-success" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-3 sm:p-4 pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Prêts contractés</p>
-                  <p className="text-2xl font-bold text-destructive">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Prêts contractés</p>
+                  <p className="text-lg sm:text-2xl font-bold text-destructive">
                     {formatCurrency(totalLoansReceived)}
                   </p>
                 </div>
-                <Wallet className="h-8 w-8 text-destructive" />
+                <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-destructive" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-3 sm:p-4 pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Position nette</p>
-                  <p className={`text-2xl font-bold ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Position nette</p>
+                  <p className={`text-lg sm:text-2xl font-bold ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`}>
                     {formatCurrency(netPosition)}
                   </p>
                 </div>
-                <Wallet className={`h-8 w-8 ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`} />
+                <Wallet className={`h-6 w-6 sm:h-8 sm:w-8 ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`} />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="all" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="all">Tous ({activeDebts.length})</TabsTrigger>
-            <TabsTrigger value="loans_given">Prêts accordés ({loansGiven.length})</TabsTrigger>
-            <TabsTrigger value="loans_received">Prêts contractés ({loansReceived.length})</TabsTrigger>
+        <Tabs defaultValue="all" className="space-y-3 sm:space-y-4">
+          <TabsList className="h-auto flex-wrap gap-1 p-1 w-full sm:w-auto">
+            <TabsTrigger value="all" className="text-xs sm:text-sm h-8 px-2 sm:px-3">Tous ({activeDebts.length})</TabsTrigger>
+            <TabsTrigger value="loans_given" className="text-xs sm:text-sm h-8 px-2 sm:px-3">Accordés ({loansGiven.length})</TabsTrigger>
+            <TabsTrigger value="loans_received" className="text-xs sm:text-sm h-8 px-2 sm:px-3">Contractés ({loansReceived.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
+          <TabsContent value="all" className="space-y-3 sm:space-y-4">
             {activeDebts.length === 0 ? (
               <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Wallet className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
+                <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
+                  <Wallet className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                  <p className="text-xs sm:text-sm text-muted-foreground text-center">
                     Aucune dette active. Cliquez sur "Nouvelle dette" pour commencer.
                   </p>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
                 {activeDebts.map(debt => (
                   <DebtCard 
                     key={debt.id} 
@@ -137,8 +137,8 @@ const Debts = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="loans_given" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <TabsContent value="loans_given" className="space-y-3 sm:space-y-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
               {loansGiven.map(debt => (
                 <DebtCard 
                   key={debt.id} 
@@ -151,8 +151,8 @@ const Debts = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="loans_received" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <TabsContent value="loans_received" className="space-y-3 sm:space-y-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
               {loansReceived.map(debt => (
                 <DebtCard 
                   key={debt.id} 

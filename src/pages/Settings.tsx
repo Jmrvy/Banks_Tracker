@@ -287,12 +287,12 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
         
         {/* Header */}
         <div className="mb-2">
-          <h1 className="text-2xl font-bold">Paramètres</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Paramètres</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Gérer votre compte
           </p>
         </div>
