@@ -105,28 +105,61 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
             Aucune transaction pour ce compte
           </div>
         ) : (
-          <div className="space-y-2 max-h-[600px] overflow-y-auto">
+          <div className="space-y-1 sm:space-y-2 max-h-[600px] overflow-y-auto">
             {transactionsWithBalance.map((t) => (
               <div
                 key={t.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-3"
+                className="flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-3"
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Mobile: Single line compact view */}
+                <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
                   <div className="flex-shrink-0">
                     {getTransactionIcon(t.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-sm sm:text-base">{t.description}</p>
+                    <p className="font-medium truncate text-xs">{t.description}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                      {t.category && (
+                        <span className="ml-1">• {t.category.name}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Mobile: Amount and balance */}
+                <div className="flex items-center gap-3 flex-shrink-0 sm:hidden">
+                  <p className={`font-bold text-xs ${
+                    t.type === 'income' ? 'text-success' :
+                    t.type === 'expense' ? 'text-destructive' :
+                    'text-primary'
+                  }`}>
+                    {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
+                  </p>
+                  <p className={`font-medium text-xs ${
+                    t.balanceAfter >= 0 ? 'text-success/70' : 'text-destructive/70'
+                  }`}>
+                    → {formatCurrency(t.balanceAfter)}
+                  </p>
+                </div>
+
+                {/* Desktop: Full view */}
+                <div className="hidden sm:flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0">
+                    {getTransactionIcon(t.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-base">{t.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
-                      <span className="hidden sm:inline">•</span>
-                      <Badge variant="outline" className="text-[10px] sm:text-xs">
+                      <span>•</span>
+                      <Badge variant="outline" className="text-xs">
                         {getTypeLabel(t.type)}
                       </Badge>
                       {t.category && (
                         <>
-                          <span className="hidden sm:inline">•</span>
-                          <Badge variant="outline" className="gap-1 text-[10px] sm:text-xs">
+                          <span>•</span>
+                          <Badge variant="outline" className="gap-1 text-xs">
                             <div
                               className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: t.category.color }}
@@ -138,9 +171,9 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between sm:gap-4 flex-shrink-0">
-                  <div className="text-left sm:text-right">
-                    <p className={`font-bold text-sm sm:text-base ${
+                <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
+                  <div className="text-right">
+                    <p className={`font-bold text-base ${
                       t.type === 'income' ? 'text-success' :
                       t.type === 'expense' ? 'text-destructive' :
                       'text-primary'
@@ -153,8 +186,8 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                       </p>
                     )}
                   </div>
-                  <div className="text-right min-w-[100px] sm:w-32">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Solde après</p>
+                  <div className="text-right w-32">
+                    <p className="text-xs text-muted-foreground">Solde après</p>
                     <p className={`font-bold text-sm ${
                       t.balanceAfter >= 0 ? 'text-success' : 'text-destructive'
                     }`}>
