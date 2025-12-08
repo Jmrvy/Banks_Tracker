@@ -4,7 +4,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { format, startOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
 
@@ -12,12 +12,28 @@ interface AccountDetailsProps {
   accountId: string;
   transactions: Transaction[];
   balance: number;
+  startDate: Date;
+  endDate: Date;
+  periodLabel: string;
 }
 
-export function AccountDetails({ accountId, transactions, balance }: AccountDetailsProps) {
+export function AccountDetails({ accountId, transactions, balance, startDate, endDate, periodLabel }: AccountDetailsProps) {
   const { formatCurrency } = useUserPreferences();
 
+  // Filter transactions by account AND by date range
   const accountTransactions = useMemo(() => {
+    return transactions
+      .filter(t => {
+        const isAccountMatch = t.account_id === accountId || t.transfer_to_account_id === accountId;
+        const transactionDate = new Date(t.transaction_date);
+        const isInPeriod = isWithinInterval(transactionDate, { start: startDate, end: endDate });
+        return isAccountMatch && isInPeriod;
+      })
+      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+  }, [transactions, accountId, startDate, endDate]);
+
+  // All account transactions (not filtered by period) for balance calculations
+  const allAccountTransactions = useMemo(() => {
     return transactions
       .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId)
       .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
@@ -69,7 +85,7 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
   }, [accountTransactions]);
 
   const balanceEvolution = useMemo(() => {
-    const sortedTransactions = [...accountTransactions].sort(
+    const sortedTransactions = [...allAccountTransactions].sort(
       (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
     );
 
@@ -124,10 +140,15 @@ export function AccountDetails({ accountId, transactions, balance }: AccountDeta
     });
 
     return evolution;
-  }, [accountTransactions, balance, accountId]);
+  }, [allAccountTransactions, balance, accountId]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Period indicator */}
+      <div className="text-sm text-muted-foreground">
+        Période: <span className="font-medium text-foreground">{periodLabel}</span>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card className="border-border bg-card">
