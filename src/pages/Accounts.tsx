@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Wallet, Plus, ArrowLeft } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePeriod } from "@/contexts/PeriodContext";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { AccountDetails } from "@/components/AccountDetails";
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { dateRange, periodLabel } = usePeriod();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
 
@@ -93,6 +95,9 @@ const Accounts = () => {
             accountId={selectedAccountId}
             transactions={transactions}
             balance={selectedAccount.balance}
+            startDate={dateRange.start}
+            endDate={dateRange.end}
+            periodLabel={periodLabel}
           />
         </div>
       </div>
