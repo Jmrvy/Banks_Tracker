@@ -20,18 +20,18 @@ import { Separator } from "@/components/ui/separator";
 const mainNavigation = [
   { name: "Accueil", path: "/", icon: Home },
   { name: "Insights", path: "/insights", icon: TrendingUp },
+  { name: "Rapports", path: "/reports", icon: PieChart },
 ];
 
 const accountsGroup = [
   { name: "Comptes", path: "/accounts", icon: Wallet },
   { name: "Transactions", path: "/transactions", icon: History },
-  { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
-  { name: "Dettes", path: "/debts", icon: Scale },
 ];
 
 const toolsGroup = [
-  { name: "Rapports", path: "/reports", icon: PieChart },
   { name: "Récurrents", path: "/recurring-transactions", icon: Receipt },
+  { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
+  { name: "Dettes", path: "/debts", icon: Scale },
 ];
 
 export const MobileHeader = () => {
