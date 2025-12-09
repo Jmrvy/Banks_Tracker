@@ -39,7 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get all users with budget alerts enabled
     const { data: usersWithNotifs, error: usersError } = await supabaseAdmin
       .from('notification_preferences')
-      .select('user_id, email')
+      .select('user_id')
       .eq('budget_alerts', true);
 
     if (usersError) {
@@ -47,14 +47,27 @@ const handler = async (req: Request): Promise<Response> => {
       throw usersError;
     }
 
-    console.log(`Found ${usersWithNotifs?.length || 0} users with budget alerts enabled`);
+    // Fetch emails from auth.users for each user
+    const usersWithEmails = await Promise.all(
+      (usersWithNotifs || []).map(async (pref) => {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pref.user_id);
+        return {
+          user_id: pref.user_id,
+          email: authUser?.user?.email || null
+        };
+      })
+    );
+
+    const validUsers = usersWithEmails.filter(u => u.email);
+
+    console.log(`Found ${validUsers.length} users with budget alerts enabled`);
 
     const now = new Date();
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
     const currentMonth = monthStart.toISOString().split('T')[0]; // YYYY-MM-01 format
 
-    for (const userPref of usersWithNotifs || []) {
+    for (const userPref of validUsers) {
       try {
         // Get user's categories with budgets
         const { data: categories, error: categoriesError } = await supabaseAdmin

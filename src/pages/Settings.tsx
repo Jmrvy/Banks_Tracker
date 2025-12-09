@@ -36,9 +36,8 @@ const Settings = () => {
 
   const [updateLoading, setUpdateLoading] = useState(false);
   
-  // Notification preferences state
+  // Notification preferences state - email comes from auth, not stored separately
   const [notificationPrefs, setNotificationPrefs] = useState({
-    email: user?.email || "",
     budgetAlerts: true,
     monthlyReports: true
   });
@@ -58,7 +57,6 @@ const Settings = () => {
 
       if (!error && data) {
         setNotificationPrefs({
-          email: data.email,
           budgetAlerts: data.budget_alerts,
           monthlyReports: data.monthly_reports
         });
@@ -106,7 +104,6 @@ const Settings = () => {
         .from('notification_preferences')
         .upsert({
           user_id: user.id,
-          email: notificationPrefs.email,
           budget_alerts: notificationPrefs.budgetAlerts,
           monthly_reports: notificationPrefs.monthlyReports
         });
@@ -455,13 +452,12 @@ const Settings = () => {
                   <Input
                     id="notif-email"
                     type="email"
-                    value={notificationPrefs.email}
-                    onChange={(e) => setNotificationPrefs(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="votre@email.com"
-                    className="h-8 sm:h-10 text-xs sm:text-sm"
+                    value={user?.email || ""}
+                    disabled
+                    className="h-8 sm:h-10 text-xs sm:text-sm bg-muted"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Cet email sera utilisé pour toutes les notifications
+                    Les notifications seront envoyées à votre adresse email de connexion
                   </p>
                 </div>
 

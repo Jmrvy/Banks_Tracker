@@ -71,6 +71,19 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Fetch email from auth.users (not stored in notification_preferences for security)
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    if (authError || !authUser?.user?.email) {
+      console.log(`Could not fetch email for user ${userId}`);
+      return new Response(
+        JSON.stringify({ error: "Could not fetch user email" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userEmail = authUser.user.email;
+
     // Check if user wants this type of notification
     if (type === 'budget_alert' && !prefs.budget_alerts) {
       console.log(`User ${userId} has budget alerts disabled`);
@@ -122,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailResponse = await resend.emails.send({
       from: "Budget App <onboarding@resend.dev>",
-      to: [prefs.email],
+      to: [userEmail],
       subject: subject,
       html: html,
     });
