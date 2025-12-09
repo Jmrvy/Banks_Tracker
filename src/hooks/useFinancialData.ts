@@ -148,6 +148,63 @@ export function useFinancialData() {
       })) as RecurringTransaction[];
       console.log('Processed recurring transactions:', processedRecurring);
       setRecurringTransactions(processedRecurring);
+      
+      // Auto-deactivate expired recurring transactions
+      await deactivateExpiredRecurringTransactions(processedRecurring);
+    }
+  };
+
+  // Deactivate recurring transactions that have passed their end date
+  const deactivateExpiredRecurringTransactions = async (transactions: RecurringTransaction[]) => {
+    if (!user) return;
+    
+    const todayString = new Date().toISOString().split('T')[0];
+    
+    const expiredTransactions = transactions.filter(rt => 
+      rt.is_active && rt.end_date && rt.end_date < todayString
+    );
+
+    if (expiredTransactions.length === 0) return;
+
+    console.log(`Found ${expiredTransactions.length} expired recurring transactions to deactivate`);
+
+    for (const rt of expiredTransactions) {
+      console.log(`Deactivating expired transaction: ${rt.description} (end_date: ${rt.end_date})`);
+      
+      const { error } = await supabase
+        .from('recurring_transactions')
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', rt.id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error(`Error deactivating recurring transaction ${rt.id}:`, error);
+      }
+    }
+
+    // Refetch to update UI with deactivated transactions
+    if (expiredTransactions.length > 0) {
+      const { data: updatedData } = await supabase
+        .from('recurring_transactions')
+        .select(`
+          *,
+          account:accounts(name, bank),
+          category:categories(id, name, color)
+        `)
+        .eq('user_id', user.id)
+        .order('next_due_date', { ascending: true });
+
+      if (updatedData) {
+        const processedRecurring = updatedData.map(rt => ({
+          ...rt,
+          account: rt.account || null,
+          category: rt.category || null
+        })) as RecurringTransaction[];
+        setRecurringTransactions(processedRecurring);
+      }
     }
   };
 
