@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
+import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 
 interface NewTransactionModalProps {
   open: boolean;
@@ -55,30 +56,16 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const descriptionRequired = formData.type !== 'transfer';
+    // Validate form data with zod schema
+    const validation = validateForm(transactionSchemaWithTransfer, {
+      ...formData,
+      to_account_id: formData.to_account_id || undefined,
+    });
     
-    if ((descriptionRequired && !formData.description) || !formData.amount || !formData.account_id) {
+    if (!validation.success) {
       toast({
-        title: "Informations manquantes",
-        description: "Veuillez remplir tous les champs obligatoires.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.type === 'transfer' && !formData.to_account_id) {
-      toast({
-        title: "Compte de destination requis",
-        description: "Veuillez sélectionner un compte de destination pour le transfert.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.type === 'transfer' && formData.account_id === formData.to_account_id) {
-      toast({
-        title: "Comptes identiques",
-        description: "Le compte source et le compte de destination doivent être différents.",
+        title: "Erreur de validation",
+        description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
       return;

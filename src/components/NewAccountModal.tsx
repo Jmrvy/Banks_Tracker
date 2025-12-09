@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { accountSchema, validateForm } from '@/lib/validations';
 
 interface NewAccountModalProps {
   open: boolean;
@@ -47,10 +48,13 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name) {
+    // Validate form data with zod schema
+    const validation = validateForm(accountSchema, formData);
+    
+    if (!validation.success) {
       toast({
-        title: "Missing information",
-        description: "Please enter an account name.",
+        title: "Erreur de validation",
+        description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
       return;
