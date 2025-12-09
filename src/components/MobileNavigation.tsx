@@ -23,16 +23,6 @@ const navItems = [
     path: "/new-transaction",
     icon: Plus,
     label: "Ajouter"
-  },
-  {
-    path: "/insights",
-    icon: TrendingUp,
-    label: "Insights"
-  },
-  {
-    path: "/reports",
-    icon: PieChart,
-    label: "Rapports"
   }
 ];
 
