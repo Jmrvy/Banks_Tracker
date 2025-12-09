@@ -4,7 +4,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { format, startOfMonth, isWithinInterval } from "date-fns";
+import { format, startOfMonth, isWithinInterval, differenceInDays, startOfWeek, eachDayOfInterval, eachWeekOfInterval, isSameDay, isSameWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
 
@@ -55,18 +55,74 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     return { income, expenses, transfers };
   }, [accountTransactions]);
 
-  // Build monthly data based on the selected period
-  const monthlyData = useMemo(() => {
-    // Calculate the number of months in the selected period
+  // Determine chart grouping based on period length
+  const periodChartData = useMemo(() => {
+    const daysDiff = differenceInDays(endDate, startDate);
+    
+    // Single month or less: group by day
+    if (daysDiff <= 31) {
+      const days = eachDayOfInterval({ start: startDate, end: endDate });
+      const data = days.map(day => ({
+        label: format(day, 'dd', { locale: fr }),
+        fullDate: day,
+        income: 0,
+        expenses: 0,
+      }));
+
+      accountTransactions.forEach(t => {
+        const transactionDate = new Date(t.transaction_date);
+        const dayIndex = data.findIndex(d => isSameDay(d.fullDate, transactionDate));
+
+        if (dayIndex !== -1) {
+          if (t.type === 'income') {
+            data[dayIndex].income += t.amount;
+          } else if (t.type === 'expense') {
+            data[dayIndex].expenses += t.amount;
+          }
+        }
+      });
+
+      return { data, type: 'day' as const };
+    }
+    
+    // 2-3 months: group by week
+    if (daysDiff <= 93) {
+      const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { locale: fr });
+      const data = weeks.map((week, index) => ({
+        label: `S${index + 1}`,
+        fullDate: week,
+        income: 0,
+        expenses: 0,
+      }));
+
+      accountTransactions.forEach(t => {
+        const transactionDate = new Date(t.transaction_date);
+        const weekIndex = data.findIndex(w => 
+          isSameWeek(w.fullDate, transactionDate, { locale: fr })
+        );
+
+        if (weekIndex !== -1) {
+          if (t.type === 'income') {
+            data[weekIndex].income += t.amount;
+          } else if (t.type === 'expense') {
+            data[weekIndex].expenses += t.amount;
+          }
+        }
+      });
+
+      return { data, type: 'week' as const };
+    }
+    
+    // Longer periods: group by month
     const startMonth = startOfMonth(startDate);
     const endMonth = startOfMonth(endDate);
     
-    const months: { month: string; fullDate: Date; income: number; expenses: number }[] = [];
+    const months: { label: string; fullDate: Date; income: number; expenses: number }[] = [];
     let currentMonth = startMonth;
     
     while (currentMonth <= endMonth) {
       months.push({
-        month: format(currentMonth, 'MMM', { locale: fr }),
+        label: format(currentMonth, 'MMM', { locale: fr }),
         fullDate: currentMonth,
         income: 0,
         expenses: 0,
@@ -91,7 +147,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       }
     });
 
-    return months;
+    return { data: months, type: 'month' as const };
   }, [accountTransactions, startDate, endDate]);
 
   const balanceEvolution = useMemo(() => {
@@ -273,18 +329,24 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
         </CardContent>
       </Card>
 
-      {/* Monthly Income vs Expenses */}
+      {/* Income vs Expenses Chart */}
       <Card className="border-border bg-card">
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">Revenus vs Dépenses</CardTitle>
+          <CardTitle className="text-sm sm:text-base">
+            Revenus vs Dépenses
+            <span className="text-xs font-normal text-muted-foreground ml-2">
+              ({periodChartData.type === 'day' ? 'par jour' : periodChartData.type === 'week' ? 'par semaine' : 'par mois'})
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
           <ResponsiveContainer width="100%" height={200} className="sm:hidden">
-            <BarChart data={monthlyData}>
+            <BarChart data={periodChartData.data}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
-                dataKey="month" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                dataKey="label" 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 8 }}
+                interval={periodChartData.type === 'day' ? 4 : 0}
               />
               <YAxis 
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
@@ -300,17 +362,18 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
-            <BarChart data={monthlyData}>
+            <BarChart data={periodChartData.data}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
-                dataKey="month" 
+                dataKey="label" 
                 className="text-xs"
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                interval={periodChartData.type === 'day' ? 2 : 0}
               />
               <YAxis 
                 className="text-xs"
@@ -325,8 +388,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
