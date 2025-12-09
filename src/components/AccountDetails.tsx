@@ -40,20 +40,33 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
   }, [transactions, accountId]);
 
   const stats = useMemo(() => {
+    // Income = regular income + incoming transfers (only if include_in_stats)
     const income = accountTransactions
-      .filter(t => t.type === 'income')
+      .filter(t => t.include_in_stats && (
+        t.type === 'income' || 
+        (t.type === 'transfer' && t.transfer_to_account_id === accountId)
+      ))
       .reduce((sum, t) => sum + t.amount, 0);
     
+    // Expenses = regular expenses + outgoing transfers (only if include_in_stats)
     const expenses = accountTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(t => t.include_in_stats && (
+        t.type === 'expense' || 
+        (t.type === 'transfer' && t.account_id === accountId)
+      ))
+      .reduce((sum, t) => {
+        if (t.type === 'transfer') {
+          return sum + t.amount + (t.transfer_fee || 0);
+        }
+        return sum + t.amount;
+      }, 0);
     
     const transfers = accountTransactions
       .filter(t => t.type === 'transfer')
       .length;
 
     return { income, expenses, transfers };
-  }, [accountTransactions]);
+  }, [accountTransactions, accountId]);
 
   // Determine chart grouping based on period length
   const periodChartData = useMemo(() => {
