@@ -4,21 +4,34 @@ import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
-import { format } from "date-fns";
+import { format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface AccountTransactionsListProps {
   accountId: string;
   transactions: Transaction[];
   initialBalance: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
-export function AccountTransactionsList({ accountId, transactions, initialBalance }: AccountTransactionsListProps) {
+export function AccountTransactionsList({ accountId, transactions, initialBalance, startDate, endDate }: AccountTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
 
   const transactionsWithBalance = useMemo(() => {
-    const accountTransactions = transactions
-      .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId)
+    // First filter by account
+    let accountTransactions = transactions
+      .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId);
+    
+    // Then filter by date range if provided
+    if (startDate && endDate) {
+      accountTransactions = accountTransactions.filter(t => {
+        const transactionDate = new Date(t.transaction_date);
+        return isWithinInterval(transactionDate, { start: startDate, end: endDate });
+      });
+    }
+    
+    accountTransactions = accountTransactions
       .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
 
     let runningBalance = initialBalance;
@@ -66,7 +79,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
 
     // Return in reverse order (most recent first) for display
     return result.reverse();
-  }, [transactions, accountId, initialBalance]);
+  }, [transactions, accountId, initialBalance, startDate, endDate]);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
