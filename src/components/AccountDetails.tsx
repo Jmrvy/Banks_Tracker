@@ -1,12 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
-import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { format, startOfMonth, isWithinInterval, differenceInDays, startOfWeek, eachDayOfInterval, eachWeekOfInterval, isSameDay, isSameWeek } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, isSameDay, isSameWeek, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
+import { Button } from "./ui/button";
 
 interface AccountDetailsProps {
   accountId: string;
@@ -19,6 +22,7 @@ interface AccountDetailsProps {
 
 export function AccountDetails({ accountId, transactions, balance, startDate, endDate, periodLabel }: AccountDetailsProps) {
   const { formatCurrency } = useUserPreferences();
+  const [selectedPeriod, setSelectedPeriod] = useState<{ date: Date; type: 'day' | 'week' | 'month'; label: string } | null>(null);
 
   // Filter transactions by account AND by date range
   const accountTransactions = useMemo(() => {
@@ -159,6 +163,65 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
     return { data: months, type: 'month' as const };
   }, [accountTransactions, accountId, startDate, endDate]);
+
+  // Get transactions for selected period in the chart
+  const selectedPeriodTransactions = useMemo(() => {
+    if (!selectedPeriod) return { income: [], expenses: [], totalIncome: 0, totalExpenses: 0 };
+    
+    let periodStart: Date;
+    let periodEnd: Date;
+    
+    if (selectedPeriod.type === 'day') {
+      periodStart = selectedPeriod.date;
+      periodEnd = addDays(selectedPeriod.date, 1);
+    } else if (selectedPeriod.type === 'week') {
+      periodStart = startOfWeek(selectedPeriod.date, { locale: fr });
+      periodEnd = endOfWeek(selectedPeriod.date, { locale: fr });
+    } else {
+      periodStart = startOfMonth(selectedPeriod.date);
+      periodEnd = endOfMonth(selectedPeriod.date);
+    }
+    
+    const incomeTransactions = accountTransactions.filter(t => {
+      const transactionDate = new Date(t.transaction_date);
+      const isInPeriod = transactionDate >= periodStart && transactionDate <= periodEnd;
+      const isIncome = t.type === 'income' || (t.type === 'transfer' && t.transfer_to_account_id === accountId);
+      return isInPeriod && isIncome && t.include_in_stats;
+    });
+    
+    const expenseTransactions = accountTransactions.filter(t => {
+      const transactionDate = new Date(t.transaction_date);
+      const isInPeriod = transactionDate >= periodStart && transactionDate <= periodEnd;
+      const isExpense = t.type === 'expense' || (t.type === 'transfer' && t.account_id === accountId);
+      return isInPeriod && isExpense && t.include_in_stats;
+    });
+    
+    const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalExpenses = expenseTransactions.reduce((sum, t) => {
+      if (t.type === 'transfer') {
+        return sum + t.amount + (t.transfer_fee || 0);
+      }
+      return sum + t.amount;
+    }, 0);
+    
+    return { income: incomeTransactions, expenses: expenseTransactions, totalIncome, totalExpenses };
+  }, [selectedPeriod, accountTransactions, accountId]);
+
+  // Handle bar click
+  const handleBarClick = (data: any) => {
+    if (data && data.activePayload && data.activePayload[0]) {
+      const payload = data.activePayload[0].payload;
+      setSelectedPeriod({
+        date: payload.fullDate,
+        type: periodChartData.type,
+        label: periodChartData.type === 'day' 
+          ? format(payload.fullDate, 'EEEE d MMMM yyyy', { locale: fr })
+          : periodChartData.type === 'week'
+          ? `Semaine du ${format(startOfWeek(payload.fullDate, { locale: fr }), 'd MMMM', { locale: fr })}`
+          : format(payload.fullDate, 'MMMM yyyy', { locale: fr })
+      });
+    }
+  };
 
   const balanceEvolution = useMemo(() => {
     const sortedTransactions = [...allAccountTransactions].sort(
@@ -348,10 +411,11 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
               ({periodChartData.type === 'day' ? 'par jour' : periodChartData.type === 'week' ? 'par semaine' : 'par mois'})
             </span>
           </CardTitle>
+          <p className="text-xs text-muted-foreground">Cliquez sur une barre pour voir les détails</p>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
           <ResponsiveContainer width="100%" height={200} className="sm:hidden">
-            <BarChart data={periodChartData.data}>
+            <BarChart data={periodChartData.data} onClick={handleBarClick}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="label" 
@@ -372,12 +436,12 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[2, 2, 0, 0]} cursor="pointer" />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[2, 2, 0, 0]} cursor="pointer" />
             </BarChart>
           </ResponsiveContainer>
           <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
-            <BarChart data={periodChartData.data}>
+            <BarChart data={periodChartData.data} onClick={handleBarClick}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="label" 
@@ -398,8 +462,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[4, 4, 0, 0]} cursor="pointer" />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[4, 4, 0, 0]} cursor="pointer" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -413,6 +477,122 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
         startDate={startDate}
         endDate={endDate}
       />
+
+      {/* Period Detail Sheet */}
+      <Sheet open={!!selectedPeriod} onOpenChange={(open) => !open && setSelectedPeriod(null)}>
+        <SheetContent side="bottom" className="h-[85vh] sm:h-[70vh] rounded-t-xl">
+          <SheetHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="capitalize text-base sm:text-lg">
+                {selectedPeriod?.label}
+              </SheetTitle>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedPeriod(null)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </SheetHeader>
+          
+          <div className="space-y-4 overflow-y-auto max-h-[calc(85vh-100px)] sm:max-h-[calc(70vh-100px)]">
+            {/* Summary */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                <p className="text-xs text-muted-foreground mb-1">Revenus</p>
+                <p className="text-lg font-bold text-success">{formatCurrency(selectedPeriodTransactions.totalIncome)}</p>
+                <p className="text-xs text-muted-foreground">{selectedPeriodTransactions.income.length} transaction(s)</p>
+              </div>
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-xs text-muted-foreground mb-1">Dépenses</p>
+                <p className="text-lg font-bold text-destructive">{formatCurrency(selectedPeriodTransactions.totalExpenses)}</p>
+                <p className="text-xs text-muted-foreground">{selectedPeriodTransactions.expenses.length} transaction(s)</p>
+              </div>
+            </div>
+
+            {/* Income Transactions */}
+            {selectedPeriodTransactions.income.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                  Revenus
+                </h4>
+                <div className="space-y-2">
+                  {selectedPeriodTransactions.income.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{t.description}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}</span>
+                          {t.category && (
+                            <>
+                              <span>•</span>
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
+                                {t.category.name}
+                              </Badge>
+                            </>
+                          )}
+                          {t.type === 'transfer' && (
+                            <>
+                              <span>•</span>
+                              <Badge variant="outline" className="text-xs">Virement entrant</Badge>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm font-bold text-success ml-2">+{formatCurrency(t.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Expense Transactions */}
+            {selectedPeriodTransactions.expenses.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                  Dépenses
+                </h4>
+                <div className="space-y-2">
+                  {selectedPeriodTransactions.expenses.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{t.description}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}</span>
+                          {t.category && (
+                            <>
+                              <span>•</span>
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
+                                {t.category.name}
+                              </Badge>
+                            </>
+                          )}
+                          {t.type === 'transfer' && (
+                            <>
+                              <span>•</span>
+                              <Badge variant="outline" className="text-xs">Virement sortant</Badge>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm font-bold text-destructive ml-2">
+                        -{formatCurrency(t.amount + (t.type === 'transfer' ? (t.transfer_fee || 0) : 0))}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedPeriodTransactions.income.length === 0 && selectedPeriodTransactions.expenses.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune transaction pour cette période
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
