@@ -19,43 +19,59 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
   const { formatCurrency } = useUserPreferences();
 
   const transactionsWithBalance = useMemo(() => {
-    // First filter by account
-    let accountTransactions = transactions
-      .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId);
-    
-    // Then filter by date range if provided
-    if (startDate && endDate) {
-      accountTransactions = accountTransactions.filter(t => {
-        const transactionDate = new Date(t.transaction_date);
-        return isWithinInterval(transactionDate, { start: startDate, end: endDate });
-      });
-    }
-    
-    accountTransactions = accountTransactions
+    // Get ALL account transactions sorted chronologically
+    const allAccountTransactions = transactions
+      .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId)
       .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
 
-    let runningBalance = initialBalance;
-    
-    // Calculate initial balance by reversing all transactions from current balance
-    [...accountTransactions].reverse().forEach(t => {
+    // Calculate balance at the BEGINNING of the period by reversing ALL transactions from current balance
+    let balanceAtPeriodStart = initialBalance;
+    [...allAccountTransactions].reverse().forEach(t => {
       if (t.account_id === accountId) {
         if (t.type === 'income') {
-          runningBalance -= t.amount;
+          balanceAtPeriodStart -= t.amount;
         } else if (t.type === 'expense') {
-          runningBalance += t.amount;
+          balanceAtPeriodStart += t.amount;
         } else if (t.type === 'transfer') {
-          runningBalance += t.amount + (t.transfer_fee || 0);
+          balanceAtPeriodStart += t.amount + (t.transfer_fee || 0);
         }
       } else if (t.transfer_to_account_id === accountId) {
-        runningBalance -= t.amount;
+        balanceAtPeriodStart -= t.amount;
       }
     });
 
-    const startBalance = runningBalance;
+    // Now replay transactions up to the start of the period to get the correct starting balance
+    let runningBalance = balanceAtPeriodStart;
+    allAccountTransactions.forEach(t => {
+      const transactionDate = new Date(t.transaction_date);
+      // Only process transactions BEFORE the period starts
+      if (startDate && transactionDate < startDate) {
+        if (t.account_id === accountId) {
+          if (t.type === 'income') {
+            runningBalance += t.amount;
+          } else if (t.type === 'expense') {
+            runningBalance -= t.amount;
+          } else if (t.type === 'transfer') {
+            runningBalance -= t.amount + (t.transfer_fee || 0);
+          }
+        } else if (t.transfer_to_account_id === accountId) {
+          runningBalance += t.amount;
+        }
+      }
+    });
+
+    // Filter transactions within the period
+    const periodTransactions = startDate && endDate
+      ? allAccountTransactions.filter(t => {
+          const transactionDate = new Date(t.transaction_date);
+          return isWithinInterval(transactionDate, { start: startDate, end: endDate });
+        })
+      : allAccountTransactions;
+
     const result = [];
 
-    // Now FORWARD through transactions chronologically
-    accountTransactions.forEach((t) => {
+    // Now FORWARD through period transactions to calculate balance after each
+    periodTransactions.forEach((t) => {
       const balanceBefore = runningBalance;
       
       if (t.account_id === accountId) {
