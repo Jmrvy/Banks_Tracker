@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RecurringTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface RecurringCalendarProps {
@@ -39,20 +39,68 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
     return [...paddingDays, ...days];
   }, [currentMonth]);
 
-  // Map transactions to their due dates within the current month
+  // Map transactions to their due dates within the current month (including past occurrences)
   const transactionsByDay = useMemo(() => {
-    const map = new Map<string, RecurringTransaction[]>();
+    const map = new Map<string, { transaction: RecurringTransaction; isPast: boolean }[]>();
+    const today = startOfDay(new Date());
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
     
     transactions.forEach((transaction) => {
       if (!transaction.is_active) return;
       
-      const dueDate = new Date(transaction.next_due_date);
+      const startDate = new Date(transaction.start_date);
+      const nextDueDate = new Date(transaction.next_due_date);
       
-      // Check if this transaction falls within the current month view
-      if (isSameMonth(dueDate, currentMonth)) {
-        const key = format(dueDate, 'yyyy-MM-dd');
-        const existing = map.get(key) || [];
-        map.set(key, [...existing, transaction]);
+      // Calculate all occurrences of this transaction in the current month
+      let currentOccurrence = new Date(startDate);
+      
+      // Move to first occurrence that could be in or before this month
+      while (currentOccurrence < monthStart) {
+        switch (transaction.recurrence_type) {
+          case 'weekly':
+            currentOccurrence = addWeeks(currentOccurrence, 1);
+            break;
+          case 'monthly':
+            currentOccurrence = addMonths(currentOccurrence, 1);
+            break;
+          case 'quarterly':
+            currentOccurrence = addQuarters(currentOccurrence, 1);
+            break;
+          case 'yearly':
+            currentOccurrence = addYears(currentOccurrence, 1);
+            break;
+          default:
+            currentOccurrence = addMonths(currentOccurrence, 1);
+        }
+      }
+      
+      // Add all occurrences within this month
+      while (currentOccurrence <= monthEnd) {
+        if (isSameMonth(currentOccurrence, currentMonth)) {
+          const key = format(currentOccurrence, 'yyyy-MM-dd');
+          const isPast = isBefore(currentOccurrence, today);
+          const existing = map.get(key) || [];
+          map.set(key, [...existing, { transaction, isPast }]);
+        }
+        
+        // Move to next occurrence
+        switch (transaction.recurrence_type) {
+          case 'weekly':
+            currentOccurrence = addWeeks(currentOccurrence, 1);
+            break;
+          case 'monthly':
+            currentOccurrence = addMonths(currentOccurrence, 1);
+            break;
+          case 'quarterly':
+            currentOccurrence = addQuarters(currentOccurrence, 1);
+            break;
+          case 'yearly':
+            currentOccurrence = addYears(currentOccurrence, 1);
+            break;
+          default:
+            currentOccurrence = addMonths(currentOccurrence, 1);
+        }
       }
     });
     
@@ -134,7 +182,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                   } ${dayTransactions.length > 0 ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                   onClick={() => {
                     if (dayTransactions.length === 1) {
-                      setSelectedTransaction(dayTransactions[0]);
+                      setSelectedTransaction(dayTransactions[0].transaction);
                     }
                   }}
                 >
@@ -146,7 +194,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                   
                   {/* Transaction indicators */}
                   <div className="flex-1 overflow-hidden space-y-0.5 mt-0.5">
-                    {dayTransactions.slice(0, 3).map((transaction) => (
+                    {dayTransactions.slice(0, 3).map(({ transaction, isPast }) => (
                       <div
                         key={transaction.id}
                         onClick={(e) => {
@@ -154,12 +202,14 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                           setSelectedTransaction(transaction);
                         }}
                         className={`rounded px-0.5 sm:px-1 py-0.5 cursor-pointer hover:opacity-80 transition-opacity ${
-                          transaction.type === 'income' 
-                            ? 'bg-success/20 text-success' 
-                            : 'bg-destructive/20 text-destructive'
+                          isPast
+                            ? 'bg-muted/50 text-muted-foreground'
+                            : transaction.type === 'income' 
+                              ? 'bg-success/20 text-success' 
+                              : 'bg-destructive/20 text-destructive'
                         }`}
                       >
-                        <p className="text-[8px] sm:text-[10px] font-medium truncate leading-tight">
+                        <p className={`text-[8px] sm:text-[10px] font-medium truncate leading-tight ${isPast ? 'line-through' : ''}`}>
                           {transaction.description}
                         </p>
                         <p className="text-[7px] sm:text-[9px] font-semibold hidden sm:block">
@@ -179,7 +229,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
           </div>
 
           {/* Legend */}
-          <div className="flex items-center justify-center gap-4 mt-3 sm:mt-4 pt-3 border-t border-border/50">
+          <div className="flex items-center justify-center gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 border-t border-border/50 flex-wrap">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded bg-success/20" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
@@ -187,6 +237,10 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded bg-destructive/20" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded bg-muted/50" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Passées</span>
             </div>
           </div>
         </CardContent>
