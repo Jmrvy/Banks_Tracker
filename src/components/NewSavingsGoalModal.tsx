@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
+import { useToast } from '@/hooks/use-toast';
+import { savingsGoalSchema, validateForm } from '@/lib/validations';
 
 interface NewSavingsGoalModalProps {
   isOpen: boolean;
@@ -28,6 +30,7 @@ const GOAL_CATEGORIES = [
 
 export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProps) => {
   const { createGoal } = useSavingsGoals();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -40,6 +43,18 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data with zod schema
+    const validation = validateForm(savingsGoalSchema, formData);
+    
+    if (!validation.success) {
+      toast({
+        title: "Erreur de validation",
+        description: (validation as { success: false; error: string }).error,
+        variant: "destructive",
+      });
+      return;
+    }
     
     await createGoal.mutateAsync({
       name: formData.name,

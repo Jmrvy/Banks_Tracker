@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { DatePicker } from '@/components/ui/date-picker';
+import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -70,13 +71,16 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     e.preventDefault();
     if (!transaction) return;
     
-    // Pour les transferts, la description n'est pas obligatoire
-    const descriptionRequired = formData.type !== 'transfer';
+    // Validate form data with zod schema
+    const validation = validateForm(transactionSchemaWithTransfer, {
+      ...formData,
+      to_account_id: formData.transfer_to_account_id || undefined,
+    });
     
-    if ((descriptionRequired && !formData.description) || !formData.amount || !formData.account_id) {
+    if (!validation.success) {
       toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs obligatoires.",
+        title: "Erreur de validation",
+        description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
       return;

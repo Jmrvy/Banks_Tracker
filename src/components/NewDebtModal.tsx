@@ -11,6 +11,8 @@ import { LoanCalculator, LoanParams } from '@/components/LoanCalculator';
 import { AmortizationSchedule } from '@/components/AmortizationSchedule';
 import { LoanCalculation } from '@/utils/loanCalculator';
 import { Loader2, Calculator, FileText } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { debtSchema, validateForm } from '@/lib/validations';
 
 interface NewDebtModalProps {
   open: boolean;
@@ -19,6 +21,7 @@ interface NewDebtModalProps {
 
 export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
   const { createDebt } = useDebts();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('calculator');
   const [calculation, setCalculation] = useState<LoanCalculation | null>(null);
@@ -52,6 +55,18 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loanParams || !calculation) return;
+
+    // Validate form data with zod schema
+    const validation = validateForm(debtSchema, formData);
+    
+    if (!validation.success) {
+      toast({
+        title: "Erreur de validation",
+        description: (validation as { success: false; error: string }).error,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
 
