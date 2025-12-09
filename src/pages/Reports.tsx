@@ -88,13 +88,28 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 sm:space-y-4 w-full">
-          <div className="w-full overflow-hidden">
-            <TabsList className="flex w-full bg-muted/30 h-9 sm:h-10 p-0.5 sm:p-1 rounded-lg">
-              <TabsTrigger value="evolution" className="flex-1 text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 min-w-0">Évolution</TabsTrigger>
-              <TabsTrigger value="income" className="flex-1 text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 min-w-0">Revenus</TabsTrigger>
-              <TabsTrigger value="categories" className="flex-1 text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 min-w-0">Catégories</TabsTrigger>
-              <TabsTrigger value="recurring" className="flex-1 text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 min-w-0">Récap</TabsTrigger>
-              <TabsTrigger value="savings" className="flex-1 text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 min-w-0">Épargne</TabsTrigger>
+          <div className="w-full overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+            <TabsList className="inline-flex sm:flex sm:w-full bg-muted/30 h-9 sm:h-10 p-0.5 sm:p-1 rounded-lg min-w-max sm:min-w-0">
+              <TabsTrigger value="evolution" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+                <span className="sm:hidden">📈</span>
+                <span className="hidden sm:inline">Évolution</span>
+              </TabsTrigger>
+              <TabsTrigger value="income" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+                <span className="sm:hidden">💰</span>
+                <span className="hidden sm:inline">Revenus</span>
+              </TabsTrigger>
+              <TabsTrigger value="categories" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+                <span className="sm:hidden">📊</span>
+                <span className="hidden sm:inline">Catégories</span>
+              </TabsTrigger>
+              <TabsTrigger value="recurring" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+                <span className="sm:hidden">🔄</span>
+                <span className="hidden sm:inline">Récap</span>
+              </TabsTrigger>
+              <TabsTrigger value="savings" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+                <span className="sm:hidden">🎯</span>
+                <span className="hidden sm:inline">Épargne</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
