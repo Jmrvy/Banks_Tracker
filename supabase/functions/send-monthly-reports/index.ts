@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get all users with monthly reports enabled
     const { data: usersWithNotifs, error: usersError } = await supabaseAdmin
       .from('notification_preferences')
-      .select('user_id, email')
+      .select('user_id')
       .eq('monthly_reports', true);
 
     if (usersError) {
@@ -48,7 +48,20 @@ const handler = async (req: Request): Promise<Response> => {
       throw usersError;
     }
 
-    console.log(`Found ${usersWithNotifs?.length || 0} users with monthly reports enabled`);
+    // Fetch emails from auth.users for each user
+    const usersWithEmails = await Promise.all(
+      (usersWithNotifs || []).map(async (pref) => {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pref.user_id);
+        return {
+          user_id: pref.user_id,
+          email: authUser?.user?.email || null
+        };
+      })
+    );
+
+    const validUsers = usersWithEmails.filter(u => u.email);
+
+    console.log(`Found ${validUsers.length} users with monthly reports enabled`);
 
     // Calculate last month's period
     const now = new Date();
@@ -57,7 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
     const monthEnd = endOfMonth(lastMonth);
     const periodLabel = format(lastMonth, 'MMMM yyyy', { locale: fr });
 
-    for (const userPref of usersWithNotifs || []) {
+    for (const userPref of validUsers) {
       try {
         // Get user's accounts
         const { data: accounts, error: accountsError } = await supabaseAdmin
