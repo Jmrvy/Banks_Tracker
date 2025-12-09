@@ -400,6 +400,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
         accountId={accountId}
         transactions={transactions}
         initialBalance={balance}
+        startDate={startDate}
+        endDate={endDate}
       />
     </div>
   );
