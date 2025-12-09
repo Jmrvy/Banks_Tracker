@@ -19,7 +19,9 @@ interface RecurringCalendarProps {
 const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedTransaction, setSelectedTransaction] = useState<RecurringTransaction | null>(null);
+  const [selectedDayTransactions, setSelectedDayTransactions] = useState<{ date: Date; transactions: { transaction: RecurringTransaction; isPast: boolean }[] } | null>(null);
   const { formatCurrency } = useUserPreferences();
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -181,8 +183,16 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                       : 'border-border/50 hover:border-border'
                   } ${dayTransactions.length > 0 ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                   onClick={() => {
-                    if (dayTransactions.length === 1) {
-                      setSelectedTransaction(dayTransactions[0].transaction);
+                    if (dayTransactions.length > 0) {
+                      // On mobile: always show day selection modal
+                      // On desktop: show transaction directly if only one
+                      if (isMobile) {
+                        setSelectedDayTransactions({ date: day, transactions: dayTransactions });
+                      } else if (dayTransactions.length === 1) {
+                        setSelectedTransaction(dayTransactions[0].transaction);
+                      } else {
+                        setSelectedDayTransactions({ date: day, transactions: dayTransactions });
+                      }
                     }
                   }}
                 >
@@ -199,9 +209,11 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                         key={transaction.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedTransaction(transaction);
+                          if (!isMobile) {
+                            setSelectedTransaction(transaction);
+                          }
                         }}
-                        className={`rounded px-0.5 sm:px-1 py-0.5 cursor-pointer hover:opacity-80 transition-opacity ${
+                        className={`rounded px-0.5 sm:px-1 py-0.5 sm:cursor-pointer hover:opacity-80 transition-opacity ${
                           isPast
                             ? 'bg-muted/50 text-muted-foreground'
                             : transaction.type === 'income' 
@@ -245,6 +257,59 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
           </div>
         </CardContent>
       </Card>
+
+      {/* Day Selection Modal (for mobile or multiple transactions) */}
+      <Dialog open={!!selectedDayTransactions} onOpenChange={(open) => !open && setSelectedDayTransactions(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-sm sm:text-base">
+              Transactions du {selectedDayTransactions && format(selectedDayTransactions.date, 'd MMMM yyyy', { locale: fr })}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {selectedDayTransactions?.transactions.map(({ transaction, isPast }) => (
+              <div
+                key={transaction.id}
+                onClick={() => {
+                  setSelectedDayTransactions(null);
+                  setSelectedTransaction(transaction);
+                }}
+                className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 ${
+                  isPast ? 'opacity-60' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {transaction.type === 'income' ? (
+                      <ArrowDownRight className="h-4 w-4 text-success flex-shrink-0" />
+                    ) : (
+                      <ArrowUpRight className="h-4 w-4 text-destructive flex-shrink-0" />
+                    )}
+                    <span className={`font-medium truncate text-sm ${isPast ? 'line-through' : ''}`}>
+                      {transaction.description}
+                    </span>
+                  </div>
+                  <span className={`font-bold text-sm flex-shrink-0 ${
+                    transaction.type === 'income' ? 'text-success' : 'text-destructive'
+                  }`}>
+                    {formatCurrency(transaction.amount)}
+                  </span>
+                </div>
+                {transaction.category && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: transaction.category.color }}
+                    />
+                    <span className="text-xs text-muted-foreground">{transaction.category.name}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Transaction Detail Modal */}
       <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>

@@ -41,7 +41,7 @@ const accountsGroup = [
 
 const toolsGroup = [
   { name: "Rapports", path: "/reports", icon: PieChart },
-  { name: "Récurrents", path: "/recurring-transactions", icon: Receipt },
+  { name: "Transactions Récurrentes", path: "/recurring-transactions", icon: Receipt },
   { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
 ];
 

@@ -48,7 +48,7 @@ const accountsGroup = [
 ];
 
 const toolsGroup = [
-  { name: "Récurrents", path: "/recurring-transactions", icon: Receipt },
+  { name: "Transactions Récurrentes", path: "/recurring-transactions", icon: Receipt },
   { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
   { name: "Dettes", path: "/debts", icon: Scale },
 ];
