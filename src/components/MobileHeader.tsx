@@ -46,16 +46,8 @@ export const MobileHeader = () => {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-sm z-50 md:hidden">
-        <div className="flex items-center justify-between h-full px-4">
+        <div className="flex items-center justify-center h-full px-4">
           <span className="text-lg font-bold text-primary">⚡ JMRVY CB</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setOpen(true)}
-            className="h-9 w-9"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
         </div>
       </header>
 
