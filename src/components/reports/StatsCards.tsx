@@ -20,77 +20,72 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2 lg:gap-3">
+    <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-3">
+      {/* Income */}
       <Card className="hover-scale cursor-pointer" onClick={onIncomeClick}>
         <CardContent className="p-1.5 sm:p-2 lg:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
+          <div className="flex items-center gap-1">
             <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-success flex-shrink-0" />
-            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Revenus</p>
+            <p className="text-[8px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate hidden sm:block">Revenus</p>
           </div>
-          <div className="mt-0.5 sm:mt-1">
-            <p className="text-xs sm:text-sm lg:text-lg font-bold text-success leading-tight">
-              {formatCurrency(stats.income)}
-            </p>
-          </div>
+          <p className="text-[10px] sm:text-xs lg:text-lg font-bold text-success leading-tight mt-0.5 truncate">
+            {formatCurrency(stats.income)}
+          </p>
         </CardContent>
       </Card>
 
+      {/* Expenses */}
       <Card className="hover-scale cursor-pointer" onClick={onExpensesClick}>
         <CardContent className="p-1.5 sm:p-2 lg:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
+          <div className="flex items-center gap-1">
             <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-destructive flex-shrink-0" />
-            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Dépenses</p>
+            <p className="text-[8px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate hidden sm:block">Dépenses</p>
           </div>
-          <div className="mt-0.5 sm:mt-1">
-            <p className="text-xs sm:text-sm lg:text-lg font-bold text-destructive leading-tight">
-              {formatCurrency(stats.expenses)}
-            </p>
-          </div>
+          <p className="text-[10px] sm:text-xs lg:text-lg font-bold text-destructive leading-tight mt-0.5 truncate">
+            {formatCurrency(stats.expenses)}
+          </p>
         </CardContent>
       </Card>
 
+      {/* Initial Balance */}
       <Card className="hover-scale">
         <CardContent className="p-1.5 sm:p-2 lg:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
+          <div className="flex items-center gap-1">
             <Wallet className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-primary flex-shrink-0" />
-            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Initial</p>
+            <p className="text-[8px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate hidden sm:block">Initial</p>
           </div>
-          <div className="mt-0.5 sm:mt-1">
-            <p className="text-xs sm:text-sm lg:text-lg font-bold leading-tight">
-              {formatCurrency(stats.initialBalance)}
-            </p>
-          </div>
+          <p className="text-[10px] sm:text-xs lg:text-lg font-bold leading-tight mt-0.5 truncate">
+            {formatCurrency(stats.initialBalance)}
+          </p>
         </CardContent>
       </Card>
 
+      {/* Final Balance */}
       <Card className="hover-scale">
         <CardContent className="p-1.5 sm:p-2 lg:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
+          <div className="flex items-center gap-1">
             <Target className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-accent-foreground flex-shrink-0" />
-            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Final</p>
+            <p className="text-[8px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate hidden sm:block">Final</p>
           </div>
-          <div className="mt-0.5 sm:mt-1">
-            <p className={cn(
-              "text-xs sm:text-sm lg:text-lg font-bold leading-tight",
-              stats.finalBalance >= 0 ? "text-success" : "text-destructive"
-            )}>
-              {formatCurrency(stats.finalBalance)}
-            </p>
-          </div>
+          <p className={cn(
+            "text-[10px] sm:text-xs lg:text-lg font-bold leading-tight mt-0.5 truncate",
+            stats.finalBalance >= 0 ? "text-success" : "text-destructive"
+          )}>
+            {formatCurrency(stats.finalBalance)}
+          </p>
         </CardContent>
       </Card>
 
-      <Card className="hover-scale col-span-2 sm:col-span-1">
+      {/* Accounts count - hidden on mobile */}
+      <Card className="hover-scale hidden lg:block">
         <CardContent className="p-1.5 sm:p-2 lg:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
+          <div className="flex items-center gap-1">
             <Wallet className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-muted-foreground flex-shrink-0" />
-            <p className="text-[9px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Comptes</p>
+            <p className="text-[8px] sm:text-[10px] lg:text-xs font-medium text-muted-foreground truncate">Comptes</p>
           </div>
-          <div className="mt-0.5 sm:mt-1">
-            <p className="text-xs sm:text-sm lg:text-lg font-bold leading-tight">
-              {accountsCount}
-            </p>
-          </div>
+          <p className="text-[10px] sm:text-xs lg:text-lg font-bold leading-tight mt-0.5">
+            {accountsCount}
+          </p>
         </CardContent>
       </Card>
     </div>

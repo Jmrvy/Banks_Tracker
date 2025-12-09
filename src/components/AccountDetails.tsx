@@ -4,7 +4,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { format, startOfMonth, subMonths, isWithinInterval } from "date-fns";
+import { format, startOfMonth, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
 
@@ -55,34 +55,44 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     return { income, expenses, transfers };
   }, [accountTransactions]);
 
+  // Build monthly data based on the selected period
   const monthlyData = useMemo(() => {
-    const last6Months = Array.from({ length: 6 }, (_, i) => {
-      const date = subMonths(startOfMonth(new Date()), i);
-      return {
-        month: format(date, 'MMM', { locale: fr }),
+    // Calculate the number of months in the selected period
+    const startMonth = startOfMonth(startDate);
+    const endMonth = startOfMonth(endDate);
+    
+    const months: { month: string; fullDate: Date; income: number; expenses: number }[] = [];
+    let currentMonth = startMonth;
+    
+    while (currentMonth <= endMonth) {
+      months.push({
+        month: format(currentMonth, 'MMM', { locale: fr }),
+        fullDate: currentMonth,
         income: 0,
         expenses: 0,
-      };
-    }).reverse();
+      });
+      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    }
 
     accountTransactions.forEach(t => {
       const transactionDate = new Date(t.transaction_date);
-      const monthIndex = last6Months.findIndex(m => {
-        const monthDate = subMonths(startOfMonth(new Date()), 5 - last6Months.indexOf(m));
-        return transactionDate >= monthDate && transactionDate < startOfMonth(subMonths(monthDate, -1));
-      });
+      const transactionMonth = startOfMonth(transactionDate);
+      
+      const monthIndex = months.findIndex(m => 
+        m.fullDate.getTime() === transactionMonth.getTime()
+      );
 
       if (monthIndex !== -1) {
         if (t.type === 'income') {
-          last6Months[monthIndex].income += t.amount;
+          months[monthIndex].income += t.amount;
         } else if (t.type === 'expense') {
-          last6Months[monthIndex].expenses += t.amount;
+          months[monthIndex].expenses += t.amount;
         }
       }
     });
 
-    return last6Months;
-  }, [accountTransactions]);
+    return months;
+  }, [accountTransactions, startDate, endDate]);
 
   const balanceEvolution = useMemo(() => {
     const sortedTransactions = [...allAccountTransactions].sort(
