@@ -72,6 +72,24 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
   const periodChartData = useMemo(() => {
     const daysDiff = differenceInDays(endDate, startDate);
     
+    // Helper function to add transaction to chart data
+    const addTransactionToData = (data: { income: number; expenses: number }[], index: number, t: Transaction) => {
+      if (!t.include_in_stats || index === -1) return;
+      
+      // Income = regular income + incoming transfers
+      if (t.type === 'income' || (t.type === 'transfer' && t.transfer_to_account_id === accountId)) {
+        data[index].income += t.amount;
+      }
+      // Expenses = regular expenses + outgoing transfers
+      if (t.type === 'expense' || (t.type === 'transfer' && t.account_id === accountId)) {
+        if (t.type === 'transfer') {
+          data[index].expenses += t.amount + (t.transfer_fee || 0);
+        } else {
+          data[index].expenses += t.amount;
+        }
+      }
+    };
+    
     // Single month or less: group by day
     if (daysDiff <= 31) {
       const days = eachDayOfInterval({ start: startDate, end: endDate });
@@ -85,14 +103,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       accountTransactions.forEach(t => {
         const transactionDate = new Date(t.transaction_date);
         const dayIndex = data.findIndex(d => isSameDay(d.fullDate, transactionDate));
-
-        if (dayIndex !== -1) {
-          if (t.type === 'income') {
-            data[dayIndex].income += t.amount;
-          } else if (t.type === 'expense') {
-            data[dayIndex].expenses += t.amount;
-          }
-        }
+        addTransactionToData(data, dayIndex, t);
       });
 
       return { data, type: 'day' as const };
@@ -113,14 +124,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
         const weekIndex = data.findIndex(w => 
           isSameWeek(w.fullDate, transactionDate, { locale: fr })
         );
-
-        if (weekIndex !== -1) {
-          if (t.type === 'income') {
-            data[weekIndex].income += t.amount;
-          } else if (t.type === 'expense') {
-            data[weekIndex].expenses += t.amount;
-          }
-        }
+        addTransactionToData(data, weekIndex, t);
       });
 
       return { data, type: 'week' as const };
@@ -150,18 +154,11 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       const monthIndex = months.findIndex(m => 
         m.fullDate.getTime() === transactionMonth.getTime()
       );
-
-      if (monthIndex !== -1) {
-        if (t.type === 'income') {
-          months[monthIndex].income += t.amount;
-        } else if (t.type === 'expense') {
-          months[monthIndex].expenses += t.amount;
-        }
-      }
+      addTransactionToData(months, monthIndex, t);
     });
 
     return { data: months, type: 'month' as const };
-  }, [accountTransactions, startDate, endDate]);
+  }, [accountTransactions, accountId, startDate, endDate]);
 
   const balanceEvolution = useMemo(() => {
     const sortedTransactions = [...allAccountTransactions].sort(
