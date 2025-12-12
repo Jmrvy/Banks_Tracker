@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { ArrowLeft, BarChart3 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { BarChart3 } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
 import { StatsCards } from "@/components/reports/StatsCards";
@@ -12,11 +10,10 @@ import { EvolutionTab } from "@/components/reports/EvolutionTab";
 import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
-import { SavingsGoalsTab } from "@/components/reports/SavingsGoalsTab";
+import { InsightsTab } from "@/components/reports/InsightsTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 
 const Reports = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [periodType, setPeriodType] = useState<"month" | "year" | "custom">("month");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -94,6 +91,10 @@ const Reports = () => {
                 <span className="sm:hidden">📈</span>
                 <span className="hidden sm:inline">Évolution</span>
               </TabsTrigger>
+              <TabsTrigger value="insights" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+                <span className="sm:hidden">🎯</span>
+                <span className="hidden sm:inline">Projections</span>
+              </TabsTrigger>
               <TabsTrigger value="income" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
                 <span className="sm:hidden">💰</span>
                 <span className="hidden sm:inline">Revenus</span>
@@ -105,10 +106,6 @@ const Reports = () => {
               <TabsTrigger value="recurring" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
                 <span className="sm:hidden">🔄</span>
                 <span className="hidden sm:inline">Récap</span>
-              </TabsTrigger>
-              <TabsTrigger value="savings" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
-                <span className="sm:hidden">🎯</span>
-                <span className="hidden sm:inline">Épargne</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -122,6 +119,10 @@ const Reports = () => {
               useSpendingPatterns={useSpendingPatterns}
               setUseSpendingPatterns={setUseSpendingPatterns}
             />
+          </TabsContent>
+
+          <TabsContent value="insights">
+            <InsightsTab />
           </TabsContent>
 
           <TabsContent value="income">
@@ -145,13 +146,6 @@ const Reports = () => {
               period={period}
               useSpendingPatterns={useSpendingPatterns}
               setUseSpendingPatterns={setUseSpendingPatterns}
-            />
-          </TabsContent>
-
-          <TabsContent value="savings">
-            <SavingsGoalsTab 
-              transactions={filteredTransactions}
-              period={period}
             />
           </TabsContent>
         </Tabs>

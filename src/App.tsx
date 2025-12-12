@@ -13,11 +13,11 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import RecurringTransactions from "@/pages/RecurringTransactions";
 import NewTransaction from "@/pages/NewTransaction";
-import Insights from "@/pages/Insights";
 import Debts from "@/pages/Debts";
 import Accounts from "@/pages/Accounts";
 import Transactions from "@/pages/Transactions";
 import InstallmentPayments from "@/pages/InstallmentPayments";
+import Savings from "@/pages/Savings";
 import Install from "@/pages/Install";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
@@ -83,12 +83,16 @@ function AppRoutes() {
             } 
           />
           <Route 
-            path="/insights" 
+            path="/savings" 
             element={
               <ProtectedRoute>
-                <Insights />
+                <Savings />
               </ProtectedRoute>
             } 
+          />
+          <Route 
+            path="/insights" 
+            element={<Navigate to="/reports" replace />} 
           />
           <Route 
             path="/reports" 
