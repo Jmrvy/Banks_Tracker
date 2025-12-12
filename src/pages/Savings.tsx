@@ -2,14 +2,15 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { PiggyBank, Plus, TrendingUp, TrendingDown, Target } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { NewSavingsGoalModal } from "@/components/NewSavingsGoalModal";
 import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
-import { differenceInDays, format } from "date-fns";
+import { differenceInDays, format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   AreaChart,
@@ -38,12 +39,23 @@ const Savings = () => {
     );
   }, [categories]);
 
-  // Calculate investment statistics based on all investment transactions
+  // Filter transactions by selected period
+  const periodTransactions = useMemo(() => {
+    if (!investmentCategory) return [];
+    
+    return transactions.filter(t => {
+      const transactionDate = new Date(t.transaction_date);
+      return t.category?.id === investmentCategory.id && 
+             t.include_in_stats &&
+             isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
+    });
+  }, [transactions, investmentCategory, dateRange]);
+
+  // Calculate investment statistics for the selected period
   const investmentStats = useMemo(() => {
-    if (!investmentCategory) {
+    if (!investmentCategory || periodTransactions.length === 0) {
       return {
         totalSaved: 0,
-        monthlyAverage: 0,
         transactionCount: 0,
         trendData: [],
         incomeTotal: 0,
@@ -52,40 +64,19 @@ const Savings = () => {
       };
     }
 
-    // Get all investment transactions
-    const investmentTransactions = transactions.filter(t => 
-      t.category?.id === investmentCategory.id && t.include_in_stats
-    );
-
     // Calculate totals by type
-    const incomeTotal = investmentTransactions
+    const incomeTotal = periodTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const expenseTotal = investmentTransactions
+    const expenseTotal = periodTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const netTotal = expenseTotal - incomeTotal; // Expenses add to savings, income withdraws
 
-    // Calculate monthly average based on last 6 months
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    const recentTransactions = investmentTransactions.filter(t => 
-      new Date(t.transaction_date) >= sixMonthsAgo
-    );
-    
-    const monthlyTotal = recentTransactions.reduce((sum, t) => {
-      if (t.type === 'expense') return sum + t.amount;
-      if (t.type === 'income') return sum - t.amount;
-      return sum;
-    }, 0);
-    
-    const monthlyAverage = monthlyTotal / 6;
-
-    // Build cumulative trend data
-    const sortedTransactions = [...investmentTransactions].sort(
+    // Build cumulative trend data for the period
+    const sortedTransactions = [...periodTransactions].sort(
       (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
     );
 
@@ -104,47 +95,37 @@ const Savings = () => {
 
     return {
       totalSaved: netTotal,
-      monthlyAverage,
-      transactionCount: investmentTransactions.length,
+      transactionCount: periodTransactions.length,
       trendData,
       incomeTotal,
       expenseTotal,
       netTotal
     };
-  }, [transactions, investmentCategory]);
+  }, [periodTransactions, investmentCategory]);
 
-  // Monthly breakdown for last 6 months
-  const monthlyBreakdown = useMemo(() => {
-    if (!investmentCategory) return [];
+  // Calculate total savings (all time) for goals projection
+  const allTimeStats = useMemo(() => {
+    if (!investmentCategory) return { monthlyAverage: 0 };
 
-    const months: { month: string; amount: number }[] = [];
-    const now = new Date();
+    const allInvestmentTransactions = transactions.filter(t => 
+      t.category?.id === investmentCategory.id && t.include_in_stats
+    );
 
-    for (let i = 5; i >= 0; i--) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-
-      const monthTransactions = transactions.filter(t => {
-        const date = new Date(t.transaction_date);
-        return t.category?.id === investmentCategory.id && 
-               t.include_in_stats &&
-               date >= monthStart && 
-               date <= monthEnd;
-      });
-
-      const monthTotal = monthTransactions.reduce((sum, t) => {
-        if (t.type === 'expense') return sum + t.amount;
-        if (t.type === 'income') return sum - t.amount;
-        return sum;
-      }, 0);
-
-      months.push({
-        month: format(monthStart, 'MMM yyyy', { locale: fr }),
-        amount: monthTotal
-      });
-    }
-
-    return months;
+    // Calculate monthly average based on last 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const recentTransactions = allInvestmentTransactions.filter(t => 
+      new Date(t.transaction_date) >= sixMonthsAgo
+    );
+    
+    const monthlyTotal = recentTransactions.reduce((sum, t) => {
+      if (t.type === 'expense') return sum + t.amount;
+      if (t.type === 'income') return sum - t.amount;
+      return sum;
+    }, 0);
+    
+    return { monthlyAverage: monthlyTotal / 6 };
   }, [transactions, investmentCategory]);
 
   const calculateProjection = (goal: SavingsGoal) => {
@@ -164,7 +145,7 @@ const Savings = () => {
       remainingDays,
       dailyRequired,
       monthlyRequired,
-      onTrack: monthlyRequired <= (investmentStats.monthlyAverage > 0 ? investmentStats.monthlyAverage : monthlyRequired * 2)
+      onTrack: monthlyRequired <= (allTimeStats.monthlyAverage > 0 ? allTimeStats.monthlyAverage : monthlyRequired * 2)
     };
   };
 
@@ -187,10 +168,16 @@ const Savings = () => {
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-              <PiggyBank className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
-              <span className="truncate">Épargne</span>
-            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
+                <PiggyBank className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+                <span className="truncate">Épargne</span>
+              </h1>
+              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                <Calendar className="h-3 w-3" />
+                <span className="capitalize">{periodLabel}</span>
+              </Badge>
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">
               Gérez vos objectifs d'épargne et investissements
             </p>
@@ -205,16 +192,16 @@ const Savings = () => {
           </Button>
         </div>
 
-        {/* Investment Statistics */}
+        {/* Investment Statistics for Period */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card className="border-border bg-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <PiggyBank className="h-4 w-4 text-primary" />
-                <span className="text-xs sm:text-sm text-muted-foreground">Total épargné</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Épargne nette</span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold text-success">
-                {formatCurrency(investmentStats.totalSaved)}
+              <p className={`text-lg sm:text-2xl font-bold ${investmentStats.netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
               </p>
             </CardContent>
           </Card>
@@ -222,23 +209,11 @@ const Savings = () => {
           <Card className="border-border bg-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <span className="text-xs sm:text-sm text-muted-foreground">Moyenne mensuelle</span>
-              </div>
-              <p className={`text-lg sm:text-2xl font-bold ${investmentStats.monthlyAverage >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(investmentStats.monthlyAverage)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
+                <TrendingDown className="h-4 w-4 text-primary" />
                 <span className="text-xs sm:text-sm text-muted-foreground">Versements</span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold">
-                {formatCurrency(investmentStats.expenseTotal)}
+              <p className="text-lg sm:text-2xl font-bold text-success">
+                +{formatCurrency(investmentStats.expenseTotal)}
               </p>
             </CardContent>
           </Card>
@@ -246,11 +221,23 @@ const Savings = () => {
           <Card className="border-border bg-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-success" />
+                <TrendingUp className="h-4 w-4 text-destructive" />
                 <span className="text-xs sm:text-sm text-muted-foreground">Retraits</span>
               </div>
+              <p className="text-lg sm:text-2xl font-bold text-destructive">
+                -{formatCurrency(investmentStats.incomeTotal)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-primary" />
+                <span className="text-xs sm:text-sm text-muted-foreground">Transactions</span>
+              </div>
               <p className="text-lg sm:text-2xl font-bold">
-                {formatCurrency(investmentStats.incomeTotal)}
+                {investmentStats.transactionCount}
               </p>
             </CardContent>
           </Card>
@@ -260,7 +247,9 @@ const Savings = () => {
         {investmentStats.trendData.length > 0 && (
           <Card className="border-border bg-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg">Évolution de l'épargne</CardTitle>
+              <CardTitle className="text-base sm:text-lg">
+                Évolution sur la période
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-48 sm:h-64">
@@ -300,32 +289,14 @@ const Savings = () => {
           </Card>
         )}
 
-        {/* Monthly Breakdown */}
-        {monthlyBreakdown.length > 0 && (
+        {/* No data message */}
+        {investmentStats.transactionCount === 0 && (
           <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg">Épargne mensuelle</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {monthlyBreakdown.map((month, index) => {
-                const maxAmount = Math.max(...monthlyBreakdown.map(m => Math.abs(m.amount)), 1);
-                const percentage = (Math.abs(month.amount) / maxAmount) * 100;
-                
-                return (
-                  <div key={month.month} className="space-y-1">
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="capitalize">{month.month}</span>
-                      <span className={month.amount >= 0 ? 'text-success' : 'text-destructive'}>
-                        {month.amount >= 0 ? '+' : ''}{formatCurrency(month.amount)}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={percentage} 
-                      className="h-2"
-                    />
-                  </div>
-                );
-              })}
+            <CardContent className="p-6 text-center">
+              <PiggyBank className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Aucune transaction d'investissement sur cette période
+              </p>
             </CardContent>
           </Card>
         )}
