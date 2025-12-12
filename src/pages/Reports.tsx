@@ -10,7 +10,6 @@ import { EvolutionTab } from "@/components/reports/EvolutionTab";
 import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
-import { InsightsTab } from "@/components/reports/InsightsTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 
 const Reports = () => {
@@ -51,15 +50,15 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24 overflow-x-hidden">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto w-full overflow-hidden">
+      <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 max-w-[1600px] mx-auto w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1 sm:mb-2">
           <div>
             <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               Rapports
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
               {period.label}
             </p>
           </div>
@@ -84,33 +83,29 @@ const Reports = () => {
         />
 
         {/* Graphiques et analyses */}
-        <Tabs defaultValue="evolution" className="space-y-3 sm:space-y-4 w-full">
+        <Tabs defaultValue="evolution" className="space-y-3 w-full">
           <div className="w-full overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-            <TabsList className="inline-flex sm:flex sm:w-full bg-muted/30 h-9 sm:h-10 p-0.5 sm:p-1 rounded-lg min-w-max sm:min-w-0">
-              <TabsTrigger value="evolution" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+            <TabsList className="inline-flex sm:flex sm:w-full bg-muted/30 h-8 sm:h-10 p-0.5 sm:p-1 rounded-lg min-w-max sm:min-w-0">
+              <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
                 <span className="sm:hidden">📈</span>
                 <span className="hidden sm:inline">Évolution</span>
               </TabsTrigger>
-              <TabsTrigger value="insights" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
-                <span className="sm:hidden">🎯</span>
-                <span className="hidden sm:inline">Projections</span>
-              </TabsTrigger>
-              <TabsTrigger value="income" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+              <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
                 <span className="sm:hidden">💰</span>
                 <span className="hidden sm:inline">Revenus</span>
               </TabsTrigger>
-              <TabsTrigger value="categories" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+              <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
                 <span className="sm:hidden">📊</span>
                 <span className="hidden sm:inline">Catégories</span>
               </TabsTrigger>
-              <TabsTrigger value="recurring" className="text-[11px] sm:text-xs lg:text-sm px-3 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap">
+              <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
                 <span className="sm:hidden">🔄</span>
-                <span className="hidden sm:inline">Récap</span>
+                <span className="hidden sm:inline">Récurrents</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="evolution">
+          <TabsContent value="evolution" className="mt-3">
             <EvolutionTab
               balanceEvolutionData={balanceEvolutionData}
               stats={stats}
@@ -121,25 +116,21 @@ const Reports = () => {
             />
           </TabsContent>
 
-          <TabsContent value="insights">
-            <InsightsTab />
-          </TabsContent>
-
-          <TabsContent value="income">
+          <TabsContent value="income" className="mt-3">
             <IncomeTab 
               incomeAnalysis={incomeAnalysis}
               totalIncome={stats.income}
             />
           </TabsContent>
 
-          <TabsContent value="categories">
+          <TabsContent value="categories" className="mt-3">
             <CategoriesTab 
               categoryChartData={categoryChartData} 
               transactions={filteredTransactions}
             />
           </TabsContent>
 
-          <TabsContent value="recurring">
+          <TabsContent value="recurring" className="mt-3">
             <RecurringTab
               recurringData={recurringData}
               spendingPatternsData={spendingPatternsData}
