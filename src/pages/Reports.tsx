@@ -86,21 +86,17 @@ const Reports = () => {
         <Tabs defaultValue="evolution" className="space-y-3 w-full">
           <div className="w-full overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
             <TabsList className="inline-flex sm:flex sm:w-full bg-muted/30 h-8 sm:h-10 p-0.5 sm:p-1 rounded-lg min-w-max sm:min-w-0">
-              <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                <span className="sm:hidden">📈</span>
-                <span className="hidden sm:inline">Évolution</span>
+              <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
+                Évolution
               </TabsTrigger>
-              <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                <span className="sm:hidden">💰</span>
-                <span className="hidden sm:inline">Revenus</span>
+              <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
+                Revenus
               </TabsTrigger>
-              <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                <span className="sm:hidden">📊</span>
-                <span className="hidden sm:inline">Dépenses</span>
+              <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
+                Dépenses
               </TabsTrigger>
-              <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                <span className="sm:hidden">🔄</span>
-                <span className="hidden sm:inline">Récurrents</span>
+              <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
+                Récurrents
               </TabsTrigger>
             </TabsList>
           </div>
