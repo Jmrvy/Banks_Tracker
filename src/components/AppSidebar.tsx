@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Home,
   PieChart,
-  TrendingUp,
   Wallet,
   CreditCard,
   Receipt,
@@ -11,6 +10,7 @@ import {
   ChevronDown,
   Wrench,
   Scale,
+  PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -30,12 +30,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 const mainNavigation = [
   { name: "Home", path: "/", icon: Home },
-  { name: "Insights", path: "/insights", icon: TrendingUp },
 ];
 
 const accountsGroup = [
   { name: "Comptes", path: "/accounts", icon: Wallet },
   { name: "Transactions", path: "/transactions", icon: History },
+  { name: "Épargne", path: "/savings", icon: PiggyBank },
   { name: "Dettes", path: "/debts", icon: Scale },
 ];
 

@@ -9,13 +9,13 @@ import {
   Plus,
   Wallet,
   Menu,
-  TrendingUp,
   History,
   CreditCard,
   Scale,
   PieChart,
   Receipt,
   Settings,
+  PiggyBank,
 } from "lucide-react";
 
 const navItems = [
@@ -38,13 +38,13 @@ const navItems = [
 
 const mainNavigation = [
   { name: "Accueil", path: "/", icon: Home },
-  { name: "Insights", path: "/insights", icon: TrendingUp },
   { name: "Rapports", path: "/reports", icon: PieChart },
 ];
 
 const accountsGroup = [
   { name: "Comptes", path: "/accounts", icon: Wallet },
   { name: "Transactions", path: "/transactions", icon: History },
+  { name: "Épargne", path: "/savings", icon: PiggyBank },
 ];
 
 const toolsGroup = [
