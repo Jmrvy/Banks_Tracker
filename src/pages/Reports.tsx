@@ -96,7 +96,7 @@ const Reports = () => {
               </TabsTrigger>
               <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
                 <span className="sm:hidden">📊</span>
-                <span className="hidden sm:inline">Catégories</span>
+                <span className="hidden sm:inline">Dépenses</span>
               </TabsTrigger>
               <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-2.5 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
                 <span className="sm:hidden">🔄</span>
