@@ -1,11 +1,13 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { TrendingUp, Hash, ChevronRight, Wallet } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
+import { TrendingUp, Hash, Wallet, ArrowUpRight } from "lucide-react";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface IncomeTabProps {
   incomeAnalysis: IncomeCategory[];
@@ -31,6 +33,13 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const formatCompact = (amount: number) => {
+    if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(1)}k €`;
+    }
+    return formatCurrency(amount);
+  };
+
   const handleCategoryClick = (categoryName: string) => {
     setSelectedCategory(categoryName);
     setModalOpen(true);
@@ -47,94 +56,93 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   })) || [];
 
   const totalTransactions = incomeAnalysis.reduce((sum, cat) => sum + cat.count, 0);
+  const avgPerTransaction = totalTransactions > 0 ? totalIncome / totalTransactions : 0;
 
   if (incomeAnalysis.length === 0) {
     return (
-      <Card className="border-border bg-card">
-        <CardContent className="p-6 sm:p-8 text-center">
-          <Wallet className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 text-muted-foreground/50" />
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Aucun revenu pour cette période
-          </p>
+      <Card className="border-border">
+        <CardContent className="text-center py-12">
+          <Wallet className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+          <p className="text-sm text-muted-foreground">Aucun revenu trouvé pour cette période</p>
         </CardContent>
       </Card>
     );
   }
 
   // Données pour le graphique circulaire
-  const pieChartData = incomeAnalysis.map((cat, index) => ({
-    name: cat.category,
-    value: cat.totalAmount,
-    color: COLORS[index % COLORS.length]
-  }));
+  const pieChartData = incomeAnalysis
+    .sort((a, b) => b.totalAmount - a.totalAmount)
+    .map((cat, index) => ({
+      name: cat.category,
+      value: cat.totalAmount,
+      count: cat.count,
+      color: COLORS[index % COLORS.length]
+    }));
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* Statistiques principales */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Card className="border-border bg-card">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-              <div className="p-1 sm:p-1.5 bg-success/20 rounded-md">
-                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
-              </div>
+    <div className="space-y-3">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-success" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Total revenus</span>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Total</p>
-            <p className="text-sm sm:text-lg lg:text-xl font-bold text-success truncate">
-              {formatCurrency(totalIncome)}
-            </p>
+            <p className="text-sm sm:text-base font-bold text-success">{formatCompact(totalIncome)}</p>
           </CardContent>
         </Card>
-
-        <Card className="border-border bg-card">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-              <div className="p-1 sm:p-1.5 bg-primary/20 rounded-md">
-                <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-              </div>
+        
+        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Hash className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Catégories</span>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Catégories</p>
-            <p className="text-sm sm:text-lg lg:text-xl font-bold">
-              {incomeAnalysis.length}
-            </p>
+            <p className="text-sm sm:text-base font-bold">{incomeAnalysis.length}</p>
           </CardContent>
         </Card>
-
-        <Card className="border-border bg-card">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-              <div className="p-1 sm:p-1.5 bg-muted rounded-md">
-                <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-              </div>
+        
+        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Transactions</span>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Transactions</p>
-            <p className="text-sm sm:text-lg lg:text-xl font-bold">
-              {totalTransactions}
-            </p>
+            <p className="text-sm sm:text-base font-bold">{totalTransactions}</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <ArrowUpRight className="w-3.5 h-3.5 text-success" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
+            </div>
+            <p className="text-sm sm:text-base font-bold">{formatCompact(avgPerTransaction)}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Graphique + Liste côte à côte sur desktop, empilés sur mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-        {/* Graphique circulaire */}
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-0 px-3 sm:px-4 pt-3 sm:pt-4">
-            <CardTitle className="text-sm sm:text-base">Répartition</CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 sm:p-4">
-            <div className="h-[180px] sm:h-[220px]">
+      {/* Main Content: Chart + Legend */}
+      <Card className="border-border overflow-hidden">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            {/* Donut Chart */}
+            <div className="relative w-full sm:w-1/2 h-[180px] sm:h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieChartData}
-                    dataKey="value"
-                    nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={40}
+                    labelLine={false}
                     outerRadius={70}
+                    innerRadius={45}
+                    fill="#8884d8"
+                    dataKey="value"
                     paddingAngle={2}
+                    strokeWidth={0}
                   >
                     {pieChartData.map((entry, index) => (
                       <Cell 
@@ -145,18 +153,28 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                       />
                     ))}
                   </Pie>
-                  <Tooltip
+                  <ChartTooltip 
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
-                        const data = payload[0];
-                        const percent = ((Number(data.value) / totalIncome) * 100).toFixed(1);
+                        const data = payload[0].payload;
+                        const percentage = ((data.value / totalIncome) * 100).toFixed(1);
                         return (
-                          <div className="bg-popover border border-border rounded-lg p-2 sm:p-3 shadow-lg">
-                            <p className="font-semibold text-xs sm:text-sm mb-1">{data.name}</p>
-                            <p className="text-xs text-success">
-                              {formatCurrency(Number(data.value))}
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground">{percent}%</p>
+                          <div className="rounded-lg border bg-background/95 backdrop-blur-sm p-2 shadow-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div 
+                                className="w-2.5 h-2.5 rounded-full" 
+                                style={{ backgroundColor: data.color }}
+                              />
+                              <span className="font-medium text-xs">{data.name}</span>
+                            </div>
+                            <div className="text-xs">
+                              <div className="font-semibold text-success">
+                                {formatCurrency(data.value)}
+                              </div>
+                              <div className="text-muted-foreground text-[10px]">
+                                {data.count} tx • {percentage}%
+                              </div>
+                            </div>
                           </div>
                         );
                       }
@@ -165,87 +183,101 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                   />
                 </PieChart>
               </ResponsiveContainer>
+              {/* Center Text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-lg sm:text-xl font-bold text-success">{formatCompact(totalIncome)}</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
+              </div>
             </div>
 
-            {/* Légende compacte */}
-            <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center mt-2">
-              {pieChartData.slice(0, 5).map((entry, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-                  onClick={() => handleCategoryClick(entry.name)}
-                >
-                  <div 
-                    className="w-2 h-2 rounded-full flex-shrink-0" 
-                    style={{ backgroundColor: entry.color }}
-                  />
-                  <span className="text-[10px] sm:text-xs truncate max-w-[60px] sm:max-w-[80px]">
-                    {entry.name}
-                  </span>
-                </div>
-              ))}
-              {pieChartData.length > 5 && (
-                <span className="text-[10px] sm:text-xs text-muted-foreground px-1.5">
-                  +{pieChartData.length - 5}
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Liste des catégories */}
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
-            <CardTitle className="text-sm sm:text-base">Détail par catégorie</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 max-h-[300px] sm:max-h-[350px] overflow-y-auto">
-            <div className="space-y-2">
-              {incomeAnalysis.map((category, index) => {
-                const percentage = (category.totalAmount / totalIncome) * 100;
-                const color = COLORS[index % COLORS.length];
-                
+            {/* Legend */}
+            <div className="w-full sm:w-1/2 grid grid-cols-2 gap-1.5 sm:gap-2 max-h-[180px] sm:max-h-[220px] overflow-y-auto">
+              {pieChartData.slice(0, 8).map((item, index) => {
+                const percentage = ((item.value / totalIncome) * 100).toFixed(0);
                 return (
-                  <div 
-                    key={category.category} 
-                    className="p-2 sm:p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer active:scale-[0.98]"
-                    onClick={() => handleCategoryClick(category.category)}
+                  <button
+                    key={index}
+                    onClick={() => handleCategoryClick(item.name)}
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-md hover:bg-muted/50 transition-colors text-left group"
                   >
-                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div 
-                          className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
-                          style={{ backgroundColor: color }}
-                        />
-                        <span className="text-xs sm:text-sm font-medium truncate">
-                          {category.category}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                        <div className="text-right">
-                          <p className="text-xs sm:text-sm font-bold text-success">
-                            {formatCurrency(category.totalAmount)}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {category.count} tx • {percentage.toFixed(0)}%
-                          </p>
-                        </div>
-                        <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                    
-                    <Progress 
-                      value={percentage} 
-                      className="h-1 sm:h-1.5"
-                      style={{ 
-                        '--progress-color': color 
-                      } as React.CSSProperties}
+                    <div 
+                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform" 
+                      style={{ backgroundColor: item.color }}
                     />
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] sm:text-xs font-medium truncate">{item.name}</p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">{percentage}%</p>
+                    </div>
+                  </button>
                 );
               })}
+              {pieChartData.length > 8 && (
+                <div className="col-span-2 text-center py-1">
+                  <span className="text-[10px] text-muted-foreground">+{pieChartData.length - 8} autres catégories</span>
+                </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Categories List */}
+      <div className="space-y-2">
+        <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">Détail par catégorie</h3>
+        <div className="space-y-1.5">
+          {incomeAnalysis
+            .sort((a, b) => b.totalAmount - a.totalAmount)
+            .map((category, index) => {
+              const percentage = (category.totalAmount / totalIncome) * 100;
+              const color = COLORS[index % COLORS.length];
+              
+              return (
+                <button
+                  key={category.category}
+                  onClick={() => handleCategoryClick(category.category)}
+                  className={cn(
+                    "w-full p-2.5 sm:p-3 rounded-lg transition-all text-left",
+                    "bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-border/50",
+                    "active:scale-[0.99]"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div 
+                        className="w-3 h-3 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="font-medium text-xs sm:text-sm truncate">{category.category}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge 
+                        variant="secondary"
+                        className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 sm:h-5 bg-success/10 text-success border-0"
+                      >
+                        {percentage.toFixed(0)}%
+                      </Badge>
+                      <span className="font-bold text-xs sm:text-sm text-success">
+                        {formatCurrency(category.totalAmount)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500 bg-success"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
+                      <span>{category.count} transaction{category.count > 1 ? 's' : ''}</span>
+                      <span>Moy: {formatCurrency(category.totalAmount / category.count)}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+        </div>
       </div>
 
       <CategoryTransactionsModal

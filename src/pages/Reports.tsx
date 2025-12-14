@@ -84,22 +84,20 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 w-full">
-          <div className="w-full overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-            <TabsList className="inline-flex sm:flex sm:w-full bg-muted/30 h-8 sm:h-10 p-0.5 sm:p-1 rounded-lg min-w-max sm:min-w-0">
-              <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                Évolution
-              </TabsTrigger>
-              <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                Revenus
-              </TabsTrigger>
-              <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                Dépenses
-              </TabsTrigger>
-              <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-2 sm:px-3 sm:flex-1 min-w-0 whitespace-nowrap h-7 sm:h-8">
-                Récurrents
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          <TabsList className="w-full grid grid-cols-4 bg-muted/30 h-9 sm:h-10 p-0.5 sm:p-1 rounded-lg">
+            <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+              Évolution
+            </TabsTrigger>
+            <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+              Revenus
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+              Dépenses
+            </TabsTrigger>
+            <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+              Récurrents
+            </TabsTrigger>
+          </TabsList>
 
           <TabsContent value="evolution" className="mt-3">
             <EvolutionTab
