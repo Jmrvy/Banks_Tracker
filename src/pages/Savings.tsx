@@ -40,14 +40,13 @@ const Savings = () => {
     );
   }, [categories]);
 
-  // Filter transactions by selected period
+  // Filter transactions by selected period (include ALL transactions, even those excluded from stats)
   const periodTransactions = useMemo(() => {
     if (!investmentCategory) return [];
     
     return transactions.filter(t => {
       const transactionDate = new Date(t.transaction_date);
       return t.category?.id === investmentCategory.id && 
-             t.include_in_stats &&
              isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
     });
   }, [transactions, investmentCategory, dateRange]);
@@ -104,12 +103,12 @@ const Savings = () => {
     };
   }, [periodTransactions, investmentCategory]);
 
-  // Calculate total savings (all time) for goals projection
+  // Calculate total savings (all time) for goals projection (include ALL transactions)
   const allTimeStats = useMemo(() => {
     if (!investmentCategory) return { monthlyAverage: 0 };
 
     const allInvestmentTransactions = transactions.filter(t => 
-      t.category?.id === investmentCategory.id && t.include_in_stats
+      t.category?.id === investmentCategory.id
     );
 
     // Calculate monthly average based on last 6 months
