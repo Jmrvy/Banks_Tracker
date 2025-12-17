@@ -10,6 +10,7 @@ import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { NewSavingsGoalModal } from "@/components/NewSavingsGoalModal";
 import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
+import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -289,17 +290,12 @@ const Savings = () => {
           </Card>
         )}
 
-        {/* No data message */}
-        {investmentStats.transactionCount === 0 && (
-          <Card className="border-border bg-card">
-            <CardContent className="p-6 text-center">
-              <PiggyBank className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Aucune transaction d'investissement sur cette période
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Transactions List with Running Balance */}
+        <SavingsTransactionsList 
+          transactions={periodTransactions}
+          startDate={dateRange.start}
+          endDate={dateRange.end}
+        />
 
         {/* Savings Goals */}
         <div>
