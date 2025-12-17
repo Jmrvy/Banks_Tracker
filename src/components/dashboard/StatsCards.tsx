@@ -9,14 +9,16 @@ interface StatsCardsProps {
   endDate: Date;
   onIncomeClick?: () => void;
   onExpensesClick?: () => void;
+  onAvailableClick?: () => void;
   onTransactionsFiltered?: (transactions: Transaction[]) => void;
+  onExcludedTransactionsFiltered?: (transactions: Transaction[]) => void;
 }
 
-export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick, onTransactionsFiltered }: StatsCardsProps) {
+export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick, onAvailableClick, onTransactionsFiltered, onExcludedTransactionsFiltered }: StatsCardsProps) {
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
-  const { stats, filteredTransactions } = useMemo(() => {
+  const { stats, filteredTransactions, excludedTransactions } = useMemo(() => {
     const filtered = transactions.filter(t => {
       const date = new Date(t.transaction_date);
       return date >= startDate && date <= endDate;
@@ -24,6 +26,9 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
 
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     const statsTransactions = filtered.filter(t => t.include_in_stats !== false);
+    
+    // Transactions exclues des stats sur la période
+    const excluded = filtered.filter(t => t.include_in_stats === false);
 
     const moneyIn = statsTransactions
       .filter(t => t.type === 'income')
@@ -44,7 +49,8 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
         available,
         recurring: activeRecurring
       },
-      filteredTransactions: filtered
+      filteredTransactions: filtered,
+      excludedTransactions: excluded
     };
   }, [transactions, accounts, recurringTransactions, startDate, endDate]);
 
@@ -53,7 +59,10 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
     if (onTransactionsFiltered) {
       onTransactionsFiltered(filteredTransactions);
     }
-  }, [filteredTransactions, onTransactionsFiltered]);
+    if (onExcludedTransactionsFiltered) {
+      onExcludedTransactionsFiltered(excludedTransactions);
+    }
+  }, [filteredTransactions, excludedTransactions, onTransactionsFiltered, onExcludedTransactionsFiltered]);
 
   const cards = [
     {
@@ -92,6 +101,8 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
       onIncomeClick();
     } else if (label === "Dépenses" && onExpensesClick) {
       onExpensesClick();
+    } else if (label === "Disponible" && onAvailableClick) {
+      onAvailableClick();
     }
   };
 
@@ -101,7 +112,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
         <Card 
           key={card.label} 
           className={`border-border bg-card hover:bg-accent/50 transition-colors ${
-            (card.label === "Revenus" || card.label === "Dépenses") ? "cursor-pointer" : ""
+            (card.label === "Revenus" || card.label === "Dépenses" || card.label === "Disponible") ? "cursor-pointer" : ""
           }`}
           onClick={() => handleCardClick(card.label)}
         >

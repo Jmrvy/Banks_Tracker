@@ -9,6 +9,7 @@ import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
+import { ExcludedTransactionsModal } from "@/components/ExcludedTransactionsModal";
 
 const Index = () => {
   const { user } = useAuth();
@@ -17,7 +18,9 @@ const Index = () => {
   const { selectedPeriod, setSelectedPeriod, dateRange, periodLabel } = usePeriod();
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
+  const [showExcludedModal, setShowExcludedModal] = useState(false);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
 
   if (loading || isOnboarding) {
     return (
@@ -46,7 +49,9 @@ const Index = () => {
           endDate={dateRange.end}
           onIncomeClick={() => setShowIncomeModal(true)}
           onExpensesClick={() => setShowExpensesModal(true)}
+          onAvailableClick={() => setShowExcludedModal(true)}
           onTransactionsFiltered={setFilteredTransactions}
+          onExcludedTransactionsFiltered={setExcludedTransactions}
         />
 
         {/* Main content: Cashflow + Distribution */}
@@ -73,6 +78,13 @@ const Index = () => {
         onOpenChange={setShowExpensesModal}
         transactions={filteredTransactions.filter(t => t.type === 'expense')}
         type="expense"
+        period={periodLabel}
+      />
+
+      <ExcludedTransactionsModal
+        open={showExcludedModal}
+        onOpenChange={setShowExcludedModal}
+        transactions={excludedTransactions}
         period={periodLabel}
       />
     </div>
