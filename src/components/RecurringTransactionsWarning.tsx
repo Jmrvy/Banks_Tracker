@@ -100,20 +100,37 @@ export const RecurringTransactionsWarning = () => {
       {/* Upcoming Transactions */}
       {upcomingTransactions.length > 0 && (
         <Card className="border-border bg-card dark:border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-foreground dark:text-foreground flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+            <CardTitle className="text-foreground dark:text-foreground flex items-center gap-2 text-xs sm:text-sm">
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
               Transactions récurrentes à venir
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
+          <CardContent className="pt-0 px-3 sm:px-6 pb-3 sm:pb-6">
+            <div className="space-y-1.5 sm:space-y-2">
               {upcomingTransactions.slice(0, 3).map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50"
+                  className="p-2 sm:p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  {/* Mobile view - compact single line */}
+                  <div className="flex items-center justify-between gap-2 sm:hidden">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-sm flex-shrink-0">{getTypeIcon(transaction.type)}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate text-foreground">{transaction.description}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {formatDate(transaction.next_due_date)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className={`text-xs font-semibold flex-shrink-0 ${getTypeColor(transaction.type)}`}>
+                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    </p>
+                  </div>
+
+                  {/* Desktop view - full details */}
+                  <div className="hidden sm:flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
                       <span className="text-base mt-0.5">{getTypeIcon(transaction.type)}</span>
                       <div className="flex-1 min-w-0">
@@ -156,14 +173,14 @@ export const RecurringTransactionsWarning = () => {
               ))}
               
               {upcomingTransactions.length > 3 && (
-                <div className="text-center pt-2">
+                <div className="text-center pt-1 sm:pt-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate('/recurring-transactions')}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground text-xs sm:text-sm h-7 sm:h-8"
                   >
-                    Voir {upcomingTransactions.length - 3} autre{upcomingTransactions.length - 3 > 1 ? 's' : ''} transaction{upcomingTransactions.length - 3 > 1 ? 's' : ''}
+                    Voir {upcomingTransactions.length - 3} autre{upcomingTransactions.length - 3 > 1 ? 's' : ''}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </div>
