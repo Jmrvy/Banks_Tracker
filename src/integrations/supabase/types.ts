@@ -611,6 +611,8 @@ export type Database = {
           description: string
           id: string
           include_in_stats: boolean
+          refund_of_transaction_id: string | null
+          refunded_amount: number | null
           transaction_date: string
           transfer_fee: number | null
           transfer_to_account_id: string | null
@@ -627,6 +629,8 @@ export type Database = {
           description: string
           id?: string
           include_in_stats?: boolean
+          refund_of_transaction_id?: string | null
+          refunded_amount?: number | null
           transaction_date?: string
           transfer_fee?: number | null
           transfer_to_account_id?: string | null
@@ -643,6 +647,8 @@ export type Database = {
           description?: string
           id?: string
           include_in_stats?: boolean
+          refund_of_transaction_id?: string | null
+          refunded_amount?: number | null
           transaction_date?: string
           transfer_fee?: number | null
           transfer_to_account_id?: string | null
@@ -664,6 +670,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_refund_of_transaction_id_fkey"
+            columns: ["refund_of_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {

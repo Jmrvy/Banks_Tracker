@@ -3,12 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, History, Pencil, Trash2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, History, Pencil, Trash2, RotateCcw } from "lucide-react";
 import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
+import { CreateRefundModal } from "@/components/CreateRefundModal";
 import { useToast } from "@/hooks/use-toast";
 import { TransactionFilters } from "./TransactionSearch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const bankColors = {
   societe_generale: 'bg-red-500',
@@ -33,6 +35,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const [displayCount, setDisplayCount] = useState<number>(25);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  const [refundingTransaction, setRefundingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Appliquer les filtres et trier les transactions
@@ -245,7 +248,49 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                   </div>
                   
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                      {/* Refund indicator */}
+                      {transaction.refund_of_transaction_id && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-green-500/10 text-green-600 border-green-500/30">
+                              <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
+                              Remb.
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Ce revenu est un remboursement</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {/* Refunded indicator for expenses */}
+                      {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-[10px] px-1 py-0 ${
+                                transaction.refunded_amount === transaction.amount 
+                                  ? 'bg-green-500/10 text-green-600 border-green-500/30' 
+                                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                              }`}
+                            >
+                              <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
+                              {transaction.refunded_amount === transaction.amount ? 'Remboursé' : 'Partiel'}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>
+                              {transaction.refunded_amount === transaction.amount 
+                                ? 'Entièrement remboursé'
+                                : `Remboursé: ${formatCurrency(transaction.refunded_amount || 0)} / ${formatCurrency(transaction.amount)}`
+                              }
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                     <div className="flex items-center space-x-1 sm:space-x-2 mt-0.5 sm:mt-1">
                       {transaction.category && (
                         <Badge 
@@ -290,7 +335,25 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                       </span>
                     )}
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
+                    {/* Refund button - only for expenses that can still be refunded */}
+                    {transaction.type === 'expense' && (transaction.refunded_amount || 0) < transaction.amount && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            onClick={() => setRefundingTransaction(transaction)}
+                          >
+                            <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-green-600" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Créer un remboursement</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -368,6 +431,12 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateRefundModal
+        open={!!refundingTransaction}
+        onOpenChange={(open) => !open && setRefundingTransaction(null)}
+        transaction={refundingTransaction}
+      />
     </Card>
   );
 };
