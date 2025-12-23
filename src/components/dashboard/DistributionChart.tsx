@@ -121,7 +121,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                   dataKey="value"
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
@@ -140,7 +140,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                   dataKey="value"
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
@@ -159,7 +159,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                 <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                   <div 
                     className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    style={{ backgroundColor: item.color }}
                   />
                   <span className="text-foreground truncate">{item.name}</span>
                 </div>
