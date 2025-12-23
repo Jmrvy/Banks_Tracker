@@ -39,12 +39,14 @@ export function CategoryCumulativeChart({
       .filter(d => d.value > 0)
       .sort((a, b) => b.value - a.value);
     
-    // Calculate cumulative values
+    // Calculate waterfall values (base = previous cumulative, value = current amount)
     let cumulative = 0;
     return sorted.map(item => {
+      const base = cumulative;
       cumulative += item.value;
       return {
         ...item,
+        base, // invisible bar to position the value bar
         cumulative,
         displayName: item.name.length > (isMobile ? 8 : 12) 
           ? item.name.slice(0, isMobile ? 8 : 12) + '...' 
@@ -126,16 +128,25 @@ export function CategoryCumulativeChart({
               width={isMobile ? 35 : 45}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.3)' }} />
+            {/* Invisible base bar for waterfall positioning */}
             <Bar 
-              dataKey="cumulative" 
+              dataKey="base" 
+              stackId="waterfall"
+              fill="transparent"
+              radius={0}
+            />
+            {/* Visible value bar */}
+            <Bar 
+              dataKey="value" 
+              stackId="waterfall"
               radius={[4, 4, 0, 0]}
-              maxBarSize={isMobile ? 35 : 50}
+              maxBarSize={isMobile ? 40 : 55}
             >
               {chartData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={entry.color}
-                  fillOpacity={0.85}
+                  fillOpacity={0.9}
                 />
               ))}
             </Bar>
