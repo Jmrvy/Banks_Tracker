@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
 import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import { TrendingDown, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
-
+import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
   transactions: FinancialTransaction[];
@@ -217,6 +217,19 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
           </div>
         </CardContent>
       </Card>
+
+      {/* Cumulative Chart */}
+      <CategoryCumulativeChart
+        data={chartData.map((item, index) => ({
+          name: item.name,
+          value: item.value,
+          color: item.color,
+          percentage: totalSpent > 0 ? (item.value / totalSpent) * 100 : 0
+        }))}
+        title="Cumul des dépenses par catégorie"
+        formatCurrency={formatCurrency}
+        showCard={true}
+      />
 
       {/* Categories List */}
       <div className="space-y-2">

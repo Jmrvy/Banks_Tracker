@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-
+import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 const COLORS = [
   'hsl(340, 75%, 60%)', // Pink
   'hsl(38, 70%, 68%)',  // Gold
@@ -23,7 +23,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
   const { transactions, categories } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
 
-  const { chartData, totalExpenses } = useMemo(() => {
+  const { chartData, totalExpenses, cumulativeData } = useMemo(() => {
     const monthStart = startDate;
     const monthEnd = endDate;
     
@@ -32,24 +32,38 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       return date >= monthStart && date <= monthEnd && t.type === 'expense' && t.include_in_stats !== false;
     });
 
-    const categoryTotals = new Map<string, number>();
+    const categoryTotals = new Map<string, { amount: number, color: string }>();
     
     monthTransactions.forEach(t => {
       const catName = t.category?.name || 'Unknown';
-      categoryTotals.set(catName, (categoryTotals.get(catName) || 0) + t.amount);
+      const catColor = t.category?.color || COLORS[0];
+      const existing = categoryTotals.get(catName);
+      categoryTotals.set(catName, { 
+        amount: (existing?.amount || 0) + t.amount,
+        color: existing?.color || catColor
+      });
     });
 
-    const total = Array.from(categoryTotals.values()).reduce((sum, val) => sum + val, 0);
+    const total = Array.from(categoryTotals.values()).reduce((sum, val) => sum + val.amount, 0);
     
     const data = Array.from(categoryTotals.entries())
-      .map(([name, value]) => ({
+      .map(([name, { amount, color }]) => ({
         name,
-        value,
-        percentage: total > 0 ? (value / total * 100).toFixed(1) : '0.0'
+        value: amount,
+        percentage: total > 0 ? (amount / total * 100).toFixed(1) : '0.0',
+        color
       }))
       .sort((a, b) => b.value - a.value);
 
-    return { chartData: data, totalExpenses: total };
+    // Prepare cumulative data
+    const cumData = data.map(item => ({
+      name: item.name,
+      value: item.value,
+      color: item.color,
+      percentage: total > 0 ? (item.value / total) * 100 : 0
+    }));
+
+    return { chartData: data, totalExpenses: total, cumulativeData: cumData };
   }, [transactions, startDate, endDate]);
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -157,6 +171,18 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
             ))}
           </div>
         </div>
+
+        {/* Cumulative Chart */}
+        {cumulativeData.length > 0 && (
+          <div className="mt-4 sm:mt-6 pt-4 border-t border-border/50">
+            <CategoryCumulativeChart
+              data={cumulativeData}
+              title="Cumul des dépenses"
+              formatCurrency={formatCurrency}
+              showCard={false}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
