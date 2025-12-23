@@ -41,10 +41,11 @@ export function CategoryCumulativeChart({
   }, []);
 
   const chartData = useMemo(() => {
-    // Sort by value descending and take top categories
+    // Sort by value descending and limit for mobile
     const sorted = [...data]
       .filter(d => d.value > 0)
-      .sort((a, b) => b.value - a.value);
+      .sort((a, b) => b.value - a.value)
+      .slice(0, isMobile ? 6 : 10); // Limit categories on mobile for readability
     
     // Calculate waterfall values (base = previous cumulative, value = current amount)
     let cumulative = 0;
@@ -53,10 +54,10 @@ export function CategoryCumulativeChart({
       cumulative += item.value;
       return {
         ...item,
-        base, // invisible bar to position the value bar
+        base,
         cumulative,
-        displayName: item.name.length > (isMobile ? 8 : 12) 
-          ? item.name.slice(0, isMobile ? 8 : 12) + '...' 
+        displayName: item.name.length > (isMobile ? 6 : 12) 
+          ? item.name.slice(0, isMobile ? 6 : 12) + '…' 
           : item.name
       };
     });
@@ -69,28 +70,29 @@ export function CategoryCumulativeChart({
       const data = payload[0].payload;
       return (
         <div className={cn(
-          "bg-popover/95 backdrop-blur-md border border-border/50 rounded-xl shadow-2xl p-3 sm:p-4",
+          "bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl",
+          "p-2.5 sm:p-3 max-w-[180px] sm:max-w-none",
           "animate-scale-in"
         )}>
-          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 pb-1.5 border-b border-border/30">
             <div 
-              className="w-3 h-3 rounded-full shadow-sm" 
+              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
               style={{ backgroundColor: data.color }}
             />
-            <p className="text-xs sm:text-sm font-semibold text-foreground">{data.name}</p>
+            <p className="text-[11px] sm:text-sm font-semibold text-foreground truncate">{data.name}</p>
           </div>
-          <div className="space-y-1.5 text-[10px] sm:text-xs">
-            <div className="flex items-center justify-between gap-4">
+          <div className="space-y-1 text-[10px] sm:text-xs">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
               <span className="text-muted-foreground">Montant:</span>
               <span className="font-bold text-foreground">{formatCurrency(data.value)}</span>
             </div>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
               <span className="text-muted-foreground">Cumul:</span>
               <span className="font-bold text-primary">{formatCurrency(data.cumulative)}</span>
             </div>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
               <span className="text-muted-foreground">Part:</span>
-              <span className="font-medium text-muted-foreground">{data.percentage.toFixed(1)}%</span>
+              <span className="font-medium">{data.percentage.toFixed(1)}%</span>
             </div>
           </div>
         </div>
@@ -105,35 +107,35 @@ export function CategoryCumulativeChart({
 
   const chartContent = (
     <div className={cn(
-      "space-y-3 sm:space-y-4 transition-all duration-500",
+      "space-y-2.5 sm:space-y-4 transition-all duration-500",
       isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
     )}>
       {title && (
-        <h3 className="text-xs sm:text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="text-[11px] sm:text-sm font-semibold text-foreground">{title}</h3>
       )}
       
-      <div className="w-full" style={{ height: isMobile ? 240 : 300 }}>
+      <div className="w-full" style={{ height: isMobile ? 200 : 280 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             margin={{ 
-              top: 15, 
-              right: isMobile ? 15 : 25, 
-              left: isMobile ? -10 : 5, 
-              bottom: isMobile ? 65 : 55 
+              top: 10, 
+              right: isMobile ? 8 : 20, 
+              left: isMobile ? -15 : 0, 
+              bottom: isMobile ? 50 : 45 
             }}
           >
             <XAxis 
               dataKey="displayName"
               tick={{ 
-                fontSize: isMobile ? 9 : 11, 
+                fontSize: isMobile ? 8 : 11, 
                 fill: 'hsl(var(--foreground))'
               }}
               axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
               tickLine={false}
-              height={isMobile ? 60 : 50}
+              height={isMobile ? 45 : 40}
               interval={0}
-              angle={-45}
+              angle={isMobile ? -50 : -45}
               textAnchor="end"
             />
             <YAxis 
@@ -141,15 +143,15 @@ export function CategoryCumulativeChart({
                 if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
                 return value.toString();
               }}
-              tick={{ fontSize: isMobile ? 10 : 12, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
               axisLine={false}
               tickLine={false}
-              width={isMobile ? 40 : 50}
+              width={isMobile ? 32 : 45}
             />
             <Tooltip 
               content={<CustomTooltip />} 
               cursor={{ fill: 'hsl(var(--primary)/0.08)', radius: 4 }}
-              animationDuration={200}
+              animationDuration={150}
             />
             {/* Invisible base bar for waterfall positioning */}
             <Bar 
@@ -162,10 +164,10 @@ export function CategoryCumulativeChart({
             <Bar 
               dataKey="value" 
               stackId="waterfall"
-              radius={[6, 6, 0, 0]}
-              maxBarSize={isMobile ? 45 : 60}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={isMobile ? 32 : 55}
               animationBegin={0}
-              animationDuration={800}
+              animationDuration={600}
               animationEasing="ease-out"
             >
               {chartData.map((entry, index) => (
@@ -173,10 +175,6 @@ export function CategoryCumulativeChart({
                   key={`cell-${index}`} 
                   fill={entry.color}
                   fillOpacity={0.9}
-                  className="transition-opacity duration-200 hover:opacity-100"
-                  style={{ 
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
-                  }}
                 />
               ))}
             </Bar>
@@ -184,14 +182,14 @@ export function CategoryCumulativeChart({
         </ResponsiveContainer>
       </div>
 
-      {/* Summary with better styling */}
-      <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-border/50">
-        <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-          {chartData.length} catégorie{chartData.length > 1 ? 's' : ''}
+      {/* Summary - more compact on mobile */}
+      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        <span className="text-[9px] sm:text-xs text-muted-foreground">
+          {chartData.length} cat.{!isMobile && chartData.length > 1 ? 's' : ''}
         </span>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] sm:text-xs text-muted-foreground">Total:</span>
-          <span className="text-sm sm:text-base font-bold text-foreground bg-muted/50 px-2 py-0.5 rounded-md">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[9px] sm:text-xs text-muted-foreground">Total:</span>
+          <span className="text-xs sm:text-sm font-bold text-foreground bg-muted/50 px-1.5 sm:px-2 py-0.5 rounded">
             {formatCurrency(totalAmount)}
           </span>
         </div>
