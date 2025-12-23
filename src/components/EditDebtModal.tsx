@@ -128,6 +128,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
               <Input
                 id="payment_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 value={formData.payment_amount}
                 onChange={(e) => setFormData({ ...formData, payment_amount: e.target.value })}
@@ -141,6 +142,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
               <Input
                 id="interest_rate"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 value={formData.interest_rate}
                 onChange={(e) => setFormData({ ...formData, interest_rate: e.target.value })}

@@ -76,6 +76,7 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               step="0.01"
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}

@@ -159,6 +159,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 <label className="text-xs font-medium text-muted-foreground">Montant min (€)</label>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   placeholder="0"
                   value={filters.amountMin}
                   onChange={(e) => updateFilter('amountMin', e.target.value)}
@@ -172,6 +173,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 <label className="text-xs font-medium text-muted-foreground">Montant max (€)</label>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   placeholder="∞"
                   value={filters.amountMax}
                   onChange={(e) => updateFilter('amountMax', e.target.value)}

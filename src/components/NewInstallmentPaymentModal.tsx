@@ -110,6 +110,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
               <Input
                 id="total_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={formData.total_amount}
@@ -123,6 +124,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
               <Input
                 id="installment_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={formData.installment_amount}
