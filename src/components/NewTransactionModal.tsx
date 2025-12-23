@@ -202,7 +202,15 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
             <Label htmlFor="account">Compte *</Label>
             <Select 
               value={formData.account_id} 
-              onValueChange={(value) => setFormData({ ...formData, account_id: value })}
+              onValueChange={(value) => {
+                const fromAccount = accounts.find(acc => acc.id === value);
+                const toAccount = accounts.find(acc => acc.id === formData.to_account_id);
+                const shouldUpdateDescription = formData.type === 'transfer' && fromAccount && toAccount;
+                const autoDescription = shouldUpdateDescription 
+                  ? `Transfert ${fromAccount.name} → ${toAccount.name}`
+                  : formData.description;
+                setFormData({ ...formData, account_id: value, description: autoDescription });
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner un compte" />
@@ -239,7 +247,14 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <Label htmlFor="to_account">Compte de destination *</Label>
               <Select 
                 value={formData.to_account_id} 
-                onValueChange={(value) => setFormData({ ...formData, to_account_id: value })}
+                onValueChange={(value) => {
+                  const toAccount = accounts.find(acc => acc.id === value);
+                  const fromAccount = accounts.find(acc => acc.id === formData.account_id);
+                  const autoDescription = fromAccount && toAccount 
+                    ? `Transfert ${fromAccount.name} → ${toAccount.name}`
+                    : formData.description;
+                  setFormData({ ...formData, to_account_id: value, description: autoDescription });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner le compte de destination" />
