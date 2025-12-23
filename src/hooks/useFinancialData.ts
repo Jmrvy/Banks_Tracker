@@ -26,6 +26,9 @@ export interface Transaction {
   transfer_to_account_id?: string;
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
+  refund_of_transaction_id?: string | null; // Lien vers la transaction remboursée
+  refunded_amount?: number; // Montant déjà remboursé
+  refund_of_transaction?: Transaction | null; // Transaction originale remboursée
 }
 
 export interface Category {
@@ -700,6 +703,81 @@ export function useFinancialData() {
     };
   }, [user?.id]);
 
+  // Create a refund for an existing transaction
+  const createRefund = async (refund: {
+    original_transaction_id: string;
+    amount: number;
+    description: string;
+    account_id: string;
+    transaction_date: string;
+    value_date?: string;
+    category_id?: string;
+  }) => {
+    if (!user) return { error: { message: 'User not authenticated' } };
+    
+    // Get the original transaction to validate
+    const { data: originalTransaction, error: fetchError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', refund.original_transaction_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (fetchError || !originalTransaction) {
+      return { error: { message: 'Transaction originale non trouvée' } };
+    }
+    
+    const currentRefunded = originalTransaction.refunded_amount || 0;
+    const remainingToRefund = originalTransaction.amount - currentRefunded;
+    
+    if (refund.amount > remainingToRefund) {
+      return { error: { message: `Le montant maximum remboursable est de ${remainingToRefund.toFixed(2)} €` } };
+    }
+    
+    // Create the refund transaction (as income)
+    const { error: refundError } = await supabase
+      .from('transactions')
+      .insert([{
+        description: refund.description,
+        amount: refund.amount,
+        type: 'income',
+        account_id: refund.account_id,
+        category_id: refund.category_id || originalTransaction.category_id,
+        transaction_date: refund.transaction_date,
+        value_date: refund.value_date || refund.transaction_date,
+        refund_of_transaction_id: refund.original_transaction_id,
+        include_in_stats: true,
+        user_id: user.id
+      }]);
+    
+    if (refundError) {
+      console.error('Error creating refund:', refundError);
+      return { error: refundError };
+    }
+    
+    // Update the original transaction's refunded_amount
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .update({ 
+        refunded_amount: currentRefunded + refund.amount 
+      })
+      .eq('id', refund.original_transaction_id)
+      .eq('user_id', user.id);
+    
+    if (updateError) {
+      console.error('Error updating refunded amount:', updateError);
+      return { error: updateError };
+    }
+    
+    console.log('Refund created successfully');
+    setTimeout(() => {
+      fetchTransactions();
+      fetchAccounts();
+    }, 100);
+    
+    return { error: null };
+  };
+
   return {
     accounts,
     transactions,
@@ -715,6 +793,7 @@ export function useFinancialData() {
     deleteRecurringTransaction,
     updateTransaction,
     deleteTransaction,
+    createRefund,
     processDueRecurringTransactions,
     fetchRecurringTransactions,
     refetch: () => {
