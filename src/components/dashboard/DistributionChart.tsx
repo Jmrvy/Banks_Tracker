@@ -79,24 +79,25 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       const data = payload[0].payload;
       return (
         <div className={cn(
-          "bg-popover/95 backdrop-blur-md border border-border/50 rounded-xl shadow-2xl p-3 sm:p-4",
+          "bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl",
+          "p-2.5 sm:p-3 max-w-[160px] sm:max-w-none",
           "animate-scale-in"
         )}>
-          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 pb-1.5 border-b border-border/30">
             <div 
-              className="w-3 h-3 rounded-full shadow-sm" 
+              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
               style={{ backgroundColor: data.color }}
             />
-            <p className="text-xs sm:text-sm font-semibold text-foreground">{payload[0].name}</p>
+            <p className="text-[11px] sm:text-sm font-semibold text-foreground truncate">{payload[0].name}</p>
           </div>
-          <div className="space-y-1.5 text-[10px] sm:text-xs">
-            <div className="flex items-center justify-between gap-4">
+          <div className="space-y-1 text-[10px] sm:text-xs">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
               <span className="text-muted-foreground">Montant:</span>
               <span className="font-bold text-foreground">{formatCurrency(payload[0].value)}</span>
             </div>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
               <span className="text-muted-foreground">Part:</span>
-              <span className="font-medium text-muted-foreground">{data.percentage}%</span>
+              <span className="font-medium">{data.percentage}%</span>
             </div>
           </div>
         </div>
@@ -128,32 +129,30 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
           "transition-all duration-500",
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         )}>
-          <div className="mb-3 sm:mb-4">
-            <h3 className="text-base sm:text-lg font-semibold">Distribution</h3>
+          <div className="mb-2.5 sm:mb-4">
+            <h3 className="text-sm sm:text-lg font-semibold">Distribution</h3>
           </div>
           
           <div className="flex flex-col items-center">
-            <div className="relative w-full max-w-[220px] sm:max-w-[280px]">
-              <ResponsiveContainer width="100%" height={200} className="sm:hidden">
+            <div className="relative w-full max-w-[180px] sm:max-w-[280px]">
+              <ResponsiveContainer width="100%" height={160} className="sm:hidden">
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius="55%"
+                    innerRadius="50%"
                     outerRadius="85%"
-                    paddingAngle={3}
+                    paddingAngle={2}
                     dataKey="value"
                     animationBegin={0}
-                    animationDuration={800}
+                    animationDuration={600}
                     animationEasing="ease-out"
                   >
                     {chartData.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={entry.color}
-                        className="transition-opacity duration-200 hover:opacity-80"
-                        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}
                       />
                     ))}
                   </Pie>
@@ -161,18 +160,18 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                 </PieChart>
               </ResponsiveContainer>
               
-              <ResponsiveContainer width="100%" height={280} className="hidden sm:block">
+              <ResponsiveContainer width="100%" height={260} className="hidden sm:block">
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius="60%"
+                    innerRadius="58%"
                     outerRadius="90%"
                     paddingAngle={3}
                     dataKey="value"
                     animationBegin={0}
-                    animationDuration={800}
+                    animationDuration={700}
                     animationEasing="ease-out"
                   >
                     {chartData.map((entry, index) => (
@@ -180,7 +179,6 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                         key={`cell-${index}`} 
                         fill={entry.color}
                         className="transition-opacity duration-200 hover:opacity-80"
-                        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}
                       />
                     ))}
                   </Pie>
@@ -188,46 +186,43 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                 </PieChart>
               </ResponsiveContainer>
               
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Dépenses</div>
-                <div className="text-lg sm:text-2xl font-bold bg-background/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div className="text-[9px] sm:text-xs text-muted-foreground">Dépenses</div>
+                <div className="text-sm sm:text-xl font-bold">
                   {formatCurrency(totalExpenses)}
                 </div>
               </div>
             </div>
 
-            {/* Legend with better styling */}
-            <div className="mt-4 sm:mt-6 w-full space-y-2 sm:space-y-2.5">
-              {chartData.slice(0, 5).map((item, index) => (
+            {/* Legend - compact on mobile */}
+            <div className="mt-3 sm:mt-5 w-full space-y-1.5 sm:space-y-2">
+              {chartData.slice(0, 4).map((item, index) => (
                 <div 
                   key={item.name} 
                   className={cn(
-                    "flex items-center justify-between text-xs sm:text-sm",
-                    "p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-default"
+                    "flex items-center justify-between text-[11px] sm:text-sm",
+                    "p-1.5 sm:p-2 rounded-md bg-muted/30"
                   )}
-                  style={{ 
-                    animationDelay: `${index * 50}ms`,
-                  }}
                 >
-                  <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                     <div 
-                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full flex-shrink-0 shadow-sm" 
+                      className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="text-foreground font-medium truncate">{item.name}</span>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-2 flex items-center gap-2 sm:gap-3">
-                    <span className="font-bold">{formatCurrency(item.value)}</span>
-                    <span className="text-[10px] sm:text-xs text-muted-foreground bg-background/50 px-1.5 py-0.5 rounded">
+                  <div className="flex-shrink-0 ml-1.5 sm:ml-2 flex items-center gap-1.5 sm:gap-2">
+                    <span className="font-bold text-[11px] sm:text-sm">{formatCurrency(item.value)}</span>
+                    <span className="text-[9px] sm:text-xs text-muted-foreground">
                       {item.percentage}%
                     </span>
                   </div>
                 </div>
               ))}
-              {chartData.length > 5 && (
-                <div className="text-center pt-1">
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">
-                    +{chartData.length - 5} autres catégories
+              {chartData.length > 4 && (
+                <div className="text-center">
+                  <span className="text-[9px] sm:text-xs text-muted-foreground">
+                    +{chartData.length - 4} autres
                   </span>
                 </div>
               )}
@@ -236,7 +231,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
 
           {/* Cumulative Chart with separator */}
           {cumulativeData.length > 0 && (
-            <div className="mt-5 sm:mt-8 pt-5 border-t border-border/50">
+            <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50">
               <CategoryCumulativeChart
                 data={cumulativeData}
                 title="Cumul des dépenses"
