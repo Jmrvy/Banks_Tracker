@@ -91,41 +91,45 @@ export function CategoryCumulativeChart({
         <h3 className="text-xs sm:text-sm font-semibold text-foreground">{title}</h3>
       )}
       
-      <div className="w-full" style={{ height: isMobile ? 200 : 260 }}>
+      <div className="w-full" style={{ height: isMobile ? 220 : 280 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            layout="vertical"
             margin={{ 
-              top: 5, 
-              right: isMobile ? 50 : 70, 
-              left: isMobile ? 60 : 80, 
-              bottom: 5 
+              top: 10, 
+              right: isMobile ? 10 : 20, 
+              left: isMobile ? -15 : 0, 
+              bottom: isMobile ? 60 : 50 
             }}
           >
             <XAxis 
-              type="number"
+              dataKey="displayName"
+              tick={{ 
+                fontSize: isMobile ? 8 : 10, 
+                fill: 'hsl(var(--foreground))'
+              }}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={false}
+              height={isMobile ? 55 : 45}
+              interval={0}
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis 
               tickFormatter={(value) => {
                 if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
                 return value.toString();
               }}
               tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
-              axisLine={{ stroke: 'hsl(var(--border))' }}
-              tickLine={false}
-            />
-            <YAxis 
-              type="category" 
-              dataKey="displayName"
-              tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--foreground))' }}
               axisLine={false}
               tickLine={false}
-              width={isMobile ? 55 : 75}
+              width={isMobile ? 35 : 45}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.3)' }} />
             <Bar 
               dataKey="cumulative" 
-              radius={[0, 4, 4, 0]}
-              maxBarSize={isMobile ? 20 : 28}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={isMobile ? 35 : 50}
             >
               {chartData.map((entry, index) => (
                 <Cell 
