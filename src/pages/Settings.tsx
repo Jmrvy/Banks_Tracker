@@ -630,6 +630,7 @@ const Settings = () => {
                               />
                               <Input
                                 type="number"
+                                inputMode="decimal"
                                 value={editingValues.budget || ""}
                                 onChange={(e) => setEditingValues(prev => ({ ...prev, budget: e.target.value }))}
                                 placeholder="Budget €"

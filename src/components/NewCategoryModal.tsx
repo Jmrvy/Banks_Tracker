@@ -130,6 +130,7 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
             <Input
               id="budget"
               type="number"
+              inputMode="decimal"
               step="0.01"
               placeholder="0.00"
               value={formData.budget}

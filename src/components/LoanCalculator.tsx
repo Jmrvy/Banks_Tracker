@@ -97,6 +97,7 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
               <Input
                 id="amount"
                 type="number"
+                inputMode="decimal"
                 value={params.amount}
                 onChange={(e) => updateParam('amount', parseFloat(e.target.value) || 0)}
                 placeholder="10000"
@@ -108,6 +109,7 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
               <Input
                 id="rate"
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 value={params.rate}
                 onChange={(e) => updateParam('rate', parseFloat(e.target.value) || 0)}
@@ -122,6 +124,7 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
               <Input
                 id="duration"
                 type="number"
+                inputMode="numeric"
                 value={params.duration}
                 onChange={(e) => updateParam('duration', parseInt(e.target.value) || 0)}
                 placeholder="24"

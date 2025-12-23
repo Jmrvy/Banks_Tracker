@@ -223,6 +223,7 @@ export const AdjustInstallmentPlanModal = ({
                     <div className="mt-2">
                       <Input
                         type="number"
+                        inputMode="decimal"
                         step="0.01"
                         placeholder="0.00"
                         value={customAmount}

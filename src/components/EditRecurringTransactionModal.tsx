@@ -199,6 +199,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               step="0.01"
               placeholder="0.00"
               value={formData.amount}

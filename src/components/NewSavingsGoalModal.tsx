@@ -129,6 +129,7 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
               <Input
                 id="current_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 min="0"
                 value={formData.current_amount}
@@ -142,6 +143,7 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
               <Input
                 id="target_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 min="0"
                 value={formData.target_amount}

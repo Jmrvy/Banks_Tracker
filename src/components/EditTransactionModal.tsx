@@ -149,6 +149,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               step="0.01"
               value={formData.amount}
               onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
