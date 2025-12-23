@@ -41,11 +41,10 @@ export function CategoryCumulativeChart({
   }, []);
 
   const chartData = useMemo(() => {
-    // Sort by value descending and limit for mobile
+    // Sort by value descending - show all categories
     const sorted = [...data]
       .filter(d => d.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, isMobile ? 6 : 10); // Limit categories on mobile for readability
+      .sort((a, b) => b.value - a.value);
     
     // Calculate waterfall values (base = previous cumulative, value = current amount)
     let cumulative = 0;
@@ -56,12 +55,20 @@ export function CategoryCumulativeChart({
         ...item,
         base,
         cumulative,
-        displayName: item.name.length > (isMobile ? 6 : 12) 
-          ? item.name.slice(0, isMobile ? 6 : 12) + '…' 
+        displayName: item.name.length > (isMobile ? 8 : 12) 
+          ? item.name.slice(0, isMobile ? 8 : 12) + '…' 
           : item.name
       };
     });
   }, [data, isMobile]);
+
+  // Calculate dynamic height based on number of categories
+  const chartHeight = useMemo(() => {
+    const baseHeight = isMobile ? 180 : 280;
+    const perCategoryHeight = isMobile ? 28 : 35;
+    const minHeight = isMobile ? 180 : 250;
+    return Math.max(minHeight, chartData.length * perCategoryHeight);
+  }, [chartData.length, isMobile]);
 
   const totalAmount = chartData.length > 0 ? chartData[chartData.length - 1]?.cumulative || 0 : 0;
 
@@ -114,78 +121,96 @@ export function CategoryCumulativeChart({
         <h3 className="text-[11px] sm:text-sm font-semibold text-foreground">{title}</h3>
       )}
       
-      <div className="w-full" style={{ height: isMobile ? 200 : 280 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            margin={{ 
-              top: 10, 
-              right: isMobile ? 8 : 20, 
-              left: isMobile ? -15 : 0, 
-              bottom: isMobile ? 50 : 45 
-            }}
-          >
-            <XAxis 
-              dataKey="displayName"
-              tick={{ 
-                fontSize: isMobile ? 8 : 11, 
-                fill: 'hsl(var(--foreground))'
+      {/* Scrollable container for mobile */}
+      <div className={cn(
+        "w-full overflow-x-auto",
+        isMobile && chartData.length > 5 ? "-mx-2 px-2" : ""
+      )}>
+        <div 
+          style={{ 
+            height: chartHeight,
+            minWidth: isMobile && chartData.length > 5 ? `${chartData.length * 45}px` : '100%'
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ 
+                top: 10, 
+                right: isMobile ? 10 : 20, 
+                left: isMobile ? -10 : 0, 
+                bottom: isMobile ? 55 : 45 
               }}
-              axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
-              tickLine={false}
-              height={isMobile ? 45 : 40}
-              interval={0}
-              angle={isMobile ? -50 : -45}
-              textAnchor="end"
-            />
-            <YAxis 
-              tickFormatter={(value) => {
-                if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
-                return value.toString();
-              }}
-              tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
-              axisLine={false}
-              tickLine={false}
-              width={isMobile ? 32 : 45}
-            />
-            <Tooltip 
-              content={<CustomTooltip />} 
-              cursor={{ fill: 'hsl(var(--primary)/0.08)', radius: 4 }}
-              animationDuration={150}
-            />
-            {/* Invisible base bar for waterfall positioning */}
-            <Bar 
-              dataKey="base" 
-              stackId="waterfall"
-              fill="transparent"
-              radius={0}
-            />
-            {/* Visible value bar with animation */}
-            <Bar 
-              dataKey="value" 
-              stackId="waterfall"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={isMobile ? 32 : 55}
-              animationBegin={0}
-              animationDuration={600}
-              animationEasing="ease-out"
             >
-              {chartData.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={entry.color}
-                  fillOpacity={0.9}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <XAxis 
+                dataKey="displayName"
+                tick={{ 
+                  fontSize: isMobile ? 9 : 11, 
+                  fill: 'hsl(var(--foreground))'
+                }}
+                axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+                tickLine={false}
+                height={isMobile ? 50 : 40}
+                interval={0}
+                angle={isMobile ? -45 : -35}
+                textAnchor="end"
+              />
+              <YAxis 
+                tickFormatter={(value) => {
+                  if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                  return value.toString();
+                }}
+                tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                axisLine={false}
+                tickLine={false}
+                width={isMobile ? 35 : 45}
+              />
+              <Tooltip 
+                content={<CustomTooltip />} 
+                cursor={{ fill: 'hsl(var(--primary)/0.08)', radius: 4 }}
+                animationDuration={150}
+              />
+              {/* Invisible base bar for waterfall positioning */}
+              <Bar 
+                dataKey="base" 
+                stackId="waterfall"
+                fill="transparent"
+                radius={0}
+              />
+              {/* Visible value bar with animation */}
+              <Bar 
+                dataKey="value" 
+                stackId="waterfall"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={isMobile ? 28 : 50}
+                animationBegin={0}
+                animationDuration={600}
+                animationEasing="ease-out"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.color}
+                    fillOpacity={0.9}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
+      
+      {/* Scroll hint for mobile */}
+      {isMobile && chartData.length > 5 && (
+        <p className="text-[9px] text-muted-foreground text-center -mt-1">
+          ← Glissez pour voir toutes les catégories →
+        </p>
+      )}
 
-      {/* Summary - more compact on mobile */}
+      {/* Summary */}
       <div className="flex items-center justify-between pt-2 border-t border-border/50">
         <span className="text-[9px] sm:text-xs text-muted-foreground">
-          {chartData.length} cat.{!isMobile && chartData.length > 1 ? 's' : ''}
+          {chartData.length} catégorie{chartData.length > 1 ? 's' : ''}
         </span>
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="text-[9px] sm:text-xs text-muted-foreground">Total:</span>
