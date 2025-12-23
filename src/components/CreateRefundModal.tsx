@@ -251,14 +251,14 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
             <div className="space-y-2">
               <Label htmlFor="refund-category">Catégorie</Label>
               <Select
-                value={formData.category_id}
-                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                value={formData.category_id || "same-as-original"}
+                onValueChange={(value) => setFormData({ ...formData, category_id: value === "same-as-original" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Même que l'original" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Même que l'original</SelectItem>
+                  <SelectItem value="same-as-original">Même que l'original</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       <div className="flex items-center gap-2">
