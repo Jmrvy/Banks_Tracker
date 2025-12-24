@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -202,14 +203,11 @@ const NewTransaction = () => {
               {/* Amount */}
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="amount" className="text-xs sm:text-sm">Montant *</Label>
-                <Input
+                <AmountInput
                   id="amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
                   placeholder="0.00"
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, amount: value })}
                   required
                   className="h-8 sm:h-10 text-xs sm:text-sm"
                 />
@@ -287,13 +285,11 @@ const NewTransaction = () => {
               {formData.type === 'transfer' && (
                 <div className="space-y-2">
                   <Label htmlFor="transfer_fee">Frais de transfert (optionnel)</Label>
-                  <Input
+                  <AmountInput
                     id="transfer_fee"
-                    type="number"
-                    step="0.01"
                     placeholder="0.00"
                     value={formData.transfer_fee}
-                    onChange={(e) => setFormData({ ...formData, transfer_fee: e.target.value })}
+                    onChange={(value) => setFormData({ ...formData, transfer_fee: value })}
                   />
                 </div>
               )}
