@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -146,13 +147,10 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
           <div className="space-y-2">
             <Label htmlFor="amount">Montant *</Label>
-            <Input
+            <AmountInput
               id="amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
               value={formData.amount}
-              onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+              onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
               placeholder="0.00"
             />
           </div>
@@ -216,11 +214,9 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
               <div className="space-y-2">
                 <Label>Frais de virement</Label>
-                <Input
-                  type="number"
-                  step="0.01"
+                <AmountInput
                   value={formData.transfer_fee}
-                  onChange={(e) => setFormData(prev => ({ ...prev, transfer_fee: e.target.value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, transfer_fee: value }))}
                   placeholder="0.00"
                 />
               </div>
