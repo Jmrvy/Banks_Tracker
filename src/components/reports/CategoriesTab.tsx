@@ -39,7 +39,7 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
     if (!selectedCategory) return [];
     
     return transactions
-      .filter(t => t.category?.name === selectedCategory && t.type === 'expense')
+      .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false)
       .map(t => ({
         id: t.id,
         description: t.description,
