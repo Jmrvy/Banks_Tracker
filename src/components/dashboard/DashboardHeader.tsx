@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings, Plus, FileText } from "lucide-react";
+import { Calendar, Settings, Plus, FileText, Eye, EyeOff } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,8 @@ import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { NewTransactionModal } from "@/components/NewTransactionModal";
 import { ReportGeneratorModal } from "@/components/ReportGeneratorModal";
 import { useNavigate } from "react-router-dom";
+import { usePrivacy } from "@/contexts/PrivacyContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardHeaderProps {
   selectedPeriod: string;
@@ -24,6 +26,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
+  const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
 
   const periods = [
     { label: "1M", value: "1m" },
@@ -68,6 +71,22 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
 
         {/* Right: Actions - simplified for mobile */}
         <div className="flex items-center gap-1 md:gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={togglePrivacyMode}
+                className="text-muted-foreground hover:text-foreground h-8 px-2"
+              >
+                {isPrivacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isPrivacyMode ? "Afficher les montants" : "Masquer les montants"}
+            </TooltipContent>
+          </Tooltip>
+
           <Button
             variant="default"
             size="sm"

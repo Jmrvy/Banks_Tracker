@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { eachDayOfInterval, format, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -14,6 +15,7 @@ interface CashflowChartProps {
 export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
   const { transactions, accounts } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
 
   const chartData = useMemo(() => {
     const monthStart = startDate;
@@ -102,71 +104,75 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           <p className="text-xs sm:text-sm text-muted-foreground">Évolution de votre solde</p>
         </div>
         
-        <ResponsiveContainer width="100%" height={200} className="sm:hidden">
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="colorBalanceMobile" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-            <XAxis 
-              dataKey="date" 
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={9}
-              tickLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis 
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={9}
-              tickLine={false}
-              tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
-              width={30}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area 
-              type="monotone" 
-              dataKey="balance" 
-              stroke="hsl(var(--primary))" 
-              strokeWidth={2}
-              fill="url(#colorBalanceMobile)" 
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div className={isPrivacyMode ? "blur-md select-none" : ""}>
+          <ResponsiveContainer width="100%" height={200} className="sm:hidden">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorBalanceMobile" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis 
+                dataKey="date" 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={9}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={9}
+                tickLine={false}
+                tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
+                width={30}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area 
+                type="monotone" 
+                dataKey="balance" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                fill="url(#colorBalanceMobile)" 
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
         
-        <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-            <XAxis 
-              dataKey="date" 
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
-              tickLine={false}
-            />
-            <YAxis 
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
-              tickLine={false}
-              tickFormatter={(value) => `${value}€`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area 
-              type="monotone" 
-              dataKey="balance" 
-              stroke="hsl(var(--primary))" 
-              strokeWidth={2}
-              fill="url(#colorBalance)" 
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div className={isPrivacyMode ? "blur-md select-none" : ""}>
+          <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis 
+                dataKey="date" 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+              />
+              <YAxis 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+                tickFormatter={(value) => `${value}€`}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area 
+                type="monotone" 
+                dataKey="balance" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                fill="url(#colorBalance)" 
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, Repeat } from "lucide-react";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 interface StatsCardsProps {
   startDate: Date;
@@ -17,6 +18,7 @@ interface StatsCardsProps {
 export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick, onAvailableClick, onTransactionsFiltered, onExcludedTransactionsFiltered }: StatsCardsProps) {
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
 
   const { stats, filteredTransactions, excludedTransactions } = useMemo(() => {
     const filtered = transactions.filter(t => {
@@ -120,7 +122,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2 truncate">{card.label}</p>
-                <p className="text-base md:text-xl lg:text-2xl font-bold truncate">
+                <p className={`text-base md:text-xl lg:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
                   {card.isCount ? card.value : formatCurrency(card.value)}
                 </p>
               </div>

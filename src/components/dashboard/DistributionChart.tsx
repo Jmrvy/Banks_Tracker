@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ interface DistributionChartProps {
 export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
   const { transactions, categories } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -188,7 +190,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
               
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <div className="text-[9px] sm:text-xs text-muted-foreground">Dépenses</div>
-                <div className="text-sm sm:text-xl font-bold">
+                <div className={`text-sm sm:text-xl font-bold ${isPrivacyMode ? "blur-md select-none" : ""}`}>
                   {formatCurrency(totalExpenses)}
                 </div>
               </div>
@@ -212,7 +214,9 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                     <span className="text-foreground font-medium truncate">{item.name}</span>
                   </div>
                   <div className="flex-shrink-0 ml-1.5 sm:ml-2 flex items-center gap-1.5 sm:gap-2">
-                    <span className="font-bold text-[11px] sm:text-sm">{formatCurrency(item.value)}</span>
+                    <span className={`font-bold text-[11px] sm:text-sm ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+                      {formatCurrency(item.value)}
+                    </span>
                     <span className="text-[9px] sm:text-xs text-muted-foreground">
                       {item.percentage}%
                     </span>
