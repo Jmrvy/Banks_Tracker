@@ -119,6 +119,26 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
   const displayedTransactions = filteredAndSortedTransactions.slice(0, displayCount);
 
+  // Calculate net total of filtered transactions (income - expenses, transfers excluded)
+  const filteredNetTotal = useMemo(() => {
+    return filteredAndSortedTransactions.reduce((acc, t) => {
+      if (t.type === 'income') return acc + t.amount;
+      if (t.type === 'expense') return acc - t.amount;
+      return acc; // transfers don't affect net total
+    }, 0);
+  }, [filteredAndSortedTransactions]);
+
+  const hasActiveFilters = filters && (
+    filters.searchText ||
+    filters.type !== 'all' ||
+    filters.categoryId !== 'all' ||
+    filters.accountId !== 'all' ||
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.amountMin ||
+    filters.amountMax
+  );
+
   const handleDelete = async () => {
     if (!deletingTransaction) return;
 
@@ -217,6 +237,19 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
               Basé sur la date {preferences.dateType === 'value' ? 'de valeur' : 'comptable'}
             </p>
           </div>
+          {hasActiveFilters && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Solde net filtré</p>
+              <p className={`text-base sm:text-lg font-bold ${
+                filteredNetTotal >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {filteredNetTotal >= 0 ? '+' : ''}{formatCurrency(filteredNetTotal)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {filteredAndSortedTransactions.length} transaction{filteredAndSortedTransactions.length > 1 ? 's' : ''}
+              </p>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
