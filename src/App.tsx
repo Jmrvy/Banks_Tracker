@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
+import { PrivacyProvider } from "./contexts/PrivacyContext";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
@@ -168,8 +169,10 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <PeriodProvider>
-              <AppRoutes />
-              <OfflineIndicator />
+              <PrivacyProvider>
+                <AppRoutes />
+                <OfflineIndicator />
+              </PrivacyProvider>
             </PeriodProvider>
           </AuthProvider>
         </BrowserRouter>
