@@ -92,10 +92,6 @@ function AppRoutes() {
             } 
           />
           <Route 
-            path="/insights" 
-            element={<Navigate to="/reports" replace />} 
-          />
-          <Route 
             path="/reports" 
             element={
               <ProtectedRoute>

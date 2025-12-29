@@ -19,7 +19,6 @@ import { Separator } from "@/components/ui/separator";
 
 const mainNavigation = [
   { name: "Accueil", path: "/", icon: Home },
-  { name: "Insights", path: "/insights", icon: TrendingUp },
   { name: "Rapports", path: "/reports", icon: PieChart },
 ];
 
