@@ -166,10 +166,94 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         ['__SUM__TOTAL', 'Total transactions', '', '', '', '', String(transactionsWithBalance.length)],
       ];
 
+      // Add Budget vs Expenses table with autoTable to avoid page breaks
+      const budgetCategories = categoryChartData.filter(cat => cat.budget > 0).sort((a, b) => b.spent - a.spent);
+      if (budgetCategories.length > 0) {
+        pdf.addPage();
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(16);
+        pdf.setTextColor(0);
+        pdf.text('Analyse Budget vs Dépenses', 14, 15);
+
+        const budgetTableData = budgetCategories.map(cat => {
+          const percentUsed = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0;
+          const remaining = cat.budget - cat.spent;
+          const status = percentUsed >= 100 ? 'Dépassé' : percentUsed >= 80 ? 'Attention' : 'OK';
+          return [
+            cat.name,
+            pdfFormatAbs(cat.spent),
+            pdfFormatAbs(cat.budget),
+            pdfFormatWithSign(remaining),
+            percentUsed.toFixed(0) + '%',
+            status
+          ];
+        });
+
+        autoTable(pdf, {
+          head: [['Catégorie', 'Dépensé', 'Budget', 'Restant', '% Utilisé', 'Statut']],
+          body: budgetTableData,
+          startY: 25,
+          theme: 'grid',
+          tableWidth: 'auto',
+          headStyles: { 
+            fillColor: [243, 244, 246],
+            textColor: [55, 65, 81],
+            fontStyle: 'bold',
+            lineWidth: 0.5,
+            lineColor: [209, 213, 219],
+            halign: 'left',
+            fontSize: 8
+          },
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [229, 231, 235],
+            lineWidth: 0.1,
+            halign: 'left'
+          },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          columnStyles: {
+            0: { cellWidth: 50 }, // Catégorie
+            1: { halign: 'right', cellWidth: 28 }, // Dépensé
+            2: { halign: 'right', cellWidth: 28 }, // Budget
+            3: { halign: 'right', cellWidth: 28 }, // Restant
+            4: { halign: 'center', cellWidth: 22 }, // % Utilisé
+            5: { halign: 'center', cellWidth: 22 } // Statut
+          },
+          rowPageBreak: 'avoid', // Prevent rows from being split across pages
+          pageBreak: 'avoid', // Try to keep the entire table on one page if possible
+          didParseCell: (data: any) => {
+            if (data.section === 'body') {
+              // Color status column based on value
+              if (data.column.index === 5) {
+                const status = data.cell.raw;
+                if (status === 'Dépassé') {
+                  data.cell.styles.textColor = [220, 38, 38]; // red
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (status === 'Attention') {
+                  data.cell.styles.textColor = [234, 88, 12]; // orange
+                  data.cell.styles.fontStyle = 'bold';
+                } else {
+                  data.cell.styles.textColor = [22, 163, 74]; // green
+                  data.cell.styles.fontStyle = 'bold';
+                }
+              }
+              // Color remaining column
+              if (data.column.index === 3) {
+                const remaining = String(data.cell.raw);
+                if (remaining.startsWith('-')) {
+                  data.cell.styles.textColor = [220, 38, 38]; // red
+                }
+              }
+            }
+          },
+          margin: { top: 25, bottom: 15, left: 14, right: 14 }
+        });
+      }
+
       pdf.addPage();
       
       let txFirstPage = true;
-      
       // Add transactions table with autoTable
       autoTable(pdf, {
         head: [['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde']],
@@ -196,14 +280,15 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 20 }, // Date
-          1: { cellWidth: 'wrap' }, // Compte
-          2: { cellWidth: 'wrap' }, // Description
-          3: { cellWidth: 'wrap' }, // Catégorie
-          4: { cellWidth: 18 }, // Type
+          0: { cellWidth: 18 }, // Date
+          1: { cellWidth: 22 }, // Compte
+          2: { cellWidth: 50, overflow: 'linebreak' }, // Description - limited width with text wrap
+          3: { cellWidth: 25 }, // Catégorie
+          4: { cellWidth: 16 }, // Type
           5: { halign: 'right', cellWidth: 22 }, // Montant
           6: { halign: 'right', fontStyle: 'bold', cellWidth: 22 } // Solde
         },
+        rowPageBreak: 'avoid', // Prevent rows from being split across pages
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
           pdf.setTextColor(0);
