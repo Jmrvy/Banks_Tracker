@@ -10,6 +10,8 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ExcludedTransactionsModal } from "@/components/ExcludedTransactionsModal";
+import { MobileQuickPreview } from "@/components/MobileQuickPreview";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const { user } = useAuth();
@@ -21,6 +23,8 @@ const Index = () => {
   const [showExcludedModal, setShowExcludedModal] = useState(false);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
+  const [showQuickPreview, setShowQuickPreview] = useState(true);
+  const isMobile = useIsMobile();
 
   if (loading || isOnboarding) {
     return (
@@ -28,6 +32,27 @@ const Index = () => {
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <div>{isOnboarding ? 'Configuration de votre compte...' : 'Chargement de vos données financières...'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show quick preview on mobile by default
+  if (isMobile && showQuickPreview) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <div className="p-4 border-b">
+          <h1 className="text-xl font-bold">Aperçu rapide</h1>
+          <p className="text-sm text-muted-foreground">Vue d'ensemble de vos finances</p>
+        </div>
+        <MobileQuickPreview />
+        <div className="px-4 pb-4">
+          <button
+            onClick={() => setShowQuickPreview(false)}
+            className="w-full py-3 text-sm text-primary font-medium"
+          >
+            Afficher le tableau de bord complet
+          </button>
         </div>
       </div>
     );
