@@ -193,7 +193,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 variant="ghost" 
                 size="sm" 
                 className="text-xs md:text-sm h-7 md:h-8 px-2 md:px-3"
-                onClick={() => navigate('/recurring')}
+                onClick={() => navigate('/recurring-transactions')}
               >
                 Voir tout
                 <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-1" />
