@@ -10,8 +10,9 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ExcludedTransactionsModal } from "@/components/ExcludedTransactionsModal";
-import { MobileQuickPreview } from "@/components/MobileQuickPreview";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { QuickPreview } from "@/components/QuickPreview";
+import { Button } from "@/components/ui/button";
+import { LayoutDashboard } from "lucide-react";
 
 const Index = () => {
   const { user } = useAuth();
@@ -24,7 +25,6 @@ const Index = () => {
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
   const [showQuickPreview, setShowQuickPreview] = useState(true);
-  const isMobile = useIsMobile();
 
   if (loading || isOnboarding) {
     return (
@@ -37,23 +37,17 @@ const Index = () => {
     );
   }
 
-  // Show quick preview on mobile by default
-  if (isMobile && showQuickPreview) {
+  // Show quick preview by default (both mobile and web)
+  if (showQuickPreview) {
     return (
-      <div className="min-h-screen bg-background pb-20">
-        <div className="p-4 border-b">
-          <h1 className="text-xl font-bold">Aperçu rapide</h1>
-          <p className="text-sm text-muted-foreground">Vue d'ensemble de vos finances</p>
+      <div className="min-h-screen bg-background pb-20 md:pb-8">
+        <div className="p-4 md:p-6 lg:p-8 border-b">
+          <div className="max-w-5xl mx-auto">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Aperçu rapide</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Vue d'ensemble de vos finances</p>
+          </div>
         </div>
-        <MobileQuickPreview />
-        <div className="px-4 pb-4">
-          <button
-            onClick={() => setShowQuickPreview(false)}
-            className="w-full py-3 text-sm text-primary font-medium"
-          >
-            Afficher le tableau de bord complet
-          </button>
-        </div>
+        <QuickPreview onShowFullDashboard={() => setShowQuickPreview(false)} />
       </div>
     );
   }
@@ -64,6 +58,19 @@ const Index = () => {
         selectedPeriod={selectedPeriod}
         onPeriodChange={setSelectedPeriod}
       />
+
+      {/* Button to go back to quick preview */}
+      <div className="px-3 md:px-4 lg:px-6 pt-3 md:pt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowQuickPreview(true)}
+          className="gap-2 text-xs md:text-sm"
+        >
+          <LayoutDashboard className="w-3.5 h-3.5 md:w-4 md:h-4" />
+          Aperçu rapide
+        </Button>
+      </div>
 
       <div className="p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6">
         <RecurringTransactionsWarning />
