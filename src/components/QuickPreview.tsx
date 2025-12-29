@@ -67,24 +67,24 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-w-5xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-3 sm:space-y-4 md:space-y-6 max-w-5xl mx-auto">
       {/* Toggle Button */}
       <div className="flex justify-end">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setIsRevealed(!isRevealed)}
-          className="gap-2 text-muted-foreground hover:text-foreground"
+          className="gap-1.5 sm:gap-2 text-muted-foreground hover:text-foreground h-8 px-2 sm:px-3"
         >
           {isRevealed ? (
             <>
-              <EyeOff className="w-4 h-4" />
-              <span className="text-sm md:text-base">Masquer les montants</span>
+              <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm md:text-base">Masquer</span>
             </>
           ) : (
             <>
-              <Eye className="w-4 h-4" />
-              <span className="text-sm md:text-base">Afficher les montants</span>
+              <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm md:text-base">Afficher</span>
             </>
           )}
         </Button>
@@ -92,10 +92,10 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
       {/* Balance Gauge Card */}
       <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-card via-card to-accent/10">
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="p-4 sm:p-6 md:p-8">
           <div className="flex flex-col items-center">
-            <div className="relative w-full max-w-[220px] md:max-w-[280px] lg:max-w-[320px]">
-              <ResponsiveContainer width="100%" height={140} className="md:!h-[180px] lg:!h-[200px]">
+            <div className="relative w-full max-w-[180px] sm:max-w-[220px] md:max-w-[280px] lg:max-w-[320px]">
+              <ResponsiveContainer width="100%" height={120} className="sm:!h-[140px] md:!h-[180px] lg:!h-[200px]">
                 <PieChart>
                   <Pie
                     data={gaugeData}
@@ -115,20 +115,20 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 </PieChart>
               </ResponsiveContainer>
               
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center w-full px-2">
+                <div className="flex items-center justify-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1">
                   {isPositive ? (
-                    <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
+                    <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-green-500" />
                   ) : (
-                    <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
+                    <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-red-500" />
                   )}
-                  <span className="text-xs md:text-sm font-medium text-muted-foreground">
+                  <span className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground">
                     Solde total
                   </span>
                 </div>
                 <BlurredAmount 
                   amount={formatCurrency(totalBalance)}
-                  className={`text-xl md:text-2xl lg:text-3xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                 />
               </div>
             </div>
@@ -137,43 +137,43 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       </Card>
 
       {/* Accounts and Transactions Grid */}
-      <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Accounts Card */}
         <Card className="border-0 shadow-md">
-          <CardContent className="p-4 md:p-5">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                <span className="font-semibold text-sm md:text-base">Mes comptes</span>
+          <CardContent className="p-3 sm:p-4 md:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-primary" />
+                <span className="font-semibold text-xs sm:text-sm md:text-base">Mes comptes</span>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-xs md:text-sm h-7 md:h-8 px-2 md:px-3"
+                className="text-[10px] sm:text-xs md:text-sm h-6 sm:h-7 md:h-8 px-1.5 sm:px-2 md:px-3"
                 onClick={() => navigate('/accounts')}
               >
                 Voir tout
-                <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-1" />
+                <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 ml-0.5 sm:ml-1" />
               </Button>
             </div>
             
-            <div className="space-y-2 md:space-y-3">
+            <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
               {accounts.slice(0, 4).map((account) => (
                 <div 
                   key={account.id} 
-                  className="flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between py-1.5 sm:py-2 md:py-3 px-2 sm:px-3 md:px-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <span className="text-sm md:text-base font-medium truncate max-w-[60%]">
+                  <span className="text-xs sm:text-sm md:text-base font-medium truncate max-w-[55%]">
                     {account.name}
                   </span>
                   <BlurredAmount 
                     amount={formatCurrency(account.balance)}
-                    className={`text-sm md:text-base font-semibold ${account.balance >= 0 ? 'text-foreground' : 'text-red-500'}`}
+                    className={`text-xs sm:text-sm md:text-base font-semibold ${account.balance >= 0 ? 'text-foreground' : 'text-red-500'}`}
                   />
                 </div>
               ))}
               {accounts.length === 0 && (
-                <p className="text-sm md:text-base text-muted-foreground text-center py-4 md:py-6">
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-center py-3 sm:py-4 md:py-6">
                   Aucun compte configuré
                 </p>
               )}
@@ -183,48 +183,48 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
         {/* Upcoming Transactions Card */}
         <Card className="border-0 shadow-md">
-          <CardContent className="p-4 md:p-5">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                <span className="font-semibold text-sm md:text-base">Transactions à venir</span>
+          <CardContent className="p-3 sm:p-4 md:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-primary" />
+                <span className="font-semibold text-xs sm:text-sm md:text-base">À venir</span>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-xs md:text-sm h-7 md:h-8 px-2 md:px-3"
+                className="text-[10px] sm:text-xs md:text-sm h-6 sm:h-7 md:h-8 px-1.5 sm:px-2 md:px-3"
                 onClick={() => navigate('/recurring-transactions')}
               >
                 Voir tout
-                <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-1" />
+                <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 ml-0.5 sm:ml-1" />
               </Button>
             </div>
             
-            <div className="space-y-2 md:space-y-3">
+            <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
               {upcomingTransactions.map((transaction) => (
                 <div 
                   key={transaction.id} 
-                  className="flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between py-1.5 sm:py-2 md:py-3 px-2 sm:px-3 md:px-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex flex-col min-w-0 flex-1 mr-2">
-                    <span className="text-sm md:text-base font-medium truncate">
+                    <span className="text-xs sm:text-sm md:text-base font-medium truncate">
                       {transaction.description}
                     </span>
-                    <span className="text-xs md:text-sm text-muted-foreground">
-                      {format(new Date(transaction.next_due_date), 'EEEE d MMM', { locale: fr })}
+                    <span className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
+                      {format(new Date(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
                     </span>
                   </div>
                   <BlurredAmount 
                     amount={`${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(transaction.amount)}`}
-                    className={`text-sm md:text-base font-semibold whitespace-nowrap ${
+                    className={`text-xs sm:text-sm md:text-base font-semibold whitespace-nowrap ${
                       transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-500'
                     }`}
                   />
                 </div>
               ))}
               {upcomingTransactions.length === 0 && (
-                <p className="text-sm md:text-base text-muted-foreground text-center py-4 md:py-6">
-                  Aucune transaction prévue cette semaine
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-center py-3 sm:py-4 md:py-6">
+                  Aucune transaction prévue
                 </p>
               )}
             </div>
@@ -233,14 +233,14 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       </div>
 
       {/* Continue to Dashboard Button */}
-      <div className="flex justify-center">
+      <div className="flex justify-center pt-1 sm:pt-2">
         <Button 
           onClick={onShowFullDashboard}
-          className="w-full md:w-auto md:min-w-[280px]"
+          className="w-full md:w-auto md:min-w-[280px] h-9 sm:h-10 md:h-11"
           size="lg"
         >
-          <span className="text-sm md:text-base">Accéder au tableau de bord complet</span>
-          <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+          <span className="text-xs sm:text-sm md:text-base">Tableau de bord complet</span>
+          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 ml-1.5 sm:ml-2" />
         </Button>
       </div>
     </div>
