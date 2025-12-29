@@ -54,15 +54,11 @@ const Index = () => {
           onExcludedTransactionsFiltered={setExcludedTransactions}
         />
 
-        {/* Main content: Cashflow + Distribution */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="lg:col-span-2">
-            <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
-          </div>
-          <div className="lg:col-span-1">
-            <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
-          </div>
-        </div>
+        {/* Main content: Cashflow chart */}
+        <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
+
+        {/* Distribution chart below */}
+        <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
       </div>
 
       <TransactionTypeModal
