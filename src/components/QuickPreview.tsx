@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { Eye, EyeOff, Wallet, Calendar, ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Eye, EyeOff, Wallet, Calendar, ArrowRight, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { format, addDays, isAfter, isBefore, startOfToday } from "date-fns";
+import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { ValueDateDifferenceModal } from "@/components/ValueDateDifferenceModal";
 
 interface QuickPreviewProps {
   onShowFullDashboard: () => void;
@@ -15,13 +16,38 @@ interface QuickPreviewProps {
 
 export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   const [isRevealed, setIsRevealed] = useState(false);
-  const { accounts, recurringTransactions, loading } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
+  const { accounts, recurringTransactions, transactions, loading } = useFinancialData();
+  const { formatCurrency, preferences } = useUserPreferences();
   const navigate = useNavigate();
 
   const totalBalance = useMemo(() => {
     return accounts.reduce((sum, acc) => sum + acc.balance, 0);
   }, [accounts]);
+
+  // Calculer la période actuelle (mois en cours)
+  const currentPeriod = useMemo(() => {
+    const now = new Date();
+    return {
+      from: startOfMonth(now),
+      to: endOfMonth(now)
+    };
+  }, []);
+
+  // Vérifier s'il y a des différences entre date comptable et date valeur
+  const hasDateDifference = useMemo(() => {
+    if (preferences.dateType !== 'value') return false;
+    
+    return transactions.some(t => {
+      const transactionDate = new Date(t.transaction_date);
+      const valueDate = new Date(t.value_date);
+      
+      const inPeriodByTransactionDate = isWithinInterval(transactionDate, { start: currentPeriod.from, end: currentPeriod.to });
+      const inPeriodByValueDate = isWithinInterval(valueDate, { start: currentPeriod.from, end: currentPeriod.to });
+      
+      return inPeriodByTransactionDate !== inPeriodByValueDate;
+    });
+  }, [transactions, currentPeriod, preferences.dateType]);
 
   const upcomingTransactions = useMemo(() => {
     const today = startOfToday();
@@ -92,10 +118,10 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
       {/* Balance Gauge Card */}
       <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-card via-card to-accent/10">
-        <CardContent className="p-4 sm:p-6 md:p-8">
+        <CardContent className="p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="flex flex-col items-center">
-            <div className="relative w-full max-w-[180px] sm:max-w-[220px] md:max-w-[280px] lg:max-w-[320px]">
-              <ResponsiveContainer width="100%" height={120} className="sm:!h-[140px] md:!h-[180px] lg:!h-[200px]">
+            <div className="relative w-full max-w-[140px] sm:max-w-[180px] md:max-w-[240px] lg:max-w-[280px]">
+              <ResponsiveContainer width="100%" height={90} className="sm:!h-[110px] md:!h-[150px] lg:!h-[170px]">
                 <PieChart>
                   <Pie
                     data={gaugeData}
@@ -103,7 +129,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                     cy="100%"
                     startAngle={180}
                     endAngle={0}
-                    innerRadius="60%"
+                    innerRadius="55%"
                     outerRadius="100%"
                     paddingAngle={0}
                     dataKey="value"
@@ -115,26 +141,42 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 </PieChart>
               </ResponsiveContainer>
               
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center w-full px-2">
-                <div className="flex items-center justify-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1">
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center w-full px-1">
+                <div className="flex items-center justify-center gap-1 mb-0.5">
                   {isPositive ? (
-                    <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-green-500" />
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-green-500" />
                   ) : (
-                    <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-red-500" />
+                    <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-red-500" />
                   )}
-                  <span className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground">
+                  <span className="text-[9px] sm:text-[10px] md:text-xs font-medium text-muted-foreground">
                     Solde total
                   </span>
                 </div>
-                <BlurredAmount 
-                  amount={formatCurrency(totalBalance)}
-                  className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-                />
+                <button 
+                  onClick={() => hasDateDifference && setShowDateDifferenceModal(true)}
+                  className={`inline-flex items-center gap-0.5 sm:gap-1 ${hasDateDifference ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                >
+                  <BlurredAmount 
+                    amount={formatCurrency(totalBalance)}
+                    className={`text-base sm:text-lg md:text-xl lg:text-2xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  />
+                  {hasDateDifference && isRevealed && (
+                    <Info className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-primary/70" />
+                  )}
+                </button>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Value Date Difference Modal */}
+      <ValueDateDifferenceModal
+        open={showDateDifferenceModal}
+        onOpenChange={setShowDateDifferenceModal}
+        transactions={transactions}
+        period={currentPeriod}
+      />
 
       {/* Accounts and Transactions Grid */}
       <div className="grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
