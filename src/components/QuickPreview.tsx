@@ -35,8 +35,10 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   }, []);
 
   // Vérifier s'il y a des différences entre date comptable et date valeur
-  // Toujours vérifier, indépendamment du mode choisi, pour pouvoir informer l'utilisateur
+  // Seulement si le mode "date valeur" est activé dans les paramètres
   const hasDateDifference = useMemo(() => {
+    if (preferences.dateType !== 'value') return false;
+    
     return transactions.some(t => {
       const transactionDate = new Date(t.transaction_date);
       const valueDate = new Date(t.value_date);
@@ -46,7 +48,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       
       return inPeriodByTransactionDate !== inPeriodByValueDate;
     });
-  }, [transactions, currentPeriod]);
+  }, [transactions, currentPeriod, preferences.dateType]);
 
   const upcomingTransactions = useMemo(() => {
     const today = startOfToday();
