@@ -35,9 +35,8 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   }, []);
 
   // Vérifier s'il y a des différences entre date comptable et date valeur
+  // Toujours vérifier, indépendamment du mode choisi, pour pouvoir informer l'utilisateur
   const hasDateDifference = useMemo(() => {
-    if (preferences.dateType !== 'value') return false;
-    
     return transactions.some(t => {
       const transactionDate = new Date(t.transaction_date);
       const valueDate = new Date(t.value_date);
@@ -47,7 +46,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       
       return inPeriodByTransactionDate !== inPeriodByValueDate;
     });
-  }, [transactions, currentPeriod, preferences.dateType]);
+  }, [transactions, currentPeriod]);
 
   const upcomingTransactions = useMemo(() => {
     const today = startOfToday();
@@ -165,7 +164,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                     amount={formatCurrency(totalBalance)}
                     className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold ${isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
                   />
-                  {hasDateDifference && isRevealed && (
+                  {hasDateDifference && (
                     <Info className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-primary/70" />
                   )}
                 </button>
