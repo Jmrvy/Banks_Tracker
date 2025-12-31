@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -201,15 +202,10 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="refund-amount">Montant du remboursement *</Label>
-              <Input
+              <AmountInput
                 id="refund-amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0.01"
-                max={remainingToRefund}
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, amount: value })}
                 placeholder="0.00"
                 required
               />
