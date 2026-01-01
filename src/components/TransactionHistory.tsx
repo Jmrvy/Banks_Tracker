@@ -8,6 +8,7 @@ import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { CreateRefundModal } from "@/components/CreateRefundModal";
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { useToast } from "@/hooks/use-toast";
 import { TransactionFilters } from "./TransactionSearch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -36,6 +37,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const [refundingTransaction, setRefundingTransaction] = useState<Transaction | null>(null);
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Appliquer les filtres et trier les transactions
@@ -262,7 +264,8 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
             return (
               <div 
                 key={transaction.id} 
-                className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-card/80 hover:bg-accent/50 hover:border-accent transition-all duration-200 shadow-sm"
+                onClick={() => setViewingTransaction(transaction)}
+                className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-card/80 hover:bg-accent/50 hover:border-accent transition-all duration-200 shadow-sm cursor-pointer"
               >
                 <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                   <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
@@ -377,7 +380,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 sm:h-8 sm:w-8"
-                            onClick={() => setRefundingTransaction(transaction)}
+                            onClick={(e) => { e.stopPropagation(); setRefundingTransaction(transaction); }}
                           >
                             <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-green-600" />
                           </Button>
@@ -391,7 +394,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 sm:h-8 sm:w-8"
-                      onClick={() => setEditingTransaction(transaction)}
+                      onClick={(e) => { e.stopPropagation(); setEditingTransaction(transaction); }}
                     >
                       <Pencil className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary" />
                     </Button>
@@ -399,7 +402,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 sm:h-8 sm:w-8"
-                      onClick={() => setDeletingTransaction(transaction)}
+                      onClick={(e) => { e.stopPropagation(); setDeletingTransaction(transaction); }}
                     >
                       <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-destructive" />
                     </Button>
@@ -469,6 +472,12 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
         open={!!refundingTransaction}
         onOpenChange={(open) => !open && setRefundingTransaction(null)}
         transaction={refundingTransaction}
+      />
+
+      <TransactionDetailModal
+        open={!!viewingTransaction}
+        onOpenChange={(open) => !open && setViewingTransaction(null)}
+        transaction={viewingTransaction}
       />
     </Card>
   );

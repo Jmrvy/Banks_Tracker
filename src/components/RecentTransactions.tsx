@@ -7,6 +7,7 @@ import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, MoreHorizontal, Edit, Tra
 import { useFinancialData, type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { useToast } from "@/hooks/use-toast";
 
 const bankColors = {
@@ -28,6 +29,8 @@ export const RecentTransactions = () => {
 
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Display only 10 most recent transactions
   const displayedTransactions = transactions.slice(0, 10);
@@ -35,6 +38,11 @@ export const RecentTransactions = () => {
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
     setIsEditModalOpen(true);
+  };
+
+  const handleViewTransaction = (transaction: Transaction) => {
+    setViewingTransaction(transaction);
+    setIsDetailModalOpen(true);
   };
 
   const handleDeleteTransaction = async (transaction: Transaction) => {
@@ -111,7 +119,8 @@ export const RecentTransactions = () => {
           {displayedTransactions.map((transaction) => (
             <div 
               key={transaction.id} 
-              className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-card/80 hover:bg-accent/50 hover:border-accent transition-all duration-200 shadow-sm"
+              onClick={() => handleViewTransaction(transaction)}
+              className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-card/80 hover:bg-accent/50 hover:border-accent transition-all duration-200 shadow-sm cursor-pointer"
             >
               <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
@@ -177,7 +186,12 @@ export const RecentTransactions = () => {
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MoreHorizontal className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -205,6 +219,12 @@ export const RecentTransactions = () => {
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         transaction={editingTransaction}
+      />
+
+      <TransactionDetailModal
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        transaction={viewingTransaction}
       />
     </Card>
   );
