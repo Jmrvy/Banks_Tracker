@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -6,6 +6,7 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
+import { TransactionDetailModal } from "./TransactionDetailModal";
 
 interface AccountTransactionsListProps {
   accountId: string;
@@ -17,6 +18,7 @@ interface AccountTransactionsListProps {
 
 export function AccountTransactionsList({ accountId, transactions, initialBalance, startDate, endDate }: AccountTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   const transactionsWithBalance = useMemo(() => {
     // Get ALL account transactions sorted chronologically
@@ -138,7 +140,8 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
             {transactionsWithBalance.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-3"
+                onClick={() => setSelectedTransaction(t)}
+                className="flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-3 cursor-pointer"
               >
                 {/* Mobile: Single line compact view */}
                 <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
@@ -229,6 +232,12 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
           </div>
         )}
       </CardContent>
+
+      <TransactionDetailModal
+        transaction={selectedTransaction}
+        open={!!selectedTransaction}
+        onOpenChange={(open) => !open && setSelectedTransaction(null)}
+      />
     </Card>
   );
 }
