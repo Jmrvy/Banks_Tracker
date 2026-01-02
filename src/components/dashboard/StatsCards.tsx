@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, Repeat } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Repeat, Info } from "lucide-react";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { ValueDateDifferenceModal } from "@/components/ValueDateDifferenceModal";
 
 interface StatsCardsProps {
   startDate: Date;
@@ -17,13 +18,33 @@ interface StatsCardsProps {
 
 export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick, onAvailableClick, onTransactionsFiltered, onExcludedTransactionsFiltered }: StatsCardsProps) {
   const { transactions, accounts, recurringTransactions } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
+  const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
+
+  const activeDateType = preferences.dateType;
+
+  const hasDateDifference = useMemo(() => {
+    if (activeDateType !== "value") return false;
+
+    return transactions.some((t) => {
+      const transactionDate = new Date(t.transaction_date);
+      const valueDate = new Date(t.value_date || t.transaction_date);
+
+      const inPeriodByTransactionDate = transactionDate >= startDate && transactionDate <= endDate;
+      const inPeriodByValueDate = valueDate >= startDate && valueDate <= endDate;
+
+      return inPeriodByTransactionDate !== inPeriodByValueDate;
+    });
+  }, [transactions, startDate, endDate, activeDateType]);
 
   const { stats, filteredTransactions, excludedTransactions } = useMemo(() => {
     const filtered = transactions.filter(t => {
-      const date = new Date(t.transaction_date);
-      return date >= startDate && date <= endDate;
+      const dateToUse = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
+
+      return dateToUse >= startDate && dateToUse <= endDate;
     });
 
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
@@ -54,7 +75,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
       filteredTransactions: filtered,
       excludedTransactions: excluded
     };
-  }, [transactions, accounts, recurringTransactions, startDate, endDate]);
+  }, [transactions, accounts, recurringTransactions, startDate, endDate, activeDateType]);
 
   // Notify parent of filtered transactions
   useMemo(() => {
@@ -109,30 +130,55 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
   };
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-      {cards.map((card) => (
-        <Card 
-          key={card.label} 
-          className={`border-border bg-card hover:bg-accent/50 transition-colors ${
-            (card.label === "Revenus" || card.label === "Dépenses" || card.label === "Disponible") ? "cursor-pointer" : ""
-          }`}
-          onClick={() => handleCardClick(card.label)}
-        >
-          <CardContent className="p-3 md:p-4 lg:p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2 truncate">{card.label}</p>
-                <p className={`text-base md:text-xl lg:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-                  {card.isCount ? card.value : formatCurrency(card.value)}
-                </p>
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {cards.map((card) => (
+          <Card 
+            key={card.label} 
+            className={`border-border bg-card hover:bg-accent/50 transition-colors ${
+              (card.label === "Revenus" || card.label === "Dépenses" || card.label === "Disponible") ? "cursor-pointer" : ""
+            }`}
+            onClick={() => handleCardClick(card.label)}
+          >
+            <CardContent className="p-3 md:p-4 lg:p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 min-w-0 mb-1 md:mb-2">
+                    <p className="text-xs md:text-sm text-muted-foreground truncate min-w-0">{card.label}</p>
+                    {card.label === "Disponible" && hasDateDifference && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDateDifferenceModal(true);
+                        }}
+                        className="p-0.5 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                        aria-label="Voir les écarts entre date comptable et date valeur"
+                      >
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+
+                  <p className={`text-base md:text-xl lg:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+                    {card.isCount ? card.value : formatCurrency(card.value)}
+                  </p>
+                </div>
+                <div className={`h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-full ${card.bgColor} flex items-center justify-center flex-shrink-0 ml-2`}>
+                  <card.icon className={`h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ${card.color}`} />
+                </div>
               </div>
-              <div className={`h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-full ${card.bgColor} flex items-center justify-center flex-shrink-0 ml-2`}>
-                <card.icon className={`h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ${card.color}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <ValueDateDifferenceModal
+        open={showDateDifferenceModal}
+        onOpenChange={setShowDateDifferenceModal}
+        transactions={transactions}
+        period={{ from: startDate, to: endDate }}
+      />
+    </>
   );
 }
