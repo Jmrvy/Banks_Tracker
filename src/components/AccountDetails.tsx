@@ -4,12 +4,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
-import { TrendingUp, TrendingDown, ArrowRightLeft, X } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, X, Info } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, isSameDay, isSameWeek, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
 import { Button } from "./ui/button";
+import { ValueDateDifferenceModal } from "./ValueDateDifferenceModal";
 
 interface AccountDetailsProps {
   accountId: string;
@@ -21,20 +22,49 @@ interface AccountDetailsProps {
 }
 
 export function AccountDetails({ accountId, transactions, balance, startDate, endDate, periodLabel }: AccountDetailsProps) {
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const [selectedPeriod, setSelectedPeriod] = useState<{ date: Date; type: 'day' | 'week' | 'month'; label: string } | null>(null);
+  const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
 
-  // Filter transactions by account AND by date range
+  const activeDateType = preferences.dateType;
+
+  // Filter transactions by account only (for date difference detection)
+  const allAccountTransactionsUnfiltered = useMemo(() => {
+    return transactions.filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId);
+  }, [transactions, accountId]);
+
+  // Check if there are date differences for this account
+  const hasDateDifference = useMemo(() => {
+    if (activeDateType !== "value") return false;
+
+    return allAccountTransactionsUnfiltered.some((t) => {
+      const transactionDate = new Date(t.transaction_date);
+      const valueDate = new Date(t.value_date || t.transaction_date);
+
+      const inPeriodByTransactionDate = transactionDate >= startDate && transactionDate <= endDate;
+      const inPeriodByValueDate = valueDate >= startDate && valueDate <= endDate;
+
+      return inPeriodByTransactionDate !== inPeriodByValueDate;
+    });
+  }, [allAccountTransactionsUnfiltered, startDate, endDate, activeDateType]);
+
+  // Filter transactions by account AND by date range (respecting date preference)
   const accountTransactions = useMemo(() => {
     return transactions
       .filter(t => {
         const isAccountMatch = t.account_id === accountId || t.transfer_to_account_id === accountId;
-        const transactionDate = new Date(t.transaction_date);
-        const isInPeriod = isWithinInterval(transactionDate, { start: startDate, end: endDate });
+        const dateToUse = activeDateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
+        const isInPeriod = isWithinInterval(dateToUse, { start: startDate, end: endDate });
         return isAccountMatch && isInPeriod;
       })
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
-  }, [transactions, accountId, startDate, endDate]);
+      .sort((a, b) => {
+        const dateA = activeDateType === 'value' ? new Date(a.value_date || a.transaction_date) : new Date(a.transaction_date);
+        const dateB = activeDateType === 'value' ? new Date(b.value_date || b.transaction_date) : new Date(b.transaction_date);
+        return dateB.getTime() - dateA.getTime();
+      });
+  }, [transactions, accountId, startDate, endDate, activeDateType]);
 
   // All account transactions (not filtered by period) for balance calculations
   const allAccountTransactions = useMemo(() => {
@@ -294,7 +324,19 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           <CardContent className="p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Revenus</p>
+                <div className="flex items-center gap-1 mb-0.5 sm:mb-1">
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">Revenus</p>
+                  {hasDateDifference && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDateDifferenceModal(true)}
+                      className="p-0.5 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                      aria-label="Voir les écarts entre date comptable et date valeur"
+                    >
+                      <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
                 <p className="text-sm sm:text-2xl font-bold text-success truncate">{formatCurrency(stats.income)}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0 hidden sm:flex">
@@ -308,7 +350,19 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           <CardContent className="p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Dépenses</p>
+                <div className="flex items-center gap-1 mb-0.5 sm:mb-1">
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">Dépenses</p>
+                  {hasDateDifference && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDateDifferenceModal(true)}
+                      className="p-0.5 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                      aria-label="Voir les écarts entre date comptable et date valeur"
+                    >
+                      <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
                 <p className="text-sm sm:text-2xl font-bold text-destructive truncate">{formatCurrency(stats.expenses)}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0 hidden sm:flex">
@@ -332,6 +386,14 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           </CardContent>
         </Card>
       </div>
+
+      {/* Value Date Difference Modal */}
+      <ValueDateDifferenceModal
+        open={showDateDifferenceModal}
+        onOpenChange={setShowDateDifferenceModal}
+        transactions={allAccountTransactionsUnfiltered}
+        period={{ from: startDate, to: endDate }}
+      />
 
       {/* Balance Evolution Chart */}
       <Card className="border-border bg-card">
