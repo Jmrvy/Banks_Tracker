@@ -125,17 +125,24 @@ export const TransactionTypeModal = ({
                             <p className="font-medium text-sm sm:text-base truncate">{transaction.description}</p>
                             <div className="flex flex-wrap gap-1 sm:gap-2 text-[10px] sm:text-xs">
                               {hasDiff ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                      <CalendarClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                      <span className="font-medium">{getDisplayDate(transaction)}</span>
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="text-xs">
-                                    <p>{activeDateType === 'value' ? 'Date comptable' : 'Date valeur'}: {getOtherDate(transaction)}</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                                <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                        <CalendarClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                        <span className="font-medium">{getDisplayDate(transaction)}</span>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                      <p>{activeDateType === 'value' ? 'Date valeur' : 'Date affichée'}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-muted rounded text-muted-foreground text-[9px] sm:text-xs">
+                                    <span className="hidden sm:inline">Comptable:</span>
+                                    <span className="sm:hidden">C:</span>
+                                    {format(new Date(transaction.transaction_date), "d MMM", { locale: fr })}
+                                  </span>
+                                </div>
                               ) : (
                                 <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-muted rounded text-muted-foreground">
                                   {getDisplayDate(transaction)}

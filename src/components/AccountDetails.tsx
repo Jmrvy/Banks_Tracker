@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
-import { TrendingUp, TrendingDown, ArrowRightLeft, X, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, X, Info, CalendarClock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, isSameDay, isSameWeek, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -587,32 +587,53 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                   Revenus
                 </h4>
                 <div className="space-y-2">
-                  {selectedPeriodTransactions.income.map(t => (
-                    <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{t.description}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}</span>
-                          {t.category && (
-                            <>
-                              <span>•</span>
-                              <Badge variant="outline" className="text-xs gap-1">
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
-                                {t.category.name}
-                              </Badge>
-                            </>
-                          )}
-                          {t.type === 'transfer' && (
-                            <>
-                              <span>•</span>
-                              <Badge variant="outline" className="text-xs">Virement entrant</Badge>
-                            </>
-                          )}
+                  {selectedPeriodTransactions.income.map(t => {
+                    const hasDiff = t.value_date && new Date(t.transaction_date).toDateString() !== new Date(t.value_date).toDateString();
+                    const displayDate = activeDateType === 'value' && t.value_date 
+                      ? new Date(t.value_date) 
+                      : new Date(t.transaction_date);
+                    
+                    return (
+                      <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{t.description}</p>
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                            {hasDiff ? (
+                              <>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-[10px] sm:text-xs">
+                                  <CalendarClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                  {format(displayDate, 'dd/MM/yyyy', { locale: fr })}
+                                </span>
+                                <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                  <span className="hidden sm:inline">Comptable:</span>
+                                  <span className="sm:hidden">C:</span>
+                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                                </span>
+                              </>
+                            ) : (
+                              <span>{format(displayDate, 'dd/MM/yyyy', { locale: fr })}</span>
+                            )}
+                            {t.category && (
+                              <>
+                                <span>•</span>
+                                <Badge variant="outline" className="text-[10px] sm:text-xs gap-1">
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
+                                  {t.category.name}
+                                </Badge>
+                              </>
+                            )}
+                            {t.type === 'transfer' && (
+                              <>
+                                <span>•</span>
+                                <Badge variant="outline" className="text-[10px] sm:text-xs">Virement entrant</Badge>
+                              </>
+                            )}
+                          </div>
                         </div>
+                        <p className="text-sm font-bold text-success ml-2">+{formatCurrency(t.amount)}</p>
                       </div>
-                      <p className="text-sm font-bold text-success ml-2">+{formatCurrency(t.amount)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -625,34 +646,55 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                   Dépenses
                 </h4>
                 <div className="space-y-2">
-                  {selectedPeriodTransactions.expenses.map(t => (
-                    <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{t.description}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}</span>
-                          {t.category && (
-                            <>
-                              <span>•</span>
-                              <Badge variant="outline" className="text-xs gap-1">
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
-                                {t.category.name}
-                              </Badge>
-                            </>
-                          )}
-                          {t.type === 'transfer' && (
-                            <>
-                              <span>•</span>
-                              <Badge variant="outline" className="text-xs">Virement sortant</Badge>
-                            </>
-                          )}
+                  {selectedPeriodTransactions.expenses.map(t => {
+                    const hasDiff = t.value_date && new Date(t.transaction_date).toDateString() !== new Date(t.value_date).toDateString();
+                    const displayDate = activeDateType === 'value' && t.value_date 
+                      ? new Date(t.value_date) 
+                      : new Date(t.transaction_date);
+                    
+                    return (
+                      <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{t.description}</p>
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                            {hasDiff ? (
+                              <>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-[10px] sm:text-xs">
+                                  <CalendarClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                  {format(displayDate, 'dd/MM/yyyy', { locale: fr })}
+                                </span>
+                                <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                  <span className="hidden sm:inline">Comptable:</span>
+                                  <span className="sm:hidden">C:</span>
+                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                                </span>
+                              </>
+                            ) : (
+                              <span>{format(displayDate, 'dd/MM/yyyy', { locale: fr })}</span>
+                            )}
+                            {t.category && (
+                              <>
+                                <span>•</span>
+                                <Badge variant="outline" className="text-[10px] sm:text-xs gap-1">
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
+                                  {t.category.name}
+                                </Badge>
+                              </>
+                            )}
+                            {t.type === 'transfer' && (
+                              <>
+                                <span>•</span>
+                                <Badge variant="outline" className="text-[10px] sm:text-xs">Virement sortant</Badge>
+                              </>
+                            )}
+                          </div>
                         </div>
+                        <p className="text-sm font-bold text-destructive ml-2">
+                          -{formatCurrency(t.amount + (t.type === 'transfer' ? (t.transfer_fee || 0) : 0))}
+                        </p>
                       </div>
-                      <p className="text-sm font-bold text-destructive ml-2">
-                        -{formatCurrency(t.amount + (t.type === 'transfer' ? (t.transfer_fee || 0) : 0))}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
