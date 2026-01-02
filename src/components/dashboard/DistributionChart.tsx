@@ -24,9 +24,11 @@ interface DistributionChartProps {
 
 export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
   const { transactions, categories } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
   const [isVisible, setIsVisible] = useState(false);
+
+  const activeDateType = preferences.dateType;
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100);
@@ -38,7 +40,9 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     const monthEnd = endDate;
     
     const monthTransactions = transactions.filter(t => {
-      const date = new Date(t.transaction_date);
+      const date = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
       return date >= monthStart && date <= monthEnd && t.type === 'expense' && t.include_in_stats !== false;
     });
 
@@ -74,7 +78,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     }));
 
     return { chartData: data, totalExpenses: total, cumulativeData: cumData };
-  }, [transactions, startDate, endDate]);
+  }, [transactions, startDate, endDate, activeDateType]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {

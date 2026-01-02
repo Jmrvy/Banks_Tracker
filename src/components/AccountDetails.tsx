@@ -135,7 +135,9 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       }));
 
       accountTransactions.forEach(t => {
-        const transactionDate = new Date(t.transaction_date);
+        const transactionDate = activeDateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
         const dayIndex = data.findIndex(d => isSameDay(d.fullDate, transactionDate));
         addTransactionToData(data, dayIndex, t);
       });
@@ -154,7 +156,9 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       }));
 
       accountTransactions.forEach(t => {
-        const transactionDate = new Date(t.transaction_date);
+        const transactionDate = activeDateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
         const weekIndex = data.findIndex(w => 
           isSameWeek(w.fullDate, transactionDate, { locale: fr })
         );
@@ -182,7 +186,9 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     }
 
     accountTransactions.forEach(t => {
-      const transactionDate = new Date(t.transaction_date);
+      const transactionDate = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
       const transactionMonth = startOfMonth(transactionDate);
       
       const monthIndex = months.findIndex(m => 
@@ -192,7 +198,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     });
 
     return { data: months, type: 'month' as const };
-  }, [accountTransactions, accountId, startDate, endDate]);
+  }, [accountTransactions, accountId, startDate, endDate, activeDateType]);
 
   // Get transactions for selected period in the chart
   const selectedPeriodTransactions = useMemo(() => {
@@ -213,14 +219,18 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     }
     
     const incomeTransactions = accountTransactions.filter(t => {
-      const transactionDate = new Date(t.transaction_date);
+      const transactionDate = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
       const isInPeriod = transactionDate >= periodStart && transactionDate <= periodEnd;
       const isIncome = t.type === 'income' || (t.type === 'transfer' && t.transfer_to_account_id === accountId);
       return isInPeriod && isIncome && t.include_in_stats;
     });
     
     const expenseTransactions = accountTransactions.filter(t => {
-      const transactionDate = new Date(t.transaction_date);
+      const transactionDate = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
       const isInPeriod = transactionDate >= periodStart && transactionDate <= periodEnd;
       const isExpense = t.type === 'expense' || (t.type === 'transfer' && t.account_id === accountId);
       return isInPeriod && isExpense && t.include_in_stats;
@@ -235,7 +245,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     }, 0);
     
     return { income: incomeTransactions, expenses: expenseTransactions, totalIncome, totalExpenses };
-  }, [selectedPeriod, accountTransactions, accountId]);
+  }, [selectedPeriod, accountTransactions, accountId, activeDateType]);
 
   // Handle bar click
   const handleBarClick = (data: any) => {

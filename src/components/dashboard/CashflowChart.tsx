@@ -14,8 +14,10 @@ interface CashflowChartProps {
 
 export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
   const { transactions, accounts } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
+
+  const activeDateType = preferences.dateType;
 
   const chartData = useMemo(() => {
     const monthStart = startDate;
@@ -24,9 +26,14 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     // Get all days in the current month
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
     
+    // Helper to get the relevant date based on preference
+    const getTransactionDate = (t: any) => activeDateType === 'value'
+      ? new Date(t.value_date || t.transaction_date)
+      : new Date(t.transaction_date);
+    
     // Calculate initial balance (sum of all account balances minus current month's net change)
     const currentMonthTransactions = transactions.filter(t => {
-      const date = new Date(t.transaction_date);
+      const date = getTransactionDate(t);
       return date >= monthStart && date <= monthEnd;
     });
     
@@ -44,7 +51,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     const data = days.map(day => {
       // Get transactions for this day
       const dayTransactions = transactions.filter(t => 
-        isSameDay(new Date(t.transaction_date), day)
+        isSameDay(getTransactionDate(t), day)
       );
       
       // Calculate day's net change
@@ -65,7 +72,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     });
     
     return data;
-  }, [transactions, accounts, startDate, endDate]);
+  }, [transactions, accounts, startDate, endDate, activeDateType]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
