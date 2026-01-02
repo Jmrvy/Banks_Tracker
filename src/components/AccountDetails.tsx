@@ -11,6 +11,7 @@ import { fr } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
 import { Button } from "./ui/button";
 import { ValueDateDifferenceModal } from "./ValueDateDifferenceModal";
+import { TransactionTypeModal } from "./TransactionTypeModal";
 
 interface AccountDetailsProps {
   accountId: string;
@@ -25,6 +26,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
   const { formatCurrency, preferences } = useUserPreferences();
   const [selectedPeriod, setSelectedPeriod] = useState<{ date: Date; type: 'day' | 'week' | 'month'; label: string } | null>(null);
   const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
+  const [showTransactionTypeModal, setShowTransactionTypeModal] = useState<'income' | 'expense' | null>(null);
 
   const activeDateType = preferences.dateType;
 
@@ -100,6 +102,25 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       .length;
 
     return { income, expenses, transfers };
+  }, [accountTransactions, accountId]);
+
+  // Get transactions filtered by type for the modal
+  const incomeTransactions = useMemo(() => {
+    return accountTransactions.filter(t => 
+      t.include_in_stats && (
+        t.type === 'income' || 
+        (t.type === 'transfer' && t.transfer_to_account_id === accountId)
+      )
+    );
+  }, [accountTransactions, accountId]);
+
+  const expenseTransactions = useMemo(() => {
+    return accountTransactions.filter(t => 
+      t.include_in_stats && (
+        t.type === 'expense' || 
+        (t.type === 'transfer' && t.account_id === accountId)
+      )
+    );
   }, [accountTransactions, accountId]);
 
   // Determine chart grouping based on period length
@@ -330,7 +351,10 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <Card className="border-border bg-card">
+        <Card 
+          className="border-border bg-card cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => setShowTransactionTypeModal('income')}
+        >
           <CardContent className="p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
@@ -339,7 +363,10 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                   {hasDateDifference && (
                     <button
                       type="button"
-                      onClick={() => setShowDateDifferenceModal(true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDateDifferenceModal(true);
+                      }}
                       className="p-0.5 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                       aria-label="Voir les écarts entre date comptable et date valeur"
                     >
@@ -356,7 +383,10 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card 
+          className="border-border bg-card cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => setShowTransactionTypeModal('expense')}
+        >
           <CardContent className="p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
@@ -365,7 +395,10 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                   {hasDateDifference && (
                     <button
                       type="button"
-                      onClick={() => setShowDateDifferenceModal(true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDateDifferenceModal(true);
+                      }}
                       className="p-0.5 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                       aria-label="Voir les écarts entre date comptable et date valeur"
                     >
@@ -396,6 +429,15 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           </CardContent>
         </Card>
       </div>
+
+      {/* Transaction Type Modal */}
+      <TransactionTypeModal
+        open={showTransactionTypeModal !== null}
+        onOpenChange={(open) => !open && setShowTransactionTypeModal(null)}
+        transactions={showTransactionTypeModal === 'income' ? incomeTransactions : expenseTransactions}
+        type={showTransactionTypeModal || 'income'}
+        period={periodLabel}
+      />
 
       {/* Value Date Difference Modal */}
       <ValueDateDifferenceModal
