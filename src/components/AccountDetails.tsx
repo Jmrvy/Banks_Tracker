@@ -104,18 +104,24 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     return { income, expenses, transfers };
   }, [accountTransactions, accountId]);
 
-  // Get transactions filtered by type for the modal (same format as Dashboard - only income/expense, no transfers)
+  // Get transactions filtered by type for the modal (include transfers as income/expense for account view)
   const incomeTransactions = useMemo(() => {
     return accountTransactions.filter(t => 
-      t.include_in_stats && t.type === 'income'
+      t.include_in_stats && (
+        t.type === 'income' || 
+        (t.type === 'transfer' && t.transfer_to_account_id === accountId)
+      )
     );
-  }, [accountTransactions]);
+  }, [accountTransactions, accountId]);
 
   const expenseTransactions = useMemo(() => {
     return accountTransactions.filter(t => 
-      t.include_in_stats && t.type === 'expense'
+      t.include_in_stats && (
+        t.type === 'expense' || 
+        (t.type === 'transfer' && t.account_id === accountId)
+      )
     );
-  }, [accountTransactions]);
+  }, [accountTransactions, accountId]);
 
   // Determine chart grouping based on period length
   const periodChartData = useMemo(() => {
