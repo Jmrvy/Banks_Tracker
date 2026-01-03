@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePeriod } from "@/contexts/PeriodContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
@@ -11,8 +11,11 @@ import { RecurringTransactionsWarning } from "@/components/RecurringTransactions
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ExcludedTransactionsModal } from "@/components/ExcludedTransactionsModal";
 import { QuickPreview } from "@/components/QuickPreview";
+import { AggregatedBalanceEvolution } from "@/components/dashboard/AggregatedBalanceEvolution";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard } from "lucide-react";
+
+const QUICK_PREVIEW_SHOWN_KEY = "budget-app-quick-preview-shown";
 
 const Index = () => {
   const { user } = useAuth();
@@ -24,7 +27,18 @@ const Index = () => {
   const [showExcludedModal, setShowExcludedModal] = useState(false);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
-  const [showQuickPreview, setShowQuickPreview] = useState(true);
+  
+  // Show quick preview only on first visit (check localStorage)
+  const [showQuickPreview, setShowQuickPreview] = useState(() => {
+    const hasSeenPreview = localStorage.getItem(QUICK_PREVIEW_SHOWN_KEY);
+    return !hasSeenPreview;
+  });
+
+  // Mark preview as seen when user clicks to go to full dashboard
+  const handleShowFullDashboard = () => {
+    localStorage.setItem(QUICK_PREVIEW_SHOWN_KEY, "true");
+    setShowQuickPreview(false);
+  };
 
   if (loading || isOnboarding) {
     return (
@@ -37,7 +51,7 @@ const Index = () => {
     );
   }
 
-  // Show quick preview by default (both mobile and web)
+  // Show quick preview only on first visit
   if (showQuickPreview) {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-8">
@@ -47,7 +61,7 @@ const Index = () => {
             <p className="text-sm md:text-base text-muted-foreground">Vue d'ensemble de vos finances</p>
           </div>
         </div>
-        <QuickPreview onShowFullDashboard={() => setShowQuickPreview(false)} />
+        <QuickPreview onShowFullDashboard={handleShowFullDashboard} />
       </div>
     );
   }
@@ -85,6 +99,9 @@ const Index = () => {
           onTransactionsFiltered={setFilteredTransactions}
           onExcludedTransactionsFiltered={setExcludedTransactions}
         />
+
+        {/* Aggregated balance evolution chart */}
+        <AggregatedBalanceEvolution />
 
         {/* Main content: Cashflow chart */}
         <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
