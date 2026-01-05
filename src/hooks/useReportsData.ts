@@ -161,8 +161,11 @@ export const useReportsData = (
 
   // Données pour l'évolution des soldes avec projection
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
-    const sortedTransactions = filteredTransactions
-      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
+    // Helper pour obtenir la date comptable (value_date) d'une transaction
+    const getAccountingDate = (t: any) => new Date(t.value_date || t.transaction_date);
+    
+    const sortedTransactions = [...filteredTransactions]
+      .sort((a, b) => getAccountingDate(a).getTime() - getAccountingDate(b).getTime());
     
     const dailyData: BalanceDataPoint[] = [];
     let runningBalance = stats.initialBalance;
@@ -176,10 +179,10 @@ export const useReportsData = (
       dateObj: startDate
     });
 
-    // Grouper les transactions par date et créer une chronologie continue
+    // Grouper les transactions par date comptable (value_date)
     const transactionsByDate = new Map();
     sortedTransactions.forEach(t => {
-      const date = format(new Date(t.transaction_date), "yyyy-MM-dd");
+      const date = format(getAccountingDate(t), "yyyy-MM-dd");
       if (!transactionsByDate.has(date)) {
         transactionsByDate.set(date, []);
       }
@@ -192,7 +195,7 @@ export const useReportsData = (
       const dateObj = new Date(dateStr);
       const dayTransactions = transactionsByDate.get(dateStr);
       
-      const dayBalance = dayTransactions.reduce((sum, t) => {
+      const dayBalance = dayTransactions.reduce((sum: number, t: any) => {
         if (t.type === 'income') return sum + Number(t.amount);
         if (t.type === 'expense') return sum - Number(t.amount);
         return sum - Number(t.transfer_fee || 0);
