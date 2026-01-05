@@ -102,6 +102,9 @@ export const useReportsData = (
 
   // Calculs des statistiques avec soldes initiaux
   const stats = useMemo<ReportsStats>(() => {
+    // Helper pour obtenir la date comptable (value_date) d'une transaction
+    const getAccountingDate = (t: any) => new Date(t.value_date || t.transaction_date);
+    
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
     
@@ -120,9 +123,10 @@ export const useReportsData = (
     const netPeriodBalance = income - expenses - transferFees;
 
     // Calcul du solde initial basé sur les comptes actuels moins les transactions de la période
+    // Utiliser la date comptable (value_date) pour le calcul
     const initialBalance = accounts.reduce((sum, account) => {
       const accountTransactionsSincePeriodStart = transactions.filter(t => {
-        const transactionDate = new Date(t.transaction_date);
+        const transactionDate = getAccountingDate(t);
         return transactionDate >= period.from && 
                (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
       });
