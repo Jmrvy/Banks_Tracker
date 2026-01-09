@@ -112,13 +112,13 @@ export const useInstallmentPayments = () => {
     }
 
     // Then, create the corresponding recurring transaction
-    // Reimbursement = income (someone paying back), Payment = expense (user paying)
+    // Both reimbursement and payment create expense transactions (for stats with category)
+    // The payment_type flag in installment_payments determines if it counts as savings inflow
     const recurringFrequency = data.frequency === 'weekly' ? 'weekly' :
                                data.frequency === 'monthly' ? 'monthly' :
                                'quarterly';
 
-    const transactionType = data.payment_type === 'reimbursement' ? 'income' : 'expense';
-    const descriptionSuffix = data.payment_type === 'reimbursement' ? 'Remboursement' : 'Paiement échelonné';
+    const descriptionSuffix = data.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
 
     const { error: recurringError } = await supabase
       .from('recurring_transactions')
@@ -126,7 +126,7 @@ export const useInstallmentPayments = () => {
         user_id: user.id,
         description: `${data.description} (${descriptionSuffix})`,
         amount: data.installment_amount,
-        type: transactionType,
+        type: 'expense', // Always expense for stats (keeps the category)
         recurrence_type: recurringFrequency,
         start_date: data.start_date,
         next_due_date: data.start_date,

@@ -122,7 +122,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
             <p className="text-xs text-muted-foreground">
               {formData.payment_type === 'payment'
                 ? "Vous payez quelque chose en plusieurs fois (ex: achat, crédit)"
-                : "Quelqu'un vous rembourse en plusieurs fois (ex: prêt à un ami) - comptabilisé comme épargne"
+                : "Quelqu'un vous rembourse en plusieurs fois (ex: abonnement partagé) - apparaît dans les dépenses mais aussi comme entrée d'épargne"
               }
             </p>
           </div>

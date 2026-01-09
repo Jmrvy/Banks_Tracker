@@ -101,7 +101,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
               </span>
               <p className="text-xs text-muted-foreground mt-1">
                 {installmentPayment.payment_type === 'reimbursement'
-                  ? "Quelqu'un vous rembourse - comptabilisé comme épargne"
+                  ? "Quelqu'un vous rembourse - apparaît dans les dépenses mais aussi comme entrée d'épargne"
                   : "Vous payez quelque chose en plusieurs fois"
                 }
               </p>

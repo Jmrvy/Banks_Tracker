@@ -311,7 +311,7 @@ const Savings = () => {
               Remboursements échelonnés ({reimbursementInstallments.length})
             </h2>
             <p className="text-xs text-muted-foreground mb-3">
-              Ces remboursements sont comptabilisés comme des entrées d'épargne
+              Ces remboursements apparaissent dans vos dépenses (avec leur catégorie) mais sont aussi comptabilisés ici comme entrées d'épargne
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reimbursementInstallments.map((installment) => {
