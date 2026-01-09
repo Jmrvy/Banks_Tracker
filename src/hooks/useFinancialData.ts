@@ -23,7 +23,6 @@ export interface Transaction {
   include_in_stats: boolean; // Si la transaction doit être incluse dans les stats
   account: { name: string; bank: string };
   category: { id: string; name: string; color: string } | null;
-  categories?: { id: string; name: string; color: string }[]; // Catégories multiples
   transfer_to_account_id?: string;
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
@@ -81,8 +80,7 @@ export function useFinancialData() {
   const fetchTransactions = async () => {
     if (!user) return;
     console.log('Fetching transactions for user:', user.id);
-    
-    // Fetch transactions
+
     const { data, error } = await supabase
       .from('transactions')
       .select(`
@@ -100,34 +98,11 @@ export function useFinancialData() {
     }
 
     if (data) {
-      // Fetch multi-categories for all transactions
-      const { data: multiCategoriesData } = await supabase
-        .from('transaction_categories')
-        .select(`
-          transaction_id,
-          category:categories(id, name, color)
-        `)
-        .eq('user_id', user.id);
-      
-      // Group categories by transaction_id
-      const categoriesByTransaction: Record<string, { id: string; name: string; color: string }[]> = {};
-      if (multiCategoriesData) {
-        multiCategoriesData.forEach((tc: any) => {
-          if (!categoriesByTransaction[tc.transaction_id]) {
-            categoriesByTransaction[tc.transaction_id] = [];
-          }
-          if (tc.category) {
-            categoriesByTransaction[tc.transaction_id].push(tc.category);
-          }
-        });
-      }
-      
       console.log('Raw transaction data:', data);
       const processedTransactions = data.map(t => ({
         ...t,
         account: t.account || { name: 'Unknown', bank: 'unknown' },
-        transfer_to_account: t.transfer_to_account || undefined,
-        categories: categoriesByTransaction[t.id] || (t.category ? [t.category] : [])
+        transfer_to_account: t.transfer_to_account || undefined
       })) as Transaction[];
       console.log('Processed transactions:', processedTransactions);
       setTransactions(processedTransactions);
@@ -248,50 +223,26 @@ export function useFinancialData() {
     return { error };
   };
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category' | 'categories'> & { account_id: string; category_id?: string; category_ids?: string[]; value_date?: string; include_in_stats?: boolean }) => {
+  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category' | 'categories'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean }) => {
     if (!user) return;
     console.log('Creating transaction:', transaction);
-    
-    // Extract category_ids and remove from transaction data
-    const { category_ids, ...transactionWithoutCategoryIds } = transaction;
-    
+
     // Si value_date n'est pas fournie, utiliser transaction_date
     // Si include_in_stats n'est pas fourni, utiliser true par défaut
     const transactionData = {
-      ...transactionWithoutCategoryIds,
+      ...transaction,
       value_date: transaction.value_date || transaction.transaction_date,
       include_in_stats: transaction.include_in_stats ?? true,
       user_id: user.id
     };
-    
-    const { data: insertedTransaction, error } = await supabase
+
+    const { error } = await supabase
       .from('transactions')
-      .insert([transactionData])
-      .select('id')
-      .single();
+      .insert([transactionData]);
 
     if (error) {
       console.error('Error creating transaction:', error);
-    } else if (insertedTransaction) {
-      // Insert multi-categories if provided
-      const categoriesToInsert = category_ids && category_ids.length > 0 
-        ? category_ids 
-        : (transaction.category_id ? [transaction.category_id] : []);
-      
-      if (categoriesToInsert.length > 0) {
-        const { error: catError } = await supabase
-          .from('transaction_categories')
-          .insert(categoriesToInsert.map(catId => ({
-            transaction_id: insertedTransaction.id,
-            category_id: catId,
-            user_id: user.id
-          })));
-        
-        if (catError) {
-          console.error('Error inserting transaction categories:', catError);
-        }
-      }
-      
+    } else {
       console.log('Transaction created successfully, refetching data...');
       setTimeout(() => {
         fetchTransactions();
@@ -494,7 +445,6 @@ export function useFinancialData() {
     type?: 'income' | 'expense' | 'transfer';
     account_id?: string;
     category_id?: string;
-    category_ids?: string[];
     transaction_date?: string;
     value_date?: string;
     transfer_to_account_id?: string;
@@ -502,38 +452,14 @@ export function useFinancialData() {
     include_in_stats?: boolean;
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
-    
-    // Extract category_ids from updates
-    const { category_ids, ...updatesWithoutCategoryIds } = updates;
-    
+
     const { error } = await supabase
       .from('transactions')
-      .update(updatesWithoutCategoryIds)
+      .update(updates)
       .eq('id', id)
       .eq('user_id', user.id);
 
     if (!error) {
-      // Update multi-categories if provided
-      if (category_ids !== undefined) {
-        // Delete existing categories for this transaction
-        await supabase
-          .from('transaction_categories')
-          .delete()
-          .eq('transaction_id', id)
-          .eq('user_id', user.id);
-        
-        // Insert new categories
-        if (category_ids.length > 0) {
-          await supabase
-            .from('transaction_categories')
-            .insert(category_ids.map(catId => ({
-              transaction_id: id,
-              category_id: catId,
-              user_id: user.id
-            })));
-        }
-      }
-      
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();

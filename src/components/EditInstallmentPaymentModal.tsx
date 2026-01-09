@@ -92,6 +92,22 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {/* Payment Type (Read-only) */}
+          <div className="space-y-2">
+            <Label>Type de paiement</Label>
+            <div className="p-3 bg-muted rounded-md">
+              <span className="text-sm font-medium">
+                {installmentPayment.payment_type === 'reimbursement' ? '💰 Remboursement' : '💳 Paiement'}
+              </span>
+              <p className="text-xs text-muted-foreground mt-1">
+                {installmentPayment.payment_type === 'reimbursement'
+                  ? "Quelqu'un vous rembourse - apparaît dans les dépenses mais aussi comme entrée d'épargne"
+                  : "Vous payez quelque chose en plusieurs fois"
+                }
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea

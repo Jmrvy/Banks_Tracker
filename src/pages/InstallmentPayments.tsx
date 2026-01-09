@@ -217,6 +217,12 @@ const InstallmentPayments = () => {
                       <CardTitle className="text-base md:text-lg font-semibold flex-1 min-w-0 truncate">{payment.description}</CardTitle>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge
+                          variant={payment.payment_type === 'reimbursement' ? "outline" : "secondary"}
+                          className={`text-xs ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
+                        >
+                          {payment.payment_type === 'reimbursement' ? '💰 Remboursement' : '💳 Paiement'}
+                        </Badge>
+                        <Badge
                           variant={payment.is_active ? "default" : "secondary"}
                           className="text-xs"
                         >

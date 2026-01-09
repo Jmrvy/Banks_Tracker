@@ -28,8 +28,8 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     // Get all days in the current month
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
     
-    // Always use value_date (accounting date) for cashflow chart
-    const getTransactionDate = (t: any) => new Date(t.value_date || t.transaction_date);
+    // Always use transaction_date (date comptable) for cashflow chart to match balance
+    const getTransactionDate = (t: any) => new Date(t.transaction_date);
     
     // Calculate initial balance (sum of all account balances minus current month's net change)
     const currentMonthTransactions = transactions.filter(t => {
