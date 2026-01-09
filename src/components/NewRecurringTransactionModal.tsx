@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -184,14 +185,11 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
           {/* Amount */}
           <div className="space-y-2">
             <Label htmlFor="amount">Montant *</Label>
-            <Input
+            <AmountInput
               id="amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
               placeholder="0.00"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, amount: value })}
               required
             />
           </div>

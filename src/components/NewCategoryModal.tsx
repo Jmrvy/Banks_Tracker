@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tag } from 'lucide-react';
@@ -127,14 +128,11 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
           {/* Monthly Budget */}
           <div className="space-y-2">
             <Label htmlFor="budget">Budget mensuel (optionnel)</Label>
-            <Input
+            <AmountInput
               id="budget"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
               placeholder="0.00"
               value={formData.budget}
-              onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, budget: value })}
             />
             <p className="text-xs text-muted-foreground">
               Définir une limite de dépenses mensuelles pour cette catégorie

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
@@ -109,14 +110,11 @@ export const RecordInstallmentPaymentModal = ({
 
           <div className="space-y-2">
             <Label htmlFor="amount">Montant du Paiement *</Label>
-            <Input
+            <AmountInput
               id="amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
               placeholder="0.00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(value) => setAmount(value)}
               required
             />
             <p className="text-xs text-muted-foreground">

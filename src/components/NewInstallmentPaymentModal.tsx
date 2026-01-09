@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -107,28 +108,22 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="total_amount">Montant Total *</Label>
-              <Input
+              <AmountInput
                 id="total_amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
                 placeholder="0.00"
                 value={formData.total_amount}
-                onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, total_amount: value })}
                 required
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="installment_amount">Montant de la Mensualité *</Label>
-              <Input
+              <AmountInput
                 id="installment_amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
                 placeholder="0.00"
                 value={formData.installment_amount}
-                onChange={(e) => setFormData({ ...formData, installment_amount: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, installment_amount: value })}
                 required
               />
             </div>

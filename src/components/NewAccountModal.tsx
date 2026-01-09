@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CreditCard } from 'lucide-react';
@@ -167,14 +168,11 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
           {/* Starting Balance */}
           <div className="space-y-2">
             <Label htmlFor="balance">Starting Balance</Label>
-            <Input
+            <AmountInput
               id="balance"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
               placeholder="0.00"
               value={formData.balance}
-              onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, balance: value })}
             />
             <p className="text-xs text-muted-foreground">
               Enter your current account balance
