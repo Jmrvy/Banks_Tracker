@@ -29,6 +29,7 @@ export interface Transaction {
   refund_of_transaction_id?: string | null; // Lien vers la transaction remboursée
   refunded_amount?: number; // Montant déjà remboursé
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
+  installment_payment_id?: string | null; // Lien vers le paiement échelonné source
 }
 
 export interface Category {
@@ -53,6 +54,7 @@ export interface RecurringTransaction {
   is_active: boolean;
   account: { name: string; bank: string } | null;
   category: { id: string; name: string; color: string } | null;
+  installment_payment_id: string | null; // Lien vers le paiement échelonné source
   created_at: string;
   updated_at: string;
 }
@@ -223,7 +225,7 @@ export function useFinancialData() {
     return { error };
   };
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category' | 'categories'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean }) => {
+  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null }) => {
     if (!user) return;
     console.log('Creating transaction:', transaction);
 
@@ -550,7 +552,8 @@ export function useFinancialData() {
             type: rt.type,
             transaction_date: currentDueDateString,
             value_date: currentDueDateString, // Pour les récurrences, value_date = transaction_date
-            include_in_stats: true // Les récurrences sont toujours incluses dans les stats
+            include_in_stats: true, // Les récurrences sont toujours incluses dans les stats
+            installment_payment_id: rt.installment_payment_id // Lien vers le paiement échelonné source
           });
 
           occurrencesProcessed++;
