@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -125,13 +126,10 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
 
             <div>
               <Label htmlFor="payment_amount">Montant du paiement</Label>
-              <Input
+              <AmountInput
                 id="payment_amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
                 value={formData.payment_amount}
-                onChange={(e) => setFormData({ ...formData, payment_amount: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, payment_amount: value })}
               />
             </div>
           </div>
@@ -139,13 +137,10 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="interest_rate">Taux d'intérêt (%)</Label>
-              <Input
+              <AmountInput
                 id="interest_rate"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
                 value={formData.interest_rate}
-                onChange={(e) => setFormData({ ...formData, interest_rate: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, interest_rate: value })}
               />
             </div>
 

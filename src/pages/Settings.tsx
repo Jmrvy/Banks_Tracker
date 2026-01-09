@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -628,11 +629,9 @@ const Settings = () => {
                                 onChange={(e) => setEditingValues(prev => ({ ...prev, color: e.target.value }))}
                                 className="w-12 sm:w-16 h-8 sm:h-10 p-1"
                               />
-                              <Input
-                                type="number"
-                                inputMode="decimal"
+                              <AmountInput
                                 value={editingValues.budget || ""}
-                                onChange={(e) => setEditingValues(prev => ({ ...prev, budget: e.target.value }))}
+                                onChange={(value) => setEditingValues(prev => ({ ...prev, budget: value }))}
                                 placeholder="Budget €"
                                 className="h-8 sm:h-10 text-xs sm:text-sm"
                               />

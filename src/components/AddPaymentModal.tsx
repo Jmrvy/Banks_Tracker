@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDebts, Debt } from '@/hooks/useDebts';
@@ -73,15 +74,11 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="amount">Montant *</Label>
-            <Input
+            <AmountInput
               id="amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, amount: value })}
               placeholder="0.00"
-              max={debt.remaining_amount}
               required
             />
             <p className="text-xs text-muted-foreground mt-1">

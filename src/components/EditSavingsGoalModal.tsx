@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useSavingsGoals, type SavingsGoal } from '@/hooks/useSavingsGoals';
@@ -133,28 +134,20 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="current_amount">Montant actuel</Label>
-                <Input
+                <AmountInput
                   id="current_amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
                   value={formData.current_amount}
-                  onChange={(e) => setFormData({ ...formData, current_amount: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, current_amount: value })}
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="target_amount">Objectif *</Label>
-                <Input
+                <AmountInput
                   id="target_amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
                   value={formData.target_amount}
-                  onChange={(e) => setFormData({ ...formData, target_amount: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, target_amount: value })}
                   required
                 />
               </div>
