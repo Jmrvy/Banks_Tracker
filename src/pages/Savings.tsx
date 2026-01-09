@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar } from "lucide-react";
+import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { NewSavingsGoalModal } from "@/components/NewSavingsGoalModal";
 import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
@@ -27,10 +28,16 @@ const Savings = () => {
   const { transactions, categories, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { goals, isLoading: goalsLoading } = useSavingsGoals();
+  const { installmentPayments, loading: installmentsLoading } = useInstallmentPayments();
   const { dateRange, periodLabel } = usePeriod();
-  
+
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
+
+  // Get active reimbursement installments (these count as savings)
+  const reimbursementInstallments = useMemo(() => {
+    return installmentPayments.filter(ip => ip.payment_type === 'reimbursement');
+  }, [installmentPayments]);
 
   // Find investment category
   const investmentCategory = useMemo(() => {
@@ -149,7 +156,7 @@ const Savings = () => {
     };
   };
 
-  if (loading || goalsLoading) {
+  if (loading || goalsLoading || installmentsLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -295,6 +302,59 @@ const Savings = () => {
           startDate={dateRange.start}
           endDate={dateRange.end}
         />
+
+        {/* Reimbursement Installments */}
+        {reimbursementInstallments.length > 0 && (
+          <div>
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+              Remboursements échelonnés ({reimbursementInstallments.length})
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Ces remboursements sont comptabilisés comme des entrées d'épargne
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {reimbursementInstallments.map((installment) => {
+                const progress = ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100;
+                const amountReceived = installment.total_amount - installment.remaining_amount;
+
+                return (
+                  <Card
+                    key={installment.id}
+                    className="border-border bg-card border-l-4 border-l-success"
+                  >
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg truncate">{installment.description}</h3>
+                          <Badge variant={installment.is_active ? "default" : "secondary"} className="text-xs mt-1">
+                            {installment.is_active ? "En cours" : "Terminé"}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-muted-foreground">Progression</span>
+                          <span className="font-medium">{Math.min(progress, 100).toFixed(0)}%</span>
+                        </div>
+                        <Progress value={Math.min(progress, 100)} className="h-2" />
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="font-medium text-success">+{formatCurrency(amountReceived)}</span>
+                          <span className="text-muted-foreground">/ {formatCurrency(installment.total_amount)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                          <span>Mensualité: {formatCurrency(installment.installment_amount)}</span>
+                          <span>Restant: {formatCurrency(installment.remaining_amount)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Savings Goals */}
         <div>

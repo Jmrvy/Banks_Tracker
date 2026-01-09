@@ -161,8 +161,8 @@ export const useReportsData = (
 
   // Données pour l'évolution des soldes avec projection
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
-    // Helper pour obtenir la date comptable (value_date) d'une transaction
-    const getAccountingDate = (t: any) => new Date(t.value_date || t.transaction_date);
+    // Helper pour obtenir la date comptable (transaction_date) d'une transaction
+    const getAccountingDate = (t: any) => new Date(t.transaction_date);
     
     const sortedTransactions = [...filteredTransactions]
       .sort((a, b) => getAccountingDate(a).getTime() - getAccountingDate(b).getTime());

@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
-import { MultiCategorySelect } from '@/components/ui/multi-category-select';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -27,7 +26,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     amount: '',
     type: 'expense' as 'income' | 'expense' | 'transfer',
     account_id: '',
-    category_ids: [] as string[],
+    category_id: '',
     transaction_date: '',
     value_date: '',
     transfer_to_account_id: '',
@@ -39,17 +38,12 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   // Update form data when transaction changes
   useEffect(() => {
     if (transaction) {
-      // Use categories array if available, otherwise fallback to single category
-      const categoryIds = transaction.categories && transaction.categories.length > 0
-        ? transaction.categories.map(c => c.id)
-        : (transaction.category?.id ? [transaction.category.id] : []);
-      
       setFormData({
         description: transaction.description,
         amount: Math.abs(transaction.amount).toString(),
         type: transaction.type,
         account_id: transaction.account_id,
-        category_ids: categoryIds,
+        category_id: transaction.category?.id || '',
         transaction_date: transaction.transaction_date,
         value_date: transaction.value_date || transaction.transaction_date,
         transfer_to_account_id: transaction.transfer_to_account_id || '',
@@ -65,7 +59,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       amount: '',
       type: 'expense',
       account_id: '',
-      category_ids: [],
+      category_id: '',
       transaction_date: '',
       value_date: '',
       transfer_to_account_id: '',
@@ -100,7 +94,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       amount: parseFloat(formData.amount),
       type: formData.type,
       account_id: formData.account_id,
-      category_ids: formData.category_ids,
+      category_id: formData.category_id || undefined,
       transaction_date: formData.transaction_date,
       value_date: formData.value_date,
       include_in_stats: formData.include_in_stats,
@@ -231,16 +225,28 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
           {formData.type !== 'transfer' && (
             <div className="space-y-2">
-              <Label>Catégories</Label>
-              <MultiCategorySelect
-                categories={categories}
-                selectedIds={formData.category_ids}
-                onSelectionChange={(ids) => setFormData(prev => ({ ...prev, category_ids: ids }))}
-                placeholder="Sélectionner des catégories"
-              />
-              <p className="text-xs text-muted-foreground">
-                Vous pouvez assigner plusieurs catégories à une transaction
-              </p>
+              <Label>Catégorie</Label>
+              <Select
+                value={formData.category_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

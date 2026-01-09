@@ -14,7 +14,6 @@ import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
-import { MultiCategorySelect } from '@/components/ui/multi-category-select';
 
 interface NewTransactionModalProps {
   open: boolean;
@@ -32,7 +31,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     type: 'expense' as 'income' | 'expense' | 'transfer',
     account_id: '',
     to_account_id: '',
-    category_ids: [] as string[],
+    category_id: '',
     transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0],
     value_date: new Date().toISOString().split('T')[0],
@@ -47,7 +46,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
       type: 'expense',
       account_id: '',
       to_account_id: '',
-      category_ids: [],
+      category_id: '',
       transfer_fee: '',
       transaction_date: new Date().toISOString().split('T')[0],
       value_date: new Date().toISOString().split('T')[0],
@@ -93,7 +92,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         amount: parseFloat(formData.amount),
         type: formData.type as 'income' | 'expense',
         account_id: formData.account_id,
-        category_ids: formData.category_ids,
+        category_id: formData.category_id || undefined,
         transaction_date: formData.transaction_date,
         value_date: formData.value_date,
         include_in_stats: formData.include_in_stats,
@@ -296,16 +295,28 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
           {/* Category Selection (Not for transfers) */}
           {formData.type !== 'transfer' && (
             <div className="space-y-2">
-              <Label htmlFor="category">Catégories</Label>
-              <MultiCategorySelect
-                categories={categories}
-                selectedIds={formData.category_ids}
-                onSelectionChange={(ids) => setFormData({ ...formData, category_ids: ids })}
-                placeholder="Sélectionner des catégories (optionnel)"
-              />
-              <p className="text-xs text-muted-foreground">
-                Vous pouvez assigner plusieurs catégories à une transaction
-              </p>
+              <Label htmlFor="category">Catégorie</Label>
+              <Select
+                value={formData.category_id}
+                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

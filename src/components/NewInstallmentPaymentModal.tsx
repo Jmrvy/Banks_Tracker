@@ -28,6 +28,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
     start_date: new Date().toISOString().split('T')[0],
     account_id: '',
     category_id: '',
+    payment_type: 'payment' as 'reimbursement' | 'payment',
   });
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +41,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
       start_date: new Date().toISOString().split('T')[0],
       account_id: '',
       category_id: '',
+      payment_type: 'payment',
     });
   };
 
@@ -65,6 +67,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
       start_date: formData.start_date,
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
+      payment_type: formData.payment_type,
     });
 
     if (error) {
@@ -93,11 +96,45 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {/* Payment Type Selection */}
+          <div className="space-y-2">
+            <Label>Type de paiement *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={formData.payment_type === 'payment' ? 'default' : 'outline'}
+                onClick={() => setFormData({ ...formData, payment_type: 'payment' })}
+                className="w-full"
+              >
+                <span className="mr-2">💳</span>
+                Paiement
+              </Button>
+              <Button
+                type="button"
+                variant={formData.payment_type === 'reimbursement' ? 'default' : 'outline'}
+                onClick={() => setFormData({ ...formData, payment_type: 'reimbursement' })}
+                className="w-full"
+              >
+                <span className="mr-2">💰</span>
+                Remboursement
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {formData.payment_type === 'payment'
+                ? "Vous payez quelque chose en plusieurs fois (ex: achat, crédit)"
+                : "Quelqu'un vous rembourse en plusieurs fois (ex: prêt à un ami) - comptabilisé comme épargne"
+              }
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
-              placeholder="Ex: Achat ordinateur portable"
+              placeholder={formData.payment_type === 'payment'
+                ? "Ex: Achat ordinateur portable"
+                : "Ex: Prêt à Pierre"
+              }
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required

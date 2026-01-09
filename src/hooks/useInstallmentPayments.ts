@@ -16,6 +16,7 @@ export interface InstallmentPayment {
   account_id: string;
   category_id: string | null;
   is_active: boolean;
+  payment_type: 'reimbursement' | 'payment'; // remboursement = épargne inflow, paiement = dépense
   created_at: string;
   updated_at: string;
 }
@@ -49,7 +50,12 @@ export const useInstallmentPayments = () => {
     if (error) {
       console.error('Error fetching installment payments:', error);
     } else {
-      setInstallmentPayments((data || []) as InstallmentPayment[]);
+      // Handle backward compatibility: default payment_type to 'payment' if not set
+      const processedData = (data || []).map(ip => ({
+        ...ip,
+        payment_type: ip.payment_type || 'payment'
+      })) as InstallmentPayment[];
+      setInstallmentPayments(processedData);
     }
   };
 
@@ -77,6 +83,7 @@ export const useInstallmentPayments = () => {
     start_date: string;
     account_id: string;
     category_id?: string;
+    payment_type: 'reimbursement' | 'payment';
   }) => {
     if (!user) return { error: new Error('User not authenticated') };
 
@@ -94,6 +101,7 @@ export const useInstallmentPayments = () => {
         next_payment_date: data.start_date,
         account_id: data.account_id,
         category_id: data.category_id || null,
+        payment_type: data.payment_type,
       })
       .select()
       .single();
@@ -104,24 +112,28 @@ export const useInstallmentPayments = () => {
     }
 
     // Then, create the corresponding recurring transaction
+    // Reimbursement = income (someone paying back), Payment = expense (user paying)
     const recurringFrequency = data.frequency === 'weekly' ? 'weekly' :
                                data.frequency === 'monthly' ? 'monthly' :
                                'quarterly';
+
+    const transactionType = data.payment_type === 'reimbursement' ? 'income' : 'expense';
+    const descriptionSuffix = data.payment_type === 'reimbursement' ? 'Remboursement' : 'Paiement échelonné';
 
     const { error: recurringError } = await supabase
       .from('recurring_transactions')
       .insert({
         user_id: user.id,
-        description: `${data.description} (Paiement échelonné)`,
+        description: `${data.description} (${descriptionSuffix})`,
         amount: data.installment_amount,
-        type: 'expense',
+        type: transactionType,
         recurrence_type: recurringFrequency,
         start_date: data.start_date,
-        next_due_date: data.start_date, // Set next due date to start date
+        next_due_date: data.start_date,
         account_id: data.account_id,
         category_id: data.category_id || null,
         is_active: true,
-        installment_payment_id: installmentData.id, // Link to installment payment
+        installment_payment_id: installmentData.id,
       });
 
     if (recurringError) {
