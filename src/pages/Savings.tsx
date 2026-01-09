@@ -34,10 +34,34 @@ const Savings = () => {
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
 
-  // Get active reimbursement installments (these count as savings)
+  // Get reimbursement installments (these count as savings)
   const reimbursementInstallments = useMemo(() => {
     return installmentPayments.filter(ip => ip.payment_type === 'reimbursement');
   }, [installmentPayments]);
+
+  // Get IDs of reimbursement installments for filtering transactions
+  const reimbursementInstallmentIds = useMemo(() => {
+    return new Set(reimbursementInstallments.map(ip => ip.id));
+  }, [reimbursementInstallments]);
+
+  // Get transactions linked to reimbursement installments (for the selected period)
+  const reimbursementTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      if (!t.installment_payment_id) return false;
+      if (!reimbursementInstallmentIds.has(t.installment_payment_id)) return false;
+      const transactionDate = new Date(t.transaction_date);
+      return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
+    });
+  }, [transactions, reimbursementInstallmentIds, dateRange]);
+
+  // Calculate total reimbursements received in the period
+  const reimbursementStats = useMemo(() => {
+    const total = reimbursementTransactions.reduce((sum, t) => sum + t.amount, 0);
+    return {
+      total,
+      count: reimbursementTransactions.length
+    };
+  }, [reimbursementTransactions]);
 
   // Find investment category
   const investmentCategory = useMemo(() => {
@@ -200,7 +224,7 @@ const Savings = () => {
         </div>
 
         {/* Investment Statistics for Period */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <Card className="border-border bg-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -233,6 +257,21 @@ const Savings = () => {
               </div>
               <p className="text-lg sm:text-2xl font-bold text-destructive">
                 -{formatCurrency(investmentStats.incomeTotal)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card border-l-4 border-l-success">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CreditCard className="h-4 w-4 text-success" />
+                <span className="text-xs sm:text-sm text-muted-foreground">Remboursements</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-success">
+                +{formatCurrency(reimbursementStats.total)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {reimbursementStats.count} transaction{reimbursementStats.count > 1 ? 's' : ''}
               </p>
             </CardContent>
           </Card>
