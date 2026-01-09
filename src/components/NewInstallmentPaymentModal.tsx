@@ -121,8 +121,8 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
             </div>
             <p className="text-xs text-muted-foreground">
               {formData.payment_type === 'payment'
-                ? "Vous payez quelque chose en plusieurs fois (ex: achat, crédit)"
-                : "Quelqu'un vous rembourse en plusieurs fois (ex: abonnement partagé) - apparaît dans les dépenses mais aussi comme entrée d'épargne"
+                ? "Paiement via une plateforme (ex: Klarna, Alma) - comptabilisé uniquement comme dépense"
+                : "Vous avancez avec votre épargne et êtes remboursé périodiquement - apparaît dans les dépenses et comme entrée d'épargne"
               }
             </p>
           </div>
@@ -132,8 +132,8 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
             <Textarea
               id="description"
               placeholder={formData.payment_type === 'payment'
-                ? "Ex: Achat ordinateur portable"
-                : "Ex: Prêt à Pierre"
+                ? "Ex: Achat ordinateur portable via Klarna"
+                : "Ex: Abonnement Netflix avancé pour coloc"
               }
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
