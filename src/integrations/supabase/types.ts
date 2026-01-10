@@ -273,6 +273,7 @@ export type Database = {
           installment_amount: number
           is_active: boolean | null
           next_payment_date: string
+          payment_type: string | null
           remaining_amount: number
           start_date: string
           total_amount: number
@@ -290,6 +291,7 @@ export type Database = {
           installment_amount: number
           is_active?: boolean | null
           next_payment_date: string
+          payment_type?: string | null
           remaining_amount: number
           start_date: string
           total_amount: number
@@ -307,6 +309,7 @@ export type Database = {
           installment_amount?: number
           is_active?: boolean | null
           next_payment_date?: string
+          payment_type?: string | null
           remaining_amount?: number
           start_date?: string
           total_amount?: number

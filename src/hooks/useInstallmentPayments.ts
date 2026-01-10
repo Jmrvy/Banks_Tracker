@@ -51,9 +51,10 @@ export const useInstallmentPayments = () => {
       console.error('Error fetching installment payments:', error);
     } else {
       // Handle backward compatibility: default payment_type to 'payment' if not set
-      const processedData = (data || []).map(ip => ({
+      // Cast to any to handle payment_type before types are regenerated
+      const processedData = (data || []).map((ip: any) => ({
         ...ip,
-        payment_type: ip.payment_type || 'payment'
+        payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
       })) as InstallmentPayment[];
       setInstallmentPayments(processedData);
     }
