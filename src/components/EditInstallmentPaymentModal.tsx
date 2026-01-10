@@ -28,6 +28,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
     next_payment_date: installmentPayment.next_payment_date,
     account_id: installmentPayment.account_id,
     category_id: installmentPayment.category_id || '',
+    payment_type: (installmentPayment.payment_type || 'payment') as 'reimbursement' | 'payment',
   });
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +41,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
       next_payment_date: installmentPayment.next_payment_date,
       account_id: installmentPayment.account_id,
       category_id: installmentPayment.category_id || '',
+      payment_type: (installmentPayment.payment_type || 'payment') as 'reimbursement' | 'payment',
     });
   }, [installmentPayment]);
 
@@ -65,6 +67,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
       next_payment_date: formData.next_payment_date,
       account_id: formData.account_id,
       category_id: formData.category_id || null,
+      payment_type: formData.payment_type,
     });
 
     if (error) {
@@ -92,20 +95,35 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          {/* Payment Type (Read-only) */}
+          {/* Payment Type Selection */}
           <div className="space-y-2">
-            <Label>Type de paiement</Label>
-            <div className="p-3 bg-muted rounded-md">
-              <span className="text-sm font-medium">
-                {installmentPayment.payment_type === 'reimbursement' ? '💰 Remboursement' : '💳 Paiement'}
-              </span>
-              <p className="text-xs text-muted-foreground mt-1">
-                {installmentPayment.payment_type === 'reimbursement'
-                  ? "Avance avec épargne, remboursé périodiquement - dépense + entrée d'épargne"
-                  : "Paiement via plateforme (Klarna, Alma) - dépense uniquement"
-                }
-              </p>
+            <Label>Type de paiement *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={formData.payment_type === 'payment' ? 'default' : 'outline'}
+                onClick={() => setFormData({ ...formData, payment_type: 'payment' })}
+                className="w-full"
+              >
+                <span className="mr-2">💳</span>
+                Paiement
+              </Button>
+              <Button
+                type="button"
+                variant={formData.payment_type === 'reimbursement' ? 'default' : 'outline'}
+                onClick={() => setFormData({ ...formData, payment_type: 'reimbursement' })}
+                className="w-full"
+              >
+                <span className="mr-2">💰</span>
+                Remboursement
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {formData.payment_type === 'payment'
+                ? "Paiement via une plateforme (ex: Klarna, Alma) - comptabilisé uniquement comme dépense"
+                : "Vous avancez avec votre épargne et êtes remboursé périodiquement - apparaît dans les dépenses et comme entrée d'épargne"
+              }
+            </p>
           </div>
 
           <div className="space-y-2">
