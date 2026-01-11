@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,11 +7,13 @@ import { Calendar, AlertTriangle, Repeat, ArrowRight } from 'lucide-react';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useNavigate } from 'react-router-dom';
+import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
 
 export const RecurringTransactionsWarning = () => {
   const { recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const navigate = useNavigate();
+  const [showRegularizeModal, setShowRegularizeModal] = useState(false);
 
   const upcomingTransactions = useMemo(() => {
     const today = new Date();
@@ -84,18 +86,34 @@ export const RecurringTransactionsWarning = () => {
               <span>
                 {overdueTransactions.length} transaction{overdueTransactions.length > 1 ? 's' : ''} récurrente{overdueTransactions.length > 1 ? 's' : ''} en retard
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/recurring-transactions')}
-                className="border-destructive/30 text-destructive hover:bg-destructive/10"
-              >
-                Voir
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRegularizeModal(true)}
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  Régulariser
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/recurring-transactions')}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Voir
+                </Button>
+              </div>
             </div>
           </AlertDescription>
         </Alert>
       )}
+
+      <RegularizeOverdueTransactionsModal
+        open={showRegularizeModal}
+        onOpenChange={setShowRegularizeModal}
+        overdueTransactions={overdueTransactions}
+      />
 
       {/* Upcoming Transactions */}
       {upcomingTransactions.length > 0 && (
