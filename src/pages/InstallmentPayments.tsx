@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2 } from "lucide-react";
+import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +11,7 @@ import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentMo
 import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
 import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
 import { AdjustInstallmentPlanModal } from "@/components/AdjustInstallmentPlanModal";
+import { InstallmentTransactionsModal } from "@/components/InstallmentTransactionsModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ const InstallmentPayments = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
@@ -69,6 +71,11 @@ const InstallmentPayments = () => {
   const handleEdit = (payment: InstallmentPayment) => {
     setSelectedPayment(payment);
     setShowEditModal(true);
+  };
+
+  const handleViewTransactions = (payment: InstallmentPayment) => {
+    setSelectedPayment(payment);
+    setShowTransactionsModal(true);
   };
 
   const handleDeleteClick = (paymentId: string) => {
@@ -235,6 +242,10 @@ const InstallmentPayments = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewTransactions(payment)}>
+                              <Receipt className="h-4 w-4 mr-2" />
+                              Voir les transactions
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEdit(payment)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Modifier
@@ -345,6 +356,12 @@ const InstallmentPayments = () => {
             onOpenChange={setShowRecordModal}
             installmentPaymentId={selectedPayment.id}
             onPaymentRecorded={handlePaymentRecorded}
+          />
+
+          <InstallmentTransactionsModal
+            open={showTransactionsModal}
+            onOpenChange={setShowTransactionsModal}
+            installmentPayment={selectedPayment}
           />
         </>
       )}
