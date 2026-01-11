@@ -82,9 +82,12 @@ const Savings = () => {
     });
   }, [transactions, investmentCategory, dateRange]);
 
-  // Calculate investment statistics for the selected period
+  // Calculate investment statistics for the selected period (including reimbursements)
   const investmentStats = useMemo(() => {
-    if (!investmentCategory || periodTransactions.length === 0) {
+    const hasInvestments = investmentCategory && periodTransactions.length > 0;
+    const hasReimbursements = reimbursementTransactions.length > 0;
+    
+    if (!hasInvestments && !hasReimbursements) {
       return {
         totalSaved: 0,
         transactionCount: 0,
@@ -95,7 +98,7 @@ const Savings = () => {
       };
     }
 
-    // Calculate totals by type
+    // Calculate investment totals by type
     const incomeTotal = periodTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -104,35 +107,43 @@ const Savings = () => {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const netTotal = expenseTotal - incomeTotal; // Expenses add to savings, income withdraws
+    const investmentNet = expenseTotal - incomeTotal; // Expenses add to savings, income withdraws
 
-    // Build cumulative trend data for the period
-    const sortedTransactions = [...periodTransactions].sort(
-      (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
-    );
+    // Include reimbursements in net total
+    const netTotal = investmentNet + reimbursementStats.total;
+
+    // Build cumulative trend data for the period (combining investments and reimbursements)
+    const allSavingsTransactions = [
+      ...periodTransactions.map(t => ({
+        date: new Date(t.transaction_date),
+        amount: t.type === 'expense' ? t.amount : -t.amount,
+        type: 'investment' as const
+      })),
+      ...reimbursementTransactions.map(t => ({
+        date: new Date(t.transaction_date),
+        amount: t.amount, // Reimbursements are always positive (income type adds to savings)
+        type: 'reimbursement' as const
+      }))
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
 
     let cumulative = 0;
-    const trendData = sortedTransactions.map(t => {
-      if (t.type === 'expense') {
-        cumulative += t.amount;
-      } else if (t.type === 'income') {
-        cumulative -= t.amount;
-      }
+    const trendData = allSavingsTransactions.map(t => {
+      cumulative += t.amount;
       return {
-        date: format(new Date(t.transaction_date), 'dd/MM', { locale: fr }),
+        date: format(t.date, 'dd/MM', { locale: fr }),
         total: cumulative
       };
     });
 
     return {
       totalSaved: netTotal,
-      transactionCount: periodTransactions.length,
+      transactionCount: periodTransactions.length + reimbursementTransactions.length,
       trendData,
       incomeTotal,
       expenseTotal,
       netTotal
     };
-  }, [periodTransactions, investmentCategory]);
+  }, [periodTransactions, investmentCategory, reimbursementTransactions, reimbursementStats.total]);
 
   // Calculate total savings (all time) for goals projection (include ALL transactions)
   const allTimeStats = useMemo(() => {
