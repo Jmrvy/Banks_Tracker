@@ -160,15 +160,52 @@ export const useReportsData = (
   }, [filteredTransactions, accounts, transactions, period]);
 
   // Données pour l'évolution des soldes avec projection
+  // IMPORTANT: Le graphique utilise TOUJOURS transaction_date (date comptable) pour la cohérence
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     // Helper pour obtenir la date comptable (transaction_date) d'une transaction
     const getAccountingDate = (t: any) => new Date(t.transaction_date);
     
-    const sortedTransactions = [...filteredTransactions]
+    // Filtrer les transactions pour la période en utilisant transaction_date (date comptable)
+    const periodTransactions = transactions.filter(t => {
+      const txDate = getAccountingDate(t);
+      return isWithinInterval(txDate, { start: period.from, end: period.to });
+    });
+    
+    const sortedTransactions = [...periodTransactions]
       .sort((a, b) => getAccountingDate(a).getTime() - getAccountingDate(b).getTime());
     
     const dailyData: BalanceDataPoint[] = [];
-    let runningBalance = stats.initialBalance;
+    
+    // Calculer le solde initial basé sur les comptes actuels moins les transactions depuis le début de la période
+    const initialBalance = accounts.reduce((sum, account) => {
+      const accountTransactionsSincePeriodStart = transactions.filter(t => {
+        const transactionDate = new Date(t.transaction_date);
+        return transactionDate >= period.from && 
+               (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
+      });
+      
+      const accountNetChange = accountTransactionsSincePeriodStart.reduce((change, t) => {
+        if (t.account?.name === account.name) {
+          switch (t.type) {
+            case 'income':
+              return change - Number(t.amount);
+            case 'expense':
+              return change + Number(t.amount);
+            case 'transfer':
+              return change + Number(t.amount) + Number(t.transfer_fee || 0);
+          }
+        }
+        if (t.transfer_to_account?.name === account.name) {
+          return change - Number(t.amount);
+        }
+        return change;
+      }, 0);
+
+      const initialAccountBalance = Number(account.balance) + accountNetChange;
+      return sum + initialAccountBalance;
+    }, 0);
+    
+    let runningBalance = initialBalance;
     
     // Ajouter le point de départ
     const startDate = period.from;
@@ -179,7 +216,7 @@ export const useReportsData = (
       dateObj: startDate
     });
 
-    // Grouper les transactions par date comptable (value_date)
+    // Grouper les transactions par date comptable (transaction_date)
     const transactionsByDate = new Map();
     sortedTransactions.forEach(t => {
       const date = format(getAccountingDate(t), "yyyy-MM-dd");
