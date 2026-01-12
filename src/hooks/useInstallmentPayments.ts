@@ -201,6 +201,20 @@ export const useInstallmentPayments = () => {
     const installmentPayment = installmentPayments.find(ip => ip.id === installmentPaymentId);
     if (!installmentPayment) return { error: new Error('Installment payment not found') };
 
+    // If linking to an existing transaction, update its installment_payment_id
+    if (transactionId) {
+      const { error: linkError } = await supabase
+        .from('transactions')
+        .update({ installment_payment_id: installmentPaymentId })
+        .eq('id', transactionId)
+        .eq('user_id', user.id);
+
+      if (linkError) {
+        console.error('Error linking transaction:', linkError);
+        return { error: linkError };
+      }
+    }
+
     // Create payment record
     const { error: recordError } = await supabase
       .from('installment_payment_records')
