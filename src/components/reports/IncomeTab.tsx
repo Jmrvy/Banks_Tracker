@@ -69,6 +69,11 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
     );
   }
 
+  // Calculer le total réel à partir des données
+  const calculatedTotal = incomeAnalysis.reduce((sum, cat) => sum + cat.totalAmount, 0);
+  // Utiliser le total calculé pour éviter les erreurs de pourcentage
+  const totalForPercentage = calculatedTotal > 0 ? calculatedTotal : totalIncome;
+
   // Données pour le graphique circulaire
   const pieChartData = incomeAnalysis
     .sort((a, b) => b.totalAmount - a.totalAmount)
@@ -157,7 +162,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
-                        const percentage = ((data.value / totalIncome) * 100).toFixed(1);
+                        const percentage = ((data.value / totalForPercentage) * 100).toFixed(1);
                         return (
                           <div className="rounded-lg border bg-background/95 backdrop-blur-sm p-2 shadow-lg">
                             <div className="flex items-center gap-2 mb-1">
@@ -193,7 +198,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
             {/* Legend */}
             <div className="w-full sm:w-1/2 grid grid-cols-2 gap-1.5 sm:gap-2 max-h-[180px] sm:max-h-[220px] overflow-y-auto">
               {pieChartData.slice(0, 8).map((item, index) => {
-                const percentage = ((item.value / totalIncome) * 100).toFixed(0);
+                const percentage = ((item.value / totalForPercentage) * 100).toFixed(0);
                 return (
                   <button
                     key={index}
@@ -228,7 +233,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
           {incomeAnalysis
             .sort((a, b) => b.totalAmount - a.totalAmount)
             .map((category, index) => {
-              const percentage = (category.totalAmount / totalIncome) * 100;
+              const percentage = (category.totalAmount / totalForPercentage) * 100;
               const color = COLORS[index % COLORS.length];
               
               return (

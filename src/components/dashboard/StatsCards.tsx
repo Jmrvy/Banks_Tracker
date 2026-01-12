@@ -72,7 +72,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
         available,
         recurring: activeRecurring
       },
-      filteredTransactions: filtered,
+      filteredTransactions: statsTransactions, // Only pass transactions included in stats
       excludedTransactions: excluded
     };
   }, [transactions, accounts, recurringTransactions, startDate, endDate, activeDateType]);
