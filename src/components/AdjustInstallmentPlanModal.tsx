@@ -79,14 +79,17 @@ export const AdjustInstallmentPlanModal = ({
     e.preventDefault();
     setLoading(true);
 
-    let newInstallmentAmount = installmentPayment.installment_amount;
+    // Calculate the reduced amount (keep same number of payments, lower amount per payment)
+    const calculatedReducedAmount = remainingPayments > 0 ? newRemainingAmount / remainingPayments : 0;
+    
+    let finalInstallmentAmount = installmentPayment.installment_amount;
 
     switch (adjustmentType) {
       case 'keep_current':
         // No change to installment amount
         break;
       case 'reduce_amount':
-        newInstallmentAmount = newInstallmentAmount;
+        finalInstallmentAmount = calculatedReducedAmount;
         break;
       case 'reduce_count':
         // Keep current installment amount
@@ -102,16 +105,14 @@ export const AdjustInstallmentPlanModal = ({
           setLoading(false);
           return;
         }
-        newInstallmentAmount = customAmountNum;
+        finalInstallmentAmount = customAmountNum;
         break;
     }
 
     const { error } = await adjustInstallmentPlan(
       installmentPayment.id,
       adjustmentType,
-      adjustmentType === 'reduce_amount' ? newInstallmentAmount :
-      adjustmentType === 'custom' ? parseFloat(customAmount) :
-      installmentPayment.installment_amount
+      finalInstallmentAmount
     );
 
     if (error) {
