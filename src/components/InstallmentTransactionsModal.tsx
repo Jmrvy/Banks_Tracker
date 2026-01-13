@@ -80,41 +80,41 @@ export const InstallmentTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             Transactions liées
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Summary */}
-          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Paiement échelonné:</span>
-              <span className="font-semibold">{installmentPayment.description}</span>
+          <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+              <span className="text-xs sm:text-sm text-muted-foreground">Paiement échelonné:</span>
+              <span className="font-semibold text-sm sm:text-base truncate">{installmentPayment.description}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total payé:</span>
-              <span className="font-bold text-success">{formatCurrency(totalPaid)}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">Total payé:</span>
+              <span className="font-bold text-success text-sm sm:text-base">{formatCurrency(totalPaid)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Transactions:</span>
-              <Badge variant="secondary">{transactions.length}</Badge>
+              <span className="text-xs sm:text-sm text-muted-foreground">Transactions:</span>
+              <Badge variant="secondary" className="text-xs">{transactions.length}</Badge>
             </div>
           </div>
 
           {/* Transactions List */}
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-[250px] sm:h-[300px]">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             ) : transactions.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <Receipt className="h-12 w-12 text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">
+                <Receipt className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50 mb-2" />
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Aucune transaction liée à ce paiement échelonné
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -122,42 +122,46 @@ export const InstallmentTransactionsModal = ({
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 pr-2">
                 {transactions.map((transaction) => {
                   const category = getCategoryInfo(transaction.category_id);
                   return (
                     <div
                       key={transaction.id}
-                      className="bg-card border border-border/50 rounded-lg p-3 space-y-2"
+                      className="bg-card border border-border/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">
+                          <p className="font-medium text-xs sm:text-sm truncate">
                             {transaction.description}
                           </p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(transaction.transaction_date), "dd MMM yyyy", {
-                              locale: fr,
-                            })}
+                          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">
+                              {format(new Date(transaction.transaction_date), "dd MMM yyyy", {
+                                locale: fr,
+                              })}
+                            </span>
                           </div>
                         </div>
-                        <span className="font-bold text-destructive">
+                        <span className="font-bold text-destructive text-xs sm:text-sm whitespace-nowrap">
                           -{formatCurrency(transaction.amount)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Wallet className="h-3 w-3" />
-                          {getAccountName(transaction.account_id)}
+                          <Wallet className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate max-w-[100px] sm:max-w-none">
+                            {getAccountName(transaction.account_id)}
+                          </span>
                         </div>
                         {category && (
-                          <Badge variant="outline" className="gap-1 text-xs">
+                          <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0.5">
                             <div
-                              className="w-2 h-2 rounded-full"
+                              className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{ backgroundColor: category.color }}
                             />
-                            {category.name}
+                            <span className="truncate max-w-[80px] sm:max-w-none">{category.name}</span>
                           </Badge>
                         )}
                       </div>
