@@ -35,8 +35,19 @@ export const AdjustInstallmentPlanModal = ({
 
   // Calculate suggestions
   const currentFrequency = installmentPayment.frequency;
-  const remainingPayments = Math.ceil(newRemainingAmount / installmentPayment.installment_amount);
-  const newInstallmentAmount = remainingPayments > 0 ? newRemainingAmount / remainingPayments : 0;
+  
+  // Calculate remaining payments based on current installment amount (for keep_current and reduce_count)
+  const remainingPaymentsWithCurrentAmount = Math.ceil(newRemainingAmount / installmentPayment.installment_amount);
+  
+  // For reduce_amount: calculate how many payments were originally remaining BEFORE this payment
+  // We use the old remaining amount (before payment) to determine the original planned payment count
+  const oldRemainingAmount = newRemainingAmount + paymentAmount;
+  const originalRemainingPayments = Math.ceil(oldRemainingAmount / installmentPayment.installment_amount);
+  
+  // New reduced amount = spread the new remaining amount over the same number of payments as before
+  const reducedInstallmentAmount = originalRemainingPayments > 0 
+    ? newRemainingAmount / originalRemainingPayments 
+    : 0;
 
   useEffect(() => {
     if (open) {
@@ -50,19 +61,19 @@ export const AdjustInstallmentPlanModal = ({
       case 'keep_current':
         return {
           installmentAmount: installmentPayment.installment_amount,
-          estimatedPayments: remainingPayments,
+          estimatedPayments: remainingPaymentsWithCurrentAmount,
           description: 'Continuer avec le même montant de mensualité'
         };
       case 'reduce_amount':
         return {
-          installmentAmount: newInstallmentAmount,
-          estimatedPayments: remainingPayments,
+          installmentAmount: reducedInstallmentAmount,
+          estimatedPayments: originalRemainingPayments,
           description: 'Garder le nombre de paiements, réduire le montant de chaque paiement'
         };
       case 'reduce_count':
         return {
           installmentAmount: installmentPayment.installment_amount,
-          estimatedPayments: Math.ceil(newRemainingAmount / installmentPayment.installment_amount),
+          estimatedPayments: remainingPaymentsWithCurrentAmount,
           description: 'Garder le montant des paiements, réduire le nombre de paiements'
         };
       case 'custom':
@@ -78,9 +89,6 @@ export const AdjustInstallmentPlanModal = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    // Calculate the reduced amount (keep same number of payments, lower amount per payment)
-    const calculatedReducedAmount = remainingPayments > 0 ? newRemainingAmount / remainingPayments : 0;
     
     let finalInstallmentAmount = installmentPayment.installment_amount;
 
@@ -89,7 +97,7 @@ export const AdjustInstallmentPlanModal = ({
         // No change to installment amount
         break;
       case 'reduce_amount':
-        finalInstallmentAmount = calculatedReducedAmount;
+        finalInstallmentAmount = reducedInstallmentAmount;
         break;
       case 'reduce_count':
         // Keep current installment amount
@@ -162,7 +170,7 @@ export const AdjustInstallmentPlanModal = ({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Paiements restants estimés:</span>
-              <span className="font-medium">{remainingPayments} paiements</span>
+              <span className="font-medium">{remainingPaymentsWithCurrentAmount} paiements</span>
             </div>
           </div>
 
@@ -181,7 +189,7 @@ export const AdjustInstallmentPlanModal = ({
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
                       Continuer avec {formatCurrency(installmentPayment.installment_amount)} par paiement
-                      (≈ {remainingPayments} paiements restants)
+                      (≈ {remainingPaymentsWithCurrentAmount} paiements restants)
                     </p>
                   </div>
                 </div>
@@ -194,8 +202,8 @@ export const AdjustInstallmentPlanModal = ({
                       Réduire le montant par paiement
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Nouveau montant: {formatCurrency(newInstallmentAmount)} par paiement
-                      (≈ {remainingPayments} paiements restants)
+                      Nouveau montant: {formatCurrency(reducedInstallmentAmount)} par paiement
+                      (≈ {originalRemainingPayments} paiements restants)
                     </p>
                   </div>
                 </div>
