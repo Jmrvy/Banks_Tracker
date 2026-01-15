@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, Repeat, Info } from "lucide-react";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
@@ -77,15 +77,28 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
     };
   }, [transactions, accounts, recurringTransactions, startDate, endDate, activeDateType]);
 
-  // Notify parent of filtered transactions
-  useMemo(() => {
-    if (onTransactionsFiltered) {
-      onTransactionsFiltered(filteredTransactions);
+  // Use refs to store callbacks to avoid dependency issues
+  const onTransactionsFilteredRef = useRef(onTransactionsFiltered);
+  const onExcludedTransactionsFilteredRef = useRef(onExcludedTransactionsFiltered);
+  
+  // Update refs when callbacks change
+  useEffect(() => {
+    onTransactionsFilteredRef.current = onTransactionsFiltered;
+    onExcludedTransactionsFilteredRef.current = onExcludedTransactionsFiltered;
+  }, [onTransactionsFiltered, onExcludedTransactionsFiltered]);
+
+  // Notify parent of filtered transactions using useEffect for proper side effects
+  useEffect(() => {
+    if (onTransactionsFilteredRef.current) {
+      onTransactionsFilteredRef.current(filteredTransactions);
     }
-    if (onExcludedTransactionsFiltered) {
-      onExcludedTransactionsFiltered(excludedTransactions);
+  }, [filteredTransactions]);
+
+  useEffect(() => {
+    if (onExcludedTransactionsFilteredRef.current) {
+      onExcludedTransactionsFilteredRef.current(excludedTransactions);
     }
-  }, [filteredTransactions, excludedTransactions, onTransactionsFiltered, onExcludedTransactionsFiltered]);
+  }, [excludedTransactions]);
 
   const cards = [
     {
