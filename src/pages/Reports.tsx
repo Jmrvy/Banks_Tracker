@@ -35,7 +35,7 @@ const Reports = () => {
     incomeAnalysis,
     accounts,
     filteredTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns);
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting');
 
   if (loading) {
     return (
