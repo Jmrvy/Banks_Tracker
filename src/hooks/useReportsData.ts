@@ -161,17 +161,14 @@ export const useReportsData = (
 
   // Données pour l'évolution des soldes avec projection
   // IMPORTANT: Le graphique utilise TOUJOURS transaction_date (date comptable) pour la cohérence
+  // On utilise les transactions déjà filtrées par période (filteredTransactions) pour la cohérence
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     // Helper pour obtenir la date comptable (transaction_date) d'une transaction
     const getAccountingDate = (t: any) => new Date(t.transaction_date);
     
-    // Filtrer les transactions pour la période en utilisant transaction_date (date comptable)
-    const periodTransactions = transactions.filter(t => {
-      const txDate = getAccountingDate(t);
-      return isWithinInterval(txDate, { start: period.from, end: period.to });
-    });
-    
-    const sortedTransactions = [...periodTransactions]
+    // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
+    // Puis trier par date comptable pour l'affichage
+    const sortedTransactions = [...filteredTransactions]
       .sort((a, b) => getAccountingDate(a).getTime() - getAccountingDate(b).getTime());
     
     const dailyData: BalanceDataPoint[] = [];

@@ -113,8 +113,10 @@ const generateCategoryName = (transactions: Transaction[]): string => {
 
 export const useIncomeAnalysis = (transactions: Transaction[]): IncomeCategory[] => {
   return useMemo(() => {
-    // Filtrer uniquement les revenus
-    const incomeTransactions = transactions.filter(t => t.type === 'income');
+    // Filtrer uniquement les revenus qui sont inclus dans les statistiques
+    const incomeTransactions = transactions.filter(t => 
+      t.type === 'income' && (t as any).include_in_stats !== false
+    );
     
     if (incomeTransactions.length === 0) return [];
     
