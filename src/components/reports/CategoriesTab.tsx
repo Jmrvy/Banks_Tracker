@@ -23,10 +23,7 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
   const formatCurrency = (amount: number) => 
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
-  const formatCompact = (amount: number) => {
-    if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(1)}k €`;
-    }
+  const formatAmount = (amount: number) => {
     return formatCurrency(amount);
   };
 
@@ -86,7 +83,7 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
               <TrendingDown className="w-3.5 h-3.5 text-destructive" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total dépensé</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-destructive">{formatCompact(totalSpent)}</p>
+            <p className="text-sm sm:text-base font-bold text-destructive">{formatAmount(totalSpent)}</p>
           </CardContent>
         </Card>
         
@@ -96,7 +93,7 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
               <Target className="w-3.5 h-3.5 text-primary" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Budget total</span>
             </div>
-            <p className="text-sm sm:text-base font-bold">{formatCompact(totalBudget)}</p>
+            <p className="text-sm sm:text-base font-bold">{formatAmount(totalBudget)}</p>
           </CardContent>
         </Card>
         
@@ -182,7 +179,7 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
               </ResponsiveContainer>
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-lg sm:text-xl font-bold">{formatCompact(totalSpent)}</span>
+                <span className="text-lg sm:text-xl font-bold">{formatAmount(totalSpent)}</span>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
               </div>
             </div>

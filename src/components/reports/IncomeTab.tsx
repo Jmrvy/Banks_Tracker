@@ -33,10 +33,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const formatCompact = (amount: number) => {
-    if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(1)}k €`;
-    }
+  const formatAmount = (amount: number) => {
     return formatCurrency(amount);
   };
 
@@ -94,7 +91,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
               <TrendingUp className="w-3.5 h-3.5 text-success" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total revenus</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-success">{formatCompact(totalIncome)}</p>
+            <p className="text-sm sm:text-base font-bold text-success">{formatAmount(totalIncome)}</p>
           </CardContent>
         </Card>
         
@@ -124,7 +121,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
               <ArrowUpRight className="w-3.5 h-3.5 text-success" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
             </div>
-            <p className="text-sm sm:text-base font-bold">{formatCompact(avgPerTransaction)}</p>
+            <p className="text-sm sm:text-base font-bold">{formatAmount(avgPerTransaction)}</p>
           </CardContent>
         </Card>
       </div>
@@ -190,7 +187,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
               </ResponsiveContainer>
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-lg sm:text-xl font-bold text-success">{formatCompact(totalIncome)}</span>
+                <span className="text-lg sm:text-xl font-bold text-success">{formatAmount(totalIncome)}</span>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
               </div>
             </div>
