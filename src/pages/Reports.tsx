@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Calendar, CalendarCheck } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
 import { StatsCards } from "@/components/reports/StatsCards";
@@ -11,6 +11,7 @@ import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -23,19 +24,27 @@ const Reports = () => {
   const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
+  const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>('accounting');
 
+  // Données pour Évolution et Récurrents - toujours en date comptable
   const {
     loading,
     period,
     stats,
     balanceEvolutionData,
-    categoryChartData,
     recurringData,
     spendingPatternsData,
-    incomeAnalysis,
     accounts,
     filteredTransactions
   } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting');
+
+  // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
+  const {
+    stats: incomeExpenseStats,
+    categoryChartData,
+    incomeAnalysis,
+    filteredTransactions: incomeExpenseTransactions
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, incomeExpenseDateType);
 
   if (loading) {
     return (
@@ -110,17 +119,55 @@ const Reports = () => {
             />
           </TabsContent>
 
-          <TabsContent value="income" className="mt-3">
+          <TabsContent value="income" className="mt-3 space-y-3">
+            {/* Sélecteur de type de date pour Revenus */}
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-xs text-muted-foreground">Type de date :</span>
+              <ToggleGroup 
+                type="single" 
+                value={incomeExpenseDateType} 
+                onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
+                className="h-8"
+              >
+                <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Comptable
+                </ToggleGroupItem>
+                <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
+                  <CalendarCheck className="h-3 w-3" />
+                  Valeur
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
             <IncomeTab 
               incomeAnalysis={incomeAnalysis}
-              totalIncome={stats.income}
+              totalIncome={incomeExpenseStats.income}
             />
           </TabsContent>
 
-          <TabsContent value="categories" className="mt-3">
+          <TabsContent value="categories" className="mt-3 space-y-3">
+            {/* Sélecteur de type de date pour Dépenses */}
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-xs text-muted-foreground">Type de date :</span>
+              <ToggleGroup 
+                type="single" 
+                value={incomeExpenseDateType} 
+                onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
+                className="h-8"
+              >
+                <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Comptable
+                </ToggleGroupItem>
+                <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
+                  <CalendarCheck className="h-3 w-3" />
+                  Valeur
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
             <CategoriesTab 
               categoryChartData={categoryChartData} 
-              transactions={filteredTransactions}
+              transactions={incomeExpenseTransactions}
             />
           </TabsContent>
 
