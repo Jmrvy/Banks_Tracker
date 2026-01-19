@@ -165,6 +165,53 @@ export const useInstallmentPayments = () => {
       return { error };
     }
 
+    // Synchronize changes with linked recurring transaction
+    const recurringUpdates: Record<string, any> = {};
+    
+    if (updates.description !== undefined) {
+      const installmentPayment = installmentPayments.find(ip => ip.id === id);
+      const paymentType = updates.payment_type || installmentPayment?.payment_type || 'payment';
+      const descriptionSuffix = paymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
+      recurringUpdates.description = `${updates.description} (${descriptionSuffix})`;
+    }
+    if (updates.installment_amount !== undefined) {
+      recurringUpdates.amount = updates.installment_amount;
+    }
+    if (updates.account_id !== undefined) {
+      recurringUpdates.account_id = updates.account_id;
+    }
+    if (updates.category_id !== undefined) {
+      recurringUpdates.category_id = updates.category_id;
+    }
+    if (updates.next_payment_date !== undefined) {
+      recurringUpdates.next_due_date = updates.next_payment_date;
+    }
+    if (updates.frequency !== undefined) {
+      // Map frequency to recurrence_type
+      const frequencyMap: Record<string, string> = {
+        'weekly': 'weekly',
+        'monthly': 'monthly',
+        'quarterly': 'quarterly'
+      };
+      recurringUpdates.recurrence_type = frequencyMap[updates.frequency] || 'monthly';
+    }
+    if (updates.is_active !== undefined) {
+      recurringUpdates.is_active = updates.is_active;
+    }
+
+    // Update linked recurring transaction if there are changes
+    if (Object.keys(recurringUpdates).length > 0) {
+      const { error: recurringError } = await supabase
+        .from('recurring_transactions')
+        .update(recurringUpdates)
+        .eq('installment_payment_id', id)
+        .eq('user_id', user.id);
+
+      if (recurringError) {
+        console.error('Error syncing recurring transaction:', recurringError);
+      }
+    }
+
     await fetchInstallmentPayments();
     return { error: null };
   };
