@@ -455,6 +455,10 @@ export function useFinancialData() {
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
 
+    // Get the original transaction to check if it's linked to an installment payment
+    const originalTransaction = transactions.find(t => t.id === id);
+    const originalAmount = originalTransaction?.amount || 0;
+
     const { error } = await supabase
       .from('transactions')
       .update(updates)
@@ -462,6 +466,28 @@ export function useFinancialData() {
       .eq('user_id', user.id);
 
     if (!error) {
+      // If this transaction is linked to an installment payment and amount changed, update remaining_amount
+      if (originalTransaction?.installment_payment_id && updates.amount !== undefined && updates.amount !== originalAmount) {
+        const amountDifference = updates.amount - originalAmount;
+        
+        // Get current installment payment
+        const { data: installmentPayment } = await supabase
+          .from('installment_payments')
+          .select('remaining_amount')
+          .eq('id', originalTransaction.installment_payment_id)
+          .single();
+        
+        if (installmentPayment) {
+          // Adjust remaining amount: if transaction amount increased, decrease remaining (and vice versa)
+          const newRemainingAmount = installmentPayment.remaining_amount - amountDifference;
+          
+          await supabase
+            .from('installment_payments')
+            .update({ remaining_amount: Math.max(0, newRemainingAmount) })
+            .eq('id', originalTransaction.installment_payment_id);
+        }
+      }
+
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();
@@ -473,6 +499,9 @@ export function useFinancialData() {
   const deleteTransaction = async (id: string) => {
     if (!user) return { error: { message: 'User not authenticated' } };
     
+    // Get the transaction before deleting to check if it's linked to an installment payment
+    const transactionToDelete = transactions.find(t => t.id === id);
+
     const { error } = await supabase
       .from('transactions')
       .delete()
@@ -480,6 +509,34 @@ export function useFinancialData() {
       .eq('user_id', user.id);
 
     if (!error) {
+      // If this transaction was linked to an installment payment, add the amount back to remaining_amount
+      if (transactionToDelete?.installment_payment_id) {
+        const { data: installmentPayment } = await supabase
+          .from('installment_payments')
+          .select('remaining_amount, is_active')
+          .eq('id', transactionToDelete.installment_payment_id)
+          .single();
+        
+        if (installmentPayment) {
+          const newRemainingAmount = installmentPayment.remaining_amount + transactionToDelete.amount;
+          
+          await supabase
+            .from('installment_payments')
+            .update({ 
+              remaining_amount: newRemainingAmount,
+              // Re-activate the installment if it was completed
+              is_active: true
+            })
+            .eq('id', transactionToDelete.installment_payment_id);
+
+          // Also re-activate the linked recurring transaction
+          await supabase
+            .from('recurring_transactions')
+            .update({ is_active: true })
+            .eq('installment_payment_id', transactionToDelete.installment_payment_id);
+        }
+      }
+
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();

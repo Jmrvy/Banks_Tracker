@@ -77,8 +77,8 @@ serve(async (req) => {
 
         console.log(`Processing recurring transaction: ${recurring.description}`);
 
-        // Create the actual transaction
-        const { error: transactionError } = await supabase
+        // Create the actual transaction - IMPORTANT: link to installment_payment_id if present
+        const { data: createdTransaction, error: transactionError } = await supabase
           .from('transactions')
           .insert({
             description: `${recurring.description} (Récurrence automatique)`,
@@ -87,8 +87,12 @@ serve(async (req) => {
             account_id: recurring.account_id,
             category_id: recurring.category_id,
             transaction_date: recurring.next_due_date,
-            user_id: recurring.user_id
-          });
+            user_id: recurring.user_id,
+            // Link the transaction to the installment payment if this recurring transaction is linked to one
+            installment_payment_id: recurring.installment_payment_id || null
+          })
+          .select()
+          .single();
 
         if (transactionError) {
           console.error(`Error creating transaction for recurring ${recurring.id}:`, transactionError);
