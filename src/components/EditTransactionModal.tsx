@@ -10,6 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
+import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
+import { AdjustInstallmentPlanModal } from '@/components/AdjustInstallmentPlanModal';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -20,6 +23,7 @@ interface EditTransactionModalProps {
 export function EditTransactionModal({ open, onOpenChange, transaction }: EditTransactionModalProps) {
   const { toast } = useToast();
   const { accounts, categories, updateTransaction } = useFinancialData();
+  const { installmentPayments } = useInstallmentPayments();
   
   const [formData, setFormData] = useState({
     description: '',
@@ -34,6 +38,14 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     include_in_stats: true
   });
   const [loading, setLoading] = useState(false);
+  
+  // State for adjustment modal
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustmentData, setAdjustmentData] = useState<{
+    payment: InstallmentPayment;
+    paymentAmount: number;
+    newRemainingAmount: number;
+  } | null>(null);
 
   // Update form data when transaction changes
   useEffect(() => {
@@ -89,9 +101,14 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
     setLoading(true);
 
+    const originalAmount = transaction.amount;
+    const newAmount = parseFloat(formData.amount);
+    const amountChanged = newAmount !== originalAmount;
+    const hasInstallmentPayment = !!transaction.installment_payment_id;
+
     const updates = {
       description: formData.description || (formData.type === 'transfer' ? 'Transfert' : ''),
-      amount: parseFloat(formData.amount),
+      amount: newAmount,
       type: formData.type,
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
@@ -112,16 +129,49 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         description: error.message || "Erreur lors de la modification de la transaction",
         variant: "destructive",
       });
+      setLoading(false);
     } else {
       toast({
         title: "Succès",
         description: "Transaction modifiée avec succès",
       });
-      resetForm();
-      onOpenChange(false);
+      
+      // If amount changed and transaction is linked to an installment payment, show adjustment modal
+      if (amountChanged && hasInstallmentPayment && transaction.installment_payment_id) {
+        // Fetch the updated installment payment to get current remaining amount
+        const { data: updatedInstallment } = await supabase
+          .from('installment_payments')
+          .select('*')
+          .eq('id', transaction.installment_payment_id)
+          .single();
+        
+        if (updatedInstallment) {
+          const installmentPayment = installmentPayments.find(ip => ip.id === transaction.installment_payment_id) || updatedInstallment as InstallmentPayment;
+          const amountDifference = newAmount - originalAmount;
+          
+          setAdjustmentData({
+            payment: {
+              ...installmentPayment,
+              remaining_amount: updatedInstallment.remaining_amount
+            },
+            paymentAmount: amountDifference,
+            newRemainingAmount: updatedInstallment.remaining_amount
+          });
+          
+          resetForm();
+          onOpenChange(false);
+          setShowAdjustModal(true);
+        } else {
+          resetForm();
+          onOpenChange(false);
+        }
+      } else {
+        resetForm();
+        onOpenChange(false);
+      }
+      
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -310,6 +360,17 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           </div>
         </form>
       </DialogContent>
+      
+      {/* Adjustment Modal for Installment Payments */}
+      {adjustmentData && (
+        <AdjustInstallmentPlanModal
+          open={showAdjustModal}
+          onOpenChange={setShowAdjustModal}
+          installmentPayment={adjustmentData.payment}
+          paymentAmount={adjustmentData.paymentAmount}
+          newRemainingAmount={adjustmentData.newRemainingAmount}
+        />
+      )}
     </Dialog>
   );
 }
