@@ -34,16 +34,18 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
   });
   const [loading, setLoading] = useState(false);
 
-  // Calculate remaining amount to refund
+  // Calculate remaining amount to refund (can be 0 if fully refunded)
   const remainingToRefund = transaction 
-    ? transaction.amount - (transaction.refunded_amount || 0) 
+    ? Math.max(0, transaction.amount - (transaction.refunded_amount || 0))
     : 0;
 
   // Reset form when transaction changes
   const resetForm = () => {
     if (transaction) {
+      // Default to remaining amount, or a small amount if fully refunded (for excess refunds)
+      const defaultAmount = remainingToRefund > 0 ? remainingToRefund : 0;
       setFormData({
-        amount: remainingToRefund.toFixed(2),
+        amount: defaultAmount > 0 ? defaultAmount.toFixed(2) : '',
         description: `Remboursement: ${transaction.description}`,
         account_id: transaction.account_id,
         category_id: transaction.category?.id || '',
@@ -79,15 +81,6 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
       return;
     }
 
-    if (amount > remainingToRefund) {
-      toast({
-        title: "Montant trop élevé",
-        description: `Le montant maximum remboursable est de ${formatCurrency(remainingToRefund)}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!formData.account_id) {
       toast({
         title: "Compte requis",
@@ -99,7 +92,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
     setLoading(true);
 
-    const { error } = await createRefund({
+    const result = await createRefund({
       original_transaction_id: transaction.id,
       amount,
       description: formData.description,
@@ -111,17 +104,29 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
     setLoading(false);
 
-    if (error) {
+    if (result.error) {
       toast({
         title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de la création du remboursement.",
+        description: result.error.message || "Une erreur est survenue lors de la création du remboursement.",
         variant: "destructive",
       });
     } else {
-      toast({
-        title: "Remboursement créé",
-        description: `Remboursement de ${formatCurrency(amount)} enregistré avec succès.`,
-      });
+      // Show appropriate message based on whether there was excess
+      const linkedAmount = (result as any).linkedAmount || amount;
+      const excessAmount = (result as any).excessAmount || 0;
+      
+      if (excessAmount > 0) {
+        toast({
+          title: "Remboursement créé",
+          description: `${formatCurrency(linkedAmount)} lié à la transaction originale, ${formatCurrency(excessAmount)} enregistré comme revenu excédentaire.`,
+        });
+      } else {
+        toast({
+          title: "Remboursement créé",
+          description: `Remboursement de ${formatCurrency(amount)} enregistré avec succès.`,
+        });
+      }
+      
       setFormData({
         amount: '',
         description: '',
@@ -136,7 +141,10 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
   if (!transaction) return null;
 
-  const isFullyRefunded = remainingToRefund <= 0;
+  // Check if amount exceeds remaining (for warning display)
+  const enteredAmount = parseFloat(formData.amount) || 0;
+  const exceedsRemaining = enteredAmount > remainingToRefund && remainingToRefund > 0;
+  const excessAmount = Math.max(0, enteredAmount - remainingToRefund);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -184,34 +192,43 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
             </div>
           )}
           <div className="flex justify-between items-center text-sm pt-1 border-t border-border/50">
-            <span className="font-medium">Remboursable :</span>
-            <span className={`font-semibold ${isFullyRefunded ? 'text-muted-foreground' : 'text-primary'}`}>
+            <span className="font-medium">Reste à rembourser :</span>
+            <span className={`font-semibold ${remainingToRefund <= 0 ? 'text-muted-foreground' : 'text-primary'}`}>
               {formatCurrency(remainingToRefund)}
             </span>
           </div>
         </div>
 
-        {isFullyRefunded ? (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />
-            <p className="text-sm text-amber-600 dark:text-amber-400">
-              Cette transaction a déjà été entièrement remboursée.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="refund-amount">Montant du remboursement *</Label>
-              <AmountInput
-                id="refund-amount"
-                value={formData.amount}
-                onChange={(value) => setFormData({ ...formData, amount: value })}
-                placeholder="0.00"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Maximum : {formatCurrency(remainingToRefund)}
+        {/* Warning when amount exceeds remaining */}
+        {exceedsRemaining && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-600 dark:text-amber-400">
+              <p className="font-medium">Remboursement supérieur au reste dû</p>
+              <p className="text-xs mt-1">
+                {formatCurrency(remainingToRefund)} sera lié à cette transaction, 
+                et {formatCurrency(excessAmount)} sera créé comme revenu excédentaire.
               </p>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="refund-amount">Montant du remboursement *</Label>
+            <AmountInput
+              id="refund-amount"
+              value={formData.amount}
+              onChange={(value) => setFormData({ ...formData, amount: value })}
+              placeholder="0.00"
+              required
+            />
+            {remainingToRefund > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Reste à rembourser : {formatCurrency(remainingToRefund)} 
+                <span className="ml-1">(vous pouvez dépasser ce montant)</span>
+              </p>
+            )}
             </div>
 
             <div className="space-y-2">
@@ -317,7 +334,6 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
               </Button>
             </div>
           </form>
-        )}
       </DialogContent>
     </Dialog>
   );
