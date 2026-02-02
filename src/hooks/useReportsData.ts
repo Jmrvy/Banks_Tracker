@@ -105,13 +105,19 @@ export const useReportsData = (
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
     
+    // Income: exclude refund transactions (they're handled via net amount on expenses)
     const income = statsTransactions
-      .filter(t => t.type === 'income')
+      .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
       .reduce((sum, t) => sum + Number(t.amount), 0);
     
+    // Expenses: use NET amount (original - refunded) so only unreimbursed portion counts
     const expenses = statsTransactions
       .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      .reduce((sum, t) => {
+        const refundedAmount = t.refunded_amount || 0;
+        const netAmount = Number(t.amount) - refundedAmount;
+        return sum + netAmount;
+      }, 0);
 
     const transferFees = statsTransactions
       .filter(t => t.type === 'transfer')

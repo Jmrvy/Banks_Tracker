@@ -53,13 +53,20 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
     // Transactions exclues des stats sur la période
     const excluded = filtered.filter(t => t.include_in_stats === false);
 
+    // Calculate income - exclude refunds as they're handled via net amount on expenses
     const moneyIn = statsTransactions
-      .filter(t => t.type === 'income')
+      .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
       .reduce((sum, t) => sum + t.amount, 0);
 
+    // Calculate expenses using NET amount (original amount - refunded amount)
+    // This way, if 200€ expense has 160€ refunded, only 40€ is counted
     const moneyOut = statsTransactions
       .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => {
+        const refundedAmount = t.refunded_amount || 0;
+        const netAmount = t.amount - refundedAmount;
+        return sum + netAmount;
+      }, 0);
 
     const available = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 

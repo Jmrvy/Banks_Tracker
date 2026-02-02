@@ -764,6 +764,7 @@ export function useFinancialData() {
   }, [user?.id]);
 
   // Create a refund for an existing transaction
+  // Supports refund amounts > remaining to refund - excess is created as standalone income
   const createRefund = async (refund: {
     original_transaction_id: string;
     amount: number;
@@ -790,52 +791,77 @@ export function useFinancialData() {
     const currentRefunded = originalTransaction.refunded_amount || 0;
     const remainingToRefund = originalTransaction.amount - currentRefunded;
     
-    if (refund.amount > remainingToRefund) {
-      return { error: { message: `Le montant maximum remboursable est de ${remainingToRefund.toFixed(2)} €` } };
+    // Calculate how much goes to linked refund vs excess
+    const linkedRefundAmount = Math.min(refund.amount, remainingToRefund);
+    const excessAmount = Math.max(0, refund.amount - remainingToRefund);
+    
+    // Create the linked refund transaction (as income, excluded from stats)
+    if (linkedRefundAmount > 0) {
+      const { error: refundError } = await supabase
+        .from('transactions')
+        .insert([{
+          description: refund.description,
+          amount: linkedRefundAmount,
+          type: 'income',
+          account_id: refund.account_id,
+          category_id: refund.category_id || originalTransaction.category_id,
+          transaction_date: refund.transaction_date,
+          value_date: refund.value_date || refund.transaction_date,
+          refund_of_transaction_id: refund.original_transaction_id,
+          include_in_stats: false, // Refunds are excluded from stats - net amount is calculated from original
+          user_id: user.id
+        }]);
+      
+      if (refundError) {
+        console.error('Error creating linked refund:', refundError);
+        return { error: refundError };
+      }
+      
+      // Update the original transaction's refunded_amount
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({ 
+          refunded_amount: currentRefunded + linkedRefundAmount 
+        })
+        .eq('id', refund.original_transaction_id)
+        .eq('user_id', user.id);
+      
+      if (updateError) {
+        console.error('Error updating refunded amount:', updateError);
+        return { error: updateError };
+      }
     }
     
-    // Create the refund transaction (as income)
-    const { error: refundError } = await supabase
-      .from('transactions')
-      .insert([{
-        description: refund.description,
-        amount: refund.amount,
-        type: 'income',
-        account_id: refund.account_id,
-        category_id: refund.category_id || originalTransaction.category_id,
-        transaction_date: refund.transaction_date,
-        value_date: refund.value_date || refund.transaction_date,
-        refund_of_transaction_id: refund.original_transaction_id,
-        include_in_stats: true,
-        user_id: user.id
-      }]);
-    
-    if (refundError) {
-      console.error('Error creating refund:', refundError);
-      return { error: refundError };
+    // Create excess refund as standalone income (included in stats as it's a real gain)
+    if (excessAmount > 0) {
+      const { error: excessError } = await supabase
+        .from('transactions')
+        .insert([{
+          description: `${refund.description} (Excédent)`,
+          amount: excessAmount,
+          type: 'income',
+          account_id: refund.account_id,
+          category_id: refund.category_id || originalTransaction.category_id,
+          transaction_date: refund.transaction_date,
+          value_date: refund.value_date || refund.transaction_date,
+          refund_of_transaction_id: null, // Not linked - it's excess
+          include_in_stats: true, // Excess is real income
+          user_id: user.id
+        }]);
+      
+      if (excessError) {
+        console.error('Error creating excess refund:', excessError);
+        return { error: excessError };
+      }
     }
     
-    // Update the original transaction's refunded_amount
-    const { error: updateError } = await supabase
-      .from('transactions')
-      .update({ 
-        refunded_amount: currentRefunded + refund.amount 
-      })
-      .eq('id', refund.original_transaction_id)
-      .eq('user_id', user.id);
-    
-    if (updateError) {
-      console.error('Error updating refunded amount:', updateError);
-      return { error: updateError };
-    }
-    
-    console.log('Refund created successfully');
+    console.log(`Refund created successfully: ${linkedRefundAmount} linked, ${excessAmount} excess`);
     setTimeout(() => {
       fetchTransactions();
       fetchAccounts();
     }, 100);
     
-    return { error: null };
+    return { error: null, linkedAmount: linkedRefundAmount, excessAmount };
   };
 
   return {
