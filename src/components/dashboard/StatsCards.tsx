@@ -60,11 +60,12 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
 
     // Calculate expenses using NET amount (original amount - refunded amount)
     // This way, if 200€ expense has 160€ refunded, only 40€ is counted
+    // If fully refunded (refunded >= amount), net is 0 (excess is separate income)
     const moneyOut = statsTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => {
         const refundedAmount = t.refunded_amount || 0;
-        const netAmount = t.amount - refundedAmount;
+        const netAmount = Math.max(0, t.amount - refundedAmount);
         return sum + netAmount;
       }, 0);
 
