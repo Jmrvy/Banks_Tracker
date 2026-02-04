@@ -4,12 +4,15 @@ import { fr } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, CalendarClock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface Transaction {
   id: string;
   description: string;
   amount: number;
+  refunded_amount?: number | null;
+  refund_of_transaction_id?: string | null;
   transaction_date: string;
   value_date?: string;
   type: 'income' | 'expense' | 'transfer';
@@ -40,7 +43,22 @@ export const TransactionTypeModal = ({
   const { preferences, formatCurrency } = useUserPreferences();
   const activeDateType = preferences.dateType;
 
-  const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+  const getRefundInfo = (t: Transaction) => {
+    const gross = Number(t.amount);
+    const refunded = Number(t.refunded_amount ?? 0);
+    const net = Math.max(0, gross - refunded);
+    const hasRefund = refunded > 0;
+    const isFullyRefunded = hasRefund && net === 0;
+    return { gross, refunded, net, hasRefund, isFullyRefunded };
+  };
+
+  const getDisplayAmount = (t: Transaction) => {
+    if (type !== "expense") return Number(t.amount);
+    const { net } = getRefundInfo(t);
+    return net;
+  };
+
+  const totalAmount = transactions.reduce((sum, t) => sum + getDisplayAmount(t), 0);
   const title = type === 'income' ? 'Revenus' : 'Dépenses';
   const Icon = type === 'income' ? TrendingUp : TrendingDown;
   const colorClass = type === 'income' ? 'text-success' : 'text-destructive';
@@ -116,6 +134,7 @@ export const TransactionTypeModal = ({
               <TooltipProvider>
                 {transactions.map((transaction) => {
                   const hasDiff = hasDateDifference(transaction);
+                  const refundInfo = type === 'expense' ? getRefundInfo(transaction) : null;
                   
                   return (
                     <Card key={transaction.id} className="hover:shadow-md transition-shadow">
@@ -164,11 +183,31 @@ export const TransactionTypeModal = ({
                                   {transaction.category.name}
                                 </span>
                               )}
+
+                              {type === 'expense' && refundInfo?.hasRefund && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant={refundInfo.isFullyRefunded ? "secondary" : "outline"}
+                                      className="text-[9px] sm:text-xs px-2 py-0.5"
+                                    >
+                                      {refundInfo.isFullyRefunded ? "Remboursé" : "Partiel"}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs">
+                                    <div className="space-y-1">
+                                      <p>Brut : {formatCurrency(refundInfo.gross)}</p>
+                                      <p>Remboursé : {formatCurrency(refundInfo.refunded)}</p>
+                                      <p className="font-medium">Net (stats) : {formatCurrency(refundInfo.net)}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                           </div>
                           <div className="flex-shrink-0">
                             <p className={`text-base sm:text-xl font-bold ${colorClass}`}>
-                              {formatCurrency(transaction.amount)}
+                              {formatCurrency(getDisplayAmount(transaction))}
                             </p>
                           </div>
                         </div>
