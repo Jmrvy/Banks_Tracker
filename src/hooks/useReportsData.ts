@@ -111,11 +111,12 @@ export const useReportsData = (
       .reduce((sum, t) => sum + Number(t.amount), 0);
     
     // Expenses: use NET amount (original - refunded) so only unreimbursed portion counts
+    // If fully refunded (refunded >= amount), net is 0 (excess becomes separate income)
     const expenses = statsTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => {
         const refundedAmount = t.refunded_amount || 0;
-        const netAmount = Number(t.amount) - refundedAmount;
+        const netAmount = Math.max(0, Number(t.amount) - refundedAmount);
         return sum + netAmount;
       }, 0);
 
