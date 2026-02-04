@@ -205,10 +205,21 @@ export const TransactionTypeModal = ({
                               )}
                             </div>
                           </div>
-                          <div className="flex-shrink-0">
-                            <p className={`text-base sm:text-xl font-bold ${colorClass}`}>
-                              {formatCurrency(getDisplayAmount(transaction))}
-                            </p>
+                          <div className="flex-shrink-0 text-right">
+                            {type === 'expense' && refundInfo?.hasRefund ? (
+                              <div className="flex flex-col items-end">
+                                <p className="text-xs sm:text-sm text-muted-foreground line-through">
+                                  {formatCurrency(refundInfo.gross)}
+                                </p>
+                                <p className={`text-base sm:text-xl font-bold ${refundInfo.isFullyRefunded ? 'text-muted-foreground' : colorClass}`}>
+                                  {formatCurrency(refundInfo.net)}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className={`text-base sm:text-xl font-bold ${colorClass}`}>
+                                {formatCurrency(Number(transaction.amount))}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </CardContent>
