@@ -37,14 +37,25 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
     
     return transactions
       .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false)
-      .map(t => ({
-        id: t.id,
-        description: t.description,
-        amount: Math.abs(t.amount),
-        bank: t.account?.bank || 'other',
-        date: t.transaction_date,
-        type: t.type
-      }));
+      .map(t => {
+        const refundedAmount = (t as any).refunded_amount || 0;
+        const grossAmount = Math.abs(t.amount);
+        const netAmount = Math.max(0, grossAmount - refundedAmount);
+        
+        return {
+          id: t.id,
+          description: t.description,
+          amount: grossAmount,
+          netAmount,
+          refundedAmount,
+          isFullyRefunded: refundedAmount >= grossAmount,
+          hasRefund: refundedAmount > 0,
+          bank: t.account?.bank || 'other',
+          date: t.transaction_date,
+          valueDate: (t as any).value_date,
+          type: t.type
+        };
+      });
   };
 
   const chartData = categoryChartData

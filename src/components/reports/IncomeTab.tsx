@@ -47,8 +47,13 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
     id: t.id,
     description: t.description,
     amount: t.amount,
+    netAmount: t.amount, // Pour les revenus, pas de logique de remboursement
+    refundedAmount: 0,
+    isFullyRefunded: false,
+    hasRefund: false,
     bank: t.account?.name || 'other',
     date: t.transaction_date,
+    valueDate: (t as any).value_date,
     type: 'income' as const
   })) || [];
 

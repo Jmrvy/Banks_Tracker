@@ -409,6 +409,7 @@ export const useReportsData = (
     // periodType === 'month' → budgetMultiplier = 1 (pas de changement)
     
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
+    // Utiliser le montant NET (original - remboursé) pour les dépenses
     const expensesByCategory = filteredTransactions
       .filter(t => t.type === 'expense' && t.include_in_stats !== false)
       .reduce((acc, t) => {
@@ -416,6 +417,10 @@ export const useReportsData = (
         const categoryName = t.category?.name || 'Non catégorisé';
         const category = categories.find(c => c.id === categoryId);
         const categoryColor = t.category?.color || '#6b7280';
+        
+        // Calculer le montant net (après remboursement)
+        const refundedAmount = (t as any).refunded_amount || 0;
+        const netAmount = Math.max(0, Number(t.amount) - refundedAmount);
         
         if (!acc[categoryId]) {
           acc[categoryId] = {
@@ -425,7 +430,7 @@ export const useReportsData = (
             color: categoryColor
           };
         }
-        acc[categoryId].spent += Number(t.amount);
+        acc[categoryId].spent += netAmount;
         return acc;
       }, {} as Record<string, any>);
 
