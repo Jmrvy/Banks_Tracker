@@ -5,10 +5,13 @@ interface Transaction {
   description: string;
   amount: number;
   transaction_date: string;
+  value_date?: string;
   type: 'income' | 'expense' | 'transfer';
   account?: {
     name: string;
   };
+  include_in_stats?: boolean;
+  refund_of_transaction_id?: string | null;
 }
 
 export interface IncomeCategory {

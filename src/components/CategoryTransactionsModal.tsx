@@ -1,14 +1,21 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface Transaction {
   id: string;
   description: string;
   amount: number;
+  netAmount?: number;
+  refundedAmount?: number;
+  isFullyRefunded?: boolean;
+  hasRefund?: boolean;
   bank: string;
   date: string;
+  valueDate?: string;
   type: 'expense' | 'income' | 'transfer';
 }
 
@@ -51,8 +58,21 @@ export const CategoryTransactionsModal = ({
   categoryName, 
   transactions 
 }: CategoryTransactionsModalProps) => {
-  const { formatCurrency } = useUserPreferences();
-  const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const { formatCurrency, preferences } = useUserPreferences();
+  
+  // Calculer le total en utilisant les montants nets si disponibles
+  const totalAmount = transactions.reduce((sum, t) => {
+    const netAmount = t.netAmount ?? t.amount;
+    return sum + Math.abs(netAmount);
+  }, 0);
+
+  // Vérifier si une transaction a une date valeur différente de la date comptable
+  const hasValueDateDifference = (t: Transaction) => {
+    if (!t.valueDate) return false;
+    const accountingDate = new Date(t.date).toDateString();
+    const valueDate = new Date(t.valueDate).toDateString();
+    return accountingDate !== valueDate;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,49 +95,109 @@ export const CategoryTransactionsModal = ({
               Aucune transaction trouvée
             </div>
           ) : (
-            transactions.map((transaction) => (
-              <div 
-                key={transaction.id} 
-                className="flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2"
-              >
-                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                    <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
-                      bankColors[transaction.bank] || 'bg-gray-500'
-                    }`} />
-                    <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-muted">
-                      {transaction.type === 'income' ? (
-                        <ArrowDownRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-green-600" />
+            <TooltipProvider>
+              {transactions.map((transaction) => {
+                const hasRefund = transaction.hasRefund || false;
+                const isFullyRefunded = transaction.isFullyRefunded || false;
+                const netAmount = transaction.netAmount ?? transaction.amount;
+                const showValueDate = hasValueDateDifference(transaction) && preferences.dateType === 'value';
+                
+                return (
+                  <div 
+                    key={transaction.id} 
+                    className="flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                        <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
+                          bankColors[transaction.bank] || 'bg-gray-500'
+                        }`} />
+                        <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-muted">
+                          {transaction.type === 'income' ? (
+                            <ArrowDownRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-success" />
+                          ) : (
+                            <ArrowUpRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-destructive" />
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                          {hasRefund && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge 
+                                  variant={isFullyRefunded ? "secondary" : "outline"}
+                                  className={cn(
+                                    "text-[9px] px-1 py-0 h-4 flex-shrink-0",
+                                    isFullyRefunded ? "bg-muted text-muted-foreground" : "border-amber-500 text-amber-600"
+                                  )}
+                                >
+                                  {isFullyRefunded ? "Remboursé" : "Partiel"}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                <div className="space-y-1">
+                                  <p>Brut: {formatCurrency(transaction.amount)}</p>
+                                  <p>Remboursé: {formatCurrency(transaction.refundedAmount || 0)}</p>
+                                  <p className="font-semibold">Net: {formatCurrency(netAmount)}</p>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-2 py-0 h-4 sm:h-5">
+                            {bankNames[transaction.bank] || transaction.bank}
+                          </Badge>
+                          <span className="text-[10px] sm:text-sm text-muted-foreground">
+                            {new Date(transaction.date).toLocaleDateString('fr-FR')}
+                          </span>
+                          {showValueDate && transaction.valueDate && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex items-center gap-0.5 text-[9px] sm:text-xs text-primary">
+                                  <CalendarDays className="w-3 h-3" />
+                                  {new Date(transaction.valueDate).toLocaleDateString('fr-FR')}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                Date valeur (effective)
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right flex-shrink-0">
+                      {transaction.type === 'expense' && hasRefund ? (
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                            {formatCurrency(transaction.amount)}
+                          </span>
+                          <span className={cn(
+                            "font-semibold text-xs sm:text-sm",
+                            isFullyRefunded ? "text-muted-foreground" : "text-foreground"
+                          )}>
+                            {formatCurrency(netAmount)}
+                          </span>
+                        </div>
                       ) : (
-                        <ArrowUpRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-600" />
+                        <span 
+                          className={`font-semibold text-xs sm:text-sm ${
+                            transaction.type === 'income' ? 'text-success' : 'text-foreground'
+                          }`}
+                        >
+                          {formatCurrency(transaction.amount)}
+                        </span>
                       )}
                     </div>
                   </div>
-                  
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
-                    <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1">
-                      <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-2 py-0 h-4 sm:h-5">
-                        {bankNames[transaction.bank] || transaction.bank}
-                      </Badge>
-                      <span className="text-[10px] sm:text-sm text-muted-foreground">
-                        {new Date(transaction.date).toLocaleDateString('fr-FR')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="text-right flex-shrink-0">
-                  <span 
-                    className={`font-semibold text-xs sm:text-sm ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-foreground'
-                    }`}
-                  >
-                    {formatCurrency(transaction.amount)}
-                  </span>
-                </div>
-              </div>
-            ))
+                );
+              })}
+            </TooltipProvider>
           )}
         </div>
       </DialogContent>
