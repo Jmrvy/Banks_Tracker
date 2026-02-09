@@ -106,9 +106,6 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
     // Split recurring transactions into past and future
     const futureRecurringOccurrences = allRecurringOccurrences.filter(occ => occ.date > todayDate);
     
-    console.log('Future recurring occurrences:', futureRecurringOccurrences);
-    console.log('Categories:', categories);
-
     // Calculate total budget from categories
     const totalBudget = categories
       .filter(cat => cat.budget && cat.budget > 0)
