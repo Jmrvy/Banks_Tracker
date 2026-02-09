@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useMemo, ReactNode } from "react";
 import { subMonths, startOfMonth, endOfMonth, subYears, format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-type PeriodType = "1m" | "3m" | "1y" | "custom";
+type PeriodType = "1m" | "3m" | "ytd" | "1y" | "custom";
 
 interface DateRange {
   start: Date;
@@ -48,6 +48,11 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
         start = startOfMonth(subMonths(now, 2));
         end = endOfMonth(now);
         label = "Derniers 3 mois";
+        break;
+      case "ytd":
+        start = new Date(now.getFullYear(), 0, 1);
+        end = endOfMonth(now);
+        label = "Depuis début " + now.getFullYear();
         break;
       case "1y":
         start = startOfMonth(subYears(now, 1));

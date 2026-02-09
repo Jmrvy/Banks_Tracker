@@ -38,6 +38,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
   const periods = [
     { label: "1M", value: "1m" },
     { label: "3M", value: "3m" },
+    { label: "YTD", value: "ytd" },
     { label: "1Y", value: "1y" },
     { label: "Custom", value: "custom" },
   ];
