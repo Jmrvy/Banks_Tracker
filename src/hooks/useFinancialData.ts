@@ -81,7 +81,6 @@ export function useFinancialData() {
 
   const fetchTransactions = async () => {
     if (!user) return;
-    console.log('Fetching transactions for user:', user.id);
 
     const { data, error } = await supabase
       .from('transactions')
@@ -100,13 +99,10 @@ export function useFinancialData() {
     }
 
     if (data) {
-      console.log('Raw transaction data:', data);
       const processedTransactions = data.map(t => ({
         ...t,
-        account: t.account || { name: 'Unknown', bank: 'unknown' },
         transfer_to_account: t.transfer_to_account || undefined
       })) as Transaction[];
-      console.log('Processed transactions:', processedTransactions);
       setTransactions(processedTransactions);
     }
   };
@@ -127,7 +123,6 @@ export function useFinancialData() {
   // FIXED: Added 'id' to category select
   const fetchRecurringTransactions = async () => {
     if (!user) return;
-    console.log('Fetching recurring transactions for user:', user.id);
     
     const { data, error } = await supabase
       .from('recurring_transactions')
@@ -145,13 +140,11 @@ export function useFinancialData() {
     }
 
     if (data) {
-      console.log('Raw recurring transaction data:', data);
       const processedRecurring = data.map(rt => ({
         ...rt,
         account: rt.account || null,
         category: rt.category || null
       })) as RecurringTransaction[];
-      console.log('Processed recurring transactions:', processedRecurring);
       setRecurringTransactions(processedRecurring);
       
       // Auto-deactivate expired recurring transactions
@@ -171,10 +164,7 @@ export function useFinancialData() {
 
     if (expiredTransactions.length === 0) return;
 
-    console.log(`Found ${expiredTransactions.length} expired recurring transactions to deactivate`);
-
     for (const rt of expiredTransactions) {
-      console.log(`Deactivating expired transaction: ${rt.description} (end_date: ${rt.end_date})`);
       
       const { error } = await supabase
         .from('recurring_transactions')
@@ -227,7 +217,6 @@ export function useFinancialData() {
 
   const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null }) => {
     if (!user) return;
-    console.log('Creating transaction:', transaction);
 
     // Si value_date n'est pas fournie, utiliser transaction_date
     // Si include_in_stats n'est pas fourni, utiliser true par défaut
@@ -245,7 +234,6 @@ export function useFinancialData() {
     if (error) {
       console.error('Error creating transaction:', error);
     } else {
-      console.log('Transaction created successfully, refetching data...');
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();
@@ -264,7 +252,6 @@ export function useFinancialData() {
     value_date?: string;
   }) => {
     if (!user) return;
-    console.log('Creating transfer:', transfer);
     
     const { error } = await supabase
       .from('transactions')
@@ -283,7 +270,6 @@ export function useFinancialData() {
     if (error) {
       console.error('Error creating transfer:', error);
     } else {
-      console.log('Transfer created successfully, refetching data...');
       setTimeout(() => {
         fetchTransactions();
         fetchAccounts();
@@ -551,9 +537,6 @@ export function useFinancialData() {
     // Use string comparison for dates to avoid timezone issues
     const todayString = new Date().toISOString().split('T')[0];
     
-    console.log('Processing recurring transactions for date:', todayString);
-    console.log('Total recurring transactions:', recurringTransactions.length);
-    
     const dueTransactions = recurringTransactions.filter(rt => {
       if (!rt.is_active) return false;
       
@@ -561,14 +544,7 @@ export function useFinancialData() {
       const isDue = rt.next_due_date <= todayString;
       const isNotExpired = !rt.end_date || rt.end_date >= rt.next_due_date;
       
-      console.log(`Checking ${rt.description}: due ${rt.next_due_date} vs today ${todayString} - isDue: ${isDue}, isNotExpired: ${isNotExpired}`);
-      
       return isDue && isNotExpired;
-    });
-
-    console.log('Due transactions found:', dueTransactions.length);
-    dueTransactions.forEach(rt => {
-      console.log(`- ${rt.description}: due ${rt.next_due_date}, active: ${rt.is_active}`);
     });
 
     let processedCount = 0;
@@ -577,7 +553,7 @@ export function useFinancialData() {
       try {
         // Check if end_date has passed
         if (rt.end_date && rt.end_date < todayString) {
-          console.log(`Deactivating expired recurring transaction: ${rt.description}`);
+          
           
           // Deactivate the recurring transaction
           await supabase
@@ -647,7 +623,7 @@ export function useFinancialData() {
           .eq('id', rt.id);
 
         processedCount += occurrencesProcessed;
-        console.log(`Processed ${occurrencesProcessed} occurrences for recurring transaction: ${rt.description}`);
+        
 
       } catch (error) {
         console.error(`Error processing recurring transaction ${rt.id}:`, error);
@@ -655,7 +631,7 @@ export function useFinancialData() {
     }
 
     if (processedCount > 0) {
-      console.log(`Processed ${processedCount} total recurring transactions`);
+      
       // Refresh data after processing
       fetchRecurringTransactions();
       fetchTransactions();
@@ -708,7 +684,7 @@ export function useFinancialData() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Account change detected:', payload);
+          
           fetchAccounts();
         }
       )
@@ -721,7 +697,7 @@ export function useFinancialData() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Transaction change detected:', payload);
+          
           setTimeout(() => {
             fetchTransactions();
             fetchAccounts();
@@ -737,7 +713,7 @@ export function useFinancialData() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Category change detected:', payload);
+          
           fetchCategories();
         }
       )
@@ -750,14 +726,14 @@ export function useFinancialData() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Recurring transaction change detected:', payload);
+          
           fetchRecurringTransactions();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscriptions and intervals');
+      
       clearInterval(recurringCheckInterval);
       supabase.removeChannel(channel);
     };
