@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings, Plus, FileText, Eye, EyeOff, CalendarIcon } from "lucide-react";
+import { Calendar, Plus, FileText, Eye, EyeOff, CalendarIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -142,17 +142,9 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/settings")}
-              className="text-muted-foreground hover:text-foreground h-8 px-2 md:px-4 hidden lg:flex"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
           </div>
         </div>
+
 
         {/* Custom date range picker */}
         {selectedPeriod === "custom" && (

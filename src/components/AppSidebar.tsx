@@ -152,26 +152,21 @@ export function AppSidebar() {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Settings */}
-          <Link
-            to="/settings"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mt-4",
-              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              isActive("/settings")
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/70"
-            )}
-          >
-            <Settings className="h-5 w-5" />
-            <span>Paramètres</span>
-          </Link>
         </div>
       </nav>
 
-      {/* User section */}
+      {/* User section - links to settings */}
       <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-3 py-2">
+        <Link
+          to="/settings"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            isActive("/settings")
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : ""
+          )}
+        >
           <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
             JM
           </div>
@@ -179,7 +174,7 @@ export function AppSidebar() {
             <p className="text-sm font-medium text-sidebar-foreground truncate">Joris</p>
             <p className="text-xs text-sidebar-foreground/60 truncate">Gérer le profil</p>
           </div>
-        </div>
+        </Link>
       </div>
     </aside>
   );
