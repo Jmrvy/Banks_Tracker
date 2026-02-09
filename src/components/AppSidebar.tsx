@@ -89,7 +89,7 @@ export function AppSidebar() {
           })}
 
           {/* Comptes Group */}
-          <Collapsible defaultOpen={isGroupActive(accountsGroup)} className="mt-4">
+          <Collapsible defaultOpen className="mt-4">
             <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
               <div className="flex items-center gap-2">
                 <Wallet className="h-4 w-4" />
@@ -121,7 +121,7 @@ export function AppSidebar() {
           </Collapsible>
 
           {/* Outils Group */}
-          <Collapsible defaultOpen={isGroupActive(toolsGroup)} className="mt-2">
+          <Collapsible defaultOpen className="mt-2">
             <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
               <div className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
