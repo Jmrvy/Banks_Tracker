@@ -194,9 +194,7 @@ export const MobileNavigation = () => {
                 })}
               </div>
 
-              <Separator className="my-2" />
-
-              {/* Settings */}
+              {/* Gérer le profil */}
               <Link
                 to="/settings"
                 onClick={() => setMenuOpen(false)}
@@ -209,7 +207,7 @@ export const MobileNavigation = () => {
                 )}
               >
                 <Settings className="h-5 w-5" />
-                <span>Paramètres</span>
+                <span>Gérer le profil</span>
               </Link>
             </div>
           </nav>
