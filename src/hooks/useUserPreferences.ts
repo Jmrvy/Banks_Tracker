@@ -5,13 +5,15 @@ export interface UserPreferences {
   dateFormat: string;
   enableNotifications: boolean;
   dateType: 'accounting' | 'value'; // Date utilisée pour les calculs
+  accountAliases: Record<string, string>; // account_id -> alias (e.g. "CB Gold" -> "SocGen")
 }
 
 const defaultPreferences: UserPreferences = {
   currency: "EUR",
   dateFormat: "DD/MM/YYYY",
   enableNotifications: true,
-  dateType: "accounting" // Par défaut, utiliser la date comptable
+  dateType: "accounting", // Par défaut, utiliser la date comptable
+  accountAliases: {}
 };
 
 export const useUserPreferences = () => {

@@ -22,7 +22,7 @@ interface NewTransactionModalProps {
 
 export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalProps) => {
   const { toast } = useToast();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { accounts, categories, createTransaction, createTransfer } = useFinancialData();
   
   const [formData, setFormData] = useState({
@@ -205,8 +205,9 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 const fromAccount = accounts.find(acc => acc.id === value);
                 const toAccount = accounts.find(acc => acc.id === formData.to_account_id);
                 const shouldUpdateDescription = formData.type === 'transfer' && fromAccount && toAccount;
+                const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
                 const autoDescription = shouldUpdateDescription 
-                  ? `Transfert ${fromAccount.name} → ${toAccount.name}`
+                  ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
                   : formData.description;
                 setFormData({ ...formData, account_id: value, description: autoDescription });
               }}
@@ -249,8 +250,9 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 onValueChange={(value) => {
                   const toAccount = accounts.find(acc => acc.id === value);
                   const fromAccount = accounts.find(acc => acc.id === formData.account_id);
+                  const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
                   const autoDescription = fromAccount && toAccount 
-                    ? `Transfert ${fromAccount.name} → ${toAccount.name}`
+                    ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
                     : formData.description;
                   setFormData({ ...formData, to_account_id: value, description: autoDescription });
                 }}
@@ -346,9 +348,6 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
                 placeholder="Date valeur"
               />
-              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                Par défaut = date comptable
-              </p>
             </div>
           </div>
 
