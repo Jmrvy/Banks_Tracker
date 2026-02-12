@@ -1,22 +1,21 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, MinusCircle, ArrowRightLeft, ArrowLeft, Plus } from 'lucide-react';
+import { PlusCircle, MinusCircle, ArrowRightLeft, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useNavigate } from 'react-router-dom';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const NewTransaction = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { accounts, categories, transactions, createTransaction, createTransfer } = useFinancialData();
   
   const [formData, setFormData] = useState({
@@ -216,9 +215,18 @@ const NewTransaction = () => {
               {/* Account Selection */}
               <div className="space-y-2">
                 <Label htmlFor="account">Compte *</Label>
-                <Select 
+              <Select 
                   value={formData.account_id} 
-                  onValueChange={(value) => setFormData({ ...formData, account_id: value })}
+                  onValueChange={(value) => {
+                    const fromAccount = accounts.find(acc => acc.id === value);
+                    const toAccount = accounts.find(acc => acc.id === formData.to_account_id);
+                    const shouldUpdateDescription = formData.type === 'transfer' && fromAccount && toAccount;
+                    const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                    const autoDescription = shouldUpdateDescription 
+                      ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                      : formData.description;
+                    setFormData({ ...formData, account_id: value, description: autoDescription });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un compte" />
@@ -255,7 +263,15 @@ const NewTransaction = () => {
                   <Label htmlFor="to_account">Compte de destination *</Label>
                   <Select 
                     value={formData.to_account_id} 
-                    onValueChange={(value) => setFormData({ ...formData, to_account_id: value })}
+                    onValueChange={(value) => {
+                      const toAccount = accounts.find(acc => acc.id === value);
+                      const fromAccount = accounts.find(acc => acc.id === formData.account_id);
+                      const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                      const autoDescription = fromAccount && toAccount 
+                        ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                        : formData.description;
+                      setFormData({ ...formData, to_account_id: value, description: autoDescription });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner le compte de destination" />
@@ -322,39 +338,32 @@ const NewTransaction = () => {
                 </div>
               )}
 
-              {/* Transaction Date */}
-              <div className="space-y-2">
-                <Label htmlFor="date">Date Comptable *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.transaction_date}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setFormData({ 
-                      ...formData, 
-                      transaction_date: newDate,
-                      // Mettre à jour value_date seulement si elle est égale à l'ancienne transaction_date
-                      value_date: formData.value_date === formData.transaction_date ? newDate : formData.value_date
-                    });
-                  }}
-                  required
-                />
-              </div>
-
-              {/* Value Date */}
-              <div className="space-y-2">
-                <Label htmlFor="value_date">Date Valeur *</Label>
-                <Input
-                  id="value_date"
-                  type="date"
-                  value={formData.value_date}
-                  onChange={(e) => setFormData({ ...formData, value_date: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Date effective de la transaction (par défaut = date comptable)
-                </p>
+              {/* Transaction Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">Date Comptable *</Label>
+                  <DatePicker
+                    date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+                    onDateChange={(date) => {
+                      const newDate = date ? date.toISOString().split('T')[0] : '';
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        transaction_date: newDate,
+                        value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
+                      }));
+                    }}
+                    placeholder="Date comptable"
+                  />
+                </div>
+                
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">Date Valeur *</Label>
+                  <DatePicker
+                    date={formData.value_date ? new Date(formData.value_date) : undefined}
+                    onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
+                    placeholder="Date valeur"
+                  />
+                </div>
               </div>
 
               {/* Actions */}

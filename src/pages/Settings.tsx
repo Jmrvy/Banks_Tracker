@@ -429,6 +429,42 @@ const Settings = () => {
                 </p>
               </div>
 
+              <Separator />
+
+              {/* Account Aliases for Transfer Descriptions */}
+              <div className="space-y-3">
+                <div>
+                  <Label>Alias des comptes (transferts)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Nom court utilisé dans la description automatique des transferts (ex: CB Gold → SocGen)
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {accounts.map((account) => (
+                    <div key={account.id} className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm text-muted-foreground min-w-[100px] sm:min-w-[140px] truncate">
+                        {account.name}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                      <Input
+                        value={preferences.accountAliases[account.id] || ''}
+                        onChange={(e) => {
+                          const newAliases = { ...preferences.accountAliases };
+                          if (e.target.value) {
+                            newAliases[account.id] = e.target.value;
+                          } else {
+                            delete newAliases[account.id];
+                          }
+                          updatePreferences({ accountAliases: newAliases });
+                        }}
+                        placeholder={account.name}
+                        className="h-8 sm:h-10 text-xs sm:text-sm flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <Button onClick={savePreferences} className="w-full sm:w-auto">
                 Sauvegarder les préférences
               </Button>
