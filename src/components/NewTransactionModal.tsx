@@ -138,7 +138,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               type="button"
               variant={formData.type === 'income' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFormData({ ...formData, type: 'income' })}
+              onClick={() => setFormData(prev => ({ ...prev, type: 'income' }))}
               className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
               <PlusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
@@ -149,7 +149,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               type="button"
               variant={formData.type === 'expense' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFormData({ ...formData, type: 'expense' })}
+              onClick={() => setFormData(prev => ({ ...prev, type: 'expense' }))}
               className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
               <MinusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
@@ -160,7 +160,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               type="button"
               variant={formData.type === 'transfer' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFormData({ ...formData, type: 'transfer' })}
+              onClick={() => setFormData(prev => ({ ...prev, type: 'transfer' }))}
               className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
               <ArrowRightLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
@@ -178,7 +178,10 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               id="description"
               placeholder={formData.type === 'transfer' ? "Description (optionnelle)..." : "Saisissez la description..."}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData(prev => ({ ...prev, description: val }));
+              }}
               required={formData.type !== 'transfer'}
               rows={2}
             />
@@ -191,7 +194,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               id="amount"
               placeholder="0.00"
               value={formData.amount}
-              onChange={(value) => setFormData({ ...formData, amount: value })}
+              onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
               required
             />
           </div>
@@ -202,14 +205,15 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
             <Select 
               value={formData.account_id} 
               onValueChange={(value) => {
-                const fromAccount = accounts.find(acc => acc.id === value);
-                const toAccount = accounts.find(acc => acc.id === formData.to_account_id);
-                const shouldUpdateDescription = formData.type === 'transfer' && fromAccount && toAccount;
-                const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
-                const autoDescription = shouldUpdateDescription 
-                  ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
-                  : formData.description;
-                setFormData({ ...formData, account_id: value, description: autoDescription });
+                setFormData(prev => {
+                  const fromAccount = accounts.find(acc => acc.id === value);
+                  const toAccount = accounts.find(acc => acc.id === prev.to_account_id);
+                  const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                  const autoDescription = prev.type === 'transfer' && fromAccount && toAccount 
+                    ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                    : prev.description;
+                  return { ...prev, account_id: value, description: autoDescription };
+                });
               }}
             >
               <SelectTrigger>
@@ -248,13 +252,15 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <Select 
                 value={formData.to_account_id} 
                 onValueChange={(value) => {
-                  const toAccount = accounts.find(acc => acc.id === value);
-                  const fromAccount = accounts.find(acc => acc.id === formData.account_id);
-                  const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
-                  const autoDescription = fromAccount && toAccount 
-                    ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
-                    : formData.description;
-                  setFormData({ ...formData, to_account_id: value, description: autoDescription });
+                  setFormData(prev => {
+                    const toAccount = accounts.find(acc => acc.id === value);
+                    const fromAccount = accounts.find(acc => acc.id === prev.account_id);
+                    const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                    const autoDescription = fromAccount && toAccount 
+                      ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                      : prev.description;
+                    return { ...prev, to_account_id: value, description: autoDescription };
+                  });
                 }}
               >
                 <SelectTrigger>
@@ -289,7 +295,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 id="transfer_fee"
                 placeholder="0.00"
                 value={formData.transfer_fee}
-                onChange={(value) => setFormData({ ...formData, transfer_fee: value })}
+                onChange={(value) => setFormData(prev => ({ ...prev, transfer_fee: value }))}
               />
             </div>
           )}
@@ -300,7 +306,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <Label htmlFor="category">Catégorie</Label>
               <Select
                 value={formData.category_id}
-                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
@@ -345,7 +351,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <Label className="text-xs sm:text-sm">Date Valeur *</Label>
               <DatePicker
                 date={formData.value_date ? new Date(formData.value_date) : undefined}
-                onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
+                onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
                 placeholder="Date valeur"
               />
             </div>
@@ -364,7 +370,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
             <Switch
               id="include_in_stats"
               checked={formData.include_in_stats}
-              onCheckedChange={(checked) => setFormData({ ...formData, include_in_stats: checked })}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, include_in_stats: checked }))}
             />
           </div>
 

@@ -153,7 +153,7 @@ const NewTransaction = () => {
                   type="button"
                   variant={formData.type === 'income' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFormData({ ...formData, type: 'income' })}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'income' }))}
                   className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -164,7 +164,7 @@ const NewTransaction = () => {
                   type="button"
                   variant={formData.type === 'expense' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFormData({ ...formData, type: 'expense' })}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'expense' }))}
                   className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   <MinusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -175,7 +175,7 @@ const NewTransaction = () => {
                   type="button"
                   variant={formData.type === 'transfer' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFormData({ ...formData, type: 'transfer' })}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'transfer' }))}
                   className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   <ArrowRightLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -193,7 +193,10 @@ const NewTransaction = () => {
                   id="description"
                   placeholder={formData.type === 'transfer' ? "Description (optionnelle)..." : "Description..."}
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, description: val }));
+                  }}
                   required={formData.type !== 'transfer'}
                   className="min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm"
                 />
@@ -206,7 +209,7 @@ const NewTransaction = () => {
                   id="amount"
                   placeholder="0.00"
                   value={formData.amount}
-                  onChange={(value) => setFormData({ ...formData, amount: value })}
+                  onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
                   required
                   className="h-8 sm:h-10 text-xs sm:text-sm"
                 />
@@ -218,14 +221,15 @@ const NewTransaction = () => {
               <Select 
                   value={formData.account_id} 
                   onValueChange={(value) => {
-                    const fromAccount = accounts.find(acc => acc.id === value);
-                    const toAccount = accounts.find(acc => acc.id === formData.to_account_id);
-                    const shouldUpdateDescription = formData.type === 'transfer' && fromAccount && toAccount;
-                    const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
-                    const autoDescription = shouldUpdateDescription 
-                      ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
-                      : formData.description;
-                    setFormData({ ...formData, account_id: value, description: autoDescription });
+                    setFormData(prev => {
+                      const fromAccount = accounts.find(acc => acc.id === value);
+                      const toAccount = accounts.find(acc => acc.id === prev.to_account_id);
+                      const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                      const autoDescription = prev.type === 'transfer' && fromAccount && toAccount 
+                        ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                        : prev.description;
+                      return { ...prev, account_id: value, description: autoDescription };
+                    });
                   }}
                 >
                   <SelectTrigger>
@@ -264,13 +268,15 @@ const NewTransaction = () => {
                   <Select 
                     value={formData.to_account_id} 
                     onValueChange={(value) => {
-                      const toAccount = accounts.find(acc => acc.id === value);
-                      const fromAccount = accounts.find(acc => acc.id === formData.account_id);
-                      const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
-                      const autoDescription = fromAccount && toAccount 
-                        ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
-                        : formData.description;
-                      setFormData({ ...formData, to_account_id: value, description: autoDescription });
+                      setFormData(prev => {
+                        const toAccount = accounts.find(acc => acc.id === value);
+                        const fromAccount = accounts.find(acc => acc.id === prev.account_id);
+                        const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                        const autoDescription = fromAccount && toAccount 
+                          ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                          : prev.description;
+                        return { ...prev, to_account_id: value, description: autoDescription };
+                      });
                     }}
                   >
                     <SelectTrigger>
@@ -305,7 +311,7 @@ const NewTransaction = () => {
                     id="transfer_fee"
                     placeholder="0.00"
                     value={formData.transfer_fee}
-                    onChange={(value) => setFormData({ ...formData, transfer_fee: value })}
+                    onChange={(value) => setFormData(prev => ({ ...prev, transfer_fee: value }))}
                   />
                 </div>
               )}
@@ -316,7 +322,7 @@ const NewTransaction = () => {
                   <Label htmlFor="category">Catégorie</Label>
                   <Select 
                     value={formData.category_id} 
-                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
@@ -360,7 +366,7 @@ const NewTransaction = () => {
                   <Label className="text-xs sm:text-sm">Date Valeur *</Label>
                   <DatePicker
                     date={formData.value_date ? new Date(formData.value_date) : undefined}
-                    onDateChange={(date) => setFormData({ ...formData, value_date: date ? date.toISOString().split('T')[0] : '' })}
+                    onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
                     placeholder="Date valeur"
                   />
                 </div>
