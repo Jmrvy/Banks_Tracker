@@ -66,64 +66,72 @@ const NewTransaction = () => {
 
     setLoading(true);
     
-    let error;
-    
-    if (formData.type === 'transfer') {
-      const result = await createTransfer({
-        description: formData.description || 'Transfert',
-        amount: parseFloat(formData.amount),
-        from_account_id: formData.account_id,
-        to_account_id: formData.to_account_id,
-        transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
-        transaction_date: formData.transaction_date,
-        value_date: formData.value_date,
-      });
-      error = result?.error;
-    } else {
-      const result = await createTransaction({
-        description: formData.description,
-        amount: parseFloat(formData.amount),
-        type: formData.type as 'income' | 'expense',
-        account_id: formData.account_id,
-        category_id: formData.category_id || undefined,
-        transaction_date: formData.transaction_date,
-        value_date: formData.value_date,
-        include_in_stats: true, // Valeur par défaut pour les transactions manuelles
-      });
-      error = result?.error;
-    }
+    try {
+      let error;
+      
+      if (formData.type === 'transfer') {
+        const result = await createTransfer({
+          description: formData.description || 'Transfert',
+          amount: parseFloat(formData.amount),
+          from_account_id: formData.account_id,
+          to_account_id: formData.to_account_id,
+          transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
+          transaction_date: formData.transaction_date,
+          value_date: formData.value_date,
+        });
+        error = result?.error;
+      } else {
+        const result = await createTransaction({
+          description: formData.description,
+          amount: parseFloat(formData.amount),
+          type: formData.type as 'income' | 'expense',
+          account_id: formData.account_id,
+          category_id: formData.category_id || undefined,
+          transaction_date: formData.transaction_date,
+          value_date: formData.value_date,
+          include_in_stats: true,
+        });
+        error = result?.error;
+      }
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Erreur lors de la création",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        const typeLabel = formData.type === 'income' ? 'Revenus' : 
+                         formData.type === 'transfer' ? 'Transfert' : 'Dépense';
+        toast({
+          title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
+          description: `${typeLabel} de ${formData.amount}€ ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
+        });
+        
+        setFormData({
+          description: '',
+          amount: '',
+          type: 'expense',
+          account_id: '',
+          to_account_id: '',
+          category_id: '',
+          transfer_fee: '',
+          transaction_date: new Date().toISOString().split('T')[0],
+          value_date: new Date().toISOString().split('T')[0]
+        });
+        
+        navigate('/');
+      }
+    } catch (err) {
+      console.error("Transaction failed:", err);
       toast({
-        title: "Erreur lors de la création",
-        description: error.message,
+        title: "Erreur inattendue",
+        description: "Une erreur inattendue s'est produite. Veuillez réessayer.",
         variant: "destructive",
       });
-    } else {
-      const typeLabel = formData.type === 'income' ? 'Revenus' : 
-                       formData.type === 'transfer' ? 'Transfert' : 'Dépense';
-      toast({
-        title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
-        description: `${typeLabel} de ${formData.amount}€ ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
-      });
-      
-      // Reset form
-      setFormData({
-        description: '',
-        amount: '',
-        type: 'expense',
-        account_id: '',
-        to_account_id: '',
-        category_id: '',
-        transfer_fee: '',
-        transaction_date: new Date().toISOString().split('T')[0],
-        value_date: new Date().toISOString().split('T')[0]
-      });
-      
-      navigate('/');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const selectedAccount = accounts.find(acc => acc.id === formData.account_id);
@@ -224,7 +232,8 @@ const NewTransaction = () => {
                     setFormData(prev => {
                       const fromAccount = accounts.find(acc => acc.id === value);
                       const toAccount = accounts.find(acc => acc.id === prev.to_account_id);
-                      const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                      const aliases = preferences?.accountAliases || {};
+                      const getAlias = (acc: any) => aliases[acc.id] || acc.name;
                       const autoDescription = prev.type === 'transfer' && fromAccount && toAccount 
                         ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
                         : prev.description;
@@ -271,7 +280,8 @@ const NewTransaction = () => {
                       setFormData(prev => {
                         const toAccount = accounts.find(acc => acc.id === value);
                         const fromAccount = accounts.find(acc => acc.id === prev.account_id);
-                        const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                        const aliases = preferences?.accountAliases || {};
+                        const getAlias = (acc: any) => aliases[acc.id] || acc.name;
                         const autoDescription = fromAccount && toAccount 
                           ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
                           : prev.description;
