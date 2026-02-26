@@ -209,10 +209,7 @@ export const useInstallmentPayments = () => {
 
       if (recurringError) {
         console.error('Error syncing recurring transaction:', recurringError);
-<<<<<<< HEAD
-=======
         // Non-blocking: the installment was updated; log but don't fail
->>>>>>> 4e7d177 (Fix installment sync, add budget chart, security improvements)
       }
     }
 
