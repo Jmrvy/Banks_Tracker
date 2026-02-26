@@ -154,9 +154,26 @@ export const useInstallmentPayments = () => {
   const updateInstallmentPayment = async (id: string, updates: Partial<InstallmentPayment>) => {
     if (!user) return { error: new Error('User not authenticated') };
 
+    // Find the current installment payment to calculate adjustments
+    const currentInstallment = installmentPayments.find(ip => ip.id === id);
+
+    // If total_amount is being updated, recalculate remaining_amount
+    const finalUpdates = { ...updates };
+    if (updates.total_amount !== undefined && currentInstallment) {
+      // Calculate how much has already been paid
+      const amountAlreadyPaid = currentInstallment.total_amount - currentInstallment.remaining_amount;
+      // New remaining = new total - what's already been paid
+      finalUpdates.remaining_amount = Math.max(0, updates.total_amount - amountAlreadyPaid);
+
+      // If the new remaining is 0 or less, mark as inactive
+      if (finalUpdates.remaining_amount <= 0) {
+        finalUpdates.is_active = false;
+      }
+    }
+
     const { error } = await supabase
       .from('installment_payments')
-      .update(updates)
+      .update(finalUpdates)
       .eq('id', id)
       .eq('user_id', user.id);
 
