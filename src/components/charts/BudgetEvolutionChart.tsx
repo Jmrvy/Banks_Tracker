@@ -1,5 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   LineChart,
   Line,
@@ -8,9 +15,9 @@ import {
   ReferenceLine,
   Tooltip,
   ResponsiveContainer,
-  Legend,
+  Area,
 } from "recharts";
-import { startOfMonth, endOfMonth, eachDayOfInterval, format } from "date-fns";
+import { eachDayOfInterval, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Transaction } from "@/hooks/useFinancialData";
 import { CategoryData } from "@/hooks/useReportsData";
@@ -39,89 +46,97 @@ export function BudgetEvolutionChart({
     [categoryChartData]
   );
 
+  // State for selected category
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string>("");
+
+  // Auto-select the first category with budget if none selected
+  const selectedCategory = useMemo(() => {
+    if (budgetedCategories.length === 0) return null;
+    const found = budgetedCategories.find((c) => c.name === selectedCategoryName);
+    return found || budgetedCategories[0];
+  }, [budgetedCategories, selectedCategoryName]);
+
   const days = useMemo(
     () => eachDayOfInterval({ start: periodStart, end: periodEnd }),
     [periodStart, periodEnd]
   );
 
-  // Build one data-point per day: { date, [categoryName]: cumulativeSpent }
+  // Build chart data for the selected category only
   const chartData = useMemo(() => {
-    // Precompute per-category cumulative spending indexed by date string
-    const cumulatives: Record<string, Record<string, number>> = {};
+    if (!selectedCategory) return [];
 
-    for (const cat of budgetedCategories) {
-      const catTxs = transactions
-        .filter(
-          (t) =>
-            t.type === "expense" &&
-            t.include_in_stats !== false &&
-            t.category?.name === cat.name
-        )
-        .sort(
-          (a, b) =>
-            new Date(a.transaction_date).getTime() -
-            new Date(b.transaction_date).getTime()
-        );
+    const catTxs = transactions
+      .filter(
+        (t) =>
+          t.type === "expense" &&
+          t.include_in_stats !== false &&
+          t.category?.name === selectedCategory.name
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.transaction_date).getTime() -
+          new Date(b.transaction_date).getTime()
+      );
 
-      let running = 0;
-      const byDate: Record<string, number> = {};
-
-      for (const day of days) {
-        const dayStr = format(day, "yyyy-MM-dd");
-        const dayTotal = catTxs
-          .filter((t) => t.transaction_date === dayStr)
-          .reduce((s, t) => s + t.amount, 0);
-        running += dayTotal;
-        byDate[dayStr] = running;
-      }
-
-      cumulatives[cat.name] = byDate;
-    }
+    let running = 0;
 
     return days.map((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
-      const point: Record<string, number | string> = {
+      const dayTotal = catTxs
+        .filter((t) => t.transaction_date === dayStr)
+        .reduce((s, t) => s + t.amount, 0);
+      running += dayTotal;
+
+      return {
         date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
+        spent: running,
+        budget: selectedCategory.budget,
       };
-      for (const cat of budgetedCategories) {
-        point[cat.name] = cumulatives[cat.name]?.[dayStr] ?? 0;
-      }
-      return point;
     });
-  }, [budgetedCategories, transactions, days, isMobile]);
+  }, [selectedCategory, transactions, days, isMobile]);
 
   if (budgetedCategories.length === 0) return null;
 
-  // Y-axis max: highest budget × 1.15 or highest spend, whichever is larger
-  const yMax = Math.max(
-    ...budgetedCategories.map((c) => Math.max(c.budget * 1.15, c.spent * 1.05))
-  );
+  // Y-axis max based on selected category
+  const yMax = selectedCategory
+    ? Math.max(selectedCategory.budget * 1.15, selectedCategory.spent * 1.05, 100)
+    : 100;
+
+  const isOverBudget = selectedCategory && selectedCategory.spent > selectedCategory.budget;
+  const percentUsed = selectedCategory
+    ? Math.round((selectedCategory.spent / selectedCategory.budget) * 100)
+    : 0;
 
   const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
+    if (!active || !payload?.length || !selectedCategory) return null;
+    const spentValue = payload.find((p: any) => p.dataKey === "spent")?.value || 0;
+    const isOver = spentValue > selectedCategory.budget;
+
     return (
-      <div className="bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl p-2.5 text-xs max-w-[200px]">
+      <div className="bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl p-2.5 text-xs">
         <p className="font-semibold text-foreground mb-1.5 pb-1 border-b border-border/30">
           {label}
         </p>
-        {payload.map((p: any) => {
-          const cat = budgetedCategories.find((c) => c.name === p.dataKey);
-          const isOver = cat && p.value > cat.budget;
-          return (
-            <div key={p.dataKey} className="flex items-center justify-between gap-3 py-0.5">
-              <span className="flex items-center gap-1.5 min-w-0">
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: p.color }}
-                />
-                <span className="truncate text-muted-foreground">{p.dataKey}</span>
-              </span>
-              <span className={isOver ? "text-destructive font-semibold" : "font-medium"}>
-                {formatCurrency(p.value)}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Dépensé</span>
+            <span className={isOver ? "text-destructive font-semibold" : "font-medium"}>
+              {formatCurrency(spentValue)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Budget</span>
+            <span className="font-medium">{formatCurrency(selectedCategory.budget)}</span>
+          </div>
+          {isOver && (
+            <div className="flex items-center justify-between gap-4 pt-1 border-t border-border/30">
+              <span className="text-destructive">Dépassement</span>
+              <span className="text-destructive font-semibold">
+                +{formatCurrency(spentValue - selectedCategory.budget)}
               </span>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
     );
   };
@@ -129,18 +144,108 @@ export function BudgetEvolutionChart({
   return (
     <Card className="border-border bg-card/80 backdrop-blur-sm shadow-sm">
       <CardContent className="p-3 sm:p-5">
-        <h3 className="text-[11px] sm:text-sm font-semibold text-foreground mb-3">
-          Évolution des dépenses vs budget
-        </h3>
-        <p className="text-[10px] text-muted-foreground mb-3 -mt-1">
-          Lignes pleines = dépenses cumulées · Lignes pointillées = seuil du budget
-        </p>
-        <div style={{ height: isMobile ? 220 : 300 }}>
+        {/* Header with title and selector */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          <div>
+            <h3 className="text-[11px] sm:text-sm font-semibold text-foreground">
+              Évolution des dépenses vs budget
+            </h3>
+            <p className="text-[10px] text-muted-foreground">
+              Suivi journalier du cumul des dépenses
+            </p>
+          </div>
+          <Select
+            value={selectedCategory?.name || ""}
+            onValueChange={setSelectedCategoryName}
+          >
+            <SelectTrigger className="w-full sm:w-[180px] h-8 text-xs">
+              <SelectValue placeholder="Sélectionner une catégorie" />
+            </SelectTrigger>
+            <SelectContent>
+              {budgetedCategories.map((cat) => (
+                <SelectItem key={cat.name} value={cat.name} className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    <span>{cat.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Stats summary for selected category */}
+        {selectedCategory && (
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-muted/30 rounded-lg p-2 text-center">
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
+                Budget
+              </p>
+              <p className="text-xs sm:text-sm font-bold">
+                {formatCurrency(selectedCategory.budget)}
+              </p>
+            </div>
+            <div className={`rounded-lg p-2 text-center ${isOverBudget ? "bg-destructive/10" : "bg-muted/30"}`}>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
+                Dépensé
+              </p>
+              <p className={`text-xs sm:text-sm font-bold ${isOverBudget ? "text-destructive" : ""}`}>
+                {formatCurrency(selectedCategory.spent)}
+              </p>
+            </div>
+            <div className={`rounded-lg p-2 text-center ${isOverBudget ? "bg-destructive/10" : "bg-success/10"}`}>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
+                {isOverBudget ? "Dépassement" : "Restant"}
+              </p>
+              <p className={`text-xs sm:text-sm font-bold ${isOverBudget ? "text-destructive" : "text-success"}`}>
+                {isOverBudget ? "+" : ""}{formatCurrency(Math.abs(selectedCategory.remaining))}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {selectedCategory && (
+          <div className="mb-3">
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span>{percentUsed}% utilisé</span>
+              <span>{formatCurrency(selectedCategory.spent)} / {formatCurrency(selectedCategory.budget)}</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  isOverBudget ? "bg-destructive" : "bg-success"
+                }`}
+                style={{ width: `${Math.min(100, percentUsed)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Chart */}
+        <div style={{ height: isMobile ? 200 : 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
               margin={{ top: 8, right: 12, left: isMobile ? -8 : 0, bottom: 8 }}
             >
+              <defs>
+                <linearGradient id="spentGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={selectedCategory?.color || "#8884d8"}
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={selectedCategory?.color || "#8884d8"}
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+              </defs>
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: isMobile ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
@@ -157,55 +262,45 @@ export function BudgetEvolutionChart({
                 width={isMobile ? 32 : 44}
               />
               <Tooltip content={<CustomTooltip />} animationDuration={100} />
-              {!isMobile && (
-                <Legend
-                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                  formatter={(value) => (
-                    <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>
-                  )}
+
+              {/* Budget threshold line */}
+              {selectedCategory && (
+                <ReferenceLine
+                  y={selectedCategory.budget}
+                  stroke="hsl(var(--destructive))"
+                  strokeDasharray="5 3"
+                  strokeWidth={1.5}
+                  label={{
+                    value: `Budget: ${formatCurrency(selectedCategory.budget)}`,
+                    position: "insideTopRight",
+                    fill: "hsl(var(--destructive))",
+                    fontSize: isMobile ? 9 : 11,
+                  }}
                 />
               )}
 
-              {/* Spending lines */}
-              {budgetedCategories.map((cat) => (
-                <Line
-                  key={cat.name}
-                  type="monotone"
-                  dataKey={cat.name}
-                  stroke={cat.color}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, strokeWidth: 0 }}
-                  animationDuration={500}
-                />
-              ))}
+              {/* Area fill */}
+              <Area
+                type="monotone"
+                dataKey="spent"
+                stroke="none"
+                fill="url(#spentGradient)"
+                animationDuration={500}
+              />
 
-              {/* Budget threshold reference lines */}
-              {budgetedCategories.map((cat) => (
-                <ReferenceLine
-                  key={`budget-${cat.name}`}
-                  y={cat.budget}
-                  stroke={cat.color}
-                  strokeDasharray="5 3"
-                  strokeOpacity={0.55}
-                  strokeWidth={1.5}
-                />
-              ))}
+              {/* Spending line */}
+              <Line
+                type="monotone"
+                dataKey="spent"
+                stroke={selectedCategory?.color || "#8884d8"}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                animationDuration={500}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Legend on mobile */}
-        {isMobile && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {budgetedCategories.map((cat) => (
-              <div key={cat.name} className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <span className="w-3 h-0.5 inline-block rounded" style={{ backgroundColor: cat.color }} />
-                <span>{cat.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
