@@ -149,9 +149,9 @@ const Reports = () => {
             {/* Sélecteur de type de date pour Dépenses */}
             <div className="flex items-center justify-end gap-2">
               <span className="text-xs text-muted-foreground">Type de date :</span>
-              <ToggleGroup 
-                type="single" 
-                value={incomeExpenseDateType} 
+              <ToggleGroup
+                type="single"
+                value={incomeExpenseDateType}
                 onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
                 className="h-8"
               >
@@ -165,9 +165,11 @@ const Reports = () => {
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
-            <CategoriesTab 
-              categoryChartData={categoryChartData} 
+            <CategoriesTab
+              categoryChartData={categoryChartData}
               transactions={incomeExpenseTransactions}
+              periodStart={dateRange.from}
+              periodEnd={dateRange.to}
             />
           </TabsContent>
 
