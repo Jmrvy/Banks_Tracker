@@ -167,7 +167,7 @@ export const useInstallmentPayments = () => {
 
     // Synchronize changes with linked recurring transaction
     const recurringUpdates: Record<string, any> = {};
-    
+
     if (updates.description !== undefined) {
       const installmentPayment = installmentPayments.find(ip => ip.id === id);
       const paymentType = updates.payment_type || installmentPayment?.payment_type || 'payment';
@@ -209,6 +209,10 @@ export const useInstallmentPayments = () => {
 
       if (recurringError) {
         console.error('Error syncing recurring transaction:', recurringError);
+<<<<<<< HEAD
+=======
+        // Non-blocking: the installment was updated; log but don't fail
+>>>>>>> 4e7d177 (Fix installment sync, add budget chart, security improvements)
       }
     }
 
@@ -415,7 +419,7 @@ export const useInstallmentPayments = () => {
         break;
     }
 
-    // Update the installment payment
+    // updateInstallmentPayment now syncs recurring_transactions automatically
     const { error: updateError } = await updateInstallmentPayment(id, {
       installment_amount: updatedAmount,
     });
@@ -424,19 +428,6 @@ export const useInstallmentPayments = () => {
       return { error: updateError };
     }
 
-    // Also update the linked recurring transaction amount
-    const { error: recurringError } = await supabase
-      .from('recurring_transactions')
-      .update({ amount: updatedAmount })
-      .eq('installment_payment_id', id)
-      .eq('user_id', user.id);
-
-    if (recurringError) {
-      console.error('Error updating recurring transaction amount:', recurringError);
-      return { error: recurringError };
-    }
-
-    await fetchInstallmentPayments();
     return { error: null };
   };
 
