@@ -118,9 +118,11 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="categories" className="mt-3">
-            <CategoriesTab 
-              categoryChartData={categoryChartData} 
+            <CategoriesTab
+              categoryChartData={categoryChartData}
               transactions={filteredTransactions}
+              periodStart={dateRange.from}
+              periodEnd={dateRange.to}
             />
           </TabsContent>
 

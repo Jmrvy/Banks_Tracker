@@ -99,15 +99,17 @@ const handler = async (req: Request): Promise<Response> => {
             continue; // Skip this category, alert already sent
           }
 
-          // Get total spent in this category this month (using accounting date)
+          // Get daily transactions for this category this month (for chart + total)
           const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
-            .select('amount')
+            .select('amount, transaction_date, description')
             .eq('user_id', userPref.user_id)
             .eq('category_id', category.id)
             .eq('type', 'expense')
+            .eq('include_in_stats', true)
             .gte('transaction_date', monthStart.toISOString().split('T')[0])
-            .lte('transaction_date', monthEnd.toISOString().split('T')[0]);
+            .lte('transaction_date', monthEnd.toISOString().split('T')[0])
+            .order('transaction_date', { ascending: true });
 
           if (transactionsError) {
             console.error(`Error fetching transactions for category ${category.id}:`, transactionsError);
@@ -117,20 +119,32 @@ const handler = async (req: Request): Promise<Response> => {
           const totalSpent = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
           const budget = Number(category.budget);
 
+          // Build cumulative daily series for the SVG chart
+          const dailyData: { date: string; cumulative: number }[] = [];
+          let cumulative = 0;
+          for (const t of (transactions || [])) {
+            cumulative += Number(t.amount);
+            const existing = dailyData.find(d => d.date === t.transaction_date);
+            if (existing) {
+              existing.cumulative = cumulative;
+            } else {
+              dailyData.push({ date: t.transaction_date, cumulative });
+            }
+          }
+
           // If budget is exceeded, send alert
           if (totalSpent > budget) {
             const overspent = totalSpent - budget;
-            
+
             console.log(`Budget exceeded for user ${userPref.user_id}, category ${category.name}: ${totalSpent}€ / ${budget}€`);
 
-            // Call send-notification-email function
+            // Call send-notification-email — no ANON_KEY needed, uses function secret only
             const response = await fetch(
               `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`,
               {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
                   'x-function-secret': Deno.env.get("FUNCTION_SECRET") || "",
                 },
                 body: JSON.stringify({
@@ -142,7 +156,13 @@ const handler = async (req: Request): Promise<Response> => {
                     categoryName: category.name,
                     budget: budget.toFixed(2),
                     spent: totalSpent.toFixed(2),
-                    overspent: overspent.toFixed(2)
+                    overspent: overspent.toFixed(2),
+                    dailyData,
+                    recentTransactions: (transactions || []).slice(-10).map(t => ({
+                      date: t.transaction_date,
+                      description: t.description,
+                      amount: Number(t.amount).toFixed(2)
+                    }))
                   }
                 })
               }

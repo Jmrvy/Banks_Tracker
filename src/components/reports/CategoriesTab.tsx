@@ -10,12 +10,16 @@ import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModa
 import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import { TrendingDown, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
+import { BudgetEvolutionChart } from "@/components/charts/BudgetEvolutionChart";
+
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
   transactions: FinancialTransaction[];
+  periodStart: Date;
+  periodEnd: Date;
 }
 
-export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTabProps) => {
+export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -217,6 +221,15 @@ export const CategoriesTab = ({ categoryChartData, transactions }: CategoriesTab
           </div>
         </CardContent>
       </Card>
+
+      {/* Budget Evolution Chart (categories with a budget vs daily cumulative spend) */}
+      <BudgetEvolutionChart
+        categoryChartData={categoryChartData}
+        transactions={transactions}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+        formatCurrency={formatCurrency}
+      />
 
       {/* Cumulative Chart */}
       <CategoryCumulativeChart
