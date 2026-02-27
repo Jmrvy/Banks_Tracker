@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus, FileText, Eye, EyeOff, CalendarIcon } from "lucide-react";
+import { Calendar, Plus, Eye, EyeOff, CalendarIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { NewTransactionModal } from "@/components/NewTransactionModal";
-import { ReportGeneratorModal } from "@/components/ReportGeneratorModal";
 import { useNavigate } from "react-router-dom";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { usePeriod } from "@/contexts/PeriodContext";
@@ -30,7 +29,6 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { customDateRange, setCustomDateRange } = usePeriod();
@@ -113,16 +111,6 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               <span className="hidden md:inline">Nouvelle Transaction</span>
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowReportModal(true)}
-              className="border-border hover:bg-accent h-8 px-2 md:px-4 hidden sm:flex"
-            >
-              <FileText className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Générer Rapport</span>
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 px-2 md:px-4 hidden lg:flex">
@@ -190,7 +178,6 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
       <NewAccountModal open={showAccountModal} onOpenChange={setShowAccountModal} />
       <NewCategoryModal open={showCategoryModal} onOpenChange={setShowCategoryModal} />
       <NewTransactionModal open={showTransactionModal} onOpenChange={setShowTransactionModal} />
-      <ReportGeneratorModal open={showReportModal} onOpenChange={setShowReportModal} />
     </>
   );
 }
