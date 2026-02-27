@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Wrench, Settings } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { ChevronDown, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const isActive = (path: string) => {
@@ -27,7 +29,7 @@ export function AppSidebar() {
             const active = isActive(item.path);
             return (
               <Link
-                key={item.name}
+                key={item.path}
                 to={item.path}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
@@ -38,7 +40,7 @@ export function AppSidebar() {
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                <span>{item.name}</span>
+                <span>{t(item.nameKey)}</span>
               </Link>
             );
           })}
@@ -48,7 +50,7 @@ export function AppSidebar() {
             <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
               <div className="flex items-center gap-2">
                 <accountsGroup.icon className="h-4 w-4" />
-                <span>{accountsGroup.label}</span>
+                <span>{t(accountsGroup.labelKey)}</span>
               </div>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
@@ -57,7 +59,7 @@ export function AppSidebar() {
                 const active = isActive(item.path);
                 return (
                   <Link
-                    key={item.name}
+                    key={item.path}
                     to={item.path}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 ml-6 rounded-lg text-sm font-medium transition-colors",
@@ -68,7 +70,7 @@ export function AppSidebar() {
                     )}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.name}</span>
+                    <span>{t(item.nameKey)}</span>
                   </Link>
                 );
               })}
@@ -80,7 +82,7 @@ export function AppSidebar() {
             <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
               <div className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
-                <span>{toolsGroup.label}</span>
+                <span>{t(toolsGroup.labelKey)}</span>
               </div>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
@@ -89,7 +91,7 @@ export function AppSidebar() {
                 const active = isActive(item.path);
                 return (
                   <Link
-                    key={item.name}
+                    key={item.path}
                     to={item.path}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 ml-6 rounded-lg text-sm font-medium transition-colors",
@@ -100,7 +102,7 @@ export function AppSidebar() {
                     )}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.name}</span>
+                    <span>{t(item.nameKey)}</span>
                   </Link>
                 );
               })}
@@ -127,7 +129,7 @@ export function AppSidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground truncate">Joris</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">{settingsItem.name}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">{t(settingsItem.nameKey)}</p>
           </div>
         </Link>
       </div>

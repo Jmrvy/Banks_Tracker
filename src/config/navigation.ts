@@ -12,67 +12,57 @@ import {
 } from "lucide-react";
 
 export interface NavigationItem {
-  name: string;
+  nameKey: string; // i18n key
   path: string;
   icon: LucideIcon;
 }
 
 export interface NavigationGroup {
-  label: string;
+  labelKey: string; // i18n key
   icon: LucideIcon;
   items: NavigationItem[];
 }
 
 // Main navigation (always visible)
 export const mainNavigation: NavigationItem[] = [
-  { name: "Accueil", path: "/", icon: Home },
-  { name: "Rapports", path: "/reports", icon: PieChart },
+  { nameKey: "navigation.home", path: "/", icon: Home },
+  { nameKey: "navigation.reports", path: "/reports", icon: PieChart },
 ];
 
-// Comptes group - Account-related pages
+// Comptes group - Account-related pages (includes Debts as requested)
 export const accountsGroup: NavigationGroup = {
-  label: "Comptes",
+  labelKey: "navigation.accounts",
   icon: Wallet,
   items: [
-    { name: "Comptes", path: "/accounts", icon: Wallet },
-    { name: "Transactions", path: "/transactions", icon: History },
-    { name: "Epargne", path: "/savings", icon: PiggyBank },
+    { nameKey: "navigation.accounts", path: "/accounts", icon: Wallet },
+    { nameKey: "navigation.transactions", path: "/transactions", icon: History },
+    { nameKey: "navigation.savings", path: "/savings", icon: PiggyBank },
+    { nameKey: "navigation.debts", path: "/debts", icon: Scale },
   ],
 };
 
 // Outils group - Tools and utilities
 export const toolsGroup: NavigationGroup = {
-  label: "Outils",
+  labelKey: "navigation.tools",
   icon: Settings,
   items: [
-    { name: "Transactions Recurrentes", path: "/recurring-transactions", icon: Receipt },
-    { name: "Paiements echelonnes", path: "/installment-payments", icon: CreditCard },
-    { name: "Dettes", path: "/debts", icon: Scale },
+    { nameKey: "navigation.recurringTransactions", path: "/recurring-transactions", icon: Receipt },
+    { nameKey: "navigation.installmentPayments", path: "/installment-payments", icon: CreditCard },
   ],
 };
 
 // Settings item
 export const settingsItem: NavigationItem = {
-  name: "Parametres",
+  nameKey: "navigation.settings",
   path: "/settings",
   icon: Settings,
 };
 
 // Bottom navigation items for mobile (quick access)
 export const mobileBottomNav: NavigationItem[] = [
-  { name: "Accueil", path: "/", icon: Home },
-  { name: "Comptes", path: "/accounts", icon: Wallet },
+  { nameKey: "navigation.home", path: "/", icon: Home },
+  { nameKey: "navigation.accounts", path: "/accounts", icon: Wallet },
 ];
 
 // All navigation groups
 export const navigationGroups: NavigationGroup[] = [accountsGroup, toolsGroup];
-
-// Get all navigation items flat
-export const getAllNavigationItems = (): NavigationItem[] => {
-  return [
-    ...mainNavigation,
-    ...accountsGroup.items,
-    ...toolsGroup.items,
-    settingsItem,
-  ];
-};

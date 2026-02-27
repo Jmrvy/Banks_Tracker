@@ -882,104 +882,123 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   };
 
   const renderStep1 = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* Format Selection - Apple style cards */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">Format du rapport</Label>
         <div className="grid grid-cols-2 gap-3">
-          <Card
+          <div
             className={cn(
-              "cursor-pointer transition-all",
-              config.format === 'pdf' && "ring-2 ring-primary"
+              "relative cursor-pointer rounded-xl p-4 transition-all duration-200",
+              "border-2 bg-gradient-to-br",
+              config.format === 'pdf'
+                ? "border-primary bg-primary/5 to-primary/10 shadow-lg shadow-primary/10"
+                : "border-border/50 from-muted/30 to-muted/10 hover:border-muted-foreground/30 hover:shadow-md"
             )}
             onClick={() => setConfig(prev => ({ ...prev, format: 'pdf' }))}
           >
-            <CardContent className="p-4 flex flex-col items-center gap-2">
-              <FileText className={cn("h-8 w-8", config.format === 'pdf' ? "text-primary" : "text-muted-foreground")} />
-              <span className="font-medium">PDF</span>
-              <span className="text-xs text-muted-foreground text-center">Rapport visuel avec graphiques</span>
-            </CardContent>
-          </Card>
-          <Card
+            {config.format === 'pdf' && (
+              <div className="absolute top-2 right-2">
+                <Check className="h-4 w-4 text-primary" />
+              </div>
+            )}
+            <div className="flex flex-col items-center gap-2">
+              <div className={cn(
+                "p-3 rounded-xl",
+                config.format === 'pdf' ? "bg-primary/10" : "bg-muted"
+              )}>
+                <FileText className={cn("h-6 w-6", config.format === 'pdf' ? "text-primary" : "text-muted-foreground")} />
+              </div>
+              <span className="font-semibold text-sm">PDF</span>
+              <span className="text-[11px] text-muted-foreground text-center leading-tight">Avec graphiques</span>
+            </div>
+          </div>
+          <div
             className={cn(
-              "cursor-pointer transition-all",
-              config.format === 'excel' && "ring-2 ring-primary"
+              "relative cursor-pointer rounded-xl p-4 transition-all duration-200",
+              "border-2 bg-gradient-to-br",
+              config.format === 'excel'
+                ? "border-green-500 bg-green-500/5 to-green-500/10 shadow-lg shadow-green-500/10"
+                : "border-border/50 from-muted/30 to-muted/10 hover:border-muted-foreground/30 hover:shadow-md"
             )}
             onClick={() => setConfig(prev => ({ ...prev, format: 'excel' }))}
           >
-            <CardContent className="p-4 flex flex-col items-center gap-2">
-              <FileSpreadsheet className={cn("h-8 w-8", config.format === 'excel' ? "text-primary" : "text-muted-foreground")} />
-              <span className="font-medium">Excel</span>
-              <span className="text-xs text-muted-foreground text-center">Donnees exploitables</span>
-            </CardContent>
-          </Card>
+            {config.format === 'excel' && (
+              <div className="absolute top-2 right-2">
+                <Check className="h-4 w-4 text-green-500" />
+              </div>
+            )}
+            <div className="flex flex-col items-center gap-2">
+              <div className={cn(
+                "p-3 rounded-xl",
+                config.format === 'excel' ? "bg-green-500/10" : "bg-muted"
+              )}>
+                <FileSpreadsheet className={cn("h-6 w-6", config.format === 'excel' ? "text-green-500" : "text-muted-foreground")} />
+              </div>
+              <span className="font-semibold text-sm">Excel</span>
+              <span className="text-[11px] text-muted-foreground text-center leading-tight">Donnees brutes</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Separator />
+      <Separator className="bg-border/30" />
 
+      {/* Period Selection - Apple style pills */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Periode</Label>
+        <Label className="text-sm font-medium">{t('reports.period')}</Label>
         <div className="flex flex-wrap gap-2">
-          <Badge
-            variant={config.periodType === 'month' && config.startDate.getMonth() === new Date().getMonth() ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => handlePeriodPreset('thisMonth')}
-          >
-            Ce mois
-          </Badge>
-          <Badge
-            variant="outline"
-            className="cursor-pointer"
-            onClick={() => handlePeriodPreset('lastMonth')}
-          >
-            Mois dernier
-          </Badge>
-          <Badge
-            variant={config.periodType === 'quarter' ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => handlePeriodPreset('thisQuarter')}
-          >
-            Ce trimestre
-          </Badge>
-          <Badge
-            variant={config.periodType === 'year' ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => handlePeriodPreset('thisYear')}
-          >
-            Cette annee
-          </Badge>
+          {[
+            { key: 'thisMonth', label: t('reports.thisMonth'), active: config.periodType === 'month' && config.startDate.getMonth() === new Date().getMonth() },
+            { key: 'lastMonth', label: t('reports.lastMonth'), active: false },
+            { key: 'thisQuarter', label: 'Trimestre', active: config.periodType === 'quarter' },
+            { key: 'thisYear', label: t('reports.thisYear'), active: config.periodType === 'year' },
+          ].map(({ key, label, active }) => (
+            <button
+              key={key}
+              onClick={() => handlePeriodPreset(key)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+                active
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Type de periode</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Type</Label>
             <Select
               value={config.periodType}
               onValueChange={(v: any) => setConfig(prev => ({ ...prev, periodType: v }))}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="month">Mois</SelectItem>
                 <SelectItem value="quarter">Trimestre</SelectItem>
                 <SelectItem value="year">Annee</SelectItem>
-                <SelectItem value="custom">Personnalise</SelectItem>
+                <SelectItem value="custom">{t('reports.custom')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Type de date</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Date</Label>
             <Select
               value={config.dateType}
               onValueChange={(v: any) => setConfig(prev => ({ ...prev, dateType: v }))}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="accounting">Date comptable</SelectItem>
-                <SelectItem value="value">Date valeur</SelectItem>
+                <SelectItem value="accounting">{t('settings.accountingDate')}</SelectItem>
+                <SelectItem value="value">{t('settings.valueDate')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -989,22 +1008,27 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           <MonthPicker
             value={config.startDate}
             onChange={(d) => setConfig(prev => ({ ...prev, startDate: d || new Date() }))}
+            className="rounded-xl bg-muted/30 border-border/50"
           />
         )}
         {config.periodType === 'year' && (
           <YearPicker
             value={config.startDate}
             onChange={(d) => setConfig(prev => ({ ...prev, startDate: d || new Date() }))}
+            className="rounded-xl bg-muted/30 border-border/50"
           />
         )}
       </div>
 
-      <div className="p-3 bg-muted/50 rounded-lg">
-        <p className="text-sm text-muted-foreground">
-          Periode selectionnee : <span className="font-medium text-foreground">
+      {/* Selected Period Display - Apple style card */}
+      <div className="p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border border-border/30">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">{t('reports.period')}:</span>
+          <span className="font-semibold text-foreground">
             {format(actualDates.start, 'dd MMM yyyy', { locale })} - {format(actualDates.end, 'dd MMM yyyy', { locale })}
           </span>
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -1118,14 +1142,29 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   );
 
   const content = (
-    <div className="space-y-4">
-      {/* Progress */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Etape {step} sur {totalSteps}</span>
-          <span>{step === 1 ? 'Format & Periode' : step === 2 ? 'Contenu' : 'Confirmation'}</span>
-        </div>
-        <Progress value={(step / totalSteps) * 100} className="h-2" />
+    <div className="space-y-5">
+      {/* Progress - Apple style dots */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        {[1, 2, 3].map((s) => (
+          <div
+            key={s}
+            className={cn(
+              "transition-all duration-300 rounded-full",
+              s === step
+                ? "w-8 h-2 bg-primary shadow-lg shadow-primary/30"
+                : s < step
+                  ? "w-2 h-2 bg-primary/60"
+                  : "w-2 h-2 bg-muted-foreground/20"
+            )}
+          />
+        ))}
+      </div>
+
+      {/* Step indicator */}
+      <div className="text-center">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {step === 1 ? t('reports.period') + ' & Format' : step === 2 ? 'Contenu' : 'Confirmation'}
+        </span>
       </div>
 
       {/* Step Content */}
@@ -1135,33 +1174,41 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         {step === 3 && renderStep3()}
       </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between pt-4 border-t">
+      {/* Navigation - Apple style buttons */}
+      <div className="flex justify-between pt-4 border-t border-border/50">
         <Button
-          variant="outline"
+          variant="ghost"
           onClick={() => step > 1 ? setStep(s => s - 1) : onOpenChange(false)}
           disabled={isGenerating}
+          className="rounded-xl px-5 hover:bg-muted/50"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
-          {step > 1 ? 'Precedent' : 'Annuler'}
+          {step > 1 ? t('common.back') : t('common.cancel')}
         </Button>
 
         {step < totalSteps ? (
-          <Button onClick={() => setStep(s => s + 1)}>
-            Suivant
+          <Button
+            onClick={() => setStep(s => s + 1)}
+            className="rounded-xl px-6 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+          >
+            {t('common.next')}
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <Button onClick={handleGenerate} disabled={isGenerating || config.sections.length === 0}>
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating || config.sections.length === 0}
+            className="rounded-xl px-6 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
+          >
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generation...
+                {t('common.loading')}
               </>
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Telecharger
+                {t('common.export')}
               </>
             )}
           </Button>
@@ -1234,17 +1281,24 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       <>
         {chartsContainer}
         <Drawer open={open} onOpenChange={onOpenChange}>
-          <DrawerContent className="max-h-[90vh]">
-            <DrawerHeader className="pb-0">
-              <DrawerTitle className="flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                Exporter un rapport
-              </DrawerTitle>
-              <DrawerDescription>
-                Generez un rapport PDF ou Excel personnalise
-              </DrawerDescription>
+          <DrawerContent className="max-h-[92vh] bg-background/80 backdrop-blur-2xl border-t border-white/20 shadow-2xl">
+            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/20 my-3" />
+            <DrawerHeader className="pb-2 px-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 backdrop-blur-sm">
+                  <Download className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DrawerTitle className="text-lg font-semibold">
+                    {t('reports.export')}
+                  </DrawerTitle>
+                  <DrawerDescription className="text-sm text-muted-foreground">
+                    {t('reports.generate')}
+                  </DrawerDescription>
+                </div>
+              </div>
             </DrawerHeader>
-            <div className="p-4 overflow-y-auto">
+            <div className="p-4 pt-2 overflow-y-auto">
               {content}
             </div>
           </DrawerContent>
@@ -1257,15 +1311,21 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     <>
       {chartsContainer}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Exporter un rapport
-            </DialogTitle>
-            <DialogDescription>
-              Generez un rapport PDF ou Excel personnalise
-            </DialogDescription>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 backdrop-blur-sm shadow-inner">
+                <Download className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold">
+                  {t('reports.export')}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  {t('reports.generate')}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           {content}
         </DialogContent>
