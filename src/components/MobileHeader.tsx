@@ -3,37 +3,9 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Link, useLocation } from "react-router-dom";
-import { PiggyBank } from "lucide-react";
-import {
-  Home,
-  TrendingUp,
-  Wallet,
-  History,
-  CreditCard,
-  Scale,
-  PieChart,
-  Receipt,
-  Settings,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-
-const mainNavigation = [
-  { name: "Accueil", path: "/", icon: Home },
-  { name: "Rapports", path: "/reports", icon: PieChart },
-];
-
-const accountsGroup = [
-  { name: "Comptes", path: "/accounts", icon: Wallet },
-  { name: "Transactions", path: "/transactions", icon: History },
-  { name: "Epargne", path: "/savings", icon: PiggyBank },
-];
-
-const toolsGroup = [
-  { name: "Récurrents", path: "/recurring-transactions", icon: Receipt },
-  { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
-  { name: "Dettes", path: "/debts", icon: Scale },
-];
+import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
 
 export const MobileHeader = () => {
   const [open, setOpen] = useState(false);
@@ -97,10 +69,10 @@ export const MobileHeader = () => {
 
               {/* Comptes Group */}
               <div className="mb-4">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                  COMPTES
+                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+                  {accountsGroup.label}
                 </div>
-                {accountsGroup.map((item) => {
+                {accountsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
@@ -126,10 +98,10 @@ export const MobileHeader = () => {
 
               {/* Outils Group */}
               <div className="mb-4">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                  OUTILS
+                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+                  {toolsGroup.label}
                 </div>
-                {toolsGroup.map((item) => {
+                {toolsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
@@ -155,18 +127,18 @@ export const MobileHeader = () => {
 
               {/* Settings */}
               <Link
-                to="/settings"
+                to={settingsItem.path}
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
-                  isActive("/settings")
+                  isActive(settingsItem.path)
                     ? "bg-accent text-accent-foreground"
                     : "text-foreground/70"
                 )}
               >
-                <Settings className="h-5 w-5" />
-                <span>Paramètres</span>
+                <settingsItem.icon className="h-5 w-5" />
+                <span>{settingsItem.name}</span>
               </Link>
             </div>
           </nav>

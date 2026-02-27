@@ -4,54 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import {
-  Home,
-  Plus,
-  Wallet,
-  Menu,
-  History,
-  CreditCard,
-  Scale,
-  PieChart,
-  Receipt,
-  Settings,
-  PiggyBank,
-} from "lucide-react";
-
-const navItems = [
-  {
-    path: "/",
-    icon: Home,
-    label: "Accueil"
-  },
-  {
-    path: "/accounts",
-    icon: Wallet,
-    label: "Comptes"
-  },
-  {
-    path: "/new-transaction",
-    icon: Plus,
-    label: "Ajouter"
-  }
-];
-
-const mainNavigation = [
-  { name: "Accueil", path: "/", icon: Home },
-  { name: "Rapports", path: "/reports", icon: PieChart },
-];
-
-const accountsGroup = [
-  { name: "Comptes", path: "/accounts", icon: Wallet },
-  { name: "Transactions", path: "/transactions", icon: History },
-  { name: "Épargne", path: "/savings", icon: PiggyBank },
-];
-
-const toolsGroup = [
-  { name: "Transactions Récurrentes", path: "/recurring-transactions", icon: Receipt },
-  { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
-  { name: "Dettes", path: "/debts", icon: Scale },
-];
+import { Plus, Menu } from "lucide-react";
+import { mainNavigation, accountsGroup, toolsGroup, settingsItem, mobileBottomNav } from "@/config/navigation";
 
 export const MobileNavigation = () => {
   const location = useLocation();
@@ -67,7 +21,8 @@ export const MobileNavigation = () => {
     <>
       <nav className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-lg border-t border-border/50 shadow-lg z-50 md:hidden safe-area-inset-bottom">
         <div className="flex items-center justify-around px-1 py-1">
-          {navItems.map((item) => {
+          {/* Home and Accounts from config */}
+          {mobileBottomNav.map((item) => {
             const isItemActive = location.pathname === item.path;
             const Icon = item.icon;
 
@@ -85,12 +40,29 @@ export const MobileNavigation = () => {
               >
                 <Icon className={`h-5 w-5 transition-transform ${isItemActive ? 'scale-110' : ''}`} />
                 <span className={`text-[10px] leading-tight font-medium ${isItemActive ? 'font-semibold' : ''}`}>
-                  {item.label}
+                  {item.name}
                 </span>
               </Button>
             );
           })}
-          
+
+          {/* Add Transaction Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/new-transaction")}
+            className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 transition-all duration-200 ${
+              location.pathname === "/new-transaction"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            }`}
+          >
+            <Plus className={`h-5 w-5 transition-transform ${location.pathname === "/new-transaction" ? 'scale-110' : ''}`} />
+            <span className={`text-[10px] leading-tight font-medium ${location.pathname === "/new-transaction" ? 'font-semibold' : ''}`}>
+              Ajouter
+            </span>
+          </Button>
+
           {/* Menu button */}
           <Button
             variant="ghost"
@@ -140,10 +112,10 @@ export const MobileNavigation = () => {
 
               {/* Comptes Group */}
               <div className="mb-4">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                  COMPTES
+                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+                  {accountsGroup.label}
                 </div>
-                {accountsGroup.map((item) => {
+                {accountsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
@@ -169,10 +141,10 @@ export const MobileNavigation = () => {
 
               {/* Outils Group */}
               <div className="mb-4">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                  OUTILS
+                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
+                  {toolsGroup.label}
                 </div>
-                {toolsGroup.map((item) => {
+                {toolsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
@@ -194,20 +166,22 @@ export const MobileNavigation = () => {
                 })}
               </div>
 
-              {/* Gérer le profil */}
+              <Separator className="my-2" />
+
+              {/* Settings */}
               <Link
-                to="/settings"
+                to={settingsItem.path}
                 onClick={() => setMenuOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
-                  isActive("/settings")
+                  isActive(settingsItem.path)
                     ? "bg-accent text-accent-foreground"
                     : "text-foreground/70"
                 )}
               >
-                <Settings className="h-5 w-5" />
-                <span>Gérer le profil</span>
+                <settingsItem.icon className="h-5 w-5" />
+                <span>{settingsItem.name}</span>
               </Link>
             </div>
           </nav>

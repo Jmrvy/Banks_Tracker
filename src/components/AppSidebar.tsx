@@ -1,49 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
-import {
-  Home,
-  PieChart,
-  Wallet,
-  CreditCard,
-  Receipt,
-  Settings,
-  History,
-  ChevronDown,
-  Wrench,
-  Scale,
-  PiggyBank,
-} from "lucide-react";
+import { ChevronDown, Wrench, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-} from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
-const mainNavigation = [
-  { name: "Home", path: "/", icon: Home },
-];
-
-const accountsGroup = [
-  { name: "Comptes", path: "/accounts", icon: Wallet },
-  { name: "Transactions", path: "/transactions", icon: History },
-  { name: "Épargne", path: "/savings", icon: PiggyBank },
-  { name: "Dettes", path: "/debts", icon: Scale },
-];
-
-const toolsGroup = [
-  { name: "Rapports", path: "/reports", icon: PieChart },
-  { name: "Transactions Récurrentes", path: "/recurring-transactions", icon: Receipt },
-  { name: "Paiements échelonnés", path: "/installment-payments", icon: CreditCard },
-];
+import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -53,15 +12,11 @@ export function AppSidebar() {
     return location.pathname.startsWith(path);
   };
 
-  const isGroupActive = (items: typeof accountsGroup) => {
-    return items.some(item => isActive(item.path));
-  };
-
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-        <span className="text-2xl font-bold text-primary">⚡ JMRVY CB</span>
+        <span className="text-2xl font-bold text-primary">JMRVY CB</span>
       </div>
 
       {/* Navigation */}
@@ -92,13 +47,13 @@ export function AppSidebar() {
           <Collapsible defaultOpen className="mt-4">
             <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
               <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                <span>Comptes</span>
+                <accountsGroup.icon className="h-4 w-4" />
+                <span>{accountsGroup.label}</span>
               </div>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-1 space-y-1">
-              {accountsGroup.map((item) => {
+              {accountsGroup.items.map((item) => {
                 const active = isActive(item.path);
                 return (
                   <Link
@@ -125,12 +80,12 @@ export function AppSidebar() {
             <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
               <div className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
-                <span>Outils</span>
+                <span>{toolsGroup.label}</span>
               </div>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-1 space-y-1">
-              {toolsGroup.map((item) => {
+              {toolsGroup.items.map((item) => {
                 const active = isActive(item.path);
                 return (
                   <Link
@@ -158,11 +113,11 @@ export function AppSidebar() {
       {/* User section - links to settings */}
       <div className="p-4 border-t border-sidebar-border">
         <Link
-          to="/settings"
+          to={settingsItem.path}
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            isActive("/settings")
+            isActive(settingsItem.path)
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : ""
           )}
@@ -172,7 +127,7 @@ export function AppSidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground truncate">Joris</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">Gérer le profil</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">{settingsItem.name}</p>
           </div>
         </Link>
       </div>
