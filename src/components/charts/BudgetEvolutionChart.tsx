@@ -84,13 +84,13 @@ export function BudgetEvolutionChart({
       const dayStr = format(day, "yyyy-MM-dd");
       const dayTotal = catTxs
         .filter((t) => t.transaction_date === dayStr)
-        .reduce((s, t) => s + t.amount, 0);
+        .reduce((s, t) => s + Number(t.amount), 0);
       running += dayTotal;
 
       return {
         date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
         spent: running,
-        budget: selectedCategory.budget,
+        budget: Number(selectedCategory.budget),
       };
     });
   }, [selectedCategory, transactions, days, isMobile]);
@@ -99,12 +99,19 @@ export function BudgetEvolutionChart({
 
   // Y-axis max based on selected category
   const yMax = selectedCategory
-    ? Math.max(selectedCategory.budget * 1.15, selectedCategory.spent * 1.05, 100)
+    ? Math.max(Number(selectedCategory.budget) * 1.15, Number(selectedCategory.spent) * 1.05, 100)
     : 100;
 
-  const isOverBudget = selectedCategory && selectedCategory.spent > selectedCategory.budget;
+  const isOverBudget = selectedCategory && Number(selectedCategory.spent) > Number(selectedCategory.budget);
   const percentUsed = selectedCategory
-    ? Math.round((selectedCategory.spent / selectedCategory.budget) * 100)
+    ? Math.round((Number(selectedCategory.spent) / Number(selectedCategory.budget)) * 100)
+    : 0;
+  // Calculate the actual overage or remaining amount
+  const overageAmount = selectedCategory
+    ? Number(selectedCategory.spent) - Number(selectedCategory.budget)
+    : 0;
+  const remainingAmount = selectedCategory
+    ? Number(selectedCategory.budget) - Number(selectedCategory.spent)
     : 0;
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -201,7 +208,7 @@ export function BudgetEvolutionChart({
                 {isOverBudget ? "Dépassement" : "Restant"}
               </p>
               <p className={`text-xs sm:text-sm font-bold ${isOverBudget ? "text-destructive" : "text-success"}`}>
-                {isOverBudget ? "+" : ""}{formatCurrency(Math.abs(selectedCategory.remaining))}
+                {isOverBudget ? `+${formatCurrency(overageAmount)}` : formatCurrency(remainingAmount)}
               </p>
             </div>
           </div>

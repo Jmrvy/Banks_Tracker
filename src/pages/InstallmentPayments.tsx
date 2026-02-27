@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt } from "lucide-react";
+import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +12,7 @@ import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPayment
 import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
 import { AdjustInstallmentPlanModal } from "@/components/AdjustInstallmentPlanModal";
 import { InstallmentTransactionsModal } from "@/components/InstallmentTransactionsModal";
+import { InstallmentPaymentDetailsModal } from "@/components/InstallmentPaymentDetailsModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +36,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const InstallmentPayments = () => {
-  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment } = useInstallmentPayments();
+  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment } = useInstallmentPayments();
   const { accounts, categories } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
@@ -44,6 +45,7 @@ const InstallmentPayments = () => {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showTransactionsModal, setShowTransactionsModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
@@ -76,6 +78,28 @@ const InstallmentPayments = () => {
   const handleViewTransactions = (payment: InstallmentPayment) => {
     setSelectedPayment(payment);
     setShowTransactionsModal(true);
+  };
+
+  const handleViewDetails = (payment: InstallmentPayment) => {
+    setSelectedPayment(payment);
+    setShowDetailsModal(true);
+  };
+
+  const handleRecalculate = async (payment: InstallmentPayment) => {
+    const { error, result } = await recalculateInstallmentPayment(payment.id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de recalculer le paiement échelonné.",
+        variant: "destructive",
+      });
+    } else if (result) {
+      toast({
+        title: "Recalcul effectué",
+        description: `${result.linkedTransactionsCount} transaction(s) et ${result.paymentRecordsCount} enregistrement(s) pris en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}`,
+      });
+    }
   };
 
   const handleDeleteClick = (paymentId: string) => {
@@ -242,10 +266,19 @@ const InstallmentPayments = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewDetails(payment)}>
+                              <History className="h-4 w-4 mr-2" />
+                              Détails & Historique
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleViewTransactions(payment)}>
                               <Receipt className="h-4 w-4 mr-2" />
                               Voir les transactions
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleRecalculate(payment)}>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Recalculer
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleEdit(payment)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Modifier
@@ -361,6 +394,12 @@ const InstallmentPayments = () => {
           <InstallmentTransactionsModal
             open={showTransactionsModal}
             onOpenChange={setShowTransactionsModal}
+            installmentPayment={selectedPayment}
+          />
+
+          <InstallmentPaymentDetailsModal
+            open={showDetailsModal}
+            onOpenChange={setShowDetailsModal}
             installmentPayment={selectedPayment}
           />
         </>

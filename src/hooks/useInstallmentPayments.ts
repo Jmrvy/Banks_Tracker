@@ -16,7 +16,7 @@ export interface InstallmentPayment {
   account_id: string;
   category_id: string | null;
   is_active: boolean;
-  payment_type: 'reimbursement' | 'payment'; // remboursement = épargne inflow, paiement = dépense
+  payment_type: 'reimbursement' | 'payment';
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +29,17 @@ export interface InstallmentPaymentRecord {
   amount: number;
   transaction_id: string | null;
   is_paid: boolean;
+  created_at: string;
+}
+
+export interface InstallmentPaymentHistory {
+  id: string;
+  installment_payment_id: string;
+  user_id: string;
+  change_type: 'created' | 'updated' | 'amount_changed' | 'completed' | 'reactivated' | 'recalculated' | 'deleted';
+  old_values: Record<string, any> | null;
+  new_values: Record<string, any> | null;
+  change_description: string | null;
   created_at: string;
 }
 
@@ -50,8 +61,6 @@ export const useInstallmentPayments = () => {
     if (error) {
       console.error('Error fetching installment payments:', error);
     } else {
-      // Handle backward compatibility: default payment_type to 'payment' if not set
-      // Cast to any to handle payment_type before types are regenerated
       const processedData = (data || []).map((ip: any) => ({
         ...ip,
         payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
@@ -76,6 +85,51 @@ export const useInstallmentPayments = () => {
     }
   };
 
+  // Fetch history for a specific installment payment
+  const fetchPaymentHistory = async (installmentPaymentId: string): Promise<InstallmentPaymentHistory[]> => {
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('installment_payment_history')
+      .select('*')
+      .eq('installment_payment_id', installmentPaymentId)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching payment history:', error);
+      return [];
+    }
+
+    return (data || []) as InstallmentPaymentHistory[];
+  };
+
+  // Log a change to history
+  const logHistoryChange = async (
+    installmentPaymentId: string,
+    changeType: InstallmentPaymentHistory['change_type'],
+    oldValues: Record<string, any> | null,
+    newValues: Record<string, any> | null,
+    changeDescription?: string
+  ) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('installment_payment_history')
+      .insert({
+        installment_payment_id: installmentPaymentId,
+        user_id: user.id,
+        change_type: changeType,
+        old_values: oldValues,
+        new_values: newValues,
+        change_description: changeDescription || null,
+      });
+
+    if (error) {
+      console.error('Error logging history:', error);
+    }
+  };
+
   const createInstallmentPayment = async (data: {
     description: string;
     total_amount: number;
@@ -88,7 +142,6 @@ export const useInstallmentPayments = () => {
   }) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    // First, create the installment payment
     const { data: installmentData, error: installmentError } = await supabase
       .from('installment_payments')
       .insert({
@@ -112,9 +165,20 @@ export const useInstallmentPayments = () => {
       return { error: installmentError };
     }
 
-    // Then, create the corresponding recurring transaction
-    // Both reimbursement and payment create expense transactions (for stats with category)
-    // The payment_type flag in installment_payments determines if it counts as savings inflow
+    // Log creation in history
+    await logHistoryChange(
+      installmentData.id,
+      'created',
+      null,
+      {
+        total_amount: data.total_amount,
+        installment_amount: data.installment_amount,
+        frequency: data.frequency,
+        payment_type: data.payment_type,
+      },
+      `Création du paiement échelonné: ${data.description}`
+    );
+
     const recurringFrequency = data.frequency === 'weekly' ? 'weekly' :
                                data.frequency === 'monthly' ? 'monthly' :
                                'quarterly';
@@ -127,7 +191,7 @@ export const useInstallmentPayments = () => {
         user_id: user.id,
         description: `${data.description} (${descriptionSuffix})`,
         amount: data.installment_amount,
-        type: 'expense', // Always expense for stats (keeps the category)
+        type: 'expense',
         recurrence_type: recurringFrequency,
         start_date: data.start_date,
         next_due_date: data.start_date,
@@ -139,7 +203,6 @@ export const useInstallmentPayments = () => {
 
     if (recurringError) {
       console.error('Error creating recurring transaction:', recurringError);
-      // Rollback: delete the installment payment
       await supabase
         .from('installment_payments')
         .delete()
@@ -151,21 +214,25 @@ export const useInstallmentPayments = () => {
     return { error: null };
   };
 
-  const updateInstallmentPayment = async (id: string, updates: Partial<InstallmentPayment>) => {
+  const updateInstallmentPayment = async (
+    id: string,
+    updates: Partial<InstallmentPayment>,
+    skipHistory: boolean = false
+  ) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    // Find the current installment payment to calculate adjustments
     const currentInstallment = installmentPayments.find(ip => ip.id === id);
+    if (!currentInstallment && !skipHistory) {
+      return { error: new Error('Installment payment not found') };
+    }
+
+    const finalUpdates = { ...updates };
 
     // If total_amount is being updated, recalculate remaining_amount
-    const finalUpdates = { ...updates };
     if (updates.total_amount !== undefined && currentInstallment) {
-      // Calculate how much has already been paid
       const amountAlreadyPaid = currentInstallment.total_amount - currentInstallment.remaining_amount;
-      // New remaining = new total - what's already been paid
       finalUpdates.remaining_amount = Math.max(0, updates.total_amount - amountAlreadyPaid);
 
-      // If the new remaining is 0 or less, mark as inactive
       if (finalUpdates.remaining_amount <= 0) {
         finalUpdates.is_active = false;
       }
@@ -182,12 +249,68 @@ export const useInstallmentPayments = () => {
       return { error };
     }
 
-    // Synchronize changes with linked recurring transaction
+    // Log history change
+    if (!skipHistory && currentInstallment) {
+      const changedFields: string[] = [];
+      const oldValues: Record<string, any> = {};
+      const newValues: Record<string, any> = {};
+
+      // Track what changed
+      if (updates.total_amount !== undefined && updates.total_amount !== currentInstallment.total_amount) {
+        changedFields.push('montant total');
+        oldValues.total_amount = currentInstallment.total_amount;
+        newValues.total_amount = updates.total_amount;
+      }
+      if (updates.installment_amount !== undefined && updates.installment_amount !== currentInstallment.installment_amount) {
+        changedFields.push('mensualité');
+        oldValues.installment_amount = currentInstallment.installment_amount;
+        newValues.installment_amount = updates.installment_amount;
+      }
+      if (updates.remaining_amount !== undefined && updates.remaining_amount !== currentInstallment.remaining_amount) {
+        oldValues.remaining_amount = currentInstallment.remaining_amount;
+        newValues.remaining_amount = updates.remaining_amount;
+      }
+      if (finalUpdates.remaining_amount !== undefined && finalUpdates.remaining_amount !== currentInstallment.remaining_amount) {
+        oldValues.remaining_amount = currentInstallment.remaining_amount;
+        newValues.remaining_amount = finalUpdates.remaining_amount;
+      }
+      if (updates.is_active !== undefined && updates.is_active !== currentInstallment.is_active) {
+        changedFields.push(updates.is_active ? 'réactivé' : 'terminé');
+        oldValues.is_active = currentInstallment.is_active;
+        newValues.is_active = updates.is_active;
+      }
+      if (updates.frequency !== undefined && updates.frequency !== currentInstallment.frequency) {
+        changedFields.push('fréquence');
+        oldValues.frequency = currentInstallment.frequency;
+        newValues.frequency = updates.frequency;
+      }
+
+      // Determine change type
+      let changeType: InstallmentPaymentHistory['change_type'] = 'updated';
+      if (updates.total_amount !== undefined || updates.installment_amount !== undefined) {
+        changeType = 'amount_changed';
+      }
+      if (updates.is_active === false && currentInstallment.is_active === true) {
+        changeType = 'completed';
+      }
+      if (updates.is_active === true && currentInstallment.is_active === false) {
+        changeType = 'reactivated';
+      }
+
+      if (Object.keys(newValues).length > 0) {
+        const description = changedFields.length > 0
+          ? `Modification: ${changedFields.join(', ')}`
+          : 'Mise à jour';
+
+        await logHistoryChange(id, changeType, oldValues, newValues, description);
+      }
+    }
+
+    // Synchronize with recurring transaction
     const recurringUpdates: Record<string, any> = {};
 
     if (updates.description !== undefined) {
-      const installmentPayment = installmentPayments.find(ip => ip.id === id);
-      const paymentType = updates.payment_type || installmentPayment?.payment_type || 'payment';
+      const paymentType = updates.payment_type || currentInstallment?.payment_type || 'payment';
       const descriptionSuffix = paymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
       recurringUpdates.description = `${updates.description} (${descriptionSuffix})`;
     }
@@ -204,7 +327,6 @@ export const useInstallmentPayments = () => {
       recurringUpdates.next_due_date = updates.next_payment_date;
     }
     if (updates.frequency !== undefined) {
-      // Map frequency to recurrence_type
       const frequencyMap: Record<string, string> = {
         'weekly': 'weekly',
         'monthly': 'monthly',
@@ -216,7 +338,6 @@ export const useInstallmentPayments = () => {
       recurringUpdates.is_active = updates.is_active;
     }
 
-    // Update linked recurring transaction if there are changes
     if (Object.keys(recurringUpdates).length > 0) {
       const { error: recurringError } = await supabase
         .from('recurring_transactions')
@@ -226,7 +347,6 @@ export const useInstallmentPayments = () => {
 
       if (recurringError) {
         console.error('Error syncing recurring transaction:', recurringError);
-        // Non-blocking: the installment was updated; log but don't fail
       }
     }
 
@@ -234,17 +354,148 @@ export const useInstallmentPayments = () => {
     return { error: null };
   };
 
+  // Recalculate installment payment based on linked transactions
+  const recalculateInstallmentPayment = async (id: string) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const currentInstallment = installmentPayments.find(ip => ip.id === id);
+    if (!currentInstallment) {
+      return { error: new Error('Installment payment not found') };
+    }
+
+    // Fetch all transactions linked to this installment payment
+    const { data: linkedTransactions, error: txError } = await supabase
+      .from('transactions')
+      .select('id, amount, type')
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    if (txError) {
+      console.error('Error fetching linked transactions:', txError);
+      return { error: txError };
+    }
+
+    // Fetch payment records for this installment
+    const { data: records, error: recordsError } = await supabase
+      .from('installment_payment_records')
+      .select('id, amount, transaction_id')
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    if (recordsError) {
+      console.error('Error fetching payment records:', recordsError);
+      return { error: recordsError };
+    }
+
+    // Calculate total paid from linked transactions (expenses reduce remaining)
+    const transactionIds = new Set((records || []).map(r => r.transaction_id).filter(Boolean));
+
+    let totalPaidFromTransactions = 0;
+    for (const tx of (linkedTransactions || [])) {
+      // Only count if not already in payment records
+      if (!transactionIds.has(tx.id)) {
+        totalPaidFromTransactions += Number(tx.amount);
+      }
+    }
+
+    // Calculate total from payment records
+    const totalPaidFromRecords = (records || []).reduce((sum, r) => sum + Number(r.amount), 0);
+
+    // Total amount paid
+    const totalPaid = totalPaidFromTransactions + totalPaidFromRecords;
+
+    // Calculate new remaining amount
+    const newRemainingAmount = Math.max(0, currentInstallment.total_amount - totalPaid);
+    const isComplete = newRemainingAmount <= 0;
+
+    // Only update if values changed
+    if (newRemainingAmount !== currentInstallment.remaining_amount) {
+      // Log the recalculation
+      await logHistoryChange(
+        id,
+        'recalculated',
+        {
+          remaining_amount: currentInstallment.remaining_amount,
+          calculated_from: {
+            total_amount: currentInstallment.total_amount,
+            linked_transactions_count: (linkedTransactions || []).length,
+            payment_records_count: (records || []).length,
+          }
+        },
+        {
+          remaining_amount: newRemainingAmount,
+          total_paid: totalPaid,
+          from_transactions: totalPaidFromTransactions,
+          from_records: totalPaidFromRecords,
+        },
+        `Recalcul: ${totalPaid.toFixed(2)}€ payé sur ${currentInstallment.total_amount.toFixed(2)}€`
+      );
+
+      // Update the installment payment (skip history since we already logged)
+      const { error: updateError } = await supabase
+        .from('installment_payments')
+        .update({
+          remaining_amount: newRemainingAmount,
+          is_active: !isComplete,
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Error updating installment payment:', updateError);
+        return { error: updateError };
+      }
+
+      // Update recurring transaction if complete
+      if (isComplete) {
+        await supabase
+          .from('recurring_transactions')
+          .update({ is_active: false })
+          .eq('installment_payment_id', id)
+          .eq('user_id', user.id);
+      }
+
+      await fetchInstallmentPayments();
+    }
+
+    return {
+      error: null,
+      result: {
+        totalPaid,
+        newRemainingAmount,
+        linkedTransactionsCount: (linkedTransactions || []).length,
+        paymentRecordsCount: (records || []).length,
+        isComplete,
+      }
+    };
+  };
+
   const deleteInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    // First, delete the linked recurring transaction
+    const currentInstallment = installmentPayments.find(ip => ip.id === id);
+
+    // Log deletion before deleting
+    if (currentInstallment) {
+      await logHistoryChange(
+        id,
+        'deleted',
+        {
+          total_amount: currentInstallment.total_amount,
+          remaining_amount: currentInstallment.remaining_amount,
+          installment_amount: currentInstallment.installment_amount,
+        },
+        null,
+        `Suppression du paiement échelonné: ${currentInstallment.description}`
+      );
+    }
+
     await supabase
       .from('recurring_transactions')
       .delete()
       .eq('installment_payment_id', id)
       .eq('user_id', user.id);
 
-    // Then delete the installment payment
     const { error } = await supabase
       .from('installment_payments')
       .delete()
@@ -266,7 +517,6 @@ export const useInstallmentPayments = () => {
     const installmentPayment = installmentPayments.find(ip => ip.id === installmentPaymentId);
     if (!installmentPayment) return { error: new Error('Installment payment not found') };
 
-    // If linking to an existing transaction, update its installment_payment_id
     if (transactionId) {
       const { error: linkError } = await supabase
         .from('transactions')
@@ -280,7 +530,6 @@ export const useInstallmentPayments = () => {
       }
     }
 
-    // Create payment record
     const { error: recordError } = await supabase
       .from('installment_payment_records')
       .insert({
@@ -297,7 +546,6 @@ export const useInstallmentPayments = () => {
       return { error: recordError };
     }
 
-    // Update remaining amount and next payment date
     const newRemainingAmount = installmentPayment.remaining_amount - amount;
     const nextPaymentDate = calculateNextPaymentDate(installmentPayment.next_payment_date, installmentPayment.frequency);
     const isComplete = newRemainingAmount <= 0;
@@ -308,7 +556,6 @@ export const useInstallmentPayments = () => {
       is_active: !isComplete,
     });
 
-    // If installment is complete, also disable the linked recurring transaction
     if (isComplete) {
       await supabase
         .from('recurring_transactions')
@@ -323,7 +570,7 @@ export const useInstallmentPayments = () => {
 
   const calculateNextPaymentDate = (currentDate: string, frequency: 'weekly' | 'monthly' | 'quarterly'): string => {
     const date = new Date(currentDate);
-    
+
     switch (frequency) {
       case 'weekly':
         date.setDate(date.getDate() + 7);
@@ -335,7 +582,7 @@ export const useInstallmentPayments = () => {
         date.setMonth(date.getMonth() + 3);
         break;
     }
-    
+
     return date.toISOString().split('T')[0];
   };
 
@@ -391,13 +638,11 @@ export const useInstallmentPayments = () => {
   const completeInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    // Mark installment as complete
     await updateInstallmentPayment(id, {
       is_active: false,
       remaining_amount: 0,
     });
 
-    // Also disable the linked recurring transaction
     await supabase
       .from('recurring_transactions')
       .update({ is_active: false })
@@ -417,23 +662,19 @@ export const useInstallmentPayments = () => {
     const installmentPayment = installmentPayments.find(ip => ip.id === id);
     if (!installmentPayment) return { error: new Error('Installment payment not found') };
 
-    // Update installment amount based on adjustment type
     let updatedAmount = installmentPayment.installment_amount;
 
     switch (adjustmentType) {
       case 'keep_current':
       case 'reduce_count':
-        // Keep the current installment amount
         updatedAmount = installmentPayment.installment_amount;
         break;
       case 'reduce_amount':
       case 'custom':
-        // Use the new amount provided
         updatedAmount = newInstallmentAmount;
         break;
     }
 
-    // updateInstallmentPayment now syncs recurring_transactions automatically
     const { error: updateError } = await updateInstallmentPayment(id, {
       installment_amount: updatedAmount,
     });
@@ -455,5 +696,7 @@ export const useInstallmentPayments = () => {
     completeInstallmentPayment,
     recordPayment,
     adjustInstallmentPlan,
+    recalculateInstallmentPayment,
+    fetchPaymentHistory,
   };
 };
