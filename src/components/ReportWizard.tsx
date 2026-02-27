@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -31,10 +31,11 @@ import {
   Target,
   ArrowLeftRight
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
@@ -42,6 +43,14 @@ import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import {
+  CategoryPieChart,
+  BalanceEvolutionChart,
+  IncomeExpensesChart,
+  BudgetProgressChart,
+  SummaryCards,
+  TopCategoriesChart
+} from "@/components/reports/ReportCharts";
 
 interface ReportWizardProps {
   open: boolean;
@@ -105,6 +114,15 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
 
+  // Chart refs for PDF export
+  const summaryChartRef = useRef<HTMLDivElement>(null);
+  const categoryPieRef = useRef<HTMLDivElement>(null);
+  const evolutionChartRef = useRef<HTMLDivElement>(null);
+  const incomeExpenseRef = useRef<HTMLDivElement>(null);
+  const budgetChartRef = useRef<HTMLDivElement>(null);
+  const topCategoriesRef = useRef<HTMLDivElement>(null);
+  const [chartsReady, setChartsReady] = useState(false);
+
   // Calculate actual date range based on period type
   const actualDates = useMemo(() => {
     const now = new Date();
@@ -148,6 +166,61 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     });
   }, [transactions, actualDates, config.dateType]);
 
+  // Calculate evolution data for charts
+  const evolutionChartData = useMemo(() => {
+    const days = eachDayOfInterval({ start: actualDates.start, end: actualDates.end });
+    let runningBalance = stats.initialBalance;
+
+    return days.map(day => {
+      const dayTransactions = filteredTransactions.filter(t => {
+        const date = config.dateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
+        return isSameDay(date, day);
+      });
+
+      const dayIncome = dayTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const dayExpense = dayTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      runningBalance += dayIncome - dayExpense;
+
+      return {
+        date: format(day, 'd MMM', { locale }),
+        balance: runningBalance,
+        income: dayIncome,
+        expense: dayExpense
+      };
+    });
+  }, [actualDates, filteredTransactions, stats.initialBalance, config.dateType, locale]);
+
+  // Budget data for charts
+  const budgetChartData = useMemo(() => {
+    return categoryChartData
+      .filter(c => c.budget > 0)
+      .map(c => ({
+        name: c.name,
+        spent: c.spent,
+        budget: c.budget,
+        color: c.color || '#3B82F6'
+      }));
+  }, [categoryChartData]);
+
+  // Category data for pie chart
+  const categoryPieData = useMemo(() => {
+    return categoryChartData
+      .filter(c => c.spent > 0)
+      .sort((a, b) => b.spent - a.spent)
+      .map(c => ({
+        name: c.name,
+        spent: c.spent,
+        color: c.color || '#3B82F6'
+      }));
+  }, [categoryChartData]);
+
   const toggleSection = (section: ReportSection) => {
     setConfig(prev => ({
       ...prev,
@@ -175,19 +248,39 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     }
   };
 
-  // PDF Generation
+  // Helper to capture chart as image
+  const captureChartAsImage = async (ref: React.RefObject<HTMLDivElement>): Promise<string | null> => {
+    if (!ref.current) return null;
+    try {
+      const canvas = await html2canvas(ref.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+      });
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Error capturing chart:', error);
+      return null;
+    }
+  };
+
+  // PDF Generation with Charts
   const generatePDF = async () => {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 15;
     let yPos = 20;
 
     // Helper functions
     const addPageIfNeeded = (requiredSpace: number) => {
-      if (yPos + requiredSpace > pdf.internal.pageSize.getHeight() - 20) {
+      if (yPos + requiredSpace > pageHeight - 25) {
         pdf.addPage();
         yPos = 20;
+        return true;
       }
+      return false;
     };
 
     const formatAmount = (value: number) => {
@@ -197,34 +290,75 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       }).format(value) + ' EUR';
     };
 
-    // Header
+    const addFooter = () => {
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(
+        `Page ${pdf.getCurrentPageInfo().pageNumber}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    };
+
+    // ======= COVER PAGE =======
+    // Gradient header
     pdf.setFillColor(59, 130, 246);
-    pdf.rect(0, 0, pageWidth, 35, 'F');
+    pdf.rect(0, 0, pageWidth, 70, 'F');
+    pdf.setFillColor(37, 99, 235);
+    pdf.rect(0, 50, pageWidth, 20, 'F');
+
+    // Title
     pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(22);
+    pdf.setFontSize(28);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Rapport Financier', margin, 18);
-    pdf.setFontSize(11);
+    pdf.text('Rapport Financier', pageWidth / 2, 35, { align: 'center' });
+
+    // Subtitle with period
+    pdf.setFontSize(14);
     pdf.setFont('helvetica', 'normal');
     pdf.text(
       `${format(actualDates.start, 'dd MMMM yyyy', { locale })} - ${format(actualDates.end, 'dd MMMM yyyy', { locale })}`,
-      margin, 28
+      pageWidth / 2,
+      55,
+      { align: 'center' }
     );
-    pdf.setTextColor(200, 220, 255);
-    pdf.setFontSize(9);
-    pdf.text(`Genere le ${format(new Date(), 'dd/MM/yyyy a HH:mm', { locale })}`, pageWidth - margin - 60, 28);
 
-    yPos = 45;
+    // Generation date
+    pdf.setFontSize(10);
+    pdf.setTextColor(200, 220, 255);
+    pdf.text(`Genere le ${format(new Date(), 'dd/MM/yyyy a HH:mm', { locale })}`, pageWidth / 2, 65, { align: 'center' });
+
+    yPos = 85;
     pdf.setTextColor(0, 0, 0);
 
-    // Summary Section
-    if (config.sections.includes('summary')) {
-      addPageIfNeeded(50);
-      pdf.setFontSize(14);
+    // ======= SUMMARY SECTION WITH CHARTS =======
+    if (config.sections.includes('summary') && config.includeCharts) {
+      // Capture summary cards chart
+      const summaryImg = await captureChartAsImage(summaryChartRef);
+      if (summaryImg) {
+        const imgWidth = 160;
+        const imgHeight = 60;
+        pdf.addImage(summaryImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+        yPos += imgHeight + 10;
+      }
+
+      // Capture income vs expenses chart
+      const incExpImg = await captureChartAsImage(incomeExpenseRef);
+      if (incExpImg) {
+        addPageIfNeeded(90);
+        const imgWidth = 120;
+        const imgHeight = 85;
+        pdf.addImage(incExpImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+        yPos += imgHeight + 15;
+      }
+    } else if (config.sections.includes('summary')) {
+      // Text-only summary
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(59, 130, 246);
       pdf.text('Synthese de la periode', margin, yPos);
-      yPos += 8;
+      yPos += 10;
 
       const summaryData = [
         ['Revenus', formatAmount(stats.income), 'green'],
@@ -239,8 +373,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         head: [['Indicateur', 'Montant']],
         body: summaryData.map(([label, value]) => [label, value]),
         theme: 'grid',
-        headStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
-        styles: { fontSize: 10, cellPadding: 4 },
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 11, cellPadding: 5 },
         columnStyles: {
           0: { cellWidth: 80 },
           1: { halign: 'right', cellWidth: 60, fontStyle: 'bold' }
@@ -257,14 +391,14 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       yPos = (pdf as any).lastAutoTable.finalY + 15;
     }
 
-    // Accounts Section
+    // ======= ACCOUNTS SECTION =======
     if (config.sections.includes('accounts')) {
-      addPageIfNeeded(40);
-      pdf.setFontSize(14);
+      addPageIfNeeded(50);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(59, 130, 246);
       pdf.text('Soldes des comptes', margin, yPos);
-      yPos += 8;
+      yPos += 10;
 
       const accountData = accounts.map(acc => [
         acc.name,
@@ -275,13 +409,17 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         formatAmount(Number(acc.balance))
       ]);
 
+      const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+
       autoTable(pdf, {
         startY: yPos,
         head: [['Compte', 'Banque', 'Type', 'Solde']],
         body: accountData,
+        foot: [['', '', 'TOTAL', formatAmount(totalBalance)]],
         theme: 'striped',
-        headStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
-        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+        footStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 4 },
         columnStyles: {
           0: { cellWidth: 55 },
           1: { cellWidth: 45 },
@@ -293,15 +431,37 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       yPos = (pdf as any).lastAutoTable.finalY + 15;
     }
 
-    // Categories Section
+    // ======= CATEGORIES SECTION WITH PIE CHART =======
     if (config.sections.includes('categories')) {
-      addPageIfNeeded(60);
-      pdf.setFontSize(14);
+      pdf.addPage();
+      yPos = 20;
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(59, 130, 246);
       pdf.text('Depenses par categorie', margin, yPos);
-      yPos += 8;
+      yPos += 10;
 
+      // Capture pie chart
+      if (config.includeCharts) {
+        const pieImg = await captureChartAsImage(categoryPieRef);
+        if (pieImg) {
+          const imgWidth = 150;
+          const imgHeight = 100;
+          pdf.addImage(pieImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+          yPos += imgHeight + 10;
+        }
+
+        // Also add top categories bar chart
+        const topCatImg = await captureChartAsImage(topCategoriesRef);
+        if (topCatImg) {
+          const imgWidth = 140;
+          const imgHeight = 85;
+          pdf.addImage(topCatImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+          yPos += imgHeight + 10;
+        }
+      }
+
+      // Category table
       const catData = categoryChartData
         .filter(c => c.spent > 0)
         .sort((a, b) => b.spent - a.spent)
@@ -311,13 +471,14 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         });
 
       if (catData.length > 0) {
+        addPageIfNeeded(catData.length * 8 + 20);
         autoTable(pdf, {
           startY: yPos,
           head: [['Categorie', 'Montant', 'Part']],
           body: catData,
           theme: 'striped',
-          headStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
-          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: 10, cellPadding: 4 },
           columnStyles: {
             0: { cellWidth: 80 },
             1: { halign: 'right', cellWidth: 50 },
@@ -329,14 +490,47 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       }
     }
 
-    // Income Section
+    // ======= EVOLUTION SECTION WITH CHART =======
+    if (config.sections.includes('evolution')) {
+      pdf.addPage();
+      yPos = 20;
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(59, 130, 246);
+      pdf.text('Evolution du solde', margin, yPos);
+      yPos += 10;
+
+      if (config.includeCharts) {
+        const evolutionImg = await captureChartAsImage(evolutionChartRef);
+        if (evolutionImg) {
+          const imgWidth = 170;
+          const imgHeight = 95;
+          pdf.addImage(evolutionImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+          yPos += imgHeight + 15;
+        }
+      }
+
+      // Add key stats
+      pdf.setFontSize(11);
+      pdf.setTextColor(55, 65, 81);
+      pdf.text(`Solde de depart: ${formatAmount(stats.initialBalance)}`, margin, yPos);
+      yPos += 7;
+      pdf.text(`Solde de fin: ${formatAmount(stats.finalBalance)}`, margin, yPos);
+      yPos += 7;
+      const change = stats.finalBalance - stats.initialBalance;
+      pdf.setTextColor(change >= 0 ? 22 : 220, change >= 0 ? 163 : 38, change >= 0 ? 74 : 38);
+      pdf.text(`Variation: ${change >= 0 ? '+' : ''}${formatAmount(change)}`, margin, yPos);
+      yPos += 15;
+    }
+
+    // ======= INCOME SECTION =======
     if (config.sections.includes('income') && incomeAnalysis.length > 0) {
-      addPageIfNeeded(60);
-      pdf.setFontSize(14);
+      addPageIfNeeded(70);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(59, 130, 246);
       pdf.text('Revenus par categorie', margin, yPos);
-      yPos += 8;
+      yPos += 10;
 
       const incData = incomeAnalysis.map(inc => {
         const pct = stats.income > 0 ? ((inc.totalAmount / stats.income) * 100).toFixed(1) : '0.0';
@@ -347,12 +541,14 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         startY: yPos,
         head: [['Source', 'Montant', 'Part', 'Nb']],
         body: incData,
+        foot: [['TOTAL', formatAmount(stats.income), '100%', '']],
         theme: 'striped',
-        headStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
-        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
+        footStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 4 },
         columnStyles: {
           0: { cellWidth: 70 },
-          1: { halign: 'right', cellWidth: 45 },
+          1: { halign: 'right', cellWidth: 50 },
           2: { halign: 'center', cellWidth: 25 },
           3: { halign: 'center', cellWidth: 20 }
         },
@@ -361,16 +557,27 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       yPos = (pdf as any).lastAutoTable.finalY + 15;
     }
 
-    // Budgets Section
+    // ======= BUDGETS SECTION WITH CHART =======
     if (config.sections.includes('budgets')) {
       const budgetCategories = categoryChartData.filter(c => c.budget > 0);
       if (budgetCategories.length > 0) {
-        addPageIfNeeded(60);
-        pdf.setFontSize(14);
+        pdf.addPage();
+        yPos = 20;
+        pdf.setFontSize(16);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(59, 130, 246);
         pdf.text('Suivi des budgets', margin, yPos);
-        yPos += 8;
+        yPos += 10;
+
+        if (config.includeCharts) {
+          const budgetImg = await captureChartAsImage(budgetChartRef);
+          if (budgetImg) {
+            const imgWidth = 145;
+            const imgHeight = 95;
+            pdf.addImage(budgetImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+            yPos += imgHeight + 10;
+          }
+        }
 
         const budgetData = budgetCategories.map(cat => {
           const pct = cat.budget > 0 ? (cat.spent / cat.budget * 100) : 0;
@@ -391,8 +598,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           head: [['Categorie', 'Depense', 'Budget', 'Restant', '%', 'Statut']],
           body: budgetData,
           theme: 'grid',
-          headStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold', fontSize: 8 },
-          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          styles: { fontSize: 9, cellPadding: 3 },
           columnStyles: {
             0: { cellWidth: 40 },
             1: { halign: 'right', cellWidth: 28 },
@@ -422,15 +629,19 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       }
     }
 
-    // Transactions Section
+    // ======= TRANSACTIONS SECTION =======
     if (config.sections.includes('transactions')) {
       pdf.addPage();
       yPos = 20;
-      pdf.setFontSize(14);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(59, 130, 246);
       pdf.text('Detail des transactions', margin, yPos);
-      yPos += 8;
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(107, 114, 128);
+      pdf.text(`${filteredTransactions.length} operations`, margin + 120, yPos);
+      yPos += 10;
 
       // Calculate running balance
       let runningBalance = stats.initialBalance;
@@ -446,7 +657,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         return [
           format(displayDate, 'dd/MM/yy'),
           accounts.find(a => a.id === t.account_id)?.name?.substring(0, 15) || '-',
-          t.description.substring(0, 30) + (t.description.length > 30 ? '...' : ''),
+          t.description.substring(0, 35) + (t.description.length > 35 ? '...' : ''),
           t.category?.name?.substring(0, 12) || '-',
           t.type === 'income' ? '+' + formatAmount(amount).replace(' EUR', '') :
             '-' + formatAmount(amount).replace(' EUR', ''),
@@ -459,33 +670,42 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         head: [['Date', 'Compte', 'Description', 'Cat.', 'Montant', 'Solde']],
         body: txData,
         theme: 'striped',
-        headStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold', fontSize: 7 },
-        styles: { fontSize: 7, cellPadding: 2, overflow: 'ellipsize' },
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize' },
         columnStyles: {
           0: { cellWidth: 18 },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 55 },
-          3: { cellWidth: 25 },
-          4: { halign: 'right', cellWidth: 25 },
-          5: { halign: 'right', cellWidth: 25, fontStyle: 'bold' }
+          1: { cellWidth: 26 },
+          2: { cellWidth: 58 },
+          3: { cellWidth: 24 },
+          4: { halign: 'right', cellWidth: 26 },
+          5: { halign: 'right', cellWidth: 26, fontStyle: 'bold' }
         },
         margin: { left: margin, right: margin },
         showHead: 'everyPage',
-        didDrawPage: (data: any) => {
-          // Footer on each page
-          pdf.setFontSize(8);
-          pdf.setTextColor(150);
-          pdf.text(
-            `Page ${pdf.getCurrentPageInfo().pageNumber}`,
-            pageWidth / 2,
-            pdf.internal.pageSize.getHeight() - 10,
-            { align: 'center' }
-          );
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 4) {
+            const value = String(data.cell.raw);
+            if (value.startsWith('+')) {
+              data.cell.styles.textColor = [22, 163, 74];
+            } else if (value.startsWith('-')) {
+              data.cell.styles.textColor = [220, 38, 38];
+            }
+          }
+        },
+        didDrawPage: () => {
+          addFooter();
         }
       });
     }
 
-    pdf.save(`rapport-${format(actualDates.start, 'yyyy-MM')}.pdf`);
+    // Add footer to all pages
+    const totalPages = pdf.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      addFooter();
+    }
+
+    pdf.save(`rapport-financier-${format(actualDates.start, 'yyyy-MM')}.pdf`);
   };
 
   // Excel Generation
@@ -950,42 +1170,106 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     </div>
   );
 
+  // Hidden chart container for PDF capture
+  const chartsContainer = (
+    <div
+      style={{
+        position: 'fixed',
+        left: '-9999px',
+        top: 0,
+        opacity: 0,
+        pointerEvents: 'none',
+        zIndex: -1,
+      }}
+      aria-hidden="true"
+    >
+      {config.includeCharts && config.format === 'pdf' && (
+        <>
+          <SummaryCards
+            ref={summaryChartRef}
+            totalIncome={stats.income}
+            totalExpenses={stats.expenses}
+            netBalance={stats.netPeriodBalance}
+            initialBalance={stats.initialBalance}
+            finalBalance={stats.finalBalance}
+            transactionCount={filteredTransactions.length}
+            formatCurrency={formatCurrency}
+          />
+          <CategoryPieChart
+            ref={categoryPieRef}
+            data={categoryPieData}
+            totalExpenses={stats.expenses}
+            formatCurrency={formatCurrency}
+          />
+          <BalanceEvolutionChart
+            ref={evolutionChartRef}
+            data={evolutionChartData}
+            formatCurrency={formatCurrency}
+          />
+          <IncomeExpensesChart
+            ref={incomeExpenseRef}
+            totalIncome={stats.income}
+            totalExpenses={stats.expenses}
+            netBalance={stats.netPeriodBalance}
+            formatCurrency={formatCurrency}
+          />
+          <BudgetProgressChart
+            ref={budgetChartRef}
+            data={budgetChartData}
+            formatCurrency={formatCurrency}
+          />
+          <TopCategoriesChart
+            ref={topCategoriesRef}
+            data={categoryPieData}
+            formatCurrency={formatCurrency}
+          />
+        </>
+      )}
+    </div>
+  );
+
   // Use Drawer on mobile, Dialog on desktop
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh]">
-          <DrawerHeader className="pb-0">
-            <DrawerTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Exporter un rapport
-            </DrawerTitle>
-            <DrawerDescription>
-              Generez un rapport PDF ou Excel personnalise
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="p-4 overflow-y-auto">
-            {content}
-          </div>
-        </DrawerContent>
-      </Drawer>
+      <>
+        {chartsContainer}
+        <Drawer open={open} onOpenChange={onOpenChange}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader className="pb-0">
+              <DrawerTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Exporter un rapport
+              </DrawerTitle>
+              <DrawerDescription>
+                Generez un rapport PDF ou Excel personnalise
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 overflow-y-auto">
+              {content}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Exporter un rapport
-          </DialogTitle>
-          <DialogDescription>
-            Generez un rapport PDF ou Excel personnalise
-          </DialogDescription>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      {chartsContainer}
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Exporter un rapport
+            </DialogTitle>
+            <DialogDescription>
+              Generez un rapport PDF ou Excel personnalise
+            </DialogDescription>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

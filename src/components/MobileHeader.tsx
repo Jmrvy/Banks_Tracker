@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Link, useLocation } from "react-router-dom";
+import { PiggyBank } from "lucide-react";
 import {
   Home,
   TrendingUp,
@@ -25,6 +26,7 @@ const mainNavigation = [
 const accountsGroup = [
   { name: "Comptes", path: "/accounts", icon: Wallet },
   { name: "Transactions", path: "/transactions", icon: History },
+  { name: "Epargne", path: "/savings", icon: PiggyBank },
 ];
 
 const toolsGroup = [
@@ -45,8 +47,17 @@ export const MobileHeader = () => {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-sm z-50 md:hidden">
-        <div className="flex items-center justify-center h-full px-4">
-          <span className="text-lg font-bold text-primary">⚡ JMRVY CB</span>
+        <div className="flex items-center justify-between h-full px-4">
+          <div className="w-10" /> {/* Spacer for balance */}
+          <span className="text-lg font-bold text-primary">JMRVY CB</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(true)}
+            className="h-10 w-10"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
