@@ -12,7 +12,7 @@ import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
-import { ReportGeneratorModal } from "@/components/ReportGeneratorModal";
+import { ReportWizard } from "@/components/ReportWizard";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const Reports = () => {
@@ -213,7 +213,7 @@ const Reports = () => {
         period={period.label}
       />
 
-      <ReportGeneratorModal
+      <ReportWizard
         open={showExportModal}
         onOpenChange={setShowExportModal}
       />
