@@ -23,7 +23,13 @@ export const useOfflineQueue = () => {
     
     // Save to localStorage for persistence
     const saved = localStorage.getItem('offline-queue') || '[]';
-    const savedQueue = JSON.parse(saved);
+    let savedQueue: Array<{ id: string; timestamp: number }> = [];
+    try {
+      savedQueue = JSON.parse(saved);
+    } catch {
+      console.warn('Invalid offline-queue in localStorage, resetting');
+      savedQueue = [];
+    }
     localStorage.setItem('offline-queue', JSON.stringify([...savedQueue, {
       id: queuedOp.id,
       timestamp: queuedOp.timestamp

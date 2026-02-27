@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { BarChart3, Calendar, CalendarCheck } from "lucide-react";
+import { BarChart3, Calendar, CalendarCheck, Download } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
 import { StatsCards } from "@/components/reports/StatsCards";
@@ -11,6 +12,7 @@ import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
+import { ReportWizard } from "@/components/ReportWizard";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const Reports = () => {
@@ -24,6 +26,7 @@ const Reports = () => {
   const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>('accounting');
 
   // Données pour Évolution et Récurrents - toujours en date comptable
@@ -71,6 +74,15 @@ const Reports = () => {
               {period.label}
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExportModal(true)}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Exporter</span>
+          </Button>
         </div>
 
         {/* Filtres de période */}
@@ -199,6 +211,11 @@ const Reports = () => {
         transactions={filteredTransactions.filter(t => t.type === 'expense')}
         type="expense"
         period={period.label}
+      />
+
+      <ReportWizard
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
       />
     </div>
   );

@@ -22,7 +22,13 @@ export const useUserPreferences = () => {
   useEffect(() => {
     const savedPrefs = localStorage.getItem('userPreferences');
     if (savedPrefs) {
-      setPreferences(JSON.parse(savedPrefs));
+      try {
+        const parsed = JSON.parse(savedPrefs);
+        setPreferences({ ...defaultPreferences, ...parsed });
+      } catch {
+        console.warn('Invalid userPreferences in localStorage, using defaults');
+        localStorage.removeItem('userPreferences');
+      }
     }
   }, []);
 

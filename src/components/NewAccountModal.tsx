@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,26 +16,22 @@ interface NewAccountModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const bankOptions = [
-  { value: 'societe_generale', label: 'Société Générale' },
-  { value: 'revolut', label: 'Revolut' },
-  { value: 'boursorama', label: 'Boursorama' },
-  { value: 'bnp_paribas', label: 'BNP Paribas' },
-  { value: 'credit_agricole', label: 'Crédit Agricole' },
-  { value: 'lcl', label: 'LCL' },
-  { value: 'caisse_epargne', label: 'Caisse d\'Épargne' },
-  { value: 'credit_mutuel', label: 'Crédit Mutuel' },
-  { value: 'other', label: 'Autre' },
-];
+const bankKeys = [
+  'societe_generale',
+  'revolut',
+  'boursorama',
+  'bnp_paribas',
+  'credit_agricole',
+  'lcl',
+  'caisse_epargne',
+  'credit_mutuel',
+  'other',
+] as const;
 
-const accountTypeOptions = [
-  { value: 'checking', label: 'Compte Courant' },
-  { value: 'savings', label: 'Livret d\'Épargne' },
-  { value: 'credit', label: 'Carte de Crédit' },
-  { value: 'investment', label: 'Compte Titre' },
-];
+const accountTypeKeys = ['checking', 'savings', 'credit', 'investment'] as const;
 
 export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { createAccount } = useFinancialData();
   
@@ -54,7 +51,7 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
     
     if (!validation.success) {
       toast({
-        title: "Erreur de validation",
+        title: t('common.error'),
         description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
@@ -72,14 +69,14 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
 
     if (error) {
       toast({
-        title: "Error creating account",
+        title: t('errors.createError'),
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Account created",
-        description: `${formData.name} account created successfully.`,
+        title: t('accounts.accountCreated'),
+        description: t('accounts.accountCreatedDesc', { name: formData.name }),
       });
       
       // Reset form
@@ -102,17 +99,17 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            New Account
+            {t('accounts.newAccount')}
           </DialogTitle>
           <DialogDescription>
-            Add a new financial account to track your money
+            {t('accounts.addAccountDescription')}
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Account Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Nom du compte *</Label>
+            <Label htmlFor="name">{t('accounts.accountName')} *</Label>
             <Input
               id="name"
               placeholder="ex: Compte Courant SG, Revolut Perso, CB Boursorama"
@@ -121,24 +118,24 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
               required
             />
             <p className="text-xs text-muted-foreground">
-              Vous pouvez avoir plusieurs comptes par banque (ex: CB, Épargne, etc.)
+              {t('accounts.accountNameHint')}
             </p>
           </div>
 
           {/* Bank */}
           <div className="space-y-2">
-            <Label htmlFor="bank">Bank</Label>
-            <Select 
-              value={formData.bank} 
+            <Label htmlFor="bank">{t('accounts.bank')}</Label>
+            <Select
+              value={formData.bank}
               onValueChange={(value: any) => setFormData({ ...formData, bank: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a bank" />
+                <SelectValue placeholder={t('accounts.selectBank')} />
               </SelectTrigger>
               <SelectContent>
-                {bankOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {bankKeys.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {t(`accounts.banks.${key}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -147,18 +144,18 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
 
           {/* Account Type */}
           <div className="space-y-2">
-            <Label htmlFor="type">Account Type</Label>
-            <Select 
-              value={formData.account_type} 
+            <Label htmlFor="type">{t('accounts.accountType')}</Label>
+            <Select
+              value={formData.account_type}
               onValueChange={(value: any) => setFormData({ ...formData, account_type: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select account type" />
+                <SelectValue placeholder={t('accounts.selectType')} />
               </SelectTrigger>
               <SelectContent>
-                {accountTypeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {accountTypeKeys.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {t(`accounts.types.${key}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -167,7 +164,7 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
 
           {/* Starting Balance */}
           <div className="space-y-2">
-            <Label htmlFor="balance">Starting Balance</Label>
+            <Label htmlFor="balance">{t('accounts.startingBalance')}</Label>
             <AmountInput
               id="balance"
               placeholder="0.00"
@@ -175,7 +172,7 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
               onChange={(value) => setFormData({ ...formData, balance: value })}
             />
             <p className="text-xs text-muted-foreground">
-              Enter your current account balance
+              {t('accounts.enterCurrentBalance')}
             </p>
           </div>
 
@@ -187,10 +184,10 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Account'}
+              {loading ? t('common.loading') : t('accounts.createAccount')}
             </Button>
           </div>
         </form>
