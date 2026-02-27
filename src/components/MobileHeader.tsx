@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -8,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
 
 export const MobileHeader = () => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
@@ -20,7 +22,7 @@ export const MobileHeader = () => {
     <>
       <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-sm z-50 md:hidden">
         <div className="flex items-center justify-between h-full px-4">
-          <div className="w-10" /> {/* Spacer for balance */}
+          <div className="w-10" />
           <span className="text-lg font-bold text-primary">JMRVY CB</span>
           <Button
             variant="ghost"
@@ -47,7 +49,7 @@ export const MobileHeader = () => {
                   const active = isActive(item.path);
                   return (
                     <Link
-                      key={item.name}
+                      key={item.path}
                       to={item.path}
                       onClick={() => setOpen(false)}
                       className={cn(
@@ -59,7 +61,7 @@ export const MobileHeader = () => {
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <span>{t(item.nameKey)}</span>
                     </Link>
                   );
                 })}
@@ -70,13 +72,13 @@ export const MobileHeader = () => {
               {/* Comptes Group */}
               <div className="mb-4">
                 <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  {accountsGroup.label}
+                  {t(accountsGroup.labelKey)}
                 </div>
                 {accountsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
-                      key={item.name}
+                      key={item.path}
                       to={item.path}
                       onClick={() => setOpen(false)}
                       className={cn(
@@ -88,7 +90,7 @@ export const MobileHeader = () => {
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <span>{t(item.nameKey)}</span>
                     </Link>
                   );
                 })}
@@ -99,13 +101,13 @@ export const MobileHeader = () => {
               {/* Outils Group */}
               <div className="mb-4">
                 <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  {toolsGroup.label}
+                  {t(toolsGroup.labelKey)}
                 </div>
                 {toolsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
-                      key={item.name}
+                      key={item.path}
                       to={item.path}
                       onClick={() => setOpen(false)}
                       className={cn(
@@ -117,7 +119,7 @@ export const MobileHeader = () => {
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <span>{t(item.nameKey)}</span>
                     </Link>
                   );
                 })}
@@ -138,7 +140,7 @@ export const MobileHeader = () => {
                 )}
               >
                 <settingsItem.icon className="h-5 w-5" />
-                <span>{settingsItem.name}</span>
+                <span>{t(settingsItem.nameKey)}</span>
               </Link>
             </div>
           </nav>

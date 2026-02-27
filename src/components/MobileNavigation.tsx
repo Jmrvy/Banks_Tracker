@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -8,6 +9,7 @@ import { Plus, Menu } from "lucide-react";
 import { mainNavigation, accountsGroup, toolsGroup, settingsItem, mobileBottomNav } from "@/config/navigation";
 
 export const MobileNavigation = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -40,7 +42,7 @@ export const MobileNavigation = () => {
               >
                 <Icon className={`h-5 w-5 transition-transform ${isItemActive ? 'scale-110' : ''}`} />
                 <span className={`text-[10px] leading-tight font-medium ${isItemActive ? 'font-semibold' : ''}`}>
-                  {item.name}
+                  {t(item.nameKey)}
                 </span>
               </Button>
             );
@@ -59,7 +61,7 @@ export const MobileNavigation = () => {
           >
             <Plus className={`h-5 w-5 transition-transform ${location.pathname === "/new-transaction" ? 'scale-110' : ''}`} />
             <span className={`text-[10px] leading-tight font-medium ${location.pathname === "/new-transaction" ? 'font-semibold' : ''}`}>
-              Ajouter
+              {t('common.add')}
             </span>
           </Button>
 
@@ -90,7 +92,7 @@ export const MobileNavigation = () => {
                   const active = isActive(item.path);
                   return (
                     <Link
-                      key={item.name}
+                      key={item.path}
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
                       className={cn(
@@ -102,7 +104,7 @@ export const MobileNavigation = () => {
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <span>{t(item.nameKey)}</span>
                     </Link>
                   );
                 })}
@@ -113,13 +115,13 @@ export const MobileNavigation = () => {
               {/* Comptes Group */}
               <div className="mb-4">
                 <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  {accountsGroup.label}
+                  {t(accountsGroup.labelKey)}
                 </div>
                 {accountsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
-                      key={item.name}
+                      key={item.path}
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
                       className={cn(
@@ -131,7 +133,7 @@ export const MobileNavigation = () => {
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <span>{t(item.nameKey)}</span>
                     </Link>
                   );
                 })}
@@ -142,13 +144,13 @@ export const MobileNavigation = () => {
               {/* Outils Group */}
               <div className="mb-4">
                 <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  {toolsGroup.label}
+                  {t(toolsGroup.labelKey)}
                 </div>
                 {toolsGroup.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
-                      key={item.name}
+                      key={item.path}
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
                       className={cn(
@@ -160,7 +162,7 @@ export const MobileNavigation = () => {
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <span>{t(item.nameKey)}</span>
                     </Link>
                   );
                 })}
@@ -181,7 +183,7 @@ export const MobileNavigation = () => {
                 )}
               >
                 <settingsItem.icon className="h-5 w-5" />
-                <span>{settingsItem.name}</span>
+                <span>{t(settingsItem.nameKey)}</span>
               </Link>
             </div>
           </nav>
