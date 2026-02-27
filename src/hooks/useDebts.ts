@@ -47,6 +47,7 @@ export const useDebts = () => {
     const { data, error } = await supabase
       .from('debts')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -67,6 +68,7 @@ export const useDebts = () => {
     const { data, error } = await supabase
       .from('debt_payments')
       .select('*')
+      .eq('user_id', user.id)
       .order('payment_date', { ascending: false });
 
     if (error) {

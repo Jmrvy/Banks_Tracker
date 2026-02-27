@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +12,17 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Palette, Database, Trash2, Edit3, Save, X, Bell } from "lucide-react";
+import { ArrowLeft, User, Palette, Database, Trash2, Edit3, Save, X, Bell, Globe } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { cn } from "@/lib/utils";
 
 const Settings = () => {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { accounts, categories, transactions, loading: financialLoading, refetch } = useFinancialData();
   const navigate = useNavigate();
@@ -44,6 +48,13 @@ const Settings = () => {
   });
   const [notifLoading, setNotifLoading] = useState(false);
   const [testBudgetLoading, setTestBudgetLoading] = useState(false);
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    type: 'category' | 'account' | null;
+    id: string | null;
+  }>({ open: false, type: null, id: null });
 
   // Load notification preferences on mount
   useEffect(() => {
@@ -227,57 +238,51 @@ const Settings = () => {
     }
   };
 
-  const deleteCategory = async (categoryId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ? Cette action est irréversible.")) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', categoryId);
-
-      if (error) throw error;
-
-      refetch();
-      
-      toast({
-        title: "Catégorie supprimée",
-        description: "La catégorie a été supprimée avec succès.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur", 
-        description: "Impossible de supprimer la catégorie.",
-        variant: "destructive"
-      });
-    }
+  const handleDeleteCategory = (categoryId: string) => {
+    setConfirmDialog({ open: true, type: 'category', id: categoryId });
   };
 
-  const deleteAccount = async (accountId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce compte ? Cette action supprimera aussi toutes les transactions associées.")) {
-      return;
-    }
+  const handleDeleteAccount = (accountId: string) => {
+    setConfirmDialog({ open: true, type: 'account', id: accountId });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDialog.id || !confirmDialog.type) return;
 
     try {
-      const { error } = await supabase
-        .from('accounts')
-        .delete()
-        .eq('id', accountId);
+      if (confirmDialog.type === 'category') {
+        const { error } = await supabase
+          .from('categories')
+          .delete()
+          .eq('id', confirmDialog.id);
 
-      if (error) throw error;
+        if (error) throw error;
+
+        toast({
+          title: t('categories.categoryDeleted'),
+          description: t('settings.preferencesSavedDesc'),
+        });
+      } else if (confirmDialog.type === 'account') {
+        const { error } = await supabase
+          .from('accounts')
+          .delete()
+          .eq('id', confirmDialog.id);
+
+        if (error) throw error;
+
+        toast({
+          title: t('accounts.accountDeleted'),
+          description: t('settings.preferencesSavedDesc'),
+        });
+      }
 
       refetch();
-      
-      toast({
-        title: "Compte supprimé",
-        description: "Le compte a été supprimé avec succès.",
-      });
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer le compte.",
+        title: t('common.error'),
+        description: confirmDialog.type === 'category'
+          ? t('errors.deleteError')
+          : t('errors.deleteError'),
         variant: "destructive"
       });
     }
@@ -351,10 +356,20 @@ const Settings = () => {
               
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Thème</Label>
-                  <p className="text-sm text-muted-foreground">Choisissez entre le thème clair et sombre</p>
+                  <Label>{t('settings.theme')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('settings.themeDescription')}</p>
                 </div>
                 <ThemeToggle />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>{t('settings.language')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('settings.languageDescription')}</p>
+                </div>
+                <LanguageSelector />
               </div>
 
               <Separator />
@@ -620,7 +635,7 @@ const Settings = () => {
                             <Button size="sm" variant="outline" onClick={() => startEditingAccount(account)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
                               <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => deleteAccount(account.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteAccount(account.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
                               <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
                           </>
@@ -706,7 +721,7 @@ const Settings = () => {
                             <Button size="sm" variant="outline" onClick={() => startEditingCategory(category)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
                               <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => deleteCategory(category.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteCategory(category.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
                               <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
                           </>
@@ -722,16 +737,29 @@ const Settings = () => {
 
           {/* Déconnexion */}
           <div className="pt-2">
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={signOut}
               className="w-full h-10 text-sm"
             >
-              Se déconnecter
+              {t('auth.signOut')}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        onConfirm={handleConfirmDelete}
+        title={t('confirmations.deleteTitle')}
+        description={
+          confirmDialog.type === 'category'
+            ? t('categories.confirmDelete')
+            : t('accounts.confirmDelete')
+        }
+      />
     </div>
   );
 };

@@ -137,16 +137,17 @@ export const RegularizeOverdueTransactionsModal = ({
 
       if (error) throw error;
 
-      // Update next_due_date for each recurring transaction
+      // Update next_due_date for each recurring transaction (batch update)
       const recurringIdsToUpdate = new Set(
         missedOccurrences
           .filter((_, index) => selectedOccurrences.has(getOccurrenceKey(index)))
           .map(o => o.recurringId)
       );
 
-      for (const recurringId of recurringIdsToUpdate) {
+      // Prepare all updates in parallel
+      const updatePromises = Array.from(recurringIdsToUpdate).map(recurringId => {
         const rt = overdueTransactions.find(t => t.id === recurringId);
-        if (!rt) continue;
+        if (!rt) return Promise.resolve();
 
         // Calculate next due date after today
         const today = startOfDay(new Date());
@@ -169,15 +170,18 @@ export const RegularizeOverdueTransactionsModal = ({
           }
         }
 
-        await supabase
+        return supabase
           .from('recurring_transactions')
-          .update({ 
+          .update({
             next_due_date: format(nextDate, 'yyyy-MM-dd'),
             updated_at: new Date().toISOString()
           })
           .eq('id', recurringId)
           .eq('user_id', user.id);
-      }
+      });
+
+      // Execute all updates in parallel
+      await Promise.all(updatePromises);
 
       toast.success(`${transactionsToCreate.length} transaction(s) créée(s) avec succès`);
       refetch();
