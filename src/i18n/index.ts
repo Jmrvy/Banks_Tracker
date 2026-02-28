@@ -24,6 +24,7 @@ i18n
     resources,
     fallbackLng: 'fr',
     defaultNS: 'translation',
+    initImmediate: false,
     interpolation: {
       escapeValue: false, // React already escapes values
     },
