@@ -234,10 +234,7 @@ export function useFinancialData() {
     if (error) {
       console.error('Error creating transaction:', error);
     } else {
-      setTimeout(() => {
-        fetchTransactions();
-        fetchAccounts();
-      }, 100);
+      await Promise.all([fetchTransactions(), fetchAccounts()]);
     }
     return { error };
   };
@@ -270,10 +267,7 @@ export function useFinancialData() {
     if (error) {
       console.error('Error creating transfer:', error);
     } else {
-      setTimeout(() => {
-        fetchTransactions();
-        fetchAccounts();
-      }, 100);
+      await Promise.all([fetchTransactions(), fetchAccounts()]);
     }
     return { error };
   };
@@ -347,7 +341,7 @@ export function useFinancialData() {
     if (!user) return;
     
     // Recalculate next_due_date if start_date or recurrence_type is being updated
-    let updatedData: any = {
+    let updatedData: Record<string, unknown> = {
       ...updates,
       updated_at: new Date().toISOString()
     };
@@ -474,10 +468,7 @@ export function useFinancialData() {
         }
       }
 
-      setTimeout(() => {
-        fetchTransactions();
-        fetchAccounts();
-      }, 100);
+      await Promise.all([fetchTransactions(), fetchAccounts()]);
     }
     return { error };
   };
@@ -523,10 +514,7 @@ export function useFinancialData() {
         }
       }
 
-      setTimeout(() => {
-        fetchTransactions();
-        fetchAccounts();
-      }, 100);
+      await Promise.all([fetchTransactions(), fetchAccounts()]);
     }
     return { error };
   };
@@ -831,12 +819,8 @@ export function useFinancialData() {
       }
     }
     
-    console.log(`Refund created successfully: ${linkedRefundAmount} linked, ${excessAmount} excess`);
-    setTimeout(() => {
-      fetchTransactions();
-      fetchAccounts();
-    }, 100);
-    
+    await Promise.all([fetchTransactions(), fetchAccounts()]);
+
     return { error: null, linkedAmount: linkedRefundAmount, excessAmount };
   };
 
