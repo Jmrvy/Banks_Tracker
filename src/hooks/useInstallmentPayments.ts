@@ -61,10 +61,10 @@ export const useInstallmentPayments = () => {
     if (error) {
       console.error('Error fetching installment payments:', error);
     } else {
-      const processedData = (data || []).map((ip: any) => ({
+      const processedData: InstallmentPayment[] = (data || []).map((ip) => ({
         ...ip,
         payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
-      })) as InstallmentPayment[];
+      }));
       setInstallmentPayments(processedData);
     }
   };
@@ -252,8 +252,8 @@ export const useInstallmentPayments = () => {
     // Log history change
     if (!skipHistory && currentInstallment) {
       const changedFields: string[] = [];
-      const oldValues: Record<string, any> = {};
-      const newValues: Record<string, any> = {};
+      const oldValues: Record<string, string | number | boolean | null> = {};
+      const newValues: Record<string, string | number | boolean | null> = {};
 
       // Track what changed
       if (updates.total_amount !== undefined && updates.total_amount !== currentInstallment.total_amount) {
@@ -307,7 +307,7 @@ export const useInstallmentPayments = () => {
     }
 
     // Synchronize with recurring transaction
-    const recurringUpdates: Record<string, any> = {};
+    const recurringUpdates: Record<string, string | number | boolean | null> = {};
 
     if (updates.description !== undefined) {
       const paymentType = updates.payment_type || currentInstallment?.payment_type || 'payment';

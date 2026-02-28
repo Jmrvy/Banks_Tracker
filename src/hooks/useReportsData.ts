@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData, type Transaction, type RecurringTransaction } from "@/hooks/useFinancialData";
 import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays } from "date-fns";
@@ -37,7 +37,7 @@ export interface CategoryData {
 }
 
 export interface RecurringData {
-  activeRecurring: any[];
+  activeRecurring: RecurringTransaction[];
   monthlyIncome: number;
   monthlyExpenses: number;
   monthlyNet: number;
@@ -171,7 +171,7 @@ export const useReportsData = (
   // On utilise les transactions déjà filtrées par période (filteredTransactions) pour la cohérence
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     // Helper pour obtenir la date comptable (transaction_date) d'une transaction
-    const getAccountingDate = (t: any) => new Date(t.transaction_date);
+    const getAccountingDate = (t: Transaction) => new Date(t.transaction_date);
     
     // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
     // Puis trier par date comptable pour l'affichage
@@ -236,7 +236,7 @@ export const useReportsData = (
       const dateObj = new Date(dateStr);
       const dayTransactions = transactionsByDate.get(dateStr);
       
-      const dayBalance = dayTransactions.reduce((sum: number, t: any) => {
+      const dayBalance = dayTransactions.reduce((sum: number, t: Transaction) => {
         if (t.type === 'income') return sum + Number(t.amount);
         if (t.type === 'expense') return sum - Number(t.amount);
         return sum - Number(t.transfer_fee || 0);
@@ -419,7 +419,7 @@ export const useReportsData = (
         const categoryColor = t.category?.color || '#6b7280';
         
         // Calculer le montant net (après remboursement)
-        const refundedAmount = (t as any).refunded_amount || 0;
+        const refundedAmount = t.refunded_amount || 0;
         const netAmount = Math.max(0, Number(t.amount) - refundedAmount);
         
         if (!acc[categoryId]) {
@@ -432,7 +432,7 @@ export const useReportsData = (
         }
         acc[categoryId].spent += netAmount;
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, { name: string; spent: number; budget: number; color: string }>);
 
     // Ajouter les catégories avec budget mais sans dépenses
     categories.forEach(category => {

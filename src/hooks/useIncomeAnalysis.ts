@@ -119,10 +119,10 @@ export const useIncomeAnalysis = (transactions: Transaction[]): IncomeCategory[]
     // Filtrer uniquement les revenus qui sont inclus dans les statistiques
     // Exclure les transactions de remboursement car elles sont déjà prises en compte
     // via le montant net des dépenses originales
-    const incomeTransactions = transactions.filter(t => 
-      t.type === 'income' && 
-      (t as any).include_in_stats !== false &&
-      !(t as any).refund_of_transaction_id // Exclure les remboursements
+    const incomeTransactions = transactions.filter(t =>
+      t.type === 'income' &&
+      t.include_in_stats !== false &&
+      !t.refund_of_transaction_id // Exclure les remboursements
     );
     
     if (incomeTransactions.length === 0) return [];

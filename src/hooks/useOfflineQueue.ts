@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface QueuedOperation {
@@ -10,6 +10,7 @@ interface QueuedOperation {
 export const useOfflineQueue = () => {
   const [queue, setQueue] = useState<QueuedOperation[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const processingLockRef = useRef(false);
   const { toast } = useToast();
 
   const addToQueue = (operation: () => Promise<void>) => {
@@ -37,8 +38,9 @@ export const useOfflineQueue = () => {
   };
 
   const processQueue = async () => {
-    if (isProcessing || queue.length === 0 || !navigator.onLine) return;
+    if (processingLockRef.current || queue.length === 0 || !navigator.onLine) return;
 
+    processingLockRef.current = true;
     setIsProcessing(true);
     toast({
       title: "Synchronisation",
@@ -70,6 +72,7 @@ export const useOfflineQueue = () => {
 
     localStorage.removeItem('offline-queue');
     setIsProcessing(false);
+    processingLockRef.current = false;
   };
 
   useEffect(() => {
