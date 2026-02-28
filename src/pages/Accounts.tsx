@@ -129,7 +129,7 @@ const Accounts = () => {
         </div>
 
         {/* Total Balance Card */}
-        <Card className="border-border bg-card">
+        <Card className="">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -150,7 +150,7 @@ const Accounts = () => {
             {accounts.map((account) => (
               <Card
                 key={account.id}
-                className="border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer active:scale-[0.98]"
+                className="glass-hover transition-colors cursor-pointer active:scale-[0.98]"
                 onClick={() => setSelectedAccountId(account.id)}
               >
                 <CardContent className="p-4 sm:p-6">

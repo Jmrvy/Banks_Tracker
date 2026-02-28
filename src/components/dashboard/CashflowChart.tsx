@@ -175,7 +175,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
       const isProjection = data.balance === null && data.projectedBalance !== null;
       
       return (
-        <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+        <div className="bg-popover/80 backdrop-blur-xl border border-white/[0.1] rounded-xl shadow-[0_8px_32px_-4px_hsl(220_20%_4%/0.6),inset_0_0.5px_0_0_hsl(210_20%_98%/0.08)] p-3">
           <p className="text-sm font-medium mb-2">{data.date}</p>
           <div className="space-y-1 text-xs">
             <div className="flex items-center justify-between gap-4">
@@ -206,7 +206,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
   };
 
   return (
-    <Card className="border-border bg-card">
+    <Card>
       <CardContent className="p-3 sm:p-4 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
           <div>

@@ -236,7 +236,7 @@ const Savings = () => {
 
         {/* Investment Statistics for Period */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Card className="border-border bg-card">
+          <Card className="">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <PiggyBank className="h-4 w-4 text-primary" />
@@ -248,7 +248,7 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card">
+          <Card className="">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingDown className="h-4 w-4 text-primary" />
@@ -260,7 +260,7 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card">
+          <Card className="">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="h-4 w-4 text-destructive" />
@@ -272,7 +272,7 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card border-l-4 border-l-success">
+          <Card className="border-l-4 border-l-success">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <CreditCard className="h-4 w-4 text-success" />
@@ -287,7 +287,7 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card">
+          <Card className="">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-primary" />
@@ -302,7 +302,7 @@ const Savings = () => {
 
         {/* Evolution Chart */}
         {investmentStats.trendData.length > 0 && (
-          <Card className="border-border bg-card">
+          <Card className="">
             <CardHeader className="pb-2">
               <CardTitle className="text-base sm:text-lg">
                 Évolution sur la période
@@ -371,7 +371,7 @@ const Savings = () => {
                 return (
                   <Card
                     key={installment.id}
-                    className="border-border bg-card border-l-4 border-l-success"
+                    className="border-l-4 border-l-success"
                   >
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -413,7 +413,7 @@ const Savings = () => {
           </h2>
           
           {goals.length === 0 ? (
-            <Card className="border-border bg-card">
+            <Card className="">
               <CardContent className="p-6 text-center">
                 <Target className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground mb-4">
@@ -434,7 +434,7 @@ const Savings = () => {
                 return (
                   <Card
                     key={goal.id}
-                    className="border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+                    className="glass-hover transition-colors cursor-pointer"
                     onClick={() => setSelectedGoal(goal)}
                   >
                     <CardContent className="p-4 sm:p-6">

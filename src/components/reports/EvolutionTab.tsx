@@ -42,7 +42,7 @@ export const EvolutionTab = ({
     <div className="space-y-3 sm:space-y-4">
       {/* Résumé rapide - Cards compactes */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-        <Card className="border-border bg-card">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -54,7 +54,7 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
@@ -66,7 +66,7 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
@@ -78,7 +78,7 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <Target className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />

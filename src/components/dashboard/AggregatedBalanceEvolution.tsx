@@ -103,7 +103,7 @@ export const AggregatedBalanceEvolution = () => {
 
   if (transactionsWithBalance.length === 0) {
     return (
-      <Card className="border-border bg-card">
+      <Card className="">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">Évolution du solde global</CardTitle>
         </CardHeader>
@@ -118,7 +118,7 @@ export const AggregatedBalanceEvolution = () => {
 
   return (
     <>
-      <Card className="border-border bg-card">
+      <Card className="">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">Évolution du solde global</CardTitle>
         </CardHeader>

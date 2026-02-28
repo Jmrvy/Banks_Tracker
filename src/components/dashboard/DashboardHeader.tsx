@@ -50,7 +50,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
 
   return (
     <>
-      <div className="flex flex-col border-b border-border">
+      <div className="flex flex-col border-b border-white/[0.06]">
         <div className="flex items-center justify-between py-3 px-4 md:py-4 md:px-6">
           {/* Left: Period selector */}
           <div className="flex items-center gap-2 md:gap-4">
@@ -64,17 +64,17 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               </Button>
             </div>
 
-            <div className="flex items-center gap-1 md:gap-2 bg-muted/30 rounded-lg p-0.5 md:p-1">
+            <div className="flex items-center gap-1 md:gap-2 bg-white/[0.04] backdrop-blur-md border border-white/[0.06] rounded-xl p-0.5 md:p-1">
               {periods.map((period) => (
                 <Button
                   key={period.value}
                   variant={selectedPeriod === period.value ? "default" : "ghost"}
                   size="sm"
                   onClick={() => onPeriodChange(period.value)}
-                  className={`h-7 md:h-8 px-2 md:px-3 text-xs md:text-sm ${
+                  className={`h-7 md:h-8 px-2 md:px-3 text-xs md:text-sm rounded-lg ${
                     selectedPeriod === period.value
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-[0_1px_4px_0_hsl(38_70%_68%/0.25)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
                   }`}
                 >
                   {period.label}

@@ -2,8 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
+Liquid Glass UX Design System — Inspired by Apple's translucent material language.
 */
 
 @layer base {
@@ -11,51 +12,51 @@ All colors MUST be HSL.
     /* Finary-inspired Dark Theme - Primary palette */
     --background: 220 18% 8%;          /* Very dark blue-black #111318 */
     --foreground: 210 20% 98%;         /* Near white text */
-    
-    /* Card surfaces */
+
+    /* Card surfaces — translucent glass */
     --card: 220 16% 12%;               /* Slightly lighter than background #1A1D24 */
     --card-foreground: 210 20% 98%;
-    
+
     /* Popover surfaces */
     --popover: 220 16% 14%;            /* #1E2229 */
     --popover-foreground: 210 20% 98%;
-    
+
     /* Primary accent - Golden/Beige like Finary */
     --primary: 38 70% 68%;             /* Warm gold #E5B77E */
     --primary-foreground: 220 18% 8%;  /* Dark text on gold */
-    
+
     /* Secondary surfaces */
     --secondary: 220 14% 18%;          /* #252A33 */
     --secondary-foreground: 210 20% 98%;
-    
+
     /* Muted elements */
     --muted: 220 14% 20%;              /* #2A2F38 */
     --muted-foreground: 210 10% 65%;   /* #9BA3AF */
-    
+
     /* Accent colors */
     --accent: 220 14% 18%;
     --accent-foreground: 210 20% 98%;
-    
+
     /* Status colors */
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 20% 98%;
-    
+
     --success: 142 71% 45%;
     --success-foreground: 210 20% 98%;
-    
+
     --warning: 38 92% 50%;
     --warning-foreground: 220 18% 8%;
-    
-    /* Borders */
+
+    /* Borders — lighter for glass edge highlights */
     --border: 220 14% 22%;             /* Subtle borders #2E333D */
     --input: 220 14% 22%;
     --ring: 38 70% 68%;                /* Gold ring on focus */
-    
+
     /* Banking colors */
     --bank-sg: 0 84% 60%;
     --bank-revolut: 231 48% 48%;
     --bank-boursorama: 195 100% 39%;
-    
+
     /* Sidebar specific */
     --sidebar-background: 220 18% 10%; /* Slightly darker sidebar #13161B */
     --sidebar-foreground: 210 20% 98%;
@@ -65,11 +66,20 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 220 14% 18%;
     --sidebar-ring: 38 70% 68%;
-    
+
     /* Radius */
     --radius: 0.75rem;
+
+    /* Liquid Glass tokens */
+    --glass-bg: 220 16% 14%;
+    --glass-bg-opacity: 0.55;
+    --glass-border-opacity: 0.12;
+    --glass-blur: 20px;
+    --glass-blur-heavy: 40px;
+    --glass-highlight: 210 20% 98%;
+    --glass-shadow: 220 20% 4%;
   }
-  
+
   .dark {
     /* Keep same values as root since we're dark by default */
     --background: 220 18% 8%;
@@ -103,6 +113,13 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 220 14% 18%;
     --sidebar-ring: 38 70% 68%;
+    --glass-bg: 220 16% 14%;
+    --glass-bg-opacity: 0.55;
+    --glass-border-opacity: 0.12;
+    --glass-blur: 20px;
+    --glass-blur-heavy: 40px;
+    --glass-highlight: 210 20% 98%;
+    --glass-shadow: 220 20% 4%;
   }
 }
 
@@ -127,54 +144,138 @@ All colors MUST be HSL.
   }
 }
 
+@layer components {
+  /* ─── Liquid Glass Surfaces ─── */
+
+  /* Base glass panel — translucent with backdrop blur and edge highlight */
+  .glass {
+    background: hsl(var(--glass-bg) / var(--glass-bg-opacity));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-highlight) / var(--glass-border-opacity));
+    box-shadow:
+      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.08),
+      0 2px 12px -2px hsl(var(--glass-shadow) / 0.5);
+  }
+
+  /* Elevated glass — heavier blur, more prominent glow */
+  .glass-elevated {
+    background: hsl(var(--glass-bg) / 0.65);
+    backdrop-filter: blur(var(--glass-blur-heavy));
+    -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+    border: 1px solid hsl(var(--glass-highlight) / 0.14);
+    box-shadow:
+      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.1),
+      0 8px 32px -4px hsl(var(--glass-shadow) / 0.6),
+      0 2px 8px -2px hsl(var(--glass-shadow) / 0.3);
+  }
+
+  /* Subtle glass — very light effect for inline surfaces */
+  .glass-subtle {
+    background: hsl(var(--glass-bg) / 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--glass-highlight) / 0.08);
+    box-shadow: inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.05);
+  }
+
+  /* Glass with primary accent glow */
+  .glass-accent {
+    background: hsl(var(--glass-bg) / var(--glass-bg-opacity));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--primary) / 0.18);
+    box-shadow:
+      inset 0 0.5px 0 0 hsl(var(--primary) / 0.1),
+      0 0 20px -4px hsl(var(--primary) / 0.12),
+      0 2px 12px -2px hsl(var(--glass-shadow) / 0.5);
+  }
+
+  /* Hover state for glass surfaces */
+  .glass-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .glass-hover:hover {
+    background: hsl(var(--glass-bg) / 0.7);
+    border-color: hsl(var(--glass-highlight) / 0.18);
+    box-shadow:
+      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.12),
+      0 4px 20px -4px hsl(var(--glass-shadow) / 0.6);
+  }
+
+  /* ─── Glass Shimmer Edge ─── */
+  .glass-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-shimmer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--glass-highlight) / 0.15) 0%,
+      transparent 40%,
+      transparent 60%,
+      hsl(var(--glass-highlight) / 0.06) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
 @layer utilities {
   /* Mobile-optimized text sizes */
   .text-responsive-xs {
     @apply text-xs sm:text-sm;
   }
-  
+
   .text-responsive-sm {
     @apply text-sm sm:text-base;
   }
-  
+
   .text-responsive-base {
     @apply text-sm sm:text-base lg:text-lg;
   }
-  
+
   .text-responsive-lg {
     @apply text-base sm:text-lg lg:text-xl;
   }
-  
+
   .text-responsive-xl {
     @apply text-lg sm:text-xl lg:text-2xl;
   }
-  
+
   .text-responsive-2xl {
     @apply text-xl sm:text-2xl lg:text-3xl;
   }
-  
+
   .text-responsive-3xl {
     @apply text-2xl sm:text-3xl lg:text-4xl;
   }
-  
+
   /* Compact padding for mobile */
   .p-responsive {
     @apply p-3 sm:p-4 lg:p-6;
   }
-  
+
   .px-responsive {
     @apply px-3 sm:px-4 lg:px-6;
   }
-  
+
   .py-responsive {
     @apply py-3 sm:py-4 lg:py-6;
   }
-  
+
   /* Compact spacing */
   .space-y-responsive > * + * {
     @apply mt-3 sm:mt-4 lg:mt-6;
   }
-  
+
   .gap-responsive {
     @apply gap-3 sm:gap-4 lg:gap-6;
   }

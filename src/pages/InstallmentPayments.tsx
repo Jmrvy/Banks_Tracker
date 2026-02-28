@@ -217,7 +217,7 @@ const InstallmentPayments = () => {
 
         {/* Installment Payments List */}
         {filteredPayments.length === 0 ? (
-          <Card className="bg-card/50 backdrop-blur border-border/50">
+          <Card className="">
             <CardContent className="p-12 text-center">
               <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
                 <CreditCard className="h-8 w-8 text-muted-foreground" />
@@ -242,7 +242,7 @@ const InstallmentPayments = () => {
               const progress = ((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 100;
 
               return (
-                <Card key={payment.id} className="bg-card/50 backdrop-blur border-border/50 hover:shadow-lg transition-all duration-200">
+                <Card key={payment.id} className="hover:shadow-lg transition-all duration-200">
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-base md:text-lg font-semibold flex-1 min-w-0 truncate">{payment.description}</CardTitle>

@@ -20,10 +20,10 @@ export const MobileHeader = () => {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-sm z-50 md:hidden">
+      <header className="fixed top-0 left-0 right-0 h-14 bg-background/70 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_1px_12px_-4px_hsl(220_20%_4%/0.5),inset_0_-0.5px_0_0_hsl(210_20%_98%/0.04)] z-50 md:hidden">
         <div className="flex items-center justify-between h-full px-4">
           <div className="w-10" />
-          <span className="text-lg font-bold text-primary">JMRVY CB</span>
+          <span className="text-lg font-bold text-primary drop-shadow-[0_0_10px_hsl(38_70%_68%/0.3)]">JMRVY CB</span>
           <Button
             variant="ghost"
             size="icon"
