@@ -212,7 +212,21 @@
     "goalDeleted": "Savings goal deleted",
     "goalCreateError": "Error creating goal",
     "goalUpdateError": "Error updating goal",
-    "goalDeleteError": "Error deleting goal"
+    "goalDeleteError": "Error deleting goal",
+    "accumulatedSavings": "Accumulated savings",
+    "totalInvestmentsOn": "Total investments over {{period}}",
+    "totalSaved": "Total saved",
+    "monthlyAverage": "Monthly average",
+    "trend": "Trend",
+    "cumulativeEvolution": "Cumulative savings evolution",
+    "cumulativeSavings": "Cumulative savings",
+    "monthlyBreakdown": "Monthly breakdown (last 6 months)",
+    "trackGoals": "Track your goals and their progress",
+    "createFirstGoal": "Create your first goal",
+    "deadlineOn": "Deadline: {{date}}",
+    "monthlyRequiredLabel": "Monthly savings required: {{amount}}",
+    "dailyRequired": "i.e. {{amount}} per day",
+    "of": "of {{amount}}"
   },
   "debts": {
     "title": "Debts",

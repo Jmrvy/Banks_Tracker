@@ -212,7 +212,21 @@
     "goalDeleted": "Objectif d'épargne supprimé",
     "goalCreateError": "Erreur lors de la création de l'objectif",
     "goalUpdateError": "Erreur lors de la mise à jour de l'objectif",
-    "goalDeleteError": "Erreur lors de la suppression de l'objectif"
+    "goalDeleteError": "Erreur lors de la suppression de l'objectif",
+    "accumulatedSavings": "Épargne accumulée",
+    "totalInvestmentsOn": "Total des investissements sur {{period}}",
+    "totalSaved": "Total épargné",
+    "monthlyAverage": "Moyenne mensuelle",
+    "trend": "Tendance",
+    "cumulativeEvolution": "Évolution de l'épargne cumulée",
+    "cumulativeSavings": "Épargne cumulée",
+    "monthlyBreakdown": "Répartition mensuelle (6 derniers mois)",
+    "trackGoals": "Suivez vos objectifs et leurs progressions",
+    "createFirstGoal": "Créer votre premier objectif",
+    "deadlineOn": "Échéance: {{date}}",
+    "monthlyRequiredLabel": "Épargne mensuelle requise: {{amount}}",
+    "dailyRequired": "Soit {{amount}} par jour",
+    "of": "sur {{amount}}"
   },
   "debts": {
     "title": "Dettes",
