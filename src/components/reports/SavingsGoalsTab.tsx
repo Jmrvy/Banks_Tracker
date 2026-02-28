@@ -42,17 +42,17 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     }
 
     const investmentTransactions = transactions.filter(
-      t => t.type === 'expense' && t.category?.id === investmentCategory.id
+      tx => tx.type === 'expense' && tx.category?.id === investmentCategory.id
     );
 
-    const total = investmentTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const total = investmentTransactions.reduce((sum, tx) => sum + tx.amount, 0);
     const count = investmentTransactions.length;
 
     // Calculate monthly breakdown
     const monthlyMap = new Map<string, number>();
-    investmentTransactions.forEach(t => {
-      const month = format(new Date(t.value_date), 'yyyy-MM');
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + t.amount);
+    investmentTransactions.forEach(tx => {
+      const month = format(new Date(tx.value_date), 'yyyy-MM');
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + tx.amount);
     });
 
     const monthlyData = Array.from(monthlyMap.entries())
@@ -87,11 +87,11 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
       (a, b) => new Date(a.value_date).getTime() - new Date(b.value_date).getTime()
     );
 
-    sortedTransactions.forEach(t => {
-      cumulative += t.amount;
+    sortedTransactions.forEach(tx => {
+      cumulative += tx.amount;
       evolutionData.push({
-        date: format(new Date(t.value_date), 'dd/MM/yyyy'),
-        amount: t.amount,
+        date: format(new Date(tx.value_date), 'dd/MM/yyyy'),
+        amount: tx.amount,
         cumulative
       });
     });

@@ -24,21 +24,21 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
     );
 
     const periodTransactions = startDate && endDate
-      ? sortedTransactions.filter(t => {
-          const transactionDate = new Date(t.transaction_date);
+      ? sortedTransactions.filter(tx => {
+          const transactionDate = new Date(tx.transaction_date);
           return isWithinInterval(transactionDate, { start: startDate, end: endDate });
         })
       : sortedTransactions;
 
     let runningBalance = 0;
     if (startDate) {
-      sortedTransactions.forEach(t => {
-        const transactionDate = new Date(t.transaction_date);
+      sortedTransactions.forEach(tx => {
+        const transactionDate = new Date(tx.transaction_date);
         if (transactionDate < startDate) {
-          if (t.type === 'expense') {
-            runningBalance += t.amount;
-          } else if (t.type === 'income') {
-            runningBalance -= t.amount;
+          if (tx.type === 'expense') {
+            runningBalance += tx.amount;
+          } else if (tx.type === 'income') {
+            runningBalance -= tx.amount;
           }
         }
       });
@@ -46,17 +46,17 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
 
     const result: Array<Transaction & { balanceBefore: number; balanceAfter: number }> = [];
 
-    periodTransactions.forEach((t) => {
+    periodTransactions.forEach((tx) => {
       const balanceBefore = runningBalance;
 
-      if (t.type === 'expense') {
-        runningBalance += t.amount;
-      } else if (t.type === 'income') {
-        runningBalance -= t.amount;
+      if (tx.type === 'expense') {
+        runningBalance += tx.amount;
+      } else if (tx.type === 'income') {
+        runningBalance -= tx.amount;
       }
 
       result.push({
-        ...t,
+        ...tx,
         balanceBefore,
         balanceAfter: runningBalance,
       });
@@ -103,21 +103,21 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
           </div>
         ) : (
           <div className="space-y-1 sm:space-y-2 max-h-[500px] overflow-y-auto">
-            {transactionsWithBalance.map((t) => (
+            {transactionsWithBalance.map((tx) => (
               <div
-                key={t.id}
+                key={tx.id}
                 className="flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-3"
               >
                 {/* Mobile: Single line compact view */}
                 <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
                   <div className="flex-shrink-0">
-                    {getTransactionIcon(t.type)}
+                    {getTransactionIcon(tx.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-xs">{t.description}</p>
+                    <p className="font-medium truncate text-xs">{tx.description}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
-                      <span className="ml-1">&bull; {getTypeLabel(t.type)}</span>
+                      {format(new Date(tx.transaction_date), 'dd/MM', { locale: fr })}
+                      <span className="ml-1">&bull; {getTypeLabel(tx.type)}</span>
                     </p>
                   </div>
                 </div>
@@ -125,34 +125,34 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 {/* Mobile: Amount and balance */}
                 <div className="flex items-center gap-3 flex-shrink-0 sm:hidden">
                   <p className={`font-bold text-xs ${
-                    t.type === 'expense' ? 'text-success' : 'text-destructive'
+                    tx.type === 'expense' ? 'text-success' : 'text-destructive'
                   }`}>
-                    {t.type === 'expense' ? '+' : '-'}{formatCurrency(t.amount)}
+                    {tx.type === 'expense' ? '+' : '-'}{formatCurrency(tx.amount)}
                   </p>
                   <p className={`font-medium text-xs ${
-                    t.balanceAfter >= 0 ? 'text-primary/70' : 'text-destructive/70'
+                    tx.balanceAfter >= 0 ? 'text-primary/70' : 'text-destructive/70'
                   }`}>
-                    &rarr; {formatCurrency(t.balanceAfter)}
+                    &rarr; {formatCurrency(tx.balanceAfter)}
                   </p>
                 </div>
 
                 {/* Desktop: Full view */}
                 <div className="hidden sm:flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
-                    {getTransactionIcon(t.type)}
+                    {getTransactionIcon(tx.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-base">{t.description}</p>
+                    <p className="font-medium truncate text-base">{tx.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span>{format(new Date(tx.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
                       <span>&bull;</span>
                       <Badge variant="outline" className="text-xs">
-                        {getTypeLabel(t.type)}
+                        {getTypeLabel(tx.type)}
                       </Badge>
-                      {t.account && (
+                      {tx.account && (
                         <>
                           <span>&bull;</span>
-                          <span>{t.account.name}</span>
+                          <span>{tx.account.name}</span>
                         </>
                       )}
                     </div>
@@ -161,17 +161,17 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
                   <div className="text-right">
                     <p className={`font-bold text-base ${
-                      t.type === 'expense' ? 'text-success' : 'text-destructive'
+                      tx.type === 'expense' ? 'text-success' : 'text-destructive'
                     }`}>
-                      {t.type === 'expense' ? '+' : '-'}{formatCurrency(t.amount)}
+                      {tx.type === 'expense' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </p>
                   </div>
                   <div className="text-right w-32">
                     <p className="text-xs text-muted-foreground">{t('savings.savingsBalance')}</p>
                     <p className={`font-bold text-sm ${
-                      t.balanceAfter >= 0 ? 'text-primary' : 'text-destructive'
+                      tx.balanceAfter >= 0 ? 'text-primary' : 'text-destructive'
                     }`}>
-                      {formatCurrency(t.balanceAfter)}
+                      {formatCurrency(tx.balanceAfter)}
                     </p>
                   </div>
                 </div>
