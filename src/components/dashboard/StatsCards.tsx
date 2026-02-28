@@ -154,9 +154,9 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {cards.map((card) => (
-          <Card 
-            key={card.label} 
-            className={`border-border bg-card hover:bg-accent/50 transition-colors ${
+          <Card
+            key={card.label}
+            className={`glass-hover ${
               (card.label === "Revenus" || card.label === "Dépenses" || card.label === "Disponible") ? "cursor-pointer" : ""
             }`}
             onClick={() => handleCardClick(card.label)}
@@ -173,7 +173,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
                           e.stopPropagation();
                           setShowDateDifferenceModal(true);
                         }}
-                        className="p-0.5 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                        className="p-0.5 rounded-lg hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                         aria-label="Voir les écarts entre date comptable et date valeur"
                       >
                         <Info className="h-3.5 w-3.5 text-muted-foreground" />
@@ -185,7 +185,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
                     {card.isCount ? card.value : formatCurrency(card.value)}
                   </p>
                 </div>
-                <div className={`h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-full ${card.bgColor} flex items-center justify-center flex-shrink-0 ml-2`}>
+                <div className={`h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-full ${card.bgColor} backdrop-blur-sm flex items-center justify-center flex-shrink-0 ml-2`}>
                   <card.icon className={`h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ${card.color}`} />
                 </div>
               </div>

@@ -116,7 +116,7 @@ const RecurringTransactions = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="bg-card/50 backdrop-blur border-border/50">
+          <Card className="">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
@@ -132,7 +132,7 @@ const RecurringTransactions = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-card/50 backdrop-blur border-border/50">
+          <Card className="">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
@@ -148,7 +148,7 @@ const RecurringTransactions = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-card/50 backdrop-blur border-border/50">
+          <Card className="">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
@@ -187,7 +187,7 @@ const RecurringTransactions = () => {
           {/* Calendar View */}
           <TabsContent value="calendar" className="mt-4">
             {loading ? (
-              <Card className="bg-card/50 backdrop-blur border-border/50">
+              <Card className="">
                 <CardContent className="p-6">
                   <div className="animate-pulse space-y-4">
                     <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
@@ -200,7 +200,7 @@ const RecurringTransactions = () => {
                 </CardContent>
               </Card>
             ) : recurringTransactions.length === 0 ? (
-              <Card className="bg-card/50 backdrop-blur border-border/50">
+              <Card className="">
                 <CardContent className="p-8 sm:p-12">
                   <div className="text-center">
                     <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3 sm:mb-4">
@@ -245,7 +245,7 @@ const RecurringTransactions = () => {
                 ))}
               </div>
             ) : recurringTransactions.length === 0 ? (
-              <Card className="bg-card/50 backdrop-blur border-border/50">
+              <Card className="">
                 <CardContent className="p-8 sm:p-12">
                   <div className="text-center">
                     <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3 sm:mb-4">
@@ -265,7 +265,7 @@ const RecurringTransactions = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {recurringTransactions.map((recurring) => (
-                  <Card key={recurring.id} className="bg-card/50 backdrop-blur border-border/50 hover:shadow-lg transition-all duration-200">
+                  <Card key={recurring.id} className="hover:shadow-lg transition-all duration-200">
                     <CardHeader className="p-3 sm:p-6">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-sm sm:text-lg font-semibold truncate">{recurring.description}</CardTitle>
