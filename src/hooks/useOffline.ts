@@ -7,11 +7,13 @@ export const useOffline = () => {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      if (wasOffline) {
-        // Trigger sync when coming back online
-        window.dispatchEvent(new CustomEvent('sync-offline-data'));
-      }
-      setWasOffline(false);
+      setWasOffline(prev => {
+        if (prev) {
+          // Trigger sync when coming back online
+          window.dispatchEvent(new CustomEvent('sync-offline-data'));
+        }
+        return false;
+      });
     };
 
     const handleOffline = () => {
@@ -26,7 +28,7 @@ export const useOffline = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [wasOffline]);
+  }, []);
 
   return { isOnline, wasOffline };
 };

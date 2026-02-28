@@ -46,16 +46,16 @@ const Savings = () => {
   }, [reimbursementInstallments]);
 
   const reimbursementTransactions = useMemo(() => {
-    return transactions.filter(t => {
-      if (!t.installment_payment_id) return false;
-      if (!reimbursementInstallmentIds.has(t.installment_payment_id)) return false;
-      const transactionDate = new Date(t.transaction_date);
+    return transactions.filter(tx => {
+      if (!tx.installment_payment_id) return false;
+      if (!reimbursementInstallmentIds.has(tx.installment_payment_id)) return false;
+      const transactionDate = new Date(tx.transaction_date);
       return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
     });
   }, [transactions, reimbursementInstallmentIds, dateRange]);
 
   const reimbursementStats = useMemo(() => {
-    const total = reimbursementTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const total = reimbursementTransactions.reduce((sum, tx) => sum + tx.amount, 0);
     return { total, count: reimbursementTransactions.length };
   }, [reimbursementTransactions]);
 
@@ -70,9 +70,9 @@ const Savings = () => {
   // Filter transactions by selected period
   const periodTransactions = useMemo(() => {
     if (!investmentCategory) return [];
-    return transactions.filter(t => {
-      const transactionDate = new Date(t.transaction_date);
-      return t.category?.id === investmentCategory.id &&
+    return transactions.filter(tx => {
+      const transactionDate = new Date(tx.transaction_date);
+      return tx.category?.id === investmentCategory.id &&
              isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
     });
   }, [transactions, investmentCategory, dateRange]);
@@ -87,31 +87,31 @@ const Savings = () => {
     }
 
     const incomeTotal = periodTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(tx => tx.type === 'income')
+      .reduce((sum, tx) => sum + tx.amount, 0);
 
     const expenseTotal = periodTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(tx => tx.type === 'expense')
+      .reduce((sum, tx) => sum + tx.amount, 0);
 
     const investmentNet = expenseTotal - incomeTotal;
     const netTotal = investmentNet + reimbursementStats.total;
 
     const allSavingsTransactions = [
-      ...periodTransactions.map(t => ({
-        date: new Date(t.transaction_date),
-        amount: t.type === 'expense' ? t.amount : -t.amount,
+      ...periodTransactions.map(tx => ({
+        date: new Date(tx.transaction_date),
+        amount: tx.type === 'expense' ? tx.amount : -tx.amount,
       })),
-      ...reimbursementTransactions.map(t => ({
-        date: new Date(t.transaction_date),
-        amount: t.amount,
+      ...reimbursementTransactions.map(tx => ({
+        date: new Date(tx.transaction_date),
+        amount: tx.amount,
       }))
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
 
     let cumulative = 0;
-    const trendData = allSavingsTransactions.map(t => {
-      cumulative += t.amount;
-      return { date: format(t.date, 'dd/MM', { locale: fr }), total: cumulative };
+    const trendData = allSavingsTransactions.map(tx => {
+      cumulative += tx.amount;
+      return { date: format(tx.date, 'dd/MM', { locale: fr }), total: cumulative };
     });
 
     return { totalSaved: netTotal, transactionCount: periodTransactions.length + reimbursementTransactions.length, trendData, incomeTotal, expenseTotal, netTotal };
@@ -121,8 +121,8 @@ const Savings = () => {
   const allTimeStats = useMemo(() => {
     if (!investmentCategory) return { monthlyAverage: 0 };
 
-    const allInvestmentTransactions = transactions.filter(t =>
-      t.category?.id === investmentCategory.id
+    const allInvestmentTransactions = transactions.filter(tx =>
+      tx.category?.id === investmentCategory.id
     );
 
     const sixMonthsAgo = new Date();
@@ -139,13 +139,13 @@ const Savings = () => {
       monthEnd.setDate(0);
 
       const monthTotal = allInvestmentTransactions
-        .filter(t => {
-          const d = new Date(t.transaction_date);
+        .filter(tx => {
+          const d = new Date(tx.transaction_date);
           return d >= monthStart && d <= monthEnd;
         })
-        .reduce((sum, t) => {
-          if (t.type === 'expense') return sum + t.amount;
-          if (t.type === 'income') return sum - t.amount;
+        .reduce((sum, tx) => {
+          if (tx.type === 'expense') return sum + tx.amount;
+          if (tx.type === 'income') return sum - tx.amount;
           return sum;
         }, 0);
 
@@ -162,7 +162,7 @@ const Savings = () => {
   }, [transactions, investmentCategory]);
 
   const calculateProjection = (goal: SavingsGoal) => {
-    const progress = (goal.current_amount / goal.target_amount) * 100;
+    const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;
     const remainingAmount = goal.target_amount - goal.current_amount;
 
     // Calculate months to goal based on monthly average
@@ -355,7 +355,7 @@ const Savings = () => {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reimbursementInstallments.map((installment) => {
-                const progress = ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100;
+                const progress = installment.total_amount > 0 ? ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100 : 0;
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (

@@ -36,7 +36,9 @@
     "actions": "Actions",
     "total": "Total",
     "balance": "Balance",
-    "currency": "Currency"
+    "currency": "Currency",
+    "pageNotFound": "Oops! Page not found",
+    "returnHome": "Return to Home"
   },
   "navigation": {
     "home": "Home",

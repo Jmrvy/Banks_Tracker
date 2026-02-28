@@ -96,7 +96,8 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
     onClose();
   };
 
-  const progress = (parseFloat(formData.current_amount) / parseFloat(formData.target_amount)) * 100;
+  const targetAmount = parseFloat(formData.target_amount) || 0;
+  const progress = targetAmount > 0 ? (parseFloat(formData.current_amount) / targetAmount) * 100 : 0;
 
   return (
     <>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -157,23 +158,33 @@ function AppRoutes() {
   );
 }
 
+const I18nLoadingFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="text-center space-y-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+    </div>
+  </div>
+);
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthProvider>
-              <PeriodProvider>
-                <PrivacyProvider>
-                  <AppRoutes />
-                  <OfflineIndicator />
-                </PrivacyProvider>
-              </PeriodProvider>
-            </AuthProvider>
-          </BrowserRouter>
+          <Suspense fallback={<I18nLoadingFallback />}>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AuthProvider>
+                <PeriodProvider>
+                  <PrivacyProvider>
+                    <AppRoutes />
+                    <OfflineIndicator />
+                  </PrivacyProvider>
+                </PeriodProvider>
+              </AuthProvider>
+            </BrowserRouter>
+          </Suspense>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
