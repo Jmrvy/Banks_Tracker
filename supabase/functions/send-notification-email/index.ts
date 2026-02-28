@@ -18,61 +18,84 @@ interface EmailRequest {
   alertMonth?: string;
 }
 
-/** Renders an inline SVG line chart showing cumulative spending vs the budget threshold. */
-function buildSpendingChartSvg(
+/** Builds an email-compatible progress bar using tables (works in all email clients). */
+function buildSpendingProgressBar(budget: number, totalSpent: number): string {
+  const pct = Math.min(Math.round((totalSpent / budget) * 100), 100);
+  const overPct = Math.round((totalSpent / budget) * 100);
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
+      <tr>
+        <td style="padding:0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="background:#fee2e2;border-radius:8px;padding:0;height:12px;">
+                <table role="presentation" width="${pct}%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="background:linear-gradient(90deg,#ef4444,#dc2626);background-color:#ef4444;border-radius:8px;height:12px;font-size:1px;line-height:1px;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;" align="left">${overPct}% du budget utilis&eacute;</td>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;" align="right">Budget: ${budget.toFixed(0)}&euro;</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+}
+
+/** Builds a daily spending mini-bar chart using tables (email-compatible). */
+function buildDailyBarsHtml(
   dailyData: { date: string; cumulative: number }[],
   budget: number,
   totalSpent: number
 ): string {
   if (dailyData.length === 0) return '';
 
-  const W = 540, H = 180, PAD = { top: 16, right: 16, bottom: 32, left: 52 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
+  // Calculate per-day increments from cumulative data
+  const dailyAmounts: { day: number; amount: number }[] = [];
+  for (let i = 0; i < dailyData.length; i++) {
+    const day = parseInt(dailyData[i].date.split('-')[2], 10);
+    const prev = i > 0 ? dailyData[i - 1].cumulative : 0;
+    const amount = dailyData[i].cumulative - prev;
+    if (amount > 0) dailyAmounts.push({ day, amount });
+  }
 
-  const maxY = Math.max(budget * 1.1, totalSpent * 1.05);
+  if (dailyAmounts.length === 0) return '';
 
-  // Use day-of-month as x axis
-  const days = dailyData.map(d => parseInt(d.date.split('-')[2], 10));
-  const maxDay = Math.max(...days, 28);
+  const maxAmount = Math.max(...dailyAmounts.map(d => d.amount));
+  const maxBarH = 60;
 
-  const toX = (day: number) => PAD.left + (day / maxDay) * innerW;
-  const toY = (val: number) => PAD.top + innerH - (val / maxY) * innerH;
-
-  // Build polyline points
-  const points = dailyData.map(d => `${toX(parseInt(d.date.split('-')[2], 10)).toFixed(1)},${toY(d.cumulative).toFixed(1)}`).join(' ');
-
-  // Budget line Y
-  const budgetY = toY(budget).toFixed(1);
-
-  // Y axis labels
-  const yLabels = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
-    const val = maxY * ratio;
-    const y = toY(val);
-    return `<text x="${PAD.left - 6}" y="${y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="#718096">${val.toFixed(0)}€</text>`;
+  const barCells = dailyAmounts.map(d => {
+    const h = Math.max(4, Math.round((d.amount / maxAmount) * maxBarH));
+    const isOver = d.amount > (budget / 30);
+    const color = isOver ? '#ef4444' : '#f87171';
+    return `<td style="vertical-align:bottom;text-align:center;padding:0 1px;" width="${Math.floor(100 / dailyAmounts.length)}%">
+      <div style="background:${color};width:100%;height:${h}px;border-radius:3px 3px 0 0;min-width:6px;"></div>
+      <div style="font-size:9px;color:#9ca3af;padding-top:3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${d.day}</div>
+    </td>`;
   }).join('');
 
-  // X axis ticks (every 7 days)
-  const xLabels = [1, 8, 15, 22, maxDay].filter(d => d <= maxDay).map(d => {
-    const x = toX(d);
-    return `<text x="${x.toFixed(1)}" y="${(PAD.top + innerH + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="#718096">${d}</text>`;
-  }).join('');
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="max-width:100%;display:block;background:#f7fafc;border-radius:6px;">
-  <!-- Grid -->
-  <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top + innerH}" stroke="#e2e8f0" stroke-width="1"/>
-  <line x1="${PAD.left}" y1="${PAD.top + innerH}" x2="${PAD.left + innerW}" y2="${PAD.top + innerH}" stroke="#e2e8f0" stroke-width="1"/>
-  <!-- Budget threshold -->
-  <line x1="${PAD.left}" y1="${budgetY}" x2="${PAD.left + innerW}" y2="${budgetY}" stroke="#e53e3e" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <text x="${PAD.left + innerW - 2}" y="${parseFloat(budgetY) - 5}" text-anchor="end" font-size="10" fill="#e53e3e">Budget ${budget.toFixed(0)}€</text>
-  <!-- Spending area fill -->
-  <polygon points="${PAD.left},${PAD.top + innerH} ${points} ${toX(days[days.length-1]).toFixed(1)},${PAD.top + innerH}" fill="#e53e3e" fill-opacity="0.12"/>
-  <!-- Spending line -->
-  <polyline points="${points}" fill="none" stroke="#e53e3e" stroke-width="2" stroke-linejoin="round"/>
-  <!-- Axes labels -->
-  ${yLabels}
-  ${xLabels}
-</svg>`;
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+      <tr>
+        <td style="background:#fef2f2;border-radius:8px;padding:16px;">
+          <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#374151;">D&eacute;penses par jour</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>${barCells}</tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
 }
 
 function escapeHtml(unsafe: string): string {
@@ -162,97 +185,299 @@ const handler = async (req: Request): Promise<Response> => {
     let html = '';
 
     if (type === 'budget_alert') {
-      subject = `⚠️ Budget dépassé - ${escapeHtml(data.categoryName)}`;
+      subject = `Budget d\u00e9pass\u00e9 \u2013 ${escapeHtml(data.categoryName)}`;
 
-      // Build inline SVG chart from dailyData
       const dailyData: { date: string; cumulative: number }[] = data.dailyData || [];
       const recentTransactions: { date: string; description: string; amount: string }[] = data.recentTransactions || [];
       const budgetValue = parseFloat(data.budget);
       const spentValue = parseFloat(data.spent);
-      const chartSvg = buildSpendingChartSvg(dailyData, budgetValue, spentValue);
+      const progressBar = buildSpendingProgressBar(budgetValue, spentValue);
+      const dailyBars = buildDailyBarsHtml(dailyData, budgetValue, spentValue);
 
-      // Recent transactions table rows
-      const txRows = recentTransactions.map(t => `
-        <tr>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;">${escapeHtml(t.date)}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#333;font-size:13px;">${escapeHtml(t.description)}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#e53e3e;font-size:13px;text-align:right;">${escapeHtml(t.amount)}€</td>
-        </tr>`).join('');
+      const txRows = recentTransactions.map((t, i) => {
+        const bgColor = i % 2 === 0 ? '#ffffff' : '#fafafa';
+        return `<tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:${bgColor};white-space:nowrap;">${escapeHtml(t.date)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:${bgColor};">${escapeHtml(t.description)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#dc2626;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;text-align:right;background:${bgColor};white-space:nowrap;">${escapeHtml(t.amount)}&euro;</td>
+        </tr>`;
+      }).join('');
 
-      html = `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
-          <div style="background:#e53e3e;padding:24px 32px;">
-            <h1 style="margin:0;color:#fff;font-size:20px;">⚠️ Budget dépassé</h1>
-          </div>
-          <div style="padding:24px 32px;">
-            <p style="margin:0 0 16px;color:#333;">Bonjour,</p>
-            <p style="margin:0 0 24px;color:#333;">
-              Votre budget pour la catégorie <strong>${escapeHtml(data.categoryName)}</strong> a été dépassé ce mois-ci.
-            </p>
+      const fontStack = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
-            <!-- Stats summary -->
-            <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
-              <tr>
-                <td style="background:#f7fafc;border-radius:6px;padding:14px 18px;text-align:center;width:33%;">
-                  <div style="font-size:12px;color:#718096;text-transform:uppercase;letter-spacing:.05em;">Budget</div>
-                  <div style="font-size:22px;font-weight:700;color:#2d3748;">${escapeHtml(data.budget)}€</div>
-                </td>
-                <td style="width:2%;"></td>
-                <td style="background:#fff5f5;border-radius:6px;padding:14px 18px;text-align:center;width:33%;">
-                  <div style="font-size:12px;color:#718096;text-transform:uppercase;letter-spacing:.05em;">Dépensé</div>
-                  <div style="font-size:22px;font-weight:700;color:#e53e3e;">${escapeHtml(data.spent)}€</div>
-                </td>
-                <td style="width:2%;"></td>
-                <td style="background:#fff5f5;border-radius:6px;padding:14px 18px;text-align:center;width:33%;">
-                  <div style="font-size:12px;color:#718096;text-transform:uppercase;letter-spacing:.05em;">Dépassement</div>
-                  <div style="font-size:22px;font-weight:700;color:#e53e3e;">+${escapeHtml(data.overspent)}€</div>
-                </td>
-              </tr>
-            </table>
+      html = `<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Budget d&eacute;pass&eacute;</title>
+  <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+  <style>
+    @media only screen and (max-width:620px) {
+      .wrapper { width:100% !important; padding:0 !important; }
+      .content-pad { padding:20px 16px !important; }
+      .header-pad { padding:20px 16px !important; }
+      .stat-card { display:block !important; width:100% !important; margin-bottom:8px !important; }
+      .stat-spacer { display:none !important; }
+      .stat-table { width:100% !important; }
+      .mobile-full { width:100% !important; }
+      .mobile-hide { display:none !important; }
+      .mobile-text-sm { font-size:11px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <!-- Preheader (inbox preview text) -->
+  <div style="display:none;font-size:1px;color:#f3f4f6;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    ${escapeHtml(data.categoryName)}: ${escapeHtml(data.spent)}&euro; d&eacute;pens&eacute;s sur ${escapeHtml(data.budget)}&euro; (+${escapeHtml(data.overspent)}&euro;)
+  </div>
 
-            <!-- SVG Chart -->
-            ${chartSvg ? `
-            <div style="margin-bottom:24px;">
-              <h3 style="margin:0 0 12px;color:#2d3748;font-size:15px;">Évolution des dépenses ce mois</h3>
-              ${chartSvg}
-            </div>` : ''}
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <!-- Email container -->
+        <table role="presentation" class="wrapper" width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 
-            <!-- Recent transactions -->
-            ${txRows ? `
-            <div>
-              <h3 style="margin:0 0 12px;color:#2d3748;font-size:15px;">Dernières transactions</h3>
-              <table style="width:100%;border-collapse:collapse;">
-                <thead>
-                  <tr style="background:#f7fafc;">
-                    <th style="padding:8px;text-align:left;font-size:12px;color:#718096;font-weight:600;text-transform:uppercase;">Date</th>
-                    <th style="padding:8px;text-align:left;font-size:12px;color:#718096;font-weight:600;text-transform:uppercase;">Description</th>
-                    <th style="padding:8px;text-align:right;font-size:12px;color:#718096;font-weight:600;text-transform:uppercase;">Montant</th>
-                  </tr>
-                </thead>
-                <tbody>${txRows}</tbody>
+          <!-- Header -->
+          <tr>
+            <td class="header-pad" style="background:linear-gradient(135deg,#dc2626,#b91c1c);background-color:#dc2626;padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">
+                    Budget d&eacute;pass&eacute;
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-family:${fontStack};font-size:14px;color:rgba(255,255,255,0.85);padding-top:6px;line-height:1.4;">
+                    Cat&eacute;gorie : <strong>${escapeHtml(data.categoryName)}</strong>
+                  </td>
+                </tr>
               </table>
-            </div>` : ''}
+            </td>
+          </tr>
 
-            <p style="margin:24px 0 0;color:#718096;font-size:13px;">
-              Connectez-vous à votre application pour gérer vos budgets.
-            </p>
-          </div>
-        </div>
-      `;
+          <!-- Body -->
+          <tr>
+            <td class="content-pad" style="padding:28px 32px;">
+
+              <!-- Greeting -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:15px;color:#374151;line-height:1.6;">
+                    Bonjour,<br><br>
+                    Votre budget pour la cat&eacute;gorie <strong style="color:#111827;">${escapeHtml(data.categoryName)}</strong> a &eacute;t&eacute; d&eacute;pass&eacute; ce mois-ci.
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Stats cards -->
+              <table role="presentation" class="stat-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td class="stat-card" style="width:32%;background:#f9fafb;border-radius:8px;padding:16px;text-align:center;vertical-align:top;">
+                    <div style="font-family:${fontStack};font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Budget</div>
+                    <div style="font-family:${fontStack};font-size:24px;font-weight:700;color:#111827;line-height:1.2;">${escapeHtml(data.budget)}&euro;</div>
+                  </td>
+                  <td class="stat-spacer" style="width:2%;">&nbsp;</td>
+                  <td class="stat-card" style="width:32%;background:#fef2f2;border-radius:8px;padding:16px;text-align:center;vertical-align:top;">
+                    <div style="font-family:${fontStack};font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">D&eacute;pens&eacute;</div>
+                    <div style="font-family:${fontStack};font-size:24px;font-weight:700;color:#dc2626;line-height:1.2;">${escapeHtml(data.spent)}&euro;</div>
+                  </td>
+                  <td class="stat-spacer" style="width:2%;">&nbsp;</td>
+                  <td class="stat-card" style="width:32%;background:#fef2f2;border-radius:8px;padding:16px;text-align:center;vertical-align:top;">
+                    <div style="font-family:${fontStack};font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">D&eacute;passement</div>
+                    <div style="font-family:${fontStack};font-size:24px;font-weight:700;color:#dc2626;line-height:1.2;">+${escapeHtml(data.overspent)}&euro;</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Progress bar -->
+              ${progressBar}
+
+              <!-- Daily spending bars -->
+              ${dailyBars}
+
+              <!-- Recent transactions -->
+              ${txRows ? `
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:14px;font-weight:600;color:#111827;padding-bottom:12px;">
+                    Derni&egrave;res transactions
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+                      <tr style="background:#f9fafb;">
+                        <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;font-family:${fontStack};border-bottom:1px solid #e5e7eb;">Date</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;font-family:${fontStack};border-bottom:1px solid #e5e7eb;">Description</th>
+                        <th style="padding:10px 12px;text-align:right;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;font-family:${fontStack};border-bottom:1px solid #e5e7eb;">Montant</th>
+                      </tr>
+                      ${txRows}
+                    </table>
+                  </td>
+                </tr>
+              </table>` : ''}
+
+              <!-- CTA -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
+                <tr>
+                  <td align="center" style="padding:8px 0 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background:linear-gradient(135deg,#dc2626,#b91c1c);background-color:#dc2626;border-radius:8px;padding:12px 28px;">
+                          <span style="font-family:${fontStack};font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;display:inline-block;">
+                            G&eacute;rer mes budgets
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:12px;color:#9ca3af;line-height:1.5;text-align:center;">
+                    Vous recevez cet email car vous avez activ&eacute; les alertes de budget.<br>
+                    Vous pouvez d&eacute;sactiver ces notifications dans les param&egrave;tres de l'application.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
     } else if (type === 'monthly_report') {
-      subject = `📊 Rapport mensuel - ${escapeHtml(data.period)}`;
-      html = `
-        <h2>Rapport Mensuel</h2>
-        <p>Bonjour,</p>
-        <p>Voici votre rapport financier pour ${escapeHtml(data.period)}.</p>
-        <h3>Résumé</h3>
-        <ul>
-          <li>Revenus : ${escapeHtml(String(data.income))}€</li>
-          <li>Dépenses : ${escapeHtml(String(data.expenses))}€</li>
-          <li>Solde final : ${escapeHtml(String(data.balance))}€</li>
-        </ul>
-        <p>Les rapports PDF et Excel détaillés sont disponibles dans votre application.</p>
-      `;
+      subject = `Rapport mensuel \u2013 ${escapeHtml(data.period)}`;
+      const fontStack = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+      const income = escapeHtml(String(data.income));
+      const expenses = escapeHtml(String(data.expenses));
+      const balance = escapeHtml(String(data.balance));
+      const balanceNum = parseFloat(String(data.balance));
+      const balanceColor = balanceNum >= 0 ? '#059669' : '#dc2626';
+
+      html = `<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Rapport mensuel</title>
+  <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+  <style>
+    @media only screen and (max-width:620px) {
+      .wrapper { width:100% !important; padding:0 !important; }
+      .content-pad { padding:20px 16px !important; }
+      .header-pad { padding:20px 16px !important; }
+      .stat-card { display:block !important; width:100% !important; margin-bottom:8px !important; }
+      .stat-spacer { display:none !important; }
+      .stat-table { width:100% !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div style="display:none;font-size:1px;color:#f3f4f6;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    R&eacute;sum&eacute; ${escapeHtml(data.period)} : ${income}&euro; de revenus, ${expenses}&euro; de d&eacute;penses
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" class="wrapper" width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+          <tr>
+            <td class="header-pad" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);background-color:#2563eb;padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">
+                    Rapport mensuel
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-family:${fontStack};font-size:14px;color:rgba(255,255,255,0.85);padding-top:6px;line-height:1.4;">
+                    ${escapeHtml(data.period)}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="content-pad" style="padding:28px 32px;">
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:15px;color:#374151;line-height:1.6;">
+                    Bonjour,<br><br>
+                    Voici votre r&eacute;sum&eacute; financier pour <strong>${escapeHtml(data.period)}</strong>.
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" class="stat-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td class="stat-card" style="width:32%;background:#f0fdf4;border-radius:8px;padding:16px;text-align:center;vertical-align:top;">
+                    <div style="font-family:${fontStack};font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Revenus</div>
+                    <div style="font-family:${fontStack};font-size:24px;font-weight:700;color:#059669;line-height:1.2;">${income}&euro;</div>
+                  </td>
+                  <td class="stat-spacer" style="width:2%;">&nbsp;</td>
+                  <td class="stat-card" style="width:32%;background:#fef2f2;border-radius:8px;padding:16px;text-align:center;vertical-align:top;">
+                    <div style="font-family:${fontStack};font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">D&eacute;penses</div>
+                    <div style="font-family:${fontStack};font-size:24px;font-weight:700;color:#dc2626;line-height:1.2;">${expenses}&euro;</div>
+                  </td>
+                  <td class="stat-spacer" style="width:2%;">&nbsp;</td>
+                  <td class="stat-card" style="width:32%;background:#f9fafb;border-radius:8px;padding:16px;text-align:center;vertical-align:top;">
+                    <div style="font-family:${fontStack};font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Solde</div>
+                    <div style="font-family:${fontStack};font-size:24px;font-weight:700;color:${balanceColor};line-height:1.2;">${balance}&euro;</div>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:13px;color:#6b7280;line-height:1.6;text-align:center;">
+                    Les rapports PDF et Excel d&eacute;taill&eacute;s sont disponibles dans votre application.
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-family:${fontStack};font-size:12px;color:#9ca3af;line-height:1.5;text-align:center;">
+                    Vous recevez cet email car vous avez activ&eacute; les rapports mensuels.<br>
+                    Vous pouvez d&eacute;sactiver ces notifications dans les param&egrave;tres de l'application.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
     }
 
     const emailResponse = await resend.emails.send({
