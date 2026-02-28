@@ -59,7 +59,14 @@
     "password": "Password",
     "forgotPassword": "Forgot password?",
     "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?"
+    "hasAccount": "Already have an account?",
+    "welcome": "Welcome to JMRVY CB",
+    "welcomeSubtitle": "Sign in or create an account",
+    "validationError": "Validation error",
+    "signInError": "Sign in error",
+    "signUpError": "Sign up error",
+    "signUpSuccess": "Sign up successful",
+    "signUpSuccessDesc": "Check your email to confirm your account."
   },
   "accounts": {
     "title": "Accounts",
@@ -171,6 +178,7 @@
       "daily": "Daily",
       "weekly": "Weekly",
       "monthly": "Monthly",
+      "quarterly": "Quarterly",
       "yearly": "Yearly"
     }
   },
@@ -181,7 +189,9 @@
     "numberOfPayments": "Number of payments",
     "monthlyAmount": "Monthly amount",
     "paidInstallments": "Paid installments",
-    "remainingInstallments": "Remaining installments"
+    "remainingInstallments": "Remaining installments",
+    "deleteConfirmTitle": "Delete installment payment?",
+    "deleteConfirmDesc": "This will permanently delete this installment payment and its history."
   },
   "reports": {
     "title": "Reports",
@@ -271,5 +281,15 @@
     "deleteTitle": "Confirm deletion",
     "deleteMessage": "This action is irreversible. Do you want to continue?",
     "unsavedChanges": "You have unsaved changes. Do you want to leave without saving?"
+  },
+  "errorBoundary": {
+    "title": "An error occurred",
+    "description": "The application encountered an unexpected problem.",
+    "reload": "Reload the application"
+  },
+  "dashboard": {
+    "loadingOnboarding": "Setting up your account...",
+    "loadingData": "Loading your financial data...",
+    "loadingReports": "Loading reports..."
   }
 }

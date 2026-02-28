@@ -59,7 +59,14 @@
     "password": "Mot de passe",
     "forgotPassword": "Mot de passe oublié ?",
     "noAccount": "Pas de compte ?",
-    "hasAccount": "Déjà un compte ?"
+    "hasAccount": "Déjà un compte ?",
+    "welcome": "Bienvenue sur JMRVY CB",
+    "welcomeSubtitle": "Connectez-vous ou créez un compte",
+    "validationError": "Erreur de validation",
+    "signInError": "Erreur de connexion",
+    "signUpError": "Erreur d'inscription",
+    "signUpSuccess": "Inscription réussie",
+    "signUpSuccessDesc": "Vérifiez votre email pour confirmer votre compte."
   },
   "accounts": {
     "title": "Comptes",
@@ -171,6 +178,7 @@
       "daily": "Quotidien",
       "weekly": "Hebdomadaire",
       "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
       "yearly": "Annuel"
     }
   },
@@ -181,7 +189,9 @@
     "numberOfPayments": "Nombre de mensualités",
     "monthlyAmount": "Mensualité",
     "paidInstallments": "Mensualités payées",
-    "remainingInstallments": "Mensualités restantes"
+    "remainingInstallments": "Mensualités restantes",
+    "deleteConfirmTitle": "Supprimer le paiement échelonné ?",
+    "deleteConfirmDesc": "Cela supprimera définitivement ce paiement échelonné et son historique."
   },
   "reports": {
     "title": "Rapports",
@@ -271,5 +281,15 @@
     "deleteTitle": "Confirmer la suppression",
     "deleteMessage": "Cette action est irréversible. Voulez-vous continuer ?",
     "unsavedChanges": "Vous avez des modifications non sauvegardées. Voulez-vous quitter sans sauvegarder ?"
+  },
+  "errorBoundary": {
+    "title": "Une erreur est survenue",
+    "description": "L'application a rencontré un problème inattendu.",
+    "reload": "Recharger l'application"
+  },
+  "dashboard": {
+    "loadingOnboarding": "Configuration de votre compte...",
+    "loadingData": "Chargement de vos données financières...",
+    "loadingReports": "Chargement des récapitulatifs..."
   }
 }

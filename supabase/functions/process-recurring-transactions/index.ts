@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,6 +76,35 @@ serve(async (req) => {
         }
 
         console.log(`Processing recurring transaction: ${recurring.description}`);
+
+        // Deduplication: check if a transaction already exists for this recurring + date
+        const { data: existingTx } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('user_id', recurring.user_id)
+          .eq('account_id', recurring.account_id)
+          .eq('transaction_date', recurring.next_due_date)
+          .eq('amount', recurring.amount)
+          .ilike('description', `${recurring.description} (Récurrence automatique)`)
+          .limit(1);
+
+        if (existingTx && existingTx.length > 0) {
+          console.log(`Skipping duplicate: transaction already exists for ${recurring.description} on ${recurring.next_due_date}`);
+          // Still advance the next_due_date so we don't retry forever
+          const currentDueDate = new Date(recurring.next_due_date);
+          let nextDueDate = new Date(currentDueDate);
+          switch (recurring.recurrence_type) {
+            case 'weekly': nextDueDate.setDate(currentDueDate.getDate() + 7); break;
+            case 'monthly': nextDueDate.setMonth(currentDueDate.getMonth() + 1); break;
+            case 'quarterly': nextDueDate.setMonth(currentDueDate.getMonth() + 3); break;
+            case 'yearly': nextDueDate.setFullYear(currentDueDate.getFullYear() + 1); break;
+          }
+          await supabase
+            .from('recurring_transactions')
+            .update({ next_due_date: nextDueDate.toISOString().split('T')[0] })
+            .eq('id', recurring.id);
+          continue;
+        }
 
         // Create the actual transaction - IMPORTANT: link to installment_payment_id if present
         const { data: createdTransaction, error: transactionError } = await supabase

@@ -8,11 +8,14 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { AccountDetails } from "@/components/AccountDetails";
+import { getBankLabel, getAccountTypeLabel } from "@/lib/constants";
+import { useTranslation } from "react-i18next";
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { dateRange, periodLabel } = usePeriod();
+  const { t } = useTranslation();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
 
@@ -22,39 +25,13 @@ const Accounts = () => {
     return accounts.find(acc => acc.id === selectedAccountId);
   }, [accounts, selectedAccountId]);
 
-
-  const getBankLabel = (bank: string) => {
-    const labels: Record<string, string> = {
-      'societe_generale': 'Société Générale',
-      'revolut': 'Revolut',
-      'boursorama': 'Boursorama',
-      'bnp_paribas': 'BNP Paribas',
-      'credit_agricole': 'Crédit Agricole',
-      'lcl': 'LCL',
-      'caisse_epargne': "Caisse d'Épargne",
-      'credit_mutuel': 'Crédit Mutuel',
-      'other': 'Autre',
-    };
-    return labels[bank] || bank;
-  };
-
-  const getAccountTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      'checking': 'Compte Courant',
-      'savings': 'Épargne',
-      'credit': 'Crédit',
-      'investment': 'Investissement',
-    };
-    return labels[type] || type;
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p>Chargement...</p>
+            <p>{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -79,7 +56,7 @@ const Accounts = () => {
             <div className="flex-1 min-w-0">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{selectedAccount.name}</h1>
               <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                {getBankLabel(selectedAccount.bank)} • {getAccountTypeLabel(selectedAccount.account_type)}
+                {getBankLabel(selectedAccount.bank, t)} • {getAccountTypeLabel(selectedAccount.account_type, t)}
               </p>
             </div>
             <div className="text-right flex-shrink-0">
@@ -158,10 +135,10 @@ const Accounts = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-base sm:text-lg truncate">{account.name}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{getBankLabel(account.bank)}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{getBankLabel(account.bank, t)}</p>
                       </div>
                       <Badge variant="outline" className="text-[10px] sm:text-xs flex-shrink-0">
-                        {getAccountTypeLabel(account.account_type)}
+                        {getAccountTypeLabel(account.account_type, t)}
                       </Badge>
                     </div>
                     
