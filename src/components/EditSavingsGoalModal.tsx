@@ -6,7 +6,8 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useSavingsGoals, type SavingsGoal } from '@/hooks/useSavingsGoals';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Plus, Minus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,23 +26,20 @@ interface EditSavingsGoalModalProps {
 }
 
 const GOAL_COLORS = [
-  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
+  '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
 ];
 
-const GOAL_CATEGORIES = [
-  'Vacances',
-  'Fonds d\'urgence',
-  'Achat important',
-  'Retraite',
-  'Éducation',
-  'Investissement',
-  'Autre'
-];
+const GOAL_CATEGORY_KEYS = [
+  'vacation', 'emergency', 'bigPurchase', 'retirement',
+  'education', 'investment', 'other'
+] as const;
 
 export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalModalProps) => {
   const { updateGoal, deleteGoal } = useSavingsGoals();
+  const { t } = useTranslation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [quickAddAmount, setQuickAddAmount] = useState('');
   const [formData, setFormData] = useState({
     name: goal.name,
     description: goal.description || '',
@@ -62,11 +60,22 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
       category: goal.category || '',
       color: goal.color,
     });
+    setQuickAddAmount('');
   }, [goal]);
+
+  const handleQuickAdd = (sign: 1 | -1) => {
+    const amount = parseFloat(quickAddAmount);
+    if (!amount || amount <= 0) return;
+
+    const current = parseFloat(formData.current_amount) || 0;
+    const newAmount = Math.max(0, current + (amount * sign));
+    setFormData({ ...formData, current_amount: newAmount.toFixed(2) });
+    setQuickAddAmount('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     await updateGoal.mutateAsync({
       id: goal.id,
       name: formData.name,
@@ -87,17 +96,58 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
     onClose();
   };
 
+  const progress = (parseFloat(formData.current_amount) / parseFloat(formData.target_amount)) * 100;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Modifier l'objectif</DialogTitle>
+            <DialogTitle>{t('savings.editGoalTitle')}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Quick add/withdraw section */}
+            <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">{t('savings.quickAdd')}</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                  onClick={() => handleQuickAdd(-1)}
+                  disabled={!quickAddAmount || parseFloat(quickAddAmount) <= 0}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </Button>
+                <AmountInput
+                  value={quickAddAmount}
+                  onChange={setQuickAddAmount}
+                  placeholder="100.00"
+                  className="h-8 text-sm"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                  onClick={() => handleQuickAdd(1)}
+                  disabled={!quickAddAmount || parseFloat(quickAddAmount) <= 0}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {!isNaN(progress) && progress >= 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{Math.min(progress, 100).toFixed(0)}%</span>
+                  <span>{formData.current_amount} / {formData.target_amount}</span>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="name">Nom de l'objectif *</Label>
+              <Label htmlFor="name">{t('savings.goalName')} *</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -107,7 +157,7 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('savings.description')}</Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -117,23 +167,25 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Catégorie</Label>
+              <Label htmlFor="category">{t('savings.category')}</Label>
               <select
                 id="category"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               >
-                <option value="">Sélectionner une catégorie</option>
-                {GOAL_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                <option value="">{t('savings.selectCategory')}</option>
+                {GOAL_CATEGORY_KEYS.map((key) => (
+                  <option key={key} value={t(`savings.goalCategories.${key}`)}>
+                    {t(`savings.goalCategories.${key}`)}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="current_amount">Montant actuel</Label>
+                <Label htmlFor="current_amount">{t('savings.currentAmount')}</Label>
                 <AmountInput
                   id="current_amount"
                   value={formData.current_amount}
@@ -143,7 +195,7 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="target_amount">Objectif *</Label>
+                <Label htmlFor="target_amount">{t('savings.targetAmount')} *</Label>
                 <AmountInput
                   id="target_amount"
                   value={formData.target_amount}
@@ -154,7 +206,7 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="target_date">Date cible</Label>
+              <Label htmlFor="target_date">{t('savings.targetDate')}</Label>
               <Input
                 id="target_date"
                 type="date"
@@ -164,7 +216,7 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
             </div>
 
             <div className="space-y-2">
-              <Label>Couleur</Label>
+              <Label>{t('savings.color')}</Label>
               <div className="flex gap-2">
                 {GOAL_COLORS.map((color) => (
                   <button
@@ -190,10 +242,10 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
                 <Trash2 className="w-4 h-4" />
               </Button>
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Annuler
+                {t('savings.cancel')}
               </Button>
               <Button type="submit" className="flex-1" disabled={updateGoal.isPending}>
-                {updateGoal.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                {updateGoal.isPending ? t('savings.saving') : t('savings.save')}
               </Button>
             </div>
           </form>
@@ -203,15 +255,15 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer l'objectif</AlertDialogTitle>
+            <AlertDialogTitle>{t('savings.deleteGoalTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet objectif d'épargne ? Cette action est irréversible.
+              {t('savings.deleteGoalDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('savings.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Supprimer
+              {t('savings.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
