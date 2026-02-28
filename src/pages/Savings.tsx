@@ -162,7 +162,7 @@ const Savings = () => {
   }, [transactions, investmentCategory]);
 
   const calculateProjection = (goal: SavingsGoal) => {
-    const progress = (goal.current_amount / goal.target_amount) * 100;
+    const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;
     const remainingAmount = goal.target_amount - goal.current_amount;
 
     // Calculate months to goal based on monthly average
@@ -355,7 +355,7 @@ const Savings = () => {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reimbursementInstallments.map((installment) => {
-                const progress = ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100;
+                const progress = installment.total_amount > 0 ? ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100 : 0;
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (

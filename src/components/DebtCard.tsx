@@ -44,7 +44,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
     }
   };
 
-  const progress = ((debt.total_amount - debt.remaining_amount) / debt.total_amount) * 100;
+  const progress = debt.total_amount > 0 ? ((debt.total_amount - debt.remaining_amount) / debt.total_amount) * 100 : 0;
 
   const getFrequencyLabel = (freq: string | null) => {
     if (!freq) return null;

@@ -36,7 +36,9 @@
     "actions": "Actions",
     "total": "Total",
     "balance": "Solde",
-    "currency": "Devise"
+    "currency": "Devise",
+    "pageNotFound": "Oops ! Page introuvable",
+    "returnHome": "Retour à l'accueil"
   },
   "navigation": {
     "home": "Accueil",

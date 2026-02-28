@@ -239,7 +239,7 @@ const InstallmentPayments = () => {
             {filteredPayments.map((payment) => {
               const account = accounts.find(a => a.id === payment.account_id);
               const category = categories.find(c => c.id === payment.category_id);
-              const progress = ((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 100;
+              const progress = payment.total_amount > 0 ? ((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 100 : 0;
 
               return (
                 <Card key={payment.id} className="hover:shadow-lg transition-all duration-200">

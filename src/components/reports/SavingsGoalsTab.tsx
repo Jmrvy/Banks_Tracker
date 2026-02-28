@@ -38,7 +38,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     );
 
     if (!investmentCategory) {
-      return { total: 0, monthlyAverage: 0, monthlyData: [], evolutionData: [], trend: 0, count: 0 };
+      return { total: 0, monthlyAverage: 0, weightedAverage: 0, monthlyData: [], evolutionData: [], trend: 0, count: 0 };
     }
 
     const investmentTransactions = transactions.filter(
@@ -100,7 +100,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
   }, [transactions, categories]);
 
   const calculateProjection = (goal: SavingsGoal) => {
-    const progress = (goal.current_amount / goal.target_amount) * 100;
+    const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;
     const remainingAmount = goal.target_amount - goal.current_amount;
 
     const monthsToGoal = (investmentStats.weightedAverage || investmentStats.monthlyAverage) > 0
