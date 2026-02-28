@@ -6,6 +6,7 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 
 interface SavingsTransactionsListProps {
   transactions: Transaction[];
@@ -15,14 +16,13 @@ interface SavingsTransactionsListProps {
 
 export function SavingsTransactionsList({ transactions, startDate, endDate }: SavingsTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
+  const { t } = useTranslation();
 
   const transactionsWithBalance = useMemo(() => {
-    // Sort transactions chronologically (oldest first)
     const sortedTransactions = [...transactions].sort(
       (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
     );
 
-    // Filter transactions within the period
     const periodTransactions = startDate && endDate
       ? sortedTransactions.filter(t => {
           const transactionDate = new Date(t.transaction_date);
@@ -30,13 +30,11 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
         })
       : sortedTransactions;
 
-    // Calculate balance BEFORE the period starts
     let runningBalance = 0;
     if (startDate) {
       sortedTransactions.forEach(t => {
         const transactionDate = new Date(t.transaction_date);
         if (transactionDate < startDate) {
-          // For savings: expense = money in, income = money out
           if (t.type === 'expense') {
             runningBalance += t.amount;
           } else if (t.type === 'income') {
@@ -46,13 +44,11 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
       });
     }
 
-    const result = [];
+    const result: Array<Transaction & { balanceBefore: number; balanceAfter: number }> = [];
 
-    // Calculate balance after each transaction in the period
     periodTransactions.forEach((t) => {
       const balanceBefore = runningBalance;
-      
-      // For savings: expense = money in (positive), income = money out (negative)
+
       if (t.type === 'expense') {
         runningBalance += t.amount;
       } else if (t.type === 'income') {
@@ -66,7 +62,6 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
       });
     });
 
-    // Return in reverse order (most recent first) for display
     return result.reverse();
   }, [transactions, startDate, endDate]);
 
@@ -84,9 +79,9 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'expense':
-        return 'Versement';
+        return t('savings.deposit');
       case 'income':
-        return 'Retrait';
+        return t('savings.withdrawal');
       default:
         return type;
     }
@@ -97,14 +92,14 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
       <CardHeader className="pb-2 sm:pb-4">
         <CardTitle className="text-base sm:text-lg flex items-center gap-2">
           <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          Historique des transactions
+          {t('savings.transactionHistory')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {transactionsWithBalance.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <PiggyBank className="h-10 w-10 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Aucune transaction d'épargne sur cette période</p>
+            <p className="text-sm">{t('savings.noTransactions')}</p>
           </div>
         ) : (
           <div className="space-y-1 sm:space-y-2 max-h-[500px] overflow-y-auto">
@@ -122,11 +117,11 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                     <p className="font-medium truncate text-xs">{t.description}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
-                      <span className="ml-1">• {getTypeLabel(t.type)}</span>
+                      <span className="ml-1">&bull; {getTypeLabel(t.type)}</span>
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Mobile: Amount and balance */}
                 <div className="flex items-center gap-3 flex-shrink-0 sm:hidden">
                   <p className={`font-bold text-xs ${
@@ -137,7 +132,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                   <p className={`font-medium text-xs ${
                     t.balanceAfter >= 0 ? 'text-primary/70' : 'text-destructive/70'
                   }`}>
-                    → {formatCurrency(t.balanceAfter)}
+                    &rarr; {formatCurrency(t.balanceAfter)}
                   </p>
                 </div>
 
@@ -150,13 +145,13 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                     <p className="font-medium truncate text-base">{t.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
-                      <span>•</span>
+                      <span>&bull;</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(t.type)}
                       </Badge>
                       {t.account && (
                         <>
-                          <span>•</span>
+                          <span>&bull;</span>
                           <span>{t.account.name}</span>
                         </>
                       )}
@@ -172,7 +167,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                     </p>
                   </div>
                   <div className="text-right w-32">
-                    <p className="text-xs text-muted-foreground">Solde épargne</p>
+                    <p className="text-xs text-muted-foreground">{t('savings.savingsBalance')}</p>
                     <p className={`font-bold text-sm ${
                       t.balanceAfter >= 0 ? 'text-primary' : 'text-destructive'
                     }`}>

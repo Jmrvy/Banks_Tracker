@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
 import { useToast } from '@/hooks/use-toast';
 import { savingsGoalSchema, validateForm } from '@/lib/validations';
+import { useTranslation } from 'react-i18next';
 
 interface NewSavingsGoalModalProps {
   isOpen: boolean;
@@ -15,23 +16,19 @@ interface NewSavingsGoalModalProps {
 }
 
 const GOAL_COLORS = [
-  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
+  '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
 ];
 
-const GOAL_CATEGORIES = [
-  'Vacances',
-  'Fonds d\'urgence',
-  'Achat important',
-  'Retraite',
-  'Éducation',
-  'Investissement',
-  'Autre'
-];
+const GOAL_CATEGORY_KEYS = [
+  'vacation', 'emergency', 'bigPurchase', 'retirement',
+  'education', 'investment', 'other'
+] as const;
 
 export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProps) => {
   const { createGoal } = useSavingsGoals();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -44,19 +41,18 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate form data with zod schema
+
     const validation = validateForm(savingsGoalSchema, formData);
-    
+
     if (!validation.success) {
       toast({
-        title: "Erreur de validation",
+        title: t('savings.validationError'),
         description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
       return;
     }
-    
+
     await createGoal.mutateAsync({
       name: formData.name,
       description: formData.description || null,
@@ -83,50 +79,52 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouvel objectif d'épargne</DialogTitle>
+          <DialogTitle>{t('savings.newGoalTitle')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nom de l'objectif *</Label>
+            <Label htmlFor="name">{t('savings.goalName')} *</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ex: Vacances d'été"
+              placeholder={t('savings.goalNamePlaceholder')}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t('savings.description')}</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Description de votre objectif"
+              placeholder={t('savings.descriptionPlaceholder')}
               rows={3}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Catégorie</Label>
+            <Label htmlFor="category">{t('savings.category')}</Label>
             <select
               id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-3 py-2 border rounded-md bg-background"
             >
-              <option value="">Sélectionner une catégorie</option>
-              {GOAL_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              <option value="">{t('savings.selectCategory')}</option>
+              {GOAL_CATEGORY_KEYS.map((key) => (
+                <option key={key} value={t(`savings.goalCategories.${key}`)}>
+                  {t(`savings.goalCategories.${key}`)}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="current_amount">Montant actuel</Label>
+              <Label htmlFor="current_amount">{t('savings.currentAmount')}</Label>
               <AmountInput
                 id="current_amount"
                 value={formData.current_amount}
@@ -136,7 +134,7 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="target_amount">Objectif *</Label>
+              <Label htmlFor="target_amount">{t('savings.targetAmount')} *</Label>
               <AmountInput
                 id="target_amount"
                 value={formData.target_amount}
@@ -148,7 +146,7 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="target_date">Date cible</Label>
+            <Label htmlFor="target_date">{t('savings.targetDate')}</Label>
             <Input
               id="target_date"
               type="date"
@@ -158,7 +156,7 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
           </div>
 
           <div className="space-y-2">
-            <Label>Couleur</Label>
+            <Label>{t('savings.color')}</Label>
             <div className="flex gap-2">
               {GOAL_COLORS.map((color) => (
                 <button
@@ -176,10 +174,10 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
 
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Annuler
+              {t('savings.cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={createGoal.isPending}>
-              {createGoal.isPending ? 'Création...' : 'Créer'}
+              {createGoal.isPending ? t('savings.creating') : t('savings.create')}
             </Button>
           </div>
         </form>

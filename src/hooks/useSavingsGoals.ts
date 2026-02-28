@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export interface SavingsGoal {
   id: string;
@@ -19,6 +20,7 @@ export interface SavingsGoal {
 
 export const useSavingsGoals = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: goals = [], isLoading } = useQuery({
@@ -53,10 +55,10 @@ export const useSavingsGoals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
-      toast.success('Objectif d\'épargne créé avec succès');
+      toast.success(t('savings.goalCreated'));
     },
     onError: (error) => {
-      toast.error('Erreur lors de la création de l\'objectif');
+      toast.error(t('savings.goalCreateError'));
       console.error('Error creating savings goal:', error);
     },
   });
@@ -75,10 +77,10 @@ export const useSavingsGoals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
-      toast.success('Objectif d\'épargne mis à jour');
+      toast.success(t('savings.goalUpdated'));
     },
     onError: (error) => {
-      toast.error('Erreur lors de la mise à jour de l\'objectif');
+      toast.error(t('savings.goalUpdateError'));
       console.error('Error updating savings goal:', error);
     },
   });
@@ -94,10 +96,10 @@ export const useSavingsGoals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
-      toast.success('Objectif d\'épargne supprimé');
+      toast.success(t('savings.goalDeleted'));
     },
     onError: (error) => {
-      toast.error('Erreur lors de la suppression de l\'objectif');
+      toast.error(t('savings.goalDeleteError'));
       console.error('Error deleting savings goal:', error);
     },
   });
