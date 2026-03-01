@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { addWeeks, addMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -569,21 +570,22 @@ export const useInstallmentPayments = () => {
   };
 
   const calculateNextPaymentDate = (currentDate: string, frequency: 'weekly' | 'monthly' | 'quarterly'): string => {
-    const date = new Date(currentDate);
+    // Parse as local date to avoid UTC timezone shift
+    const [y, m, d] = currentDate.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
 
+    let next: Date;
     switch (frequency) {
-      case 'weekly':
-        date.setDate(date.getDate() + 7);
-        break;
-      case 'monthly':
-        date.setMonth(date.getMonth() + 1);
-        break;
-      case 'quarterly':
-        date.setMonth(date.getMonth() + 3);
-        break;
+      case 'weekly': next = addWeeks(date, 1); break;
+      case 'monthly': next = addMonths(date, 1); break;
+      case 'quarterly': next = addMonths(date, 3); break;
+      default: next = addMonths(date, 1);
     }
 
-    return date.toISOString().split('T')[0];
+    const ny = next.getFullYear();
+    const nm = String(next.getMonth() + 1).padStart(2, '0');
+    const nd = String(next.getDate()).padStart(2, '0');
+    return `${ny}-${nm}-${nd}`;
   };
 
   useEffect(() => {
