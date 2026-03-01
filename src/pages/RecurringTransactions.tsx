@@ -16,12 +16,13 @@ const RecurringTransactions = () => {
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const { formatCurrency } = useUserPreferences();
-  const { 
-    recurringTransactions, 
+  const {
+    recurringTransactions,
     loading,
     fetchRecurringTransactions,
     updateRecurringTransaction,
-    deleteRecurringTransaction 
+    deleteRecurringTransaction,
+    executeRecurringTransactionEarly
   } = useFinancialData();
 
   useEffect(() => {
@@ -66,6 +67,24 @@ const RecurringTransactions = () => {
       });
       fetchRecurringTransactions();
     }
+  };
+
+  const handleExecuteEarly = async (transactionId: string, executionDate: string) => {
+    const result = await executeRecurringTransactionEarly(transactionId, executionDate);
+
+    if (result?.error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de passer la transaction.",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Transaction passée",
+        description: "La transaction a été enregistrée et la prochaine échéance a été avancée.",
+      });
+    }
+    return result;
   };
 
   // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
@@ -229,6 +248,7 @@ const RecurringTransactions = () => {
                 onEdit={setEditingTransaction}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
+                onExecuteEarly={handleExecuteEarly}
               />
             )}
           </TabsContent>

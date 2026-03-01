@@ -116,28 +116,55 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
     }
   };
 
-  const getNextExecutionDate = () => {
-    if (!formData.start_date) return null;
-    
-    const startDate = new Date(formData.start_date);
-    const nextDate = new Date(startDate);
-    
-    switch (formData.recurrence_type) {
-      case 'weekly':
-        nextDate.setDate(startDate.getDate() + 7);
-        break;
-      case 'monthly':
-        nextDate.setMonth(startDate.getMonth() + 1);
-        break;
-      case 'quarterly':
-        nextDate.setMonth(startDate.getMonth() + 3);
-        break;
-      case 'yearly':
-        nextDate.setFullYear(startDate.getFullYear() + 1);
-        break;
+  // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  // Show the actual next_due_date from the DB transaction.
+  // If the user changed start_date or recurrence_type, recalculate a preview.
+  const getNextExecutionDate = (): Date | null => {
+    if (!transaction) return null;
+
+    const startChanged = formData.start_date !== transaction.start_date;
+    const recurrenceChanged = formData.recurrence_type !== transaction.recurrence_type;
+
+    // If no recurrence config changed, show the real DB value
+    if (!startChanged && !recurrenceChanged) {
+      return parseLocalDate(transaction.next_due_date);
     }
-    
-    return nextDate;
+
+    // Otherwise, recalculate what next_due_date would be
+    if (!formData.start_date) return null;
+    const startDate = parseLocalDate(formData.start_date);
+    const today = new Date();
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Safe date advancement helper
+    const addInterval = (d: Date): Date => {
+      const cy = d.getFullYear(), cm = d.getMonth(), cd = d.getDate();
+      switch (formData.recurrence_type) {
+        case 'weekly': return new Date(cy, cm, cd + 7);
+        case 'monthly': {
+          const next = new Date(cy, cm + 1, cd);
+          return next.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : next;
+        }
+        case 'quarterly': {
+          const next = new Date(cy, cm + 3, cd);
+          return next.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : next;
+        }
+        case 'yearly': return new Date(cy + 1, cm, cd);
+        default: return new Date(cy, cm + 1, cd);
+      }
+    };
+
+    // Roll forward from start_date until we find a future date
+    let nextDue = addInterval(startDate);
+    while (nextDue <= todayMidnight) {
+      nextDue = addInterval(nextDue);
+    }
+    return nextDue;
   };
 
   const nextExecution = getNextExecutionDate();
@@ -308,8 +335,14 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               <div className="space-y-2">
                 <Label>Date de début *</Label>
                 <DatePicker
-                  date={formData.start_date ? new Date(formData.start_date) : undefined}
-                  onDateChange={(date) => setFormData({ ...formData, start_date: date ? date.toISOString().split('T')[0] : '' })}
+                  date={formData.start_date ? parseLocalDate(formData.start_date) : undefined}
+                  onDateChange={(date) => {
+                    if (!date) { setFormData({ ...formData, start_date: '' }); return; }
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setFormData({ ...formData, start_date: `${y}-${m}-${d}` });
+                  }}
                   placeholder="Sélectionner la date de début"
                 />
               </div>
@@ -318,8 +351,14 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               <div className="space-y-2">
                 <Label>Date de fin (optionnel)</Label>
                 <DatePicker
-                  date={formData.end_date ? new Date(formData.end_date) : undefined}
-                  onDateChange={(date) => setFormData({ ...formData, end_date: date ? date.toISOString().split('T')[0] : '' })}
+                  date={formData.end_date ? parseLocalDate(formData.end_date) : undefined}
+                  onDateChange={(date) => {
+                    if (!date) { setFormData({ ...formData, end_date: '' }); return; }
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setFormData({ ...formData, end_date: `${y}-${m}-${d}` });
+                  }}
                   placeholder="Sélectionner la date de fin"
                 />
                 <div className="text-xs text-muted-foreground">
@@ -350,7 +389,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                     <strong>Fréquence:</strong> {getRecurrenceLabel(formData.recurrence_type)}
                   </div>
                   <div>
-                    <strong>Date de début:</strong> {new Date(formData.start_date).toLocaleDateString('fr-FR')}
+                    <strong>Date de début:</strong> {parseLocalDate(formData.start_date).toLocaleDateString('fr-FR')}
                   </div>
                   {nextExecution && (
                     <div className="col-span-2">
@@ -359,7 +398,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                   )}
                   {formData.end_date && (
                     <div className="col-span-2">
-                      <strong>Fin de récurrence:</strong> {new Date(formData.end_date).toLocaleDateString('fr-FR')}
+                      <strong>Fin de récurrence:</strong> {parseLocalDate(formData.end_date).toLocaleDateString('fr-FR')}
                     </div>
                   )}
                 </div>
