@@ -78,7 +78,7 @@ export const RecurringTab = ({
                          recurring.recurrence_type === 'monthly' ? 'Mensuel' : 'Annuel'}
                       </Badge>
                       <span>•</span>
-                      <span>{format(new Date(recurring.next_due_date), "dd/MM", { locale: fr })}</span>
+                      <span>{format((() => { const [y,m,d] = recurring.next_due_date.split('-').map(Number); return new Date(y, m-1, d); })(), "dd/MM", { locale: fr })}</span>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">

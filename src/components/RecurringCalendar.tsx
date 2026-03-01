@@ -16,6 +16,12 @@ interface RecurringCalendarProps {
   onDelete: (id: string, description: string) => void;
 }
 
+// Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
+const parseLocalDate = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
 const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedTransaction, setSelectedTransaction] = useState<RecurringTransaction | null>(null);
@@ -51,8 +57,8 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
     transactions.forEach((transaction) => {
       if (!transaction.is_active) return;
       
-      const startDate = new Date(transaction.start_date);
-      const nextDueDate = new Date(transaction.next_due_date);
+      const startDate = parseLocalDate(transaction.start_date);
+      const nextDueDate = parseLocalDate(transaction.next_due_date);
       
       // Calculate all occurrences of this transaction in the current month
       let currentOccurrence = new Date(startDate);
@@ -347,10 +353,10 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground text-xs">Prochain paiement:</span>
                   <span className="font-medium text-xs sm:text-sm">
-                    {new Date(selectedTransaction.next_due_date).toLocaleDateString('fr-FR', { 
-                      day: '2-digit', 
-                      month: 'short', 
-                      year: 'numeric' 
+                    {parseLocalDate(selectedTransaction.next_due_date).toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric'
                     })}
                   </span>
                 </div>

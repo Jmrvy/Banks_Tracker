@@ -50,17 +50,23 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
     });
   }, [transactions, currentPeriod, preferences.dateType]);
 
+  // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const upcomingTransactions = useMemo(() => {
     const today = startOfToday();
     const nextWeek = addDays(today, 7);
-    
+
     return recurringTransactions
       .filter(rt => {
         if (!rt.is_active) return false;
-        const dueDate = new Date(rt.next_due_date);
+        const dueDate = parseLocalDate(rt.next_due_date);
         return !isBefore(dueDate, today) && !isAfter(dueDate, nextWeek);
       })
-      .sort((a, b) => new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime())
+      .sort((a, b) => parseLocalDate(a.next_due_date).getTime() - parseLocalDate(b.next_due_date).getTime())
       .slice(0, 5);
   }, [recurringTransactions]);
 
@@ -259,7 +265,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                       {transaction.description}
                     </span>
                     <span className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
-                      {format(new Date(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
+                      {format(parseLocalDate(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
                     </span>
                   </div>
                   <BlurredAmount 

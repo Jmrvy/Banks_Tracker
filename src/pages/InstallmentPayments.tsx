@@ -332,7 +332,7 @@ const InstallmentPayments = () => {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground text-xs">Prochain paiement:</span>
-                        <span className="font-medium">{format(new Date(payment.next_payment_date), 'dd MMM yyyy', { locale: fr })}</span>
+                        <span className="font-medium">{format((() => { const [y,m,d] = payment.next_payment_date.split('-').map(Number); return new Date(y, m-1, d); })(), 'dd MMM yyyy', { locale: fr })}</span>
                       </div>
                       {account && (
                         <div className="flex justify-between items-center">

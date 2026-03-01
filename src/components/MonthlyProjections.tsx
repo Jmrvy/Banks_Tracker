@@ -22,19 +22,26 @@ export const MonthlyProjections = () => {
     const currentDay = now.getDate();
     const daysRemaining = daysInMonth - currentDay;
 
+    // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
+    const parseLocalDate = (dateStr: string): Date => {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    };
+
     const getNextOccurrences = (recurring, fromDate, toDate) => {
       const occurrences = [];
-      const startDate = new Date(Math.max(fromDate.getTime(), new Date(recurring.next_due_date).getTime()));
+      const nextDueLocal = parseLocalDate(recurring.next_due_date);
+      const startDate = new Date(Math.max(fromDate.getTime(), nextDueLocal.getTime()));
       const endDate = toDate;
-      
-      if (recurring.end_date && new Date(recurring.end_date) < fromDate) {
+
+      if (recurring.end_date && parseLocalDate(recurring.end_date) < fromDate) {
         return occurrences;
       }
 
       let currentDate = new Date(startDate);
 
       while (currentDate <= endDate) {
-        if (recurring.end_date && currentDate > new Date(recurring.end_date)) {
+        if (recurring.end_date && currentDate > parseLocalDate(recurring.end_date)) {
           break;
         }
 
@@ -47,24 +54,41 @@ export const MonthlyProjections = () => {
           category_id: recurring.category_id
         });
 
+        // Use safe date advancement (avoid setMonth rollover bugs)
+        const cy = currentDate.getFullYear();
+        const cm = currentDate.getMonth();
+        const cd = currentDate.getDate();
         switch (recurring.recurrence_type) {
           case 'daily':
-            currentDate.setDate(currentDate.getDate() + 1);
+            currentDate = new Date(cy, cm, cd + 1);
             break;
           case 'weekly':
-            currentDate.setDate(currentDate.getDate() + 7);
+            currentDate = new Date(cy, cm, cd + 7);
             break;
           case 'biweekly':
-            currentDate.setDate(currentDate.getDate() + 14);
+            currentDate = new Date(cy, cm, cd + 14);
             break;
-          case 'monthly':
-            currentDate.setMonth(currentDate.getMonth() + 1);
+          case 'monthly': {
+            const next = new Date(cy, cm + 1, cd);
+            // Handle month-end rollover (e.g., Jan 31 → Feb 28)
+            if (next.getMonth() !== (cm + 1) % 12) {
+              currentDate = new Date(cy, cm + 2, 0); // last day of next month
+            } else {
+              currentDate = next;
+            }
             break;
-          case 'quarterly':
-            currentDate.setMonth(currentDate.getMonth() + 3);
+          }
+          case 'quarterly': {
+            const nextQ = new Date(cy, cm + 3, cd);
+            if (nextQ.getMonth() !== (cm + 3) % 12) {
+              currentDate = new Date(cy, cm + 4, 0);
+            } else {
+              currentDate = nextQ;
+            }
             break;
+          }
           case 'yearly':
-            currentDate.setFullYear(currentDate.getFullYear() + 1);
+            currentDate = new Date(cy + 1, cm, cd);
             break;
           default:
             break;
@@ -75,7 +99,7 @@ export const MonthlyProjections = () => {
     };
 
     const currentMonthTransactions = transactions.filter(t => {
-      const date = new Date(t.transaction_date);
+      const date = parseLocalDate(t.transaction_date);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     });
 

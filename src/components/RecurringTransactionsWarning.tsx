@@ -15,33 +15,39 @@ export const RecurringTransactionsWarning = () => {
   const navigate = useNavigate();
   const [showRegularizeModal, setShowRegularizeModal] = useState(false);
 
+  // Parse "YYYY-MM-DD" as local date (not UTC) to avoid timezone shift bugs
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const todayLocal = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
   const upcomingTransactions = useMemo(() => {
-    const today = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
+    const nextWeek = new Date(todayLocal);
+    nextWeek.setDate(todayLocal.getDate() + 7);
 
     return recurringTransactions
       .filter(rt => {
         if (!rt.is_active) return false;
-        const nextDue = new Date(rt.next_due_date);
-        return nextDue >= today && nextDue <= nextWeek;
+        const nextDue = parseLocalDate(rt.next_due_date);
+        return nextDue >= todayLocal && nextDue <= nextWeek;
       })
-      .sort((a, b) => new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime());
-  }, [recurringTransactions]);
+      .sort((a, b) => parseLocalDate(a.next_due_date).getTime() - parseLocalDate(b.next_due_date).getTime());
+  }, [recurringTransactions, todayLocal]);
 
   const overdueTransactions = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     return recurringTransactions
       .filter(rt => {
         if (!rt.is_active) return false;
-        const nextDue = new Date(rt.next_due_date);
-        nextDue.setHours(0, 0, 0, 0);
-        return nextDue < today;
+        const nextDue = parseLocalDate(rt.next_due_date);
+        return nextDue < todayLocal;
       })
-      .sort((a, b) => new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime());
-  }, [recurringTransactions]);
+      .sort((a, b) => parseLocalDate(a.next_due_date).getTime() - parseLocalDate(b.next_due_date).getTime());
+  }, [recurringTransactions, todayLocal]);
 
   if (upcomingTransactions.length === 0 && overdueTransactions.length === 0) {
     return null;
@@ -64,10 +70,9 @@ export const RecurringTransactionsWarning = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const diffTime = date.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const date = parseLocalDate(dateString);
+    const diffTime = date.getTime() - todayLocal.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) return "Aujourd'hui";
     if (diffDays === 1) return "Demain";
