@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowDownRight, ArrowUpRight, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ interface RecurringCalendarProps {
   onEdit: (transaction: RecurringTransaction) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
+  onExecuteEarly?: (transactionId: string, executionDate: string) => Promise<{ error: any } | undefined>;
 }
 
 // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
@@ -22,10 +23,12 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(y, m - 1, d);
 };
 
-const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedTransaction, setSelectedTransaction] = useState<RecurringTransaction | null>(null);
+  const [selectedOccurrenceDate, setSelectedOccurrenceDate] = useState<string | null>(null);
   const [selectedDayTransactions, setSelectedDayTransactions] = useState<{ date: Date; transactions: { transaction: RecurringTransaction; isPast: boolean }[] } | null>(null);
+  const [executingId, setExecutingId] = useState<string | null>(null);
   const { formatCurrency } = useUserPreferences();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
@@ -196,6 +199,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                         setSelectedDayTransactions({ date: day, transactions: dayTransactions });
                       } else if (dayTransactions.length === 1) {
                         setSelectedTransaction(dayTransactions[0].transaction);
+                        setSelectedOccurrenceDate(dateKey);
                       } else {
                         setSelectedDayTransactions({ date: day, transactions: dayTransactions });
                       }
@@ -217,6 +221,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                           e.stopPropagation();
                           if (!isMobile) {
                             setSelectedTransaction(transaction);
+                            setSelectedOccurrenceDate(dateKey);
                           }
                         }}
                         className={`rounded px-0.5 sm:px-1 py-0.5 sm:cursor-pointer hover:opacity-80 transition-opacity ${
@@ -278,8 +283,10 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
               <div
                 key={transaction.id}
                 onClick={() => {
+                  const dateKey = selectedDayTransactions ? format(selectedDayTransactions.date, 'yyyy-MM-dd') : null;
                   setSelectedDayTransactions(null);
                   setSelectedTransaction(transaction);
+                  setSelectedOccurrenceDate(dateKey);
                 }}
                 className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 ${
                   isPast ? 'opacity-60' : ''
@@ -318,7 +325,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
       </Dialog>
 
       {/* Transaction Detail Modal */}
-      <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
+      <Dialog open={!!selectedTransaction} onOpenChange={(open) => { if (!open) { setSelectedTransaction(null); setSelectedOccurrenceDate(null); } }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
@@ -384,6 +391,38 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                 </div>
               </div>
 
+              {/* Execute early button — only for future/today non-past occurrences */}
+              {onExecuteEarly && selectedOccurrenceDate && (() => {
+                const occDate = parseLocalDate(selectedOccurrenceDate);
+                const today = startOfDay(new Date());
+                const isNotPast = !isBefore(occDate, today);
+                return isNotPast ? (
+                  <div className="pt-3 border-t border-border">
+                    <Button
+                      size="sm"
+                      className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-1.5"
+                      disabled={executingId === selectedTransaction.id}
+                      onClick={async () => {
+                        setExecutingId(selectedTransaction.id);
+                        const result = await onExecuteEarly(selectedTransaction.id, selectedOccurrenceDate);
+                        setExecutingId(null);
+                        if (!result?.error) {
+                          setSelectedTransaction(null);
+                          setSelectedOccurrenceDate(null);
+                        }
+                      }}
+                    >
+                      {executingId === selectedTransaction.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                      Passer la transaction
+                    </Button>
+                  </div>
+                ) : null;
+              })()}
+
               <div className="flex gap-2 pt-3 border-t border-border">
                 <Button
                   size="sm"
@@ -392,6 +431,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                   onClick={() => {
                     onEdit(selectedTransaction);
                     setSelectedTransaction(null);
+                    setSelectedOccurrenceDate(null);
                   }}
                 >
                   Modifier
@@ -403,6 +443,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                   onClick={() => {
                     onToggleActive(selectedTransaction.id, selectedTransaction.is_active);
                     setSelectedTransaction(null);
+                    setSelectedOccurrenceDate(null);
                   }}
                 >
                   {selectedTransaction.is_active ? 'Désactiver' : 'Activer'}
@@ -414,6 +455,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete }: R
                   onClick={() => {
                     onDelete(selectedTransaction.id, selectedTransaction.description);
                     setSelectedTransaction(null);
+                    setSelectedOccurrenceDate(null);
                   }}
                 >
                   Supprimer

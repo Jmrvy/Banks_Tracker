@@ -519,6 +519,126 @@ export function useFinancialData() {
     return { error };
   };
 
+  // Execute a recurring transaction early (from the calendar)
+  // Creates the actual transaction and advances next_due_date to the next occurrence
+  const executeRecurringTransactionEarly = async (recurringId: string, executionDate: string) => {
+    if (!user) return { error: { message: 'User not authenticated' } };
+
+    const rt = recurringTransactions.find(r => r.id === recurringId);
+    if (!rt) return { error: { message: 'Transaction récurrente introuvable' } };
+
+    // 1. Create the actual transaction
+    const { error: txError } = await supabase
+      .from('transactions')
+      .insert([{
+        account_id: rt.account_id,
+        category_id: rt.category_id,
+        description: rt.description,
+        amount: rt.amount,
+        type: rt.type,
+        transaction_date: executionDate,
+        value_date: executionDate,
+        include_in_stats: true,
+        installment_payment_id: rt.installment_payment_id,
+        user_id: user.id
+      }]);
+
+    if (txError) {
+      console.error('Error creating early transaction:', txError);
+      return { error: txError };
+    }
+
+    // 2. Calculate next occurrence date using safe date math
+    const [y, m, d] = rt.next_due_date.split('-').map(Number);
+    const currentDue = new Date(y, m - 1, d);
+    let nextDue: Date;
+
+    const cy = currentDue.getFullYear(), cm = currentDue.getMonth(), cd = currentDue.getDate();
+    switch (rt.recurrence_type) {
+      case 'weekly':
+        nextDue = new Date(cy, cm, cd + 7);
+        break;
+      case 'monthly': {
+        const next = new Date(cy, cm + 1, cd);
+        nextDue = next.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : next;
+        break;
+      }
+      case 'quarterly': {
+        const next = new Date(cy, cm + 3, cd);
+        nextDue = next.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : next;
+        break;
+      }
+      case 'yearly':
+        nextDue = new Date(cy + 1, cm, cd);
+        break;
+      default:
+        nextDue = new Date(cy, cm + 1, cd);
+    }
+
+    const nextDueStr = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(nextDue.getDate()).padStart(2, '0')}`;
+
+    // 3. Check if end_date is passed — deactivate if so
+    const shouldDeactivate = rt.end_date && nextDueStr > rt.end_date;
+
+    const updatePayload: Record<string, unknown> = {
+      next_due_date: nextDueStr,
+      updated_at: new Date().toISOString(),
+    };
+    if (shouldDeactivate) {
+      updatePayload.is_active = false;
+    }
+
+    const { error: updateError } = await supabase
+      .from('recurring_transactions')
+      .update(updatePayload)
+      .eq('id', recurringId)
+      .eq('user_id', user.id);
+
+    if (updateError) {
+      console.error('Error advancing next_due_date:', updateError);
+      return { error: updateError };
+    }
+
+    // 4. Handle installment payment if linked
+    if (rt.installment_payment_id) {
+      const { data: installment } = await supabase
+        .from('installment_payments')
+        .select('remaining_amount')
+        .eq('id', rt.installment_payment_id)
+        .single();
+
+      if (installment) {
+        const newRemaining = Math.max(0, installment.remaining_amount - rt.amount);
+        const installmentUpdate: Record<string, unknown> = {
+          remaining_amount: newRemaining,
+          next_payment_date: nextDueStr,
+        };
+        if (newRemaining <= 0) {
+          installmentUpdate.is_active = false;
+        }
+
+        await supabase
+          .from('installment_payments')
+          .update(installmentUpdate)
+          .eq('id', rt.installment_payment_id);
+
+        // Deactivate recurring if installment is fully paid
+        if (newRemaining <= 0) {
+          await supabase
+            .from('recurring_transactions')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', recurringId)
+            .eq('user_id', user.id);
+        }
+      }
+    }
+
+    // 5. Refresh all data
+    await Promise.all([fetchTransactions(), fetchAccounts(), fetchRecurringTransactions()]);
+
+    return { error: null, nextDueDate: nextDueStr };
+  };
+
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
@@ -841,6 +961,7 @@ export function useFinancialData() {
     deleteTransaction,
     createRefund,
     processDueRecurringTransactions,
+    executeRecurringTransactionEarly,
     fetchRecurringTransactions,
     refetch: () => {
       fetchAccounts();
