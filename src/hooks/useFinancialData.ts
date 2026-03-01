@@ -296,25 +296,6 @@ export function useFinancialData() {
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
     
-    // Calculate next due date based on recurrence type
-    const startDate = new Date(recurring.start_date);
-    let nextDueDate = new Date(startDate);
-    
-    switch (recurring.recurrence_type) {
-      case 'weekly':
-        nextDueDate.setDate(startDate.getDate() + 7);
-        break;
-      case 'monthly':
-        nextDueDate.setMonth(startDate.getMonth() + 1);
-        break;
-      case 'quarterly':
-        nextDueDate.setMonth(startDate.getMonth() + 3);
-        break;
-      case 'yearly':
-        nextDueDate.setFullYear(startDate.getFullYear() + 1);
-        break;
-    }
-
     const { error } = await supabase
       .from('recurring_transactions')
       .insert({
@@ -324,7 +305,7 @@ export function useFinancialData() {
         recurrence_type: recurring.recurrence_type,
         start_date: recurring.start_date,
         end_date: recurring.end_date,
-        next_due_date: nextDueDate.toISOString().split('T')[0],
+        next_due_date: recurring.start_date,
         is_active: true,
         account_id: recurring.account_id,
         category_id: recurring.category_id,

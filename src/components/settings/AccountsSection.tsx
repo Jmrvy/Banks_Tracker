@@ -19,14 +19,14 @@ interface AccountsSectionProps {
 
 interface EditingValues {
   name: string;
-  bank: string;
+  bank: Account['bank'];
 }
 
 export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsSectionProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<EditingValues>({ name: "", bank: "" });
+  const [editingValues, setEditingValues] = useState<EditingValues>({ name: "", bank: "other" });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -118,7 +118,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                         />
                         <Select
                           value={editingValues.bank}
-                          onValueChange={(value) => setEditingValues(prev => ({ ...prev, bank: value }))}
+                          onValueChange={(value) => setEditingValues(prev => ({ ...prev, bank: value as Account['bank'] }))}
                         >
                           <SelectTrigger className="h-8 sm:h-10 text-xs sm:text-sm">
                             <SelectValue placeholder={t('accounts.bank')} />
