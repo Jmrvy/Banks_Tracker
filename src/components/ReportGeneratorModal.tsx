@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,14 +11,11 @@ import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear, startOfMo
 import { fr } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
-import html2canvas from "html2canvas";
 import * as XLSX from 'xlsx';
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Card } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 
 interface ReportGeneratorModalProps {
   open: boolean;
@@ -33,8 +30,6 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const [dateType, setDateType] = useState<'accounting' | 'value'>('accounting');
   const [reportFormat, setReportFormat] = useState<'pdf' | 'excel'>('pdf');
   const [isGenerating, setIsGenerating] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
-  const transactionsSectionRef = useRef<HTMLDivElement>(null);
 
   // Fix timezone issue: create date at noon local time
   const fixTimezone = (date: Date) => new Date(
@@ -58,7 +53,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     return sign + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
   };
 
-  const actualStartDate = periodType === 'custom' ? startDate : 
+  const actualStartDate = periodType === 'custom' ? startDate :
                           periodType === 'quarter' ? startOfQuarter(reportDate) :
                           periodType === 'year' ? startOfYear(reportDate) :
                           startOfMonth(reportDate);
@@ -75,110 +70,525 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     dateType
   );
 
+  // ─── Programmatic slide-style PDF generation ──────────────────────────────
+
   const handleGenerate = async () => {
-    if (!reportRef.current) return;
-    
     setIsGenerating(true);
     try {
-      // Create PDF with proper sectioning
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      // Temporarily make visible for rendering
-      reportRef.current.style.left = '0';
-      reportRef.current.style.position = 'fixed';
-      reportRef.current.style.top = '0';
-      reportRef.current.style.zIndex = '-1';
+      const pdf = new jsPDF('l', 'mm', 'a4'); // landscape throughout
+      const W = 297, H = 210;
 
-      // Hide transactions section during capture to avoid double rendering across pages
-      if (transactionsSectionRef.current) {
-        transactionsSectionRef.current.style.display = 'none';
+      // Colors [R, G, B] 0-255
+      const DARK: [number, number, number] = [30, 41, 59];
+      const DARK_ALT: [number, number, number] = [51, 65, 85];
+      const WHITE: [number, number, number] = [255, 255, 255];
+      const GREEN: [number, number, number] = [5, 150, 105];
+      const RED: [number, number, number] = [220, 38, 38];
+      const BLUE: [number, number, number] = [59, 130, 246];
+      const GRAY: [number, number, number] = [100, 116, 139];
+      const SUBTLE: [number, number, number] = [148, 163, 184];
+      const LIGHT_GRAY: [number, number, number] = [241, 245, 249];
+      const LIGHT_GREEN: [number, number, number] = [240, 253, 244];
+      const LIGHT_RED: [number, number, number] = [254, 242, 242];
+      const TEXT_DARK: [number, number, number] = [17, 24, 39];
+      const DIVIDER: [number, number, number] = [229, 231, 235];
+
+      const setFill = (c: [number, number, number]) => pdf.setFillColor(c[0], c[1], c[2]);
+      const setTextC = (c: [number, number, number]) => pdf.setTextColor(c[0], c[1], c[2]);
+      const setDraw = (c: [number, number, number]) => pdf.setDrawColor(c[0], c[1], c[2]);
+
+      const hexToRgb = (hex: string): [number, number, number] => {
+        const h = hex.replace('#', '');
+        return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
+      };
+
+      const periodStr = `${format(actualStartDate, 'dd MMM', { locale: fr })} - ${format(actualEndDate, 'dd MMM yyyy', { locale: fr })}`;
+      const genDate = format(new Date(), 'dd MMMM yyyy', { locale: fr });
+      const savingsRate = stats.income > 0 ? Math.round(((stats.income - stats.expenses) / stats.income) * 100) : 0;
+
+      // Slide header helper
+      const drawHeader = (title: string) => {
+        setFill(DARK);
+        pdf.rect(0, 0, W, 28, 'F');
+        setTextC(WHITE);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(16);
+        pdf.text(title, 20, 18);
+        setTextC(SUBTLE);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(11);
+        pdf.text(periodStr, W - 20, 18, { align: 'right' });
+        // Blue accent
+        setFill(BLUE);
+        pdf.rect(20, 28, 60, 2, 'F');
+      };
+
+      // Page number helper
+      let slideNum = 0;
+      const drawPageNum = () => {
+        slideNum++;
+        setTextC(SUBTLE);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.text(String(slideNum), W - 15, H - 8, { align: 'right' });
+        pdf.text('Gestion des comptes CB', 15, H - 8);
+      };
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 1: COVER
+      // ═══════════════════════════════════════════════════════════════════════
+      setFill(DARK);
+      pdf.rect(0, 0, W, H, 'F');
+
+      // Blue accent line
+      setFill(BLUE);
+      pdf.rect(0, H * 0.44, W, 2.5, 'F');
+
+      // App name
+      setTextC(SUBTLE);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      pdf.text('GESTION DES COMPTES CB', W / 2, 60, { align: 'center' });
+
+      // Title
+      setTextC(WHITE);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(36);
+      pdf.text('RAPPORT FINANCIER', W / 2, 82, { align: 'center' });
+
+      // Period
+      pdf.setFontSize(18);
+      pdf.text(periodStr.toUpperCase(), W / 2, 100, { align: 'center' });
+
+      // Generated date
+      setTextC(SUBTLE);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.text(`Rapport du ${genDate}`, W / 2, 158, { align: 'center' });
+
+      // Badges
+      const txCount = transactionsWithBalance.length;
+      pdf.setFontSize(10);
+      const txBadge = `${txCount} transactions`;
+      const txBW = pdf.getTextWidth(txBadge) + 16;
+      const srBadge = `Epargne : ${savingsRate}%`;
+      const srBW = pdf.getTextWidth(srBadge) + 16;
+      const badgeTotal = txBW + 10 + srBW;
+      const badgeX = (W - badgeTotal) / 2;
+
+      setFill(DARK_ALT);
+      pdf.rect(badgeX, 130, txBW, 14, 'F');
+      setTextC(SUBTLE);
+      pdf.text(txBadge, badgeX + 8, 139);
+
+      const srBg: [number, number, number] = savingsRate >= 0 ? [6, 78, 59] : [127, 29, 29];
+      const srTxt: [number, number, number] = savingsRate >= 0 ? [110, 231, 183] : [252, 165, 165];
+      pdf.setFillColor(srBg[0], srBg[1], srBg[2]);
+      pdf.rect(badgeX + txBW + 10, 130, srBW, 14, 'F');
+      pdf.setTextColor(srTxt[0], srTxt[1], srTxt[2]);
+      pdf.text(srBadge, badgeX + txBW + 10 + 8, 139);
+
+      drawPageNum();
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 2: FINANCIAL OVERVIEW
+      // ═══════════════════════════════════════════════════════════════════════
+      pdf.addPage('a4', 'l');
+      drawHeader("VUE D'ENSEMBLE");
+
+      const boxW = 80, boxH = 55, boxGap = 12;
+      const bStartX = (W - (3 * boxW + 2 * boxGap)) / 2;
+      const bTopY = 40;
+
+      // Revenue box
+      setFill(LIGHT_GREEN);
+      pdf.rect(bStartX, bTopY, boxW, boxH, 'F');
+      setTextC(GRAY); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+      pdf.text('REVENUS', bStartX + boxW / 2, bTopY + 15, { align: 'center' });
+      setTextC(GREEN); pdf.setFontSize(20);
+      pdf.text(pdfFormatAbs(stats.income), bStartX + boxW / 2, bTopY + 35, { align: 'center' });
+
+      // Expenses box
+      const eX = bStartX + boxW + boxGap;
+      setFill(LIGHT_RED);
+      pdf.rect(eX, bTopY, boxW, boxH, 'F');
+      setTextC(GRAY); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+      pdf.text('DEPENSES', eX + boxW / 2, bTopY + 15, { align: 'center' });
+      setTextC(RED); pdf.setFontSize(20);
+      pdf.text(pdfFormatAbs(stats.expenses), eX + boxW / 2, bTopY + 35, { align: 'center' });
+
+      // Net box
+      const nX = eX + boxW + boxGap;
+      const net = stats.income - stats.expenses;
+      const netClr = net >= 0 ? GREEN : RED;
+      setFill(LIGHT_GRAY);
+      pdf.rect(nX, bTopY, boxW, boxH, 'F');
+      setTextC(GRAY); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+      pdf.text('NET', nX + boxW / 2, bTopY + 15, { align: 'center' });
+      setTextC(netClr); pdf.setFontSize(20);
+      pdf.text(pdfFormatWithSign(net), nX + boxW / 2, bTopY + 35, { align: 'center' });
+
+      // Balance bar
+      const barW = 3 * boxW + 2 * boxGap;
+      const barY = bTopY + boxH + 15;
+      setFill(DARK);
+      pdf.rect(bStartX, barY, barW, 28, 'F');
+      setTextC(SUBTLE); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+      pdf.text('SOLDE TOTAL', bStartX + 15, barY + 18);
+      setTextC(WHITE); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+      pdf.text(pdfFormatWithSign(totalBalance), bStartX + barW - 15, barY + 17, { align: 'right' });
+
+      // Starting / ending balance
+      const compY = barY + 38;
+      setFill(LIGHT_GRAY);
+      pdf.rect(bStartX, compY, barW / 2 - 5, 22, 'F');
+      setTextC(GRAY); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      pdf.text('SOLDE DEBUT', bStartX + 10, compY + 9);
+      setTextC(TEXT_DARK); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+      pdf.text(pdfFormatWithSign(startingBalance), bStartX + barW / 2 - 15, compY + 15, { align: 'right' });
+
+      setFill(LIGHT_GRAY);
+      pdf.rect(bStartX + barW / 2 + 5, compY, barW / 2 - 5, 22, 'F');
+      setTextC(GRAY); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      pdf.text('SOLDE FIN', bStartX + barW / 2 + 15, compY + 9);
+      setTextC(TEXT_DARK); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+      pdf.text(pdfFormatWithSign(totalBalance), bStartX + barW - 10, compY + 15, { align: 'right' });
+
+      // Savings rate bar
+      const srY = compY + 30;
+      setFill(savingsRate >= 0 ? LIGHT_GREEN : LIGHT_RED);
+      pdf.rect(bStartX, srY, barW, 18, 'F');
+      setTextC(savingsRate >= 0 ? GREEN : RED);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+      pdf.text(`Taux d'epargne : ${savingsRate}%`, bStartX + barW / 2, srY + 12, { align: 'center' });
+
+      drawPageNum();
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 3: BALANCE EVOLUTION (line chart)
+      // ═══════════════════════════════════════════════════════════════════════
+      if (balanceEvolutionData.length > 1) {
+        pdf.addPage('a4', 'l');
+        drawHeader('EVOLUTION DU SOLDE');
+
+        const chartData = balanceEvolutionData;
+        const cX = 55, cTopY = 42, cW = W - 75, cH = H - 72;
+
+        // Chart background
+        setFill([249, 250, 251]);
+        pdf.rect(cX, cTopY, cW, cH, 'F');
+
+        const soldes = chartData.map((d: any) => Number(d.solde));
+        const yMin = Math.min(...soldes);
+        const yMax = Math.max(...soldes);
+        const yRange = yMax - yMin || 1;
+        const yPad = yRange * 0.1;
+        const adjMin = yMin - yPad;
+        const adjMax = yMax + yPad;
+        const adjRange = adjMax - adjMin;
+
+        // Grid lines
+        setDraw([229, 231, 235]);
+        pdf.setLineWidth(0.2);
+        for (let i = 0; i <= 4; i++) {
+          const gy = cTopY + cH - (i / 4) * cH;
+          pdf.line(cX, gy, cX + cW, gy);
+          const val = adjMin + (i / 4) * adjRange;
+          setTextC([107, 114, 128]);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(7);
+          pdf.text(pdfFormatAbs(val), cX - 3, gy + 1, { align: 'right' });
+        }
+
+        // Data line
+        setDraw(BLUE);
+        pdf.setLineWidth(0.7);
+        for (let i = 0; i < chartData.length - 1; i++) {
+          const x1 = cX + (i / (chartData.length - 1)) * cW;
+          const y1 = cTopY + cH - ((soldes[i] - adjMin) / adjRange) * cH;
+          const x2 = cX + ((i + 1) / (chartData.length - 1)) * cW;
+          const y2 = cTopY + cH - ((soldes[i + 1] - adjMin) / adjRange) * cH;
+          pdf.line(x1, y1, x2, y2);
+        }
+
+        // Data dots
+        setFill(BLUE);
+        const dotStep = Math.max(1, Math.floor(chartData.length / 30));
+        for (let i = 0; i < chartData.length; i += dotStep) {
+          const px = cX + (i / (chartData.length - 1)) * cW;
+          const py = cTopY + cH - ((soldes[i] - adjMin) / adjRange) * cH;
+          pdf.circle(px, py, 0.8, 'F');
+        }
+
+        // X-axis labels
+        const labelStep = Math.max(1, Math.floor(chartData.length / 10));
+        setTextC([107, 114, 128]);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        for (let i = 0; i < chartData.length; i += labelStep) {
+          const px = cX + (i / (chartData.length - 1)) * cW;
+          pdf.text(String(chartData[i].date), px, cTopY + cH + 6, { align: 'center' });
+        }
+
+        drawPageNum();
       }
 
-      // Wait for charts and content to render
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Generate charts and summary sections first
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 1200,
-        width: 1200,
-      });
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 4: EXPENSES BY CATEGORY
+      // ═══════════════════════════════════════════════════════════════════════
+      const expCats = categoryChartData
+        .filter(c => c.spent > 0)
+        .sort((a, b) => b.spent - a.spent)
+        .slice(0, 12);
 
-      // Hide again
-      reportRef.current.style.left = '-9999px';
-      reportRef.current.style.position = 'absolute';
+      if (expCats.length > 0) {
+        pdf.addPage('a4', 'l');
+        drawHeader('DEPENSES PAR CATEGORIE');
 
-      // Restore transactions section visibility for the rest of the app
-      if (transactionsSectionRef.current) {
-        transactionsSectionRef.current.style.display = 'block';
+        const tX = 25, tW = W - 50, rowH = 13;
+        let curY = 38;
+
+        // Header row
+        setFill(LIGHT_GRAY);
+        pdf.rect(tX, curY, tW, rowH, 'F');
+        setTextC(GRAY); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+        pdf.text('CATEGORIE', tX + 8, curY + 9);
+        pdf.text('MONTANT', tX + tW * 0.38, curY + 9);
+        pdf.text('%', tX + tW * 0.55, curY + 9);
+        pdf.text('REPARTITION', tX + tW * 0.63, curY + 9);
+        curY += rowH + 1;
+
+        const totalExpenses = stats.expenses || 1;
+        for (let i = 0; i < expCats.length; i++) {
+          const cat = expCats[i];
+          const pct = totalExpenses > 0 ? Math.round((cat.spent / totalExpenses) * 100) : 0;
+
+          if (i % 2 === 1) {
+            setFill([250, 250, 252]);
+            pdf.rect(tX, curY, tW, rowH, 'F');
+          }
+
+          setDraw(DIVIDER); pdf.setLineWidth(0.2);
+          pdf.line(tX, curY + rowH, tX + tW, curY + rowH);
+
+          // Category name
+          setTextC(TEXT_DARK); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+          const catName = cat.name.length > 25 ? cat.name.substring(0, 25) + '...' : cat.name;
+          pdf.text(catName, tX + 8, curY + 9);
+
+          // Amount
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(pdfFormatAbs(cat.spent), tX + tW * 0.38, curY + 9);
+
+          // Percentage
+          setTextC(GRAY); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
+          pdf.text(`${pct}%`, tX + tW * 0.55, curY + 9);
+
+          // Bar
+          const barBX = tX + tW * 0.63;
+          const barMaxW = tW * 0.33;
+          const catBarW = Math.max(1, (pct / 100) * barMaxW);
+
+          setFill([229, 231, 235]);
+          pdf.rect(barBX, curY + 4, barMaxW, 5, 'F');
+
+          const catColor = cat.color ? hexToRgb(cat.color) : BLUE;
+          const isOver = cat.budget > 0 && cat.spent > cat.budget;
+          setFill(isOver ? RED : catColor);
+          pdf.rect(barBX, curY + 4, catBarW, 5, 'F');
+
+          curY += rowH;
+        }
+
+        drawPageNum();
       }
 
-      const imgData = canvas.toDataURL('image/png');
-      
-      // Convert canvas dimensions to PDF dimensions
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 5: INCOME ANALYSIS
+      // ═══════════════════════════════════════════════════════════════════════
+      if (incomeAnalysis.length > 0) {
+        pdf.addPage('a4', 'l');
+        drawHeader('ANALYSE DES REVENUS');
 
-      // Add first page with charts
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+        const incomeCats = incomeAnalysis.slice(0, 12);
+        const totalIncome = stats.income || 1;
+        const incomeColors = ['#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899', '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'];
 
-      // Add additional pages if charts content is longer than one page
-      while (heightLeft > 0) {
-        position = -(imgHeight - heightLeft);
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        const tX = 25, tW = W - 50, rowH = 13;
+        let curY = 38;
+
+        setFill(LIGHT_GRAY);
+        pdf.rect(tX, curY, tW, rowH, 'F');
+        setTextC(GRAY); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+        pdf.text('CATEGORIE', tX + 8, curY + 9);
+        pdf.text('MONTANT', tX + tW * 0.38, curY + 9);
+        pdf.text('NB', tX + tW * 0.53, curY + 9);
+        pdf.text('%', tX + tW * 0.60, curY + 9);
+        pdf.text('REPARTITION', tX + tW * 0.68, curY + 9);
+        curY += rowH + 1;
+
+        for (let i = 0; i < incomeCats.length; i++) {
+          const cat = incomeCats[i];
+          const pct = totalIncome > 0 ? Math.round((cat.totalAmount / totalIncome) * 100) : 0;
+
+          if (i % 2 === 1) {
+            setFill([250, 250, 252]);
+            pdf.rect(tX, curY, tW, rowH, 'F');
+          }
+
+          setDraw(DIVIDER); pdf.setLineWidth(0.2);
+          pdf.line(tX, curY + rowH, tX + tW, curY + rowH);
+
+          setTextC(TEXT_DARK); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+          const catName = cat.category.length > 25 ? cat.category.substring(0, 25) + '...' : cat.category;
+          pdf.text(catName, tX + 8, curY + 9);
+
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(pdfFormatAbs(cat.totalAmount), tX + tW * 0.38, curY + 9);
+
+          setTextC(GRAY); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
+          pdf.text(String(cat.count), tX + tW * 0.53, curY + 9);
+          pdf.text(`${pct}%`, tX + tW * 0.60, curY + 9);
+
+          const barBX = tX + tW * 0.68;
+          const barMaxW = tW * 0.28;
+          const incBarW = Math.max(1, (pct / 100) * barMaxW);
+
+          setFill([229, 231, 235]);
+          pdf.rect(barBX, curY + 4, barMaxW, 5, 'F');
+          setFill(hexToRgb(incomeColors[i % incomeColors.length]));
+          pdf.rect(barBX, curY + 4, incBarW, 5, 'F');
+
+          curY += rowH;
+        }
+
+        drawPageNum();
       }
 
-      // Add transactions table with autotable for proper pagination
-      const tableData = transactionsWithBalance.map(t => {
-        const amountNum = Number(t.amount);
-        const amountStr = (t.type === 'income' ? '+' : '-') + pdfFormatAbs(amountNum);
-        const balanceStr = pdfFormatWithSign(t.runningBalance);
-        const displayDate = dateType === 'value' 
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
-        return [
-          format(displayDate, 'dd/MM/yyyy'),
-          accounts.find(a => a.id === t.account_id)?.name || '-',
-          t.description,
-          t.category?.name || '-',
-          t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Dépense' : 'Virement',
-          amountStr,
-          balanceStr,
-        ];
-      });
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 6: BUDGET ANALYSIS
+      // ═══════════════════════════════════════════════════════════════════════
+      const budgetCats = categoryChartData.filter(c => c.budget > 0).sort((a, b) => b.spent - a.spent);
 
-      // Build table body with summary rows in correct order
-      const tableBody = [
-        ['__SUM__START', 'Solde début', '', '', '', '', pdfFormatWithSign(startingBalance)],
-        ...tableData,
-        ['__SUM__END', 'Solde fin', '', '', '', '', pdfFormatWithSign(totalBalance)],
-        ['__SUM__TOTAL', 'Total transactions', '', '', '', '', String(transactionsWithBalance.length)],
-      ];
+      if (budgetCats.length > 0) {
+        pdf.addPage('a4', 'l');
+        drawHeader('BUDGET VS DEPENSES');
 
-      // Add Budget vs Expenses table with autoTable to avoid page breaks
-      const budgetCategories = categoryChartData.filter(cat => cat.budget > 0).sort((a, b) => b.spent - a.spent);
-      if (budgetCategories.length > 0) {
-        pdf.addPage();
+        let curY = 40;
+        for (const cat of budgetCats.slice(0, 8)) {
+          const pctUsed = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0;
+          const remaining = cat.budget - cat.spent;
+          const isOver = cat.spent > cat.budget;
+
+          // Card background
+          setFill(isOver ? LIGHT_RED : LIGHT_GRAY);
+          pdf.rect(25, curY, W - 50, 18, 'F');
+
+          // Left accent
+          setFill(isOver ? RED : GREEN);
+          pdf.rect(25, curY, 3, 18, 'F');
+
+          // Name
+          setTextC(TEXT_DARK); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
+          pdf.text(cat.name, 35, curY + 7);
+
+          // Status
+          const statusText = pctUsed >= 100 ? 'DEPASSE' : pctUsed >= 80 ? 'ATTENTION' : 'OK';
+          const statusClr: [number, number, number] = pctUsed >= 100 ? RED : pctUsed >= 80 ? [234, 88, 12] : GREEN;
+          setTextC(statusClr); pdf.setFontSize(8);
+          pdf.text(statusText, W - 35, curY + 7, { align: 'right' });
+
+          // Details
+          setTextC(GRAY); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
+          const detailText = `${pdfFormatAbs(cat.spent)} / ${pdfFormatAbs(cat.budget)} (${Math.round(pctUsed)}%)`;
+          const remainText = isOver ? `Depassement: ${pdfFormatAbs(Math.abs(remaining))}` : `Restant: ${pdfFormatAbs(remaining)}`;
+          pdf.text(`${detailText} — ${remainText}`, 35, curY + 14);
+
+          // Progress bar
+          const pBarX = W * 0.55;
+          const pBarMaxW = W * 0.25;
+          const pBarFillW = Math.min(pctUsed, 100) / 100 * pBarMaxW;
+
+          setFill([229, 231, 235]);
+          pdf.rect(pBarX, curY + 11, pBarMaxW, 4, 'F');
+          setFill(isOver ? RED : pctUsed >= 80 ? [234, 88, 12] : GREEN);
+          pdf.rect(pBarX, curY + 11, pBarFillW, 4, 'F');
+
+          curY += 22;
+        }
+
+        drawPageNum();
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // SLIDE 7: ACCOUNT BALANCES
+      // ═══════════════════════════════════════════════════════════════════════
+      pdf.addPage('a4', 'l');
+      drawHeader('SOLDES DES COMPTES');
+
+      {
+        const tX = 30, tW = W - 60, rowH = 14;
+        let curY = 38;
+
+        // Header row
+        setFill(LIGHT_GRAY);
+        pdf.rect(tX, curY, tW, rowH, 'F');
+        setTextC(GRAY); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+        pdf.text('COMPTE', tX + 8, curY + 10);
+        pdf.text('BANQUE', tX + tW * 0.30, curY + 10);
+        pdf.text('TYPE', tX + tW * 0.55, curY + 10);
+        pdf.text('SOLDE', tX + tW - 10, curY + 10, { align: 'right' });
+        curY += rowH + 1;
+
+        for (let i = 0; i < accountBalances.length; i++) {
+          const acc = accountBalances[i];
+
+          if (i % 2 === 1) {
+            setFill([250, 250, 252]);
+            pdf.rect(tX, curY, tW, rowH, 'F');
+          }
+
+          setDraw(DIVIDER); pdf.setLineWidth(0.2);
+          pdf.line(tX, curY + rowH, tX + tW, curY + rowH);
+
+          setTextC(TEXT_DARK); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
+          pdf.text(acc.name, tX + 8, curY + 10);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(acc.bank || '-', tX + tW * 0.30, curY + 10);
+          pdf.text(acc.account_type || '-', tX + tW * 0.55, curY + 10);
+
+          const balClr = acc.currentBalance >= 0 ? GREEN : RED;
+          setTextC(balClr); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+          pdf.text(pdfFormatWithSign(acc.currentBalance), tX + tW - 10, curY + 10, { align: 'right' });
+
+          curY += rowH;
+        }
+
+        // Total row
+        curY += 3;
+        setFill(DARK);
+        pdf.rect(tX, curY, tW, rowH + 2, 'F');
+        setTextC(WHITE); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+        pdf.text('TOTAL', tX + 8, curY + 11);
+        pdf.text(pdfFormatWithSign(totalBalance), tX + tW - 10, curY + 11, { align: 'right' });
+      }
+
+      drawPageNum();
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // TABLE: BUDGET VS EXPENSES DETAIL (autoTable, landscape)
+      // ═══════════════════════════════════════════════════════════════════════
+      if (budgetCats.length > 0) {
+        pdf.addPage('a4', 'l');
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(16);
         pdf.setTextColor(0);
-        pdf.text('Analyse Budget vs Dépenses', 14, 15);
+        pdf.text('Analyse Budget vs D\u00e9penses', 14, 15);
 
-        const budgetTableData = budgetCategories.map(cat => {
+        const budgetTableData = budgetCats.map(cat => {
           const percentUsed = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0;
           const remaining = cat.budget - cat.spent;
-          const status = percentUsed >= 100 ? 'Dépassé' : percentUsed >= 80 ? 'Attention' : 'OK';
+          const status = percentUsed >= 100 ? 'D\u00e9pass\u00e9' : percentUsed >= 80 ? 'Attention' : 'OK';
           return [
             cat.name,
             pdfFormatAbs(cat.spent),
@@ -190,12 +600,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         });
 
         autoTable(pdf, {
-          head: [['Catégorie', 'Dépensé', 'Budget', 'Restant', '% Utilisé', 'Statut']],
+          head: [['Cat\u00e9gorie', 'D\u00e9pens\u00e9', 'Budget', 'Restant', '% Utilis\u00e9', 'Statut']],
           body: budgetTableData,
           startY: 25,
           theme: 'grid',
           tableWidth: 'auto',
-          headStyles: { 
+          headStyles: {
             fillColor: [243, 244, 246],
             textColor: [55, 65, 81],
             fontStyle: 'bold',
@@ -213,36 +623,34 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
           },
           alternateRowStyles: { fillColor: [250, 250, 250] },
           columnStyles: {
-            0: { cellWidth: 50 }, // Catégorie
-            1: { halign: 'right', cellWidth: 28 }, // Dépensé
-            2: { halign: 'right', cellWidth: 28 }, // Budget
-            3: { halign: 'right', cellWidth: 28 }, // Restant
-            4: { halign: 'center', cellWidth: 22 }, // % Utilisé
-            5: { halign: 'center', cellWidth: 22 } // Statut
+            0: { cellWidth: 70 },
+            1: { halign: 'right', cellWidth: 35 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 },
+            4: { halign: 'center', cellWidth: 28 },
+            5: { halign: 'center', cellWidth: 28 }
           },
-          rowPageBreak: 'avoid', // Prevent rows from being split across pages
-          pageBreak: 'avoid', // Try to keep the entire table on one page if possible
+          rowPageBreak: 'avoid',
+          pageBreak: 'avoid',
           didParseCell: (data: any) => {
             if (data.section === 'body') {
-              // Color status column based on value
               if (data.column.index === 5) {
                 const status = data.cell.raw;
-                if (status === 'Dépassé') {
-                  data.cell.styles.textColor = [220, 38, 38]; // red
+                if (status === 'D\u00e9pass\u00e9') {
+                  data.cell.styles.textColor = [220, 38, 38];
                   data.cell.styles.fontStyle = 'bold';
                 } else if (status === 'Attention') {
-                  data.cell.styles.textColor = [234, 88, 12]; // orange
+                  data.cell.styles.textColor = [234, 88, 12];
                   data.cell.styles.fontStyle = 'bold';
                 } else {
-                  data.cell.styles.textColor = [22, 163, 74]; // green
+                  data.cell.styles.textColor = [22, 163, 74];
                   data.cell.styles.fontStyle = 'bold';
                 }
               }
-              // Color remaining column
               if (data.column.index === 3) {
                 const remaining = String(data.cell.raw);
                 if (remaining.startsWith('-')) {
-                  data.cell.styles.textColor = [220, 38, 38]; // red
+                  data.cell.styles.textColor = [220, 38, 38];
                 }
               }
             }
@@ -251,17 +659,44 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         });
       }
 
-      pdf.addPage();
-      
+      // ═══════════════════════════════════════════════════════════════════════
+      // TABLE: TRANSACTION DETAIL (autoTable, landscape)
+      // ═══════════════════════════════════════════════════════════════════════
+      pdf.addPage('a4', 'l');
+
+      const tableData = transactionsWithBalance.map(t => {
+        const amountNum = Number(t.amount);
+        const amountStr = (t.type === 'income' ? '+' : '-') + pdfFormatAbs(amountNum);
+        const balanceStr = pdfFormatWithSign(t.runningBalance);
+        const displayDate = dateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
+        return [
+          format(displayDate, 'dd/MM/yyyy'),
+          accounts.find(a => a.id === t.account_id)?.name || '-',
+          t.description,
+          t.category?.name || '-',
+          t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'D\u00e9pense' : 'Virement',
+          amountStr,
+          balanceStr,
+        ];
+      });
+
+      const tableBody = [
+        ['__SUM__START', 'Solde d\u00e9but', '', '', '', '', pdfFormatWithSign(startingBalance)],
+        ...tableData,
+        ['__SUM__END', 'Solde fin', '', '', '', '', pdfFormatWithSign(totalBalance)],
+        ['__SUM__TOTAL', 'Total transactions', '', '', '', '', String(transactionsWithBalance.length)],
+      ];
+
       let txFirstPage = true;
-      // Add transactions table with autoTable
       autoTable(pdf, {
-        head: [['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde']],
+        head: [['Date', 'Compte', 'Description', 'Cat\u00e9gorie', 'Type', 'Montant', 'Solde']],
         body: tableBody,
         startY: 25,
         theme: 'grid',
         tableWidth: 'auto',
-        headStyles: { 
+        headStyles: {
           fillColor: [243, 244, 246],
           textColor: [55, 65, 81],
           fontStyle: 'bold',
@@ -280,38 +715,36 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 18 }, // Date
-          1: { cellWidth: 22 }, // Compte
-          2: { cellWidth: 50, overflow: 'linebreak' }, // Description - limited width with text wrap
-          3: { cellWidth: 25 }, // Catégorie
-          4: { cellWidth: 16 }, // Type
-          5: { halign: 'right', cellWidth: 22 }, // Montant
-          6: { halign: 'right', fontStyle: 'bold', cellWidth: 22 } // Solde
+          0: { cellWidth: 22 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 80, overflow: 'linebreak' },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 20 },
+          5: { halign: 'right', cellWidth: 28 },
+          6: { halign: 'right', fontStyle: 'bold', cellWidth: 28 }
         },
-        rowPageBreak: 'avoid', // Prevent rows from being split across pages
+        rowPageBreak: 'avoid',
         didDrawPage: (data: any) => {
           pdf.setFont('helvetica', 'bold');
           pdf.setTextColor(0);
           pdf.setFontSize(txFirstPage ? 16 : 14);
-          pdf.text(txFirstPage ? 'Détail des Transactions' : 'Détail des Transactions (suite)', 14, 15);
+          pdf.text(txFirstPage ? 'D\u00e9tail des Transactions' : 'D\u00e9tail des Transactions (suite)', 14, 15);
           txFirstPage = false;
         },
         didParseCell: (data: any) => {
           const raw = data.row?.raw;
           if (raw && typeof raw[0] === 'string' && raw[0].startsWith('__SUM__')) {
-            // Style for summary rows
             data.cell.styles.fillColor = [249, 250, 251];
             data.cell.styles.fontStyle = 'bold';
 
-            // Merge first 5 columns into one label cell
             if (data.column.index === 0) {
               data.cell.text = [String(raw[1])];
-              data.cell.colSpan = 5; // spans columns 0..4
+              data.cell.colSpan = 5;
               data.cell.styles.halign = 'left';
             } else if (data.column.index > 0 && data.column.index < 5) {
-              data.cell.text = ['']; // hidden by colSpan
+              data.cell.text = [''];
             } else if (data.column.index === 5) {
-              data.cell.text = ['']; // empty amount column for summary
+              data.cell.text = [''];
             } else if (data.column.index === 6) {
               data.cell.styles.halign = 'right';
               data.cell.text = [String(raw[6])];
@@ -326,16 +759,16 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       pdf.save(`rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.pdf`);
 
       toast({
-        title: "Rapport généré",
-        description: "Le PDF a été téléchargé avec succès",
+        title: "Rapport g\u00e9n\u00e9r\u00e9",
+        description: "Le PDF a \u00e9t\u00e9 t\u00e9l\u00e9charg\u00e9 avec succ\u00e8s",
       });
-      
+
       onOpenChange(false);
     } catch (error) {
       console.error('Error generating report:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de générer le rapport",
+        description: "Impossible de g\u00e9n\u00e9rer le rapport",
         variant: "destructive",
       });
     } finally {
@@ -355,14 +788,14 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       // Sheet 1: Soldes
       const balanceData = [
         ['Rapport Financier'],
-        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        [`P\u00e9riode: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
         [`Type de date: ${dateType === 'accounting' ? 'Date Comptable' : 'Date Valeur'}`],
-        [`Généré le: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr })}`],
+        [`G\u00e9n\u00e9r\u00e9 le: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr })}`],
         [],
-        ['Résumé des Soldes'],
+        ['R\u00e9sum\u00e9 des Soldes'],
         ['Revenus', excelFormatCurrency(stats.income)],
-        ['Dépenses', excelFormatCurrency(stats.expenses)],
-        ['Net Période', excelFormatCurrency(stats.netPeriodBalance)],
+        ['D\u00e9penses', excelFormatCurrency(stats.expenses)],
+        ['Net P\u00e9riode', excelFormatCurrency(stats.netPeriodBalance)],
         ['Solde Initial', excelFormatCurrency(stats.initialBalance)],
         ['Solde Final', excelFormatCurrency(stats.finalBalance)],
         [],
@@ -380,10 +813,10 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
 
       // Sheet 2: Dépenses par catégorie vs budget
       const expensesData = [
-        ['Dépenses par Catégorie vs Budget'],
-        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        ['D\u00e9penses par Cat\u00e9gorie vs Budget'],
+        [`P\u00e9riode: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
         [],
-        ['Catégorie', 'Dépensé', 'Budget', 'Restant', '% Utilisé'],
+        ['Cat\u00e9gorie', 'D\u00e9pens\u00e9', 'Budget', 'Restant', '% Utilis\u00e9'],
         ...categoryChartData.map(cat => [
           cat.name,
           excelFormatCurrency(cat.spent),
@@ -393,15 +826,15 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
         ])
       ];
       const wsExpenses = XLSX.utils.aoa_to_sheet(expensesData);
-      XLSX.utils.book_append_sheet(wb, wsExpenses, 'Dépenses');
+      XLSX.utils.book_append_sheet(wb, wsExpenses, 'D\u00e9penses');
 
       // Sheet 3: Revenus par catégorie
       const totalIncome = incomeAnalysis.reduce((sum, cat) => sum + cat.totalAmount, 0);
       const incomeData = [
-        ['Revenus par Catégorie'],
-        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        ['Revenus par Cat\u00e9gorie'],
+        [`P\u00e9riode: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
         [],
-        ['Catégorie', 'Montant', 'Nombre', '% du Total'],
+        ['Cat\u00e9gorie', 'Montant', 'Nombre', '% du Total'],
         ...incomeAnalysis.map(cat => [
           cat.category,
           excelFormatCurrency(cat.totalAmount),
@@ -415,12 +848,12 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       // Sheet 4: Historique des transactions
       const transactionsData = [
         ['Historique des Transactions'],
-        [`Période: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
+        [`P\u00e9riode: ${format(actualStartDate, 'dd/MM/yyyy', { locale: fr })} - ${format(actualEndDate, 'dd/MM/yyyy', { locale: fr })}`],
         [`Type de date: ${dateType === 'accounting' ? 'Date Comptable' : 'Date Valeur'}`],
         [],
-        ['Date', 'Compte', 'Description', 'Catégorie', 'Type', 'Montant', 'Solde'],
+        ['Date', 'Compte', 'Description', 'Cat\u00e9gorie', 'Type', 'Montant', 'Solde'],
         ...transactionsWithBalance.map(t => {
-          const displayDate = dateType === 'value' 
+          const displayDate = dateType === 'value'
             ? new Date(t.value_date || t.transaction_date)
             : new Date(t.transaction_date);
           return [
@@ -428,14 +861,14 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
             accounts.find(a => a.id === t.account_id)?.name || '-',
             t.description,
             t.category?.name || '-',
-            t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Dépense' : 'Virement',
+            t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'D\u00e9pense' : 'Virement',
             (t.type === 'income' ? '' : '-') + excelFormatCurrency(Number(t.amount)),
             excelFormatCurrency(t.runningBalance)
           ];
         }),
         [],
-        ['Solde début de période', '', '', '', '', '', excelFormatCurrency(startingBalance)],
-        ['Solde fin de période', '', '', '', '', '', excelFormatCurrency(totalBalance)],
+        ['Solde d\u00e9but de p\u00e9riode', '', '', '', '', '', excelFormatCurrency(startingBalance)],
+        ['Solde fin de p\u00e9riode', '', '', '', '', '', excelFormatCurrency(totalBalance)],
         ['Total transactions', '', '', '', '', '', String(transactionsWithBalance.length)]
       ];
       const wsTransactions = XLSX.utils.aoa_to_sheet(transactionsData);
@@ -445,8 +878,8 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       XLSX.writeFile(wb, `rapport-financier-${format(actualStartDate, 'yyyy-MM-dd')}.xlsx`);
 
       toast({
-        title: "Rapport généré",
-        description: "Le fichier Excel a été téléchargé avec succès",
+        title: "Rapport g\u00e9n\u00e9r\u00e9",
+        description: "Le fichier Excel a \u00e9t\u00e9 t\u00e9l\u00e9charg\u00e9 avec succ\u00e8s",
       });
 
       onOpenChange(false);
@@ -454,7 +887,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
       console.error('Error generating Excel report:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de générer le rapport Excel",
+        description: "Impossible de g\u00e9n\u00e9rer le rapport Excel",
         variant: "destructive",
       });
     } finally {
@@ -468,16 +901,16 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   // Filter transactions by date range using selected date type and sort chronologically
   const filteredTransactions = transactions
     .filter(t => {
-      const dateToUse = dateType === 'value' 
+      const dateToUse = dateType === 'value'
         ? new Date(t.value_date || t.transaction_date)
         : new Date(t.transaction_date);
       return dateToUse >= actualStartDate && dateToUse <= actualEndDate;
     })
     .sort((a, b) => {
-      const dateA = dateType === 'value' 
+      const dateA = dateType === 'value'
         ? new Date(a.value_date || a.transaction_date)
         : new Date(a.transaction_date);
-      const dateB = dateType === 'value' 
+      const dateB = dateType === 'value'
         ? new Date(b.value_date || b.transaction_date)
         : new Date(b.transaction_date);
       return dateA.getTime() - dateB.getTime();
@@ -486,7 +919,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   // Calculate starting balance (beginning of period)
   // Starting balance = final balance - net period balance
   const startingBalance = totalBalance - stats.netPeriodBalance;
-  
+
   // Add running balance to transactions
   let runningBalance = startingBalance;
   const transactionsWithBalance = filteredTransactions.map(transaction => {
@@ -498,7 +931,7 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     }
     // For transfers, the amount was already subtracted from source account
     // We don't modify running balance for transfers as it's internal movement
-    
+
     return {
       ...transaction,
       runningBalance: runningBalance
@@ -510,10 +943,10 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
   const accountBalances = accounts.map(account => {
     // Get transactions that happened AFTER the end date
     const transactionsAfterEndDate = transactions.filter(t => {
-      const dateToUse = dateType === 'value' 
+      const dateToUse = dateType === 'value'
         ? new Date(t.value_date || t.transaction_date)
         : new Date(t.transaction_date);
-      return (t.account_id === account.id || t.transfer_to_account_id === account.id) && 
+      return (t.account_id === account.id || t.transfer_to_account_id === account.id) &&
              dateToUse > actualEndDate;
     });
 
@@ -533,49 +966,23 @@ export const ReportGeneratorModal = ({ open, onOpenChange }: ReportGeneratorModa
     return { ...account, currentBalance: balanceAtEndDate };
   });
 
-  // Prepare category chart data - top 10 categories by spending
-  const topCategories = categoryChartData
-    .filter(cat => cat.spent > 0)
-    .sort((a, b) => b.spent - a.spent)
-    .slice(0, 10)
-    .map(cat => ({
-      name: cat.name.length > 15 ? cat.name.substring(0, 15) + '...' : cat.name,
-      spent: cat.spent,
-      remaining: Math.max(0, cat.budget - cat.spent),
-      budget: cat.budget,
-      color: cat.color
-    }));
-
-  // Couleurs pour les catégories de revenus
-  const INCOME_COLORS = [
-    '#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899',
-    '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'
-  ];
-
-const incomeChartData = incomeAnalysis.slice(0, 10).map((cat, index) => ({
-  name: cat.category.length > 20 ? cat.category.substring(0, 20) + '...' : cat.category,
-  fullName: cat.category,
-  amount: cat.totalAmount,
-  count: cat.count,
-  color: INCOME_COLORS[index % INCOME_COLORS.length]
-}));
-
-const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 40));
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Générer un Rapport PDF
+            G\u00e9n\u00e9rer un Rapport PDF
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            G\u00e9n\u00e9rer un rapport financier au format PDF ou Excel
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Type de période */}
           <div className="space-y-2">
-            <Label>Type de période</Label>
+            <Label>Type de p\u00e9riode</Label>
             <Select value={periodType} onValueChange={(value: 'month' | 'quarter' | 'year' | 'custom') => setPeriodType(value)}>
               <SelectTrigger>
                 <SelectValue />
@@ -583,8 +990,8 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               <SelectContent>
                 <SelectItem value="month">Mois</SelectItem>
                 <SelectItem value="quarter">Trimestre</SelectItem>
-                <SelectItem value="year">Année</SelectItem>
-                <SelectItem value="custom">Période personnalisée</SelectItem>
+                <SelectItem value="year">Ann\u00e9e</SelectItem>
+                <SelectItem value="custom">P\u00e9riode personnalis\u00e9e</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -602,7 +1009,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Indépendant du paramètre global dans les préférences
+              Ind\u00e9pendant du param\u00e8tre global dans les pr\u00e9f\u00e9rences
             </p>
           </div>
 
@@ -615,20 +1022,20 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pdf">PDF (avec graphiques)</SelectItem>
-                <SelectItem value="excel">Excel (tableaux détaillés)</SelectItem>
+                <SelectItem value="excel">Excel (tableaux d\u00e9taill\u00e9s)</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              {reportFormat === 'pdf' 
-                ? 'Rapport visuel avec graphiques et mise en page professionnelle' 
-                : 'Données structurées en plusieurs feuilles pour analyse approfondie'}
+              {reportFormat === 'pdf'
+                ? 'Rapport visuel avec graphiques et mise en page professionnelle'
+                : 'Donn\u00e9es structur\u00e9es en plusieurs feuilles pour analyse approfondie'}
             </p>
           </div>
 
           {/* Sélecteur de mois */}
           {periodType === 'month' && (
             <div className="space-y-2">
-              <Label>Sélectionner le mois</Label>
+              <Label>S\u00e9lectionner le mois</Label>
               <MonthPicker
                 selected={reportDate}
                 onSelect={(date) => date && setReportDate(date)}
@@ -640,10 +1047,10 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
           {/* Sélecteur de trimestre */}
           {periodType === 'quarter' && (
             <div className="space-y-2">
-              <Label>Sélectionner le trimestre</Label>
+              <Label>S\u00e9lectionner le trimestre</Label>
               <div className="grid grid-cols-2 gap-4">
-                <Select 
-                  value={Math.floor(reportDate.getMonth() / 3).toString()} 
+                <Select
+                  value={Math.floor(reportDate.getMonth() / 3).toString()}
                   onValueChange={(value) => {
                     const quarter = parseInt(value);
                     const newDate = new Date(reportDate.getFullYear(), quarter * 3, 1);
@@ -657,13 +1064,13 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
                     <SelectItem value="0">Q1 (Jan-Mar)</SelectItem>
                     <SelectItem value="1">Q2 (Avr-Juin)</SelectItem>
                     <SelectItem value="2">Q3 (Juil-Sep)</SelectItem>
-                    <SelectItem value="3">Q4 (Oct-Déc)</SelectItem>
+                    <SelectItem value="3">Q4 (Oct-D\u00e9c)</SelectItem>
                   </SelectContent>
                 </Select>
                 <YearPicker
                   selected={reportDate}
                   onSelect={(date) => date && setReportDate(date)}
-                  placeholder="Année"
+                  placeholder="Ann\u00e9e"
                 />
               </div>
             </div>
@@ -672,11 +1079,11 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
           {/* Sélecteur d'année */}
           {periodType === 'year' && (
             <div className="space-y-2">
-              <Label>Sélectionner l'année</Label>
+              <Label>S\u00e9lectionner l'ann\u00e9e</Label>
               <YearPicker
                 selected={reportDate}
                 onSelect={(date) => date && setReportDate(date)}
-                placeholder="Choisir une année"
+                placeholder="Choisir une ann\u00e9e"
               />
             </div>
           )}
@@ -685,7 +1092,7 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
           {periodType === 'custom' && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date de début</Label>
+                <Label>Date de d\u00e9but</Label>
                 <div className="flex justify-center">
                   <Calendar
                     mode="single"
@@ -713,366 +1120,10 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
 
           {/* Résumé de la période sélectionnée */}
           <div className="p-4 bg-muted rounded-lg">
-            <p className="text-sm font-medium mb-1">Période du rapport</p>
+            <p className="text-sm font-medium mb-1">P\u00e9riode du rapport</p>
             <p className="text-sm text-muted-foreground">
               Du {format(actualStartDate, 'dd MMMM yyyy', { locale: fr })} au {format(actualEndDate, 'dd MMMM yyyy', { locale: fr })}
             </p>
-          </div>
-
-          {/* Hidden report content for PDF generation */}
-          <div 
-            ref={reportRef} 
-            className="absolute left-[-9999px] w-[1200px] bg-white p-10 space-y-6"
-            style={{ fontFamily: 'Arial, sans-serif' }}
-          >
-            {/* Header */}
-            <div className="border-b-2 border-blue-600 pb-4">
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">Rapport Financier</h1>
-              <div className="flex justify-between text-gray-600 text-sm">
-                <p>Période: {format(actualStartDate, 'dd MMM', { locale: fr })} - {format(actualEndDate, 'dd MMM yyyy', { locale: fr })}</p>
-                <p>Généré le: {format(new Date(), 'dd MMMM yyyy', { locale: fr })}</p>
-              </div>
-            </div>
-
-            {/* Summary Stats - Compact */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 border border-green-300 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Revenus</p>
-                <p className="text-2xl font-bold text-green-700">{formatCurrency(stats.income)}</p>
-              </div>
-              <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 border border-red-300 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Dépenses</p>
-                <p className="text-2xl font-bold text-red-700">{formatCurrency(stats.expenses)}</p>
-              </div>
-              <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-300 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Net Période</p>
-                <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.netPeriodBalance)}</p>
-              </div>
-              <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-300 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Solde Final</p>
-                <p className="text-2xl font-bold text-purple-700">{formatCurrency(totalBalance)}</p>
-              </div>
-            </div>
-
-            {/* Two Column Layout for Charts */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* Left Column: Balance Evolution */}
-              <div className="space-y-3">
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Évolution du Solde</h2>
-                <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={balanceEvolutionData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fill: '#666', fontSize: 10 }}
-                        stroke="#999"
-                      />
-                      <YAxis 
-                        tick={{ fill: '#666', fontSize: 10 }}
-                        stroke="#999"
-                        width={60}
-                      />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
-                        formatter={(value: number) => formatCurrency(value)}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="solde" 
-                        stroke="#3b82f6" 
-                        strokeWidth={2}
-                        dot={{ fill: '#3b82f6', r: 3 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Account Balances under chart */}
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-300 pb-2">Soldes des Comptes</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {accountBalances.map(account => (
-                      <div key={account.id} className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded border border-gray-200 flex justify-between items-center">
-                        <div>
-                          <p className="text-xs text-gray-600">{account.name}</p>
-                          <p className="text-sm font-semibold text-gray-900">{account.bank} - {account.account_type}</p>
-                        </div>
-                        <p className="text-lg font-bold text-gray-900">{formatCurrency(account.currentBalance)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Category Spending */}
-              <div className="space-y-3">
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Dépenses par Catégorie</h2>
-                <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-                  <ResponsiveContainer width="100%" height={280 + 70 + (accountBalances.length * 60)}>
-                    <BarChart data={topCategories} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                      <XAxis 
-                        type="number"
-                        tick={{ fill: '#666', fontSize: 10 }}
-                        stroke="#999"
-                      />
-                      <YAxis 
-                        type="category"
-                        dataKey="name" 
-                        tick={{ fill: '#666', fontSize: 10 }}
-                        stroke="#999"
-                        width={120}
-                      />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
-                        formatter={(value: number) => formatCurrency(value)}
-                      />
-                      <Bar 
-                        dataKey="spent" 
-                        fill="currentColor"
-                        radius={[0, 4, 4, 0]}
-                      >
-                        {topCategories.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} opacity={0.9} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Income Analysis Section */}
-            {incomeAnalysis.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse des Revenus</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Income Chart */}
-                  <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Revenus par Catégorie</h3>
-                    <ResponsiveContainer width="100%" height={incomeChartHeight}>
-                      <BarChart data={incomeChartData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                        <XAxis 
-                          type="number"
-                          tick={{ fill: '#666', fontSize: 10 }}
-                          stroke="#999"
-                        />
-                        <YAxis 
-                          type="category"
-                          dataKey="name" 
-                          tick={{ fill: '#666', fontSize: 9 }}
-                          stroke="#999"
-                          width={140}
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', fontSize: 12 }}
-                          formatter={(value: number) => formatCurrency(value)}
-                        />
-                        <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
-                          {incomeChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                   <div className="border border-gray-200 rounded-lg bg-white p-4">
-                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des Catégories</h3>
-                     <div className="space-y-2 overflow-y-auto" style={{ maxHeight: `${incomeChartHeight}px` }}>
-                       {incomeAnalysis.map((category, index) => {
-                         const percentage = ((category.totalAmount / stats.income) * 100).toFixed(1);
-                         const color = INCOME_COLORS[index % INCOME_COLORS.length];
-                         
-                         return (
-                           <div key={category.category} className="border-b border-gray-100 pb-2 last:border-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-start gap-2 min-w-0 flex-1">
-                                  <div 
-                                    className="w-2 h-2 rounded-full flex-shrink-0 mt-1" 
-                                    style={{ backgroundColor: color }}
-                                  />
-                                  <span className="text-xs font-medium text-gray-900 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                                    {category.category}
-                                  </span>
-                                </div>
-                                <div className="text-right flex-shrink-0 ml-2 whitespace-nowrap">
-                                  <div className="text-xs font-bold text-green-600">
-                                    {formatCurrency(category.totalAmount)}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {percentage}%
-                                  </div>
-                                </div>
-                              </div>
-                           </div>
-                         );
-                       })}
-                     </div>
-                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* Budget Analysis Section */}
-            <div className="space-y-3">
-              <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">Analyse Budget vs Dépenses</h2>
-              {categoryChartData.filter(cat => cat.budget > 0).length === 0 ? (
-              <div className="p-6 border border-gray-200 rounded-lg bg-white" ref={transactionsSectionRef}>
-                  <div className="text-center py-6 text-gray-500">
-                    Aucun budget défini pour cette période
-                  </div>
-                </div>
-              ) : (
-                <div className="border border-gray-200 rounded-lg bg-white p-4">
-                  <div className="space-y-3">
-                    {categoryChartData
-                      .filter(cat => cat.budget > 0)
-                      .sort((a, b) => b.spent - a.spent)
-                      .map((category) => {
-                        const percentUsed = category.budget > 0 ? (category.spent / category.budget) * 100 : 0;
-                        const isOverBudget = category.spent > category.budget;
-                        const remaining = category.budget - category.spent;
-                        
-                        return (
-                          <div key={category.name} className="border border-gray-200 rounded-lg p-3 bg-gradient-to-r from-gray-50 to-white">
-                            <div className="flex justify-between items-center mb-2">
-                              <div className="flex-1 min-w-0 pr-4">
-                                <h3 className="text-sm font-semibold text-gray-900">{category.name}</h3>
-                                <p className="text-xs text-gray-500">
-                                  Budget: {formatCurrency(category.budget)}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className={`text-base font-bold ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                                  {formatCurrency(category.spent)}
-                                </p>
-                                <p className={`text-xs font-medium ${
-                                  percentUsed >= 100 ? 'text-red-600' : 
-                                  percentUsed >= 80 ? 'text-orange-600' : 
-                                  'text-green-600'
-                                }`}>
-                                  {percentUsed.toFixed(0)}%
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {/* Progress bar */}
-                            <div className="relative w-full bg-gray-200 rounded-full h-2.5 overflow-hidden mb-2">
-                              <div 
-                                className={`h-full rounded-full transition-all ${
-                                  percentUsed >= 100 ? 'bg-red-500' : 
-                                  percentUsed >= 80 ? 'bg-orange-500' : 
-                                  'bg-green-500'
-                                }`}
-                                style={{ width: `${Math.min(percentUsed, 100)}%` }}
-                              />
-                            </div>
-                            
-                            <div className="flex justify-between items-center">
-                              <span className={`text-xs font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-600'}`}>
-                                {isOverBudget 
-                                  ? `Dépassement: ${formatCurrency(Math.abs(remaining))}`
-                                  : `Restant: ${formatCurrency(remaining)}`
-                                }
-                              </span>
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                percentUsed >= 100 ? 'bg-red-100 text-red-700' : 
-                                percentUsed >= 80 ? 'bg-orange-100 text-orange-700' : 
-                                'bg-green-100 text-green-700'
-                              }`}>
-                                {percentUsed >= 100 ? 'Dépassé' : 
-                                 percentUsed >= 80 ? 'Attention' : 
-                                 'OK'}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* All Transactions Table */}
-            <div className="space-y-4" ref={transactionsSectionRef}>
-              <h2 className="text-2xl font-bold text-gray-900">Détail des Transactions</h2>
-              <div className="p-6 border border-gray-200 rounded-lg bg-white">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Date</th>
-                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Compte</th>
-                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Description</th>
-                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Catégorie</th>
-                        <th className="text-left p-2 text-gray-700 border-b-2 border-gray-300">Type</th>
-                        <th className="text-right p-2 text-gray-700 border-b-2 border-gray-300">Montant</th>
-                        <th className="text-right p-2 text-gray-700 border-b-2 border-gray-300">Solde</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactionsWithBalance.map((transaction) => (
-                        <tr key={transaction.id} className="border-b border-gray-200">
-                          <td className="p-2 text-gray-600">
-                            {format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}
-                          </td>
-                          <td className="p-2 text-gray-700">
-                            {accounts.find(a => a.id === transaction.account_id)?.name || '-'}
-                          </td>
-                          <td className="p-2 text-gray-900">{transaction.description}</td>
-                          <td className="p-2 text-gray-600 text-xs">
-                            {transaction.category?.name || '-'}
-                          </td>
-                          <td className="p-2">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              transaction.type === 'income' ? 'bg-green-100 text-green-700' :
-                              transaction.type === 'expense' ? 'bg-red-100 text-red-700' :
-                              'bg-blue-100 text-blue-700'
-                            }`}>
-                              {transaction.type === 'income' ? 'Revenu' : 
-                               transaction.type === 'expense' ? 'Dépense' : 'Virement'}
-                            </span>
-                          </td>
-                          <td className={`p-2 text-right font-semibold ${
-                            transaction.type === 'income' ? 'text-green-700' :
-                            transaction.type === 'expense' ? 'text-red-700' :
-                            'text-blue-700'
-                          }`}>
-                            {transaction.type === 'income' ? '+' : '-'}
-                            {formatCurrency(Number(transaction.amount))}
-                          </td>
-                          <td className="p-2 text-right font-bold text-gray-900">
-                            {formatCurrency(transaction.runningBalance)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50">
-                      <tr>
-                        <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Total des transactions:</td>
-                        <td className="p-3 text-right font-bold text-gray-900" colSpan={2}>{transactionsWithBalance.length}</td>
-                      </tr>
-                      <tr>
-                        <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Solde début de période:</td>
-                        <td className="p-3 text-right font-bold text-blue-700" colSpan={2}>{formatCurrency(startingBalance)}</td>
-                      </tr>
-                      <tr>
-                        <td colSpan={5} className="p-3 text-right font-bold text-gray-900">Solde fin de période:</td>
-                        <td className="p-3 text-right font-bold text-purple-700" colSpan={2}>{formatCurrency(totalBalance)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="border-t-2 border-gray-200 pt-6 text-center text-gray-500 text-sm">
-              <p>Rapport généré le {format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr })}</p>
-            </div>
           </div>
 
           {/* Actions */}
@@ -1084,19 +1135,19 @@ const incomeChartHeight = Math.max(280, Math.min(640, incomeChartData.length * 4
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Génération en cours...
+                  G\u00e9n\u00e9ration en cours...
                 </>
               ) : (
                 <>
                   {reportFormat === 'pdf' ? (
                     <>
                       <FileText className="mr-2 h-4 w-4" />
-                      Générer le PDF
+                      G\u00e9n\u00e9rer le PDF
                     </>
                   ) : (
                     <>
                       <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      Générer l'Excel
+                      G\u00e9n\u00e9rer l'Excel
                     </>
                   )}
                 </>
