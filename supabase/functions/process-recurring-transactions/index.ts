@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { addWeeks, addMonths, addYears } from "https://esm.sh/date-fns@3.6.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +33,25 @@ serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    // Safe date advancement using date-fns (avoids timezone bugs with setMonth)
+    const advanceDate = (dateStr: string, recurrenceType: string): string => {
+      // Parse as local date parts to avoid UTC shift
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      let next: Date;
+      switch (recurrenceType) {
+        case 'weekly': next = addWeeks(date, 1); break;
+        case 'monthly': next = addMonths(date, 1); break;
+        case 'quarterly': next = addMonths(date, 3); break;
+        case 'yearly': next = addYears(date, 1); break;
+        default: next = addMonths(date, 1);
+      }
+      const ny = next.getFullYear();
+      const nm = String(next.getMonth() + 1).padStart(2, '0');
+      const nd = String(next.getDate()).padStart(2, '0');
+      return `${ny}-${nm}-${nd}`;
+    };
 
     console.log('Starting recurring transactions processing...');
 
@@ -91,17 +111,10 @@ serve(async (req) => {
         if (existingTx && existingTx.length > 0) {
           console.log(`Skipping duplicate: transaction already exists for ${recurring.description} on ${recurring.next_due_date}`);
           // Still advance the next_due_date so we don't retry forever
-          const currentDueDate = new Date(recurring.next_due_date);
-          let nextDueDate = new Date(currentDueDate);
-          switch (recurring.recurrence_type) {
-            case 'weekly': nextDueDate.setDate(currentDueDate.getDate() + 7); break;
-            case 'monthly': nextDueDate.setMonth(currentDueDate.getMonth() + 1); break;
-            case 'quarterly': nextDueDate.setMonth(currentDueDate.getMonth() + 3); break;
-            case 'yearly': nextDueDate.setFullYear(currentDueDate.getFullYear() + 1); break;
-          }
+          const skipNextDate = advanceDate(recurring.next_due_date, recurring.recurrence_type);
           await supabase
             .from('recurring_transactions')
-            .update({ next_due_date: nextDueDate.toISOString().split('T')[0] })
+            .update({ next_due_date: skipNextDate })
             .eq('id', recurring.id);
           continue;
         }
@@ -129,31 +142,13 @@ serve(async (req) => {
           continue;
         }
 
-        // Calculate next due date
-        const currentDueDate = new Date(recurring.next_due_date);
-        let nextDueDate = new Date(currentDueDate);
-
-        switch (recurring.recurrence_type) {
-          case 'weekly':
-            nextDueDate.setDate(currentDueDate.getDate() + 7);
-            break;
-          case 'monthly':
-            nextDueDate.setMonth(currentDueDate.getMonth() + 1);
-            break;
-          case 'quarterly':
-            nextDueDate.setMonth(currentDueDate.getMonth() + 3);
-            break;
-          case 'yearly':
-            nextDueDate.setFullYear(currentDueDate.getFullYear() + 1);
-            break;
-        }
+        // Calculate next due date using date-fns (timezone-safe)
+        const nextDueDateStr = advanceDate(recurring.next_due_date, recurring.recurrence_type);
 
         // Update the next due date
         const { error: updateError } = await supabase
           .from('recurring_transactions')
-          .update({ 
-            next_due_date: nextDueDate.toISOString().split('T')[0]
-          })
+          .update({ next_due_date: nextDueDateStr })
           .eq('id', recurring.id);
 
         if (updateError) {
@@ -179,9 +174,10 @@ serve(async (req) => {
             // Calculate new remaining amount
             const newRemainingAmount = installmentPayment.remaining_amount - Math.abs(recurring.amount);
             
-            // Update installment payment
+            // Update installment payment (remaining amount + next_payment_date)
             const installmentUpdate: any = {
-              remaining_amount: Math.max(0, newRemainingAmount)
+              remaining_amount: Math.max(0, newRemainingAmount),
+              next_payment_date: nextDueDateStr,
             };
 
             // If fully paid, deactivate the installment payment
@@ -209,7 +205,7 @@ serve(async (req) => {
           description: recurring.description,
           amount: recurring.amount,
           type: recurring.type,
-          nextDueDate: nextDueDate.toISOString().split('T')[0]
+          nextDueDate: nextDueDateStr
         });
 
         console.log(`Successfully processed recurring transaction: ${recurring.description}`);

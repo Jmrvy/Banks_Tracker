@@ -313,7 +313,8 @@ export const useReportsData = (
         const futureTransactions: Array<{ date: Date; amount: number; type: string; description: string }> = [];
         
         activeRecurring.forEach(rt => {
-          let nextDue = new Date(rt.next_due_date);
+          const [_ry, _rm, _rd] = rt.next_due_date.split('-').map(Number);
+          let nextDue = new Date(_ry, _rm - 1, _rd);
           const maxIterations = 100; // Limite de sécurité
           let iterations = 0;
 
@@ -327,24 +328,30 @@ export const useReportsData = (
               });
             }
 
-            // Calculer la prochaine occurrence
-            const previousDue = new Date(nextDue);
+            // Calculer la prochaine occurrence (safe date advancement)
+            const cy = nextDue.getFullYear();
+            const cm = nextDue.getMonth();
+            const cd = nextDue.getDate();
             switch (rt.recurrence_type) {
               case 'weekly':
-                nextDue = new Date(previousDue);
-                nextDue.setDate(previousDue.getDate() + 7);
+                nextDue = new Date(cy, cm, cd + 7);
                 break;
-              case 'monthly':
-                nextDue = new Date(previousDue);
-                nextDue.setMonth(previousDue.getMonth() + 1);
+              case 'monthly': {
+                const next = new Date(cy, cm + 1, cd);
+                nextDue = next.getMonth() !== (cm + 1) % 12
+                  ? new Date(cy, cm + 2, 0)
+                  : next;
                 break;
-              case 'quarterly':
-                nextDue = new Date(previousDue);
-                nextDue.setMonth(previousDue.getMonth() + 3);
+              }
+              case 'quarterly': {
+                const nextQ = new Date(cy, cm + 3, cd);
+                nextDue = nextQ.getMonth() !== (cm + 3) % 12
+                  ? new Date(cy, cm + 4, 0)
+                  : nextQ;
                 break;
+              }
               case 'yearly':
-                nextDue = new Date(previousDue);
-                nextDue.setFullYear(previousDue.getFullYear() + 1);
+                nextDue = new Date(cy + 1, cm, cd);
                 break;
             }
             iterations++;

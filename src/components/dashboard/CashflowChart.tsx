@@ -107,8 +107,8 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         const recurringOccurrences = new Map<number, { income: number; expense: number }>();
 
         for (const rt of activeRecurring) {
-          let nextDue = new Date(rt.next_due_date);
-          nextDue.setHours(0, 0, 0, 0);
+          const [_y, _m, _d] = rt.next_due_date.split('-').map(Number);
+          let nextDue = new Date(_y, _m - 1, _d);
 
           // Advance to first occurrence within or after today
           const advanceDate = (d: Date): Date => {

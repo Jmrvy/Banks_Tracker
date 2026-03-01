@@ -68,6 +68,12 @@ const RecurringTransactions = () => {
     }
   };
 
+  // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const getRecurrenceLabel = (type: string) => {
     switch (type) {
       case 'weekly': return 'Hebdomadaire';
@@ -156,9 +162,9 @@ const RecurringTransactions = () => {
                   <p className="text-lg sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => {
                       if (!t.is_active) return false;
-                      const nextDue = new Date(t.next_due_date);
-                      const inSevenDays = new Date();
-                      inSevenDays.setDate(inSevenDays.getDate() + 7);
+                      const nextDue = parseLocalDate(t.next_due_date);
+                      const today = new Date();
+                      const inSevenDays = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
                       return nextDue <= inSevenDays;
                     }).length}
                   </p>
@@ -298,14 +304,14 @@ const RecurringTransactions = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground text-xs">Prochain paiement:</span>
                           <span className={`font-medium ${
-                            recurring.is_active && new Date(recurring.next_due_date) <= new Date() 
-                              ? 'text-warning' 
+                            recurring.is_active && parseLocalDate(recurring.next_due_date) <= new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+                              ? 'text-warning'
                               : ''
                           }`}>
-                            {new Date(recurring.next_due_date).toLocaleDateString('fr-FR', { 
-                              day: '2-digit', 
-                              month: 'short', 
-                              year: 'numeric' 
+                            {parseLocalDate(recurring.next_due_date).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
                             })}
                           </span>
                         </div>
@@ -317,8 +323,8 @@ const RecurringTransactions = () => {
                           <div className="flex justify-between items-center">
                             <span className="text-muted-foreground text-xs">Catégorie:</span>
                             <Badge variant="outline" className="gap-1.5">
-                              <div 
-                                className="w-2.5 h-2.5 rounded-full" 
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
                                 style={{ backgroundColor: recurring.category.color }}
                               />
                               {recurring.category.name}
@@ -328,10 +334,10 @@ const RecurringTransactions = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground text-xs">Début:</span>
                           <span className="font-medium">
-                            {new Date(recurring.start_date).toLocaleDateString('fr-FR', { 
-                              day: '2-digit', 
-                              month: 'short', 
-                              year: 'numeric' 
+                            {parseLocalDate(recurring.start_date).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
                             })}
                           </span>
                         </div>
@@ -339,10 +345,10 @@ const RecurringTransactions = () => {
                           <div className="flex justify-between items-center">
                             <span className="text-muted-foreground text-xs">Fin:</span>
                             <span className="font-medium">
-                              {new Date(recurring.end_date).toLocaleDateString('fr-FR', { 
-                                day: '2-digit', 
-                                month: 'short', 
-                                year: 'numeric' 
+                              {parseLocalDate(recurring.end_date).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
                               })}
                             </span>
                           </div>
