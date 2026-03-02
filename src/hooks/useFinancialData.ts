@@ -296,24 +296,8 @@ export function useFinancialData() {
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
     
-    // Calculate next due date based on recurrence type
-    const startDate = new Date(recurring.start_date);
-    let nextDueDate = new Date(startDate);
-    
-    switch (recurring.recurrence_type) {
-      case 'weekly':
-        nextDueDate.setDate(startDate.getDate() + 7);
-        break;
-      case 'monthly':
-        nextDueDate.setMonth(startDate.getMonth() + 1);
-        break;
-      case 'quarterly':
-        nextDueDate.setMonth(startDate.getMonth() + 3);
-        break;
-      case 'yearly':
-        nextDueDate.setFullYear(startDate.getFullYear() + 1);
-        break;
-    }
+    // Calculate next due date using safe date advancement
+    const nextDueDateStr = safeAdvanceDate(recurring.start_date, recurring.recurrence_type);
 
     const { error } = await supabase
       .from('recurring_transactions')
@@ -324,7 +308,7 @@ export function useFinancialData() {
         recurrence_type: recurring.recurrence_type,
         start_date: recurring.start_date,
         end_date: recurring.end_date,
-        next_due_date: nextDueDate.toISOString().split('T')[0],
+        next_due_date: nextDueDateStr,
         is_active: true,
         account_id: recurring.account_id,
         category_id: recurring.category_id,
@@ -358,40 +342,19 @@ export function useFinancialData() {
       if (currentTransaction) {
         const baseStart = updates.start_date || currentTransaction.start_date;
         const recurrenceType = updates.recurrence_type || currentTransaction.recurrence_type;
-        
-        // Use midnight to avoid timezone drift
-        const startDate = new Date(baseStart + 'T00:00:00');
-        const today = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00');
-        
-        // Helper to add one interval
-        const addInterval = (d: Date) => {
-          const next = new Date(d);
-          switch (recurrenceType) {
-            case 'weekly':
-              next.setDate(next.getDate() + 7);
-              break;
-            case 'monthly':
-              next.setMonth(next.getMonth() + 1);
-              break;
-            case 'quarterly':
-              next.setMonth(next.getMonth() + 3);
-              break;
-            case 'yearly':
-              next.setFullYear(next.getFullYear() + 1);
-              break;
-          }
-          return next;
-        };
-        
-        // Start from the first due after the start date
-        let nextDue = addInterval(startDate);
-        
-        // If that date is in the past, roll forward until strictly in the future (after today)
-        while (nextDue <= today) {
-          nextDue = addInterval(nextDue);
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        // Roll forward from start_date using safe advancement until we find a future date
+        let nextDueStr = safeAdvanceDate(baseStart, recurrenceType);
+        let iterations = 0;
+        while (nextDueStr <= todayStr && iterations < 500) {
+          nextDueStr = safeAdvanceDate(nextDueStr, recurrenceType);
+          iterations++;
         }
-        
-        updatedData.next_due_date = nextDue.toISOString().split('T')[0];
+
+        updatedData.next_due_date = nextDueStr;
       }
     }
     
@@ -639,6 +602,124 @@ export function useFinancialData() {
     return { error: null, nextDueDate: nextDueStr };
   };
 
+  // Safe date advancement helper (avoids setMonth rollover bugs like Jan 31 → Mar 3)
+  const safeAdvanceDate = (dateStr: string, recurrenceType: string): string => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const cy = date.getFullYear(), cm = date.getMonth(), cd = date.getDate();
+    let next: Date;
+    switch (recurrenceType) {
+      case 'weekly':
+        next = new Date(cy, cm, cd + 7); break;
+      case 'monthly': {
+        const n = new Date(cy, cm + 1, cd);
+        next = n.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : n; break;
+      }
+      case 'quarterly': {
+        const n = new Date(cy, cm + 3, cd);
+        next = n.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : n; break;
+      }
+      case 'yearly':
+        next = new Date(cy + 1, cm, cd); break;
+      default:
+        next = new Date(cy, cm + 1, cd);
+    }
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+  };
+
+  // Repair corrupted next_due_date values caused by the old setMonth() bug.
+  // Walks forward from start_date with safe math, finds the occurrence closest
+  // to the stored next_due_date, and fixes it if it's off.
+  // Also syncs installment_payments.next_payment_date.
+  const repairCorruptedNextDueDates = async () => {
+    if (!user) return;
+
+    const activeRecurring = recurringTransactions.filter(rt => rt.is_active);
+    let repaired = 0;
+
+    for (const rt of activeRecurring) {
+      const [sy, sm, sd] = rt.start_date.split('-').map(Number);
+      const startDate = new Date(sy, sm - 1, sd);
+
+      const addInterval = (d: Date): Date => {
+        const cy = d.getFullYear(), cm = d.getMonth(), cd = d.getDate();
+        switch (rt.recurrence_type) {
+          case 'weekly': return new Date(cy, cm, cd + 7);
+          case 'monthly': {
+            const n = new Date(cy, cm + 1, cd);
+            return n.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : n;
+          }
+          case 'quarterly': {
+            const n = new Date(cy, cm + 3, cd);
+            return n.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : n;
+          }
+          case 'yearly': return new Date(cy + 1, cm, cd);
+          default: return new Date(cy, cm + 1, cd);
+        }
+      };
+
+      // Walk from start_date through the series until we pass the stored next_due_date
+      const [ny, nm, nd] = rt.next_due_date.split('-').map(Number);
+      const storedNextDue = new Date(ny, nm - 1, nd);
+
+      let occurrence = new Date(startDate);
+      let prevOccurrence = occurrence;
+
+      // Safety limit to avoid infinite loops
+      let iterations = 0;
+      while (occurrence < storedNextDue && iterations < 500) {
+        prevOccurrence = occurrence;
+        occurrence = addInterval(occurrence);
+        iterations++;
+      }
+
+      // If storedNextDue is exactly on an occurrence, it's fine
+      // Otherwise, the correct date is prevOccurrence (the one we skipped past)
+      let correctDate: Date;
+      if (occurrence.getTime() === storedNextDue.getTime()) {
+        correctDate = occurrence; // Already correct
+      } else {
+        correctDate = prevOccurrence; // Corrupted — use the correct occurrence before
+      }
+
+      const correctDateStr = `${correctDate.getFullYear()}-${String(correctDate.getMonth() + 1).padStart(2, '0')}-${String(correctDate.getDate()).padStart(2, '0')}`;
+
+      // Also sync installment payment next_payment_date regardless of whether next_due_date is corrupted
+      if (rt.installment_payment_id) {
+        const { data: installment } = await supabase
+          .from('installment_payments')
+          .select('next_payment_date')
+          .eq('id', rt.installment_payment_id)
+          .single();
+
+        if (installment && installment.next_payment_date !== correctDateStr) {
+          await supabase
+            .from('installment_payments')
+            .update({ next_payment_date: correctDateStr })
+            .eq('id', rt.installment_payment_id);
+          repaired++;
+        }
+      }
+
+      if (correctDateStr !== rt.next_due_date) {
+        await supabase
+          .from('recurring_transactions')
+          .update({
+            next_due_date: correctDateStr,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', rt.id)
+          .eq('user_id', user.id);
+        repaired++;
+      }
+    }
+
+    if (repaired > 0) {
+      // Refetch to get the corrected data before processing due transactions
+      await fetchRecurringTransactions();
+    }
+  };
+
   const processDueRecurringTransactions = async () => {
     if (!user) return;
     
@@ -699,26 +780,8 @@ export function useFinancialData() {
 
           occurrencesProcessed++;
 
-          // Calculate next occurrence using Date objects but convert back to string
-          const previousDue = new Date(currentDueDateString + 'T00:00:00');
-          const nextDue = new Date(previousDue);
-
-          switch (rt.recurrence_type) {
-            case 'weekly':
-              nextDue.setDate(previousDue.getDate() + 7);
-              break;
-            case 'monthly':
-              nextDue.setMonth(previousDue.getMonth() + 1);
-              break;
-            case 'quarterly':
-              nextDue.setMonth(previousDue.getMonth() + 3);
-              break;
-            case 'yearly':
-              nextDue.setFullYear(previousDue.getFullYear() + 1);
-              break;
-          }
-          
-          currentDueDateString = nextDue.toISOString().split('T')[0];
+          // Calculate next occurrence using safe date advancement
+          currentDueDateString = safeAdvanceDate(currentDueDateString, rt.recurrence_type);
         }
 
         // Update the recurring transaction with the new next_due_date
@@ -762,7 +825,8 @@ export function useFinancialData() {
           fetchRecurringTransactions()
         ]);
         
-        // Process due recurring transactions after loading data
+        // Repair corrupted next_due_date values (from old setMonth bug), then process due ones
+        await repairCorruptedNextDueDates();
         await processDueRecurringTransactions();
       } catch (error) {
         console.error('Error loading financial data:', error);
