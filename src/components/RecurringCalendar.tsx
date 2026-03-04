@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { RecurringTransaction } from "@/hooks/useFinancialData";
+import { RecurringTransaction, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
+  actualTransactions?: Transaction[];
   onEdit: (transaction: RecurringTransaction) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
@@ -23,11 +24,12 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(y, m - 1, d);
 };
 
-const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, actualTransactions = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedTransaction, setSelectedTransaction] = useState<RecurringTransaction | null>(null);
+  const [selectedDisplayAmount, setSelectedDisplayAmount] = useState<number | undefined>(undefined);
   const [selectedOccurrenceDate, setSelectedOccurrenceDate] = useState<string | null>(null);
-  const [selectedDayTransactions, setSelectedDayTransactions] = useState<{ date: Date; transactions: { transaction: RecurringTransaction; isPast: boolean }[] } | null>(null);
+  const [selectedDayTransactions, setSelectedDayTransactions] = useState<{ date: Date; transactions: { transaction: RecurringTransaction; isPast: boolean; displayAmount?: number }[] } | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const { formatCurrency } = useUserPreferences();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
@@ -50,22 +52,35 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
     return [...paddingDays, ...days];
   }, [currentMonth]);
 
+  // Build a lookup of actual transactions linked to installment payments
+  // Key: "installmentPaymentId:YYYY-MM" → actual amount paid that month
+  const installmentActualAmounts = useMemo(() => {
+    const map = new Map<string, number>();
+    actualTransactions.forEach((tx) => {
+      if (tx.installment_payment_id) {
+        const monthKey = tx.transaction_date.substring(0, 7); // "YYYY-MM"
+        const key = `${tx.installment_payment_id}:${monthKey}`;
+        map.set(key, (map.get(key) || 0) + tx.amount);
+      }
+    });
+    return map;
+  }, [actualTransactions]);
+
   // Map transactions to their due dates within the current month (including past occurrences)
   const transactionsByDay = useMemo(() => {
-    const map = new Map<string, { transaction: RecurringTransaction; isPast: boolean }[]>();
+    const map = new Map<string, { transaction: RecurringTransaction; isPast: boolean; displayAmount?: number }[]>();
     const today = startOfDay(new Date());
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    
+
     transactions.forEach((transaction) => {
       if (!transaction.is_active) return;
-      
+
       const startDate = parseLocalDate(transaction.start_date);
-      const nextDueDate = parseLocalDate(transaction.next_due_date);
-      
+
       // Calculate all occurrences of this transaction in the current month
       let currentOccurrence = new Date(startDate);
-      
+
       // Move to first occurrence that could be in or before this month
       while (currentOccurrence < monthStart) {
         switch (transaction.recurrence_type) {
@@ -85,16 +100,29 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
             currentOccurrence = addMonths(currentOccurrence, 1);
         }
       }
-      
+
       // Add all occurrences within this month
       while (currentOccurrence <= monthEnd) {
         if (isSameMonth(currentOccurrence, currentMonth)) {
           const key = format(currentOccurrence, 'yyyy-MM-dd');
           const isPast = isBefore(currentOccurrence, today);
+
+          // For past occurrences of installment-linked recurring transactions,
+          // show the actual amount paid instead of the current installment_amount
+          let displayAmount: number | undefined;
+          if (isPast && transaction.installment_payment_id) {
+            const monthKey = format(currentOccurrence, 'yyyy-MM');
+            const actualKey = `${transaction.installment_payment_id}:${monthKey}`;
+            const actualAmount = installmentActualAmounts.get(actualKey);
+            if (actualAmount !== undefined) {
+              displayAmount = actualAmount;
+            }
+          }
+
           const existing = map.get(key) || [];
-          map.set(key, [...existing, { transaction, isPast }]);
+          map.set(key, [...existing, { transaction, isPast, displayAmount }]);
         }
-        
+
         // Move to next occurrence
         switch (transaction.recurrence_type) {
           case 'weekly':
@@ -114,9 +142,9 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
         }
       }
     });
-    
+
     return map;
-  }, [transactions, currentMonth]);
+  }, [transactions, currentMonth, installmentActualAmounts]);
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
@@ -199,6 +227,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                         setSelectedDayTransactions({ date: day, transactions: dayTransactions });
                       } else if (dayTransactions.length === 1) {
                         setSelectedTransaction(dayTransactions[0].transaction);
+                        setSelectedDisplayAmount(dayTransactions[0].displayAmount);
                         setSelectedOccurrenceDate(dateKey);
                       } else {
                         setSelectedDayTransactions({ date: day, transactions: dayTransactions });
@@ -214,13 +243,14 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                   
                   {/* Transaction indicators */}
                   <div className="flex-1 overflow-hidden space-y-0.5 mt-0.5">
-                    {dayTransactions.slice(0, 3).map(({ transaction, isPast }) => (
+                    {dayTransactions.slice(0, 3).map(({ transaction, isPast, displayAmount }) => (
                       <div
                         key={transaction.id}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!isMobile) {
                             setSelectedTransaction(transaction);
+                            setSelectedDisplayAmount(displayAmount);
                             setSelectedOccurrenceDate(dateKey);
                           }
                         }}
@@ -236,7 +266,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                           {transaction.description}
                         </p>
                         <p className="text-[7px] sm:text-[9px] font-semibold hidden sm:block">
-                          {formatCurrency(transaction.amount)}
+                          {formatCurrency(displayAmount ?? transaction.amount)}
                         </p>
                       </div>
                     ))}
@@ -279,13 +309,14 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
           </DialogHeader>
           
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {selectedDayTransactions?.transactions.map(({ transaction, isPast }) => (
+            {selectedDayTransactions?.transactions.map(({ transaction, isPast, displayAmount }) => (
               <div
                 key={transaction.id}
                 onClick={() => {
                   const dateKey = selectedDayTransactions ? format(selectedDayTransactions.date, 'yyyy-MM-dd') : null;
                   setSelectedDayTransactions(null);
                   setSelectedTransaction(transaction);
+                  setSelectedDisplayAmount(displayAmount);
                   setSelectedOccurrenceDate(dateKey);
                 }}
                 className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 ${
@@ -306,7 +337,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                   <span className={`font-bold text-sm flex-shrink-0 ${
                     transaction.type === 'income' ? 'text-success' : 'text-destructive'
                   }`}>
-                    {formatCurrency(transaction.amount)}
+                    {formatCurrency(displayAmount ?? transaction.amount)}
                   </span>
                 </div>
                 {transaction.category && (
@@ -325,7 +356,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
       </Dialog>
 
       {/* Transaction Detail Modal */}
-      <Dialog open={!!selectedTransaction} onOpenChange={(open) => { if (!open) { setSelectedTransaction(null); setSelectedOccurrenceDate(null); } }}>
+      <Dialog open={!!selectedTransaction} onOpenChange={(open) => { if (!open) { setSelectedTransaction(null); setSelectedDisplayAmount(undefined); setSelectedOccurrenceDate(null); } }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
@@ -346,7 +377,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                   <span className={`font-bold text-base sm:text-lg ${
                     selectedTransaction.type === 'income' ? 'text-success' : 'text-destructive'
                   }`}>
-                    {formatCurrency(selectedTransaction.amount)}
+                    {formatCurrency(selectedDisplayAmount ?? selectedTransaction.amount)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -408,6 +439,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                         setExecutingId(null);
                         if (!result?.error) {
                           setSelectedTransaction(null);
+                          setSelectedDisplayAmount(undefined);
                           setSelectedOccurrenceDate(null);
                         }
                       }}
@@ -431,6 +463,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                   onClick={() => {
                     onEdit(selectedTransaction);
                     setSelectedTransaction(null);
+                    setSelectedDisplayAmount(undefined);
                     setSelectedOccurrenceDate(null);
                   }}
                 >
@@ -443,6 +476,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                   onClick={() => {
                     onToggleActive(selectedTransaction.id, selectedTransaction.is_active);
                     setSelectedTransaction(null);
+                    setSelectedDisplayAmount(undefined);
                     setSelectedOccurrenceDate(null);
                   }}
                 >
@@ -455,6 +489,7 @@ const RecurringCalendar = ({ transactions, onEdit, onToggleActive, onDelete, onE
                   onClick={() => {
                     onDelete(selectedTransaction.id, selectedTransaction.description);
                     setSelectedTransaction(null);
+                    setSelectedDisplayAmount(undefined);
                     setSelectedOccurrenceDate(null);
                   }}
                 >

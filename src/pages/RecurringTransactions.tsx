@@ -18,6 +18,7 @@ const RecurringTransactions = () => {
   const { formatCurrency } = useUserPreferences();
   const {
     recurringTransactions,
+    transactions,
     loading,
     fetchRecurringTransactions,
     updateRecurringTransaction,
@@ -245,6 +246,7 @@ const RecurringTransactions = () => {
             ) : (
               <RecurringCalendar
                 transactions={recurringTransactions}
+                actualTransactions={transactions}
                 onEdit={setEditingTransaction}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
