@@ -9,6 +9,7 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentModal";
 import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
+import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
 import { AdjustInstallmentPlanModal } from "@/components/AdjustInstallmentPlanModal";
 import { InstallmentTransactionsModal } from "@/components/InstallmentTransactionsModal";
 import { InstallmentPaymentDetailsModal } from "@/components/InstallmentPaymentDetailsModal";
@@ -41,6 +42,7 @@ const InstallmentPayments = () => {
   const { toast } = useToast();
   const [showNewModal, setShowNewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showRecordModal, setShowRecordModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showTransactionsModal, setShowTransactionsModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -60,6 +62,11 @@ const InstallmentPayments = () => {
       case 'quarterly': return 'Trimestriel';
       default: return frequency;
     }
+  };
+
+  const handleRecordPayment = (payment: InstallmentPayment) => {
+    setSelectedPayment(payment);
+    setShowRecordModal(true);
   };
 
   const handleEdit = (payment: InstallmentPayment) => {
@@ -330,6 +337,15 @@ const InstallmentPayments = () => {
                       )}
                     </div>
 
+                    {payment.is_active && (
+                      <Button
+                        onClick={() => handleRecordPayment(payment)}
+                        className="w-full"
+                        size="sm"
+                      >
+                        Enregistrer un paiement
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -349,6 +365,12 @@ const InstallmentPayments = () => {
             open={showEditModal}
             onOpenChange={setShowEditModal}
             installmentPayment={selectedPayment}
+          />
+
+          <RecordInstallmentPaymentModal
+            open={showRecordModal}
+            onOpenChange={setShowRecordModal}
+            installmentPaymentId={selectedPayment.id}
           />
 
           <InstallmentTransactionsModal
