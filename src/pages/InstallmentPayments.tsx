@@ -52,7 +52,6 @@ const InstallmentPayments = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [adjustmentData, setAdjustmentData] = useState<{
     payment: InstallmentPayment;
-    paymentAmount: number;
     newRemainingAmount: number;
   } | null>(null);
 
@@ -97,7 +96,7 @@ const InstallmentPayments = () => {
     } else if (result) {
       toast({
         title: "Recalcul effectué",
-        description: `${result.linkedTransactionsCount} transaction(s) et ${result.paymentRecordsCount} enregistrement(s) pris en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}`,
+        description: `${result.linkedTransactionsCount} transaction(s) prise(s) en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}`,
       });
     }
   };
@@ -143,22 +142,6 @@ const InstallmentPayments = () => {
         title: "Paiement terminé",
         description: "Le paiement échelonné a été marqué comme terminé et archivé.",
       });
-    }
-  };
-
-  const handlePaymentRecorded = (
-    payment: InstallmentPayment,
-    paymentAmount: number,
-    newRemainingAmount: number
-  ) => {
-    // Only show adjustment modal if there's still remaining amount
-    if (newRemainingAmount > 0) {
-      setAdjustmentData({
-        payment,
-        paymentAmount,
-        newRemainingAmount,
-      });
-      setShowAdjustModal(true);
     }
   };
 
@@ -388,7 +371,6 @@ const InstallmentPayments = () => {
             open={showRecordModal}
             onOpenChange={setShowRecordModal}
             installmentPaymentId={selectedPayment.id}
-            onPaymentRecorded={handlePaymentRecorded}
           />
 
           <InstallmentTransactionsModal

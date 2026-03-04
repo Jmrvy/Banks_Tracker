@@ -8,6 +8,8 @@ import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallme
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Check, Plus, Link } from 'lucide-react';
@@ -17,11 +19,7 @@ interface RecordInstallmentPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   installmentPaymentId: string;
-  onPaymentRecorded?: (
-    payment: InstallmentPayment,
-    paymentAmount: number,
-    newRemainingAmount: number
-  ) => void;
+  onPaymentRecorded?: () => void;
 }
 
 export const RecordInstallmentPaymentModal = ({
@@ -31,8 +29,9 @@ export const RecordInstallmentPaymentModal = ({
   onPaymentRecorded
 }: RecordInstallmentPaymentModalProps) => {
   const { toast } = useToast();
-  const { recordPayment, installmentPayments } = useInstallmentPayments();
-  const { transactions } = useFinancialData();
+  const { user } = useAuth();
+  const { installmentPayments, recalculateInstallmentPayment } = useInstallmentPayments();
+  const { transactions, fetchTransactions } = useFinancialData();
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'new' | 'link'>('new');
@@ -40,132 +39,102 @@ export const RecordInstallmentPaymentModal = ({
 
   const installmentPayment = installmentPayments.find(ip => ip.id === installmentPaymentId);
 
-  // Get transactions that could be linked (same account, similar description/category, not already linked)
+  // Get transactions that could be linked (same account, not already linked to an installment)
   const linkableTransactions = useMemo(() => {
     if (!installmentPayment) return [];
 
-    // Get already linked transaction IDs for this installment
-    const linkedTransactionIds = transactions
-      .filter(t => t.installment_payment_id === installmentPaymentId)
-      .map(t => t.id);
-
     return transactions
       .filter(t => {
-        // Must be an expense transaction
         if (t.type !== 'expense') return false;
-        // Must be from the same account
         if (t.account_id !== installmentPayment.account_id) return false;
-        // Must not already be linked to this installment
-        if (linkedTransactionIds.includes(t.id)) return false;
-        // Must not already be linked to another installment
         if (t.installment_payment_id) return false;
         return true;
       })
       .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-      .slice(0, 50); // Limit to 50 most recent
-  }, [transactions, installmentPayment, installmentPaymentId]);
+      .slice(0, 50);
+  }, [transactions, installmentPayment]);
 
   const selectedTransaction = linkableTransactions.find(t => t.id === selectedTransactionId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user || !installmentPayment) return;
 
-    if (mode === 'new') {
-      if (!amount || parseFloat(amount) <= 0) {
-        toast({
-          title: "Montant invalide",
-          description: "Veuillez saisir un montant valide.",
-          variant: "destructive",
-        });
-        return;
+    setLoading(true);
+
+    try {
+      if (mode === 'new') {
+        const paymentAmount = parseFloat(amount);
+        if (!paymentAmount || paymentAmount <= 0) {
+          toast({ title: "Montant invalide", description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+
+        // Create a new transaction linked to this installment
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert([{
+            user_id: user.id,
+            account_id: installmentPayment.account_id,
+            category_id: installmentPayment.category_id,
+            description: `${installmentPayment.description} (Paiement manuel)`,
+            amount: paymentAmount,
+            type: 'expense',
+            transaction_date: todayStr,
+            value_date: todayStr,
+            include_in_stats: true,
+            installment_payment_id: installmentPaymentId,
+          }]);
+
+        if (txError) {
+          toast({ title: "Erreur", description: txError.message, variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Link existing transaction
+        if (!selectedTransactionId) {
+          toast({ title: "Transaction non sélectionnée", description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+
+        const { error: linkError } = await supabase
+          .from('transactions')
+          .update({ installment_payment_id: installmentPaymentId })
+          .eq('id', selectedTransactionId)
+          .eq('user_id', user.id);
+
+        if (linkError) {
+          toast({ title: "Erreur", description: linkError.message, variant: "destructive" });
+          setLoading(false);
+          return;
+        }
       }
 
-      if (installmentPayment && parseFloat(amount) > installmentPayment.remaining_amount) {
-        toast({
-          title: "Montant trop élevé",
-          description: "Le montant ne peut pas dépasser le solde restant.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Recalculate remaining_amount from all linked transactions
+      await fetchTransactions();
+      const { error: recalcError, result } = await recalculateInstallmentPayment(installmentPaymentId);
 
-      setLoading(true);
-
-      const paymentAmount = parseFloat(amount);
-      const { error } = await recordPayment(installmentPaymentId, paymentAmount, null);
-
-      if (error) {
-        toast({
-          title: "Erreur lors de l'enregistrement",
-          description: error.message,
-          variant: "destructive",
-        });
-        setLoading(false);
+      if (recalcError) {
+        toast({ title: "Erreur de recalcul", description: recalcError.message, variant: "destructive" });
       } else {
         toast({
           title: "Paiement enregistré",
-          description: "Le paiement a été enregistré avec succès.",
+          description: result ? `Restant: ${result.newRemainingAmount.toFixed(2)}€, mensualité: ${result.newInstallmentAmount.toFixed(2)}€` : "Le paiement a été enregistré.",
         });
-
-        const newRemainingAmount = installmentPayment!.remaining_amount - paymentAmount;
-
-        setAmount('');
-        onOpenChange(false);
-        setLoading(false);
-
-        if (onPaymentRecorded && installmentPayment) {
-          onPaymentRecorded(installmentPayment, paymentAmount, newRemainingAmount);
-        }
-      }
-    } else {
-      // Mode 'link' - Link to existing transaction
-      if (!selectedTransactionId || !selectedTransaction) {
-        toast({
-          title: "Transaction non sélectionnée",
-          description: "Veuillez sélectionner une transaction à lier.",
-          variant: "destructive",
-        });
-        return;
       }
 
-      const paymentAmount = selectedTransaction.amount;
-
-      if (installmentPayment && paymentAmount > installmentPayment.remaining_amount) {
-        toast({
-          title: "Montant trop élevé",
-          description: "Le montant de la transaction dépasse le solde restant.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setLoading(true);
-
-      const { error } = await recordPayment(installmentPaymentId, paymentAmount, selectedTransactionId);
-
-      if (error) {
-        toast({
-          title: "Erreur lors de l'enregistrement",
-          description: error.message,
-          variant: "destructive",
-        });
-        setLoading(false);
-      } else {
-        toast({
-          title: "Paiement lié",
-          description: "Le paiement a été lié à la transaction existante.",
-        });
-
-        const newRemainingAmount = installmentPayment!.remaining_amount - paymentAmount;
-
-        setSelectedTransactionId(null);
-        onOpenChange(false);
-        setLoading(false);
-
-        if (onPaymentRecorded && installmentPayment) {
-          onPaymentRecorded(installmentPayment, paymentAmount, newRemainingAmount);
-        }
-      }
+      setAmount('');
+      setSelectedTransactionId(null);
+      onOpenChange(false);
+      onPaymentRecorded?.();
+    } finally {
+      setLoading(false);
     }
   };
 

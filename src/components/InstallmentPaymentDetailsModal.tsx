@@ -68,7 +68,7 @@ export const InstallmentPaymentDetailsModal = ({
     } else if (result) {
       toast({
         title: 'Recalcul effectué',
-        description: `${result.linkedTransactionsCount} transaction(s) et ${result.paymentRecordsCount} enregistrement(s) pris en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}`,
+        description: `${result.linkedTransactionsCount} transaction(s) prise(s) en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}`,
       });
       // Reload history to show the recalculation entry
       await loadHistory();
@@ -197,7 +197,7 @@ export const InstallmentPaymentDetailsModal = ({
               Recalculer à partir des transactions
             </Button>
             <p className="text-[10px] text-muted-foreground text-center -mt-2">
-              Recalcule le montant restant en analysant les transactions liées et les enregistrements de paiement
+              Recalcule le montant restant et la mensualité en analysant les transactions liées. Corrige aussi les dates si nécessaire.
             </p>
           </TabsContent>
 

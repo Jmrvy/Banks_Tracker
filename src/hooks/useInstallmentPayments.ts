@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { addWeeks, addMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -22,17 +21,6 @@ export interface InstallmentPayment {
   updated_at: string;
 }
 
-export interface InstallmentPaymentRecord {
-  id: string;
-  user_id: string;
-  installment_payment_id: string;
-  payment_date: string;
-  amount: number;
-  transaction_id: string | null;
-  is_paid: boolean;
-  created_at: string;
-}
-
 export interface InstallmentPaymentHistory {
   id: string;
   installment_payment_id: string;
@@ -47,7 +35,6 @@ export interface InstallmentPaymentHistory {
 export const useInstallmentPayments = () => {
   const { user } = useAuth();
   const [installmentPayments, setInstallmentPayments] = useState<InstallmentPayment[]>([]);
-  const [paymentRecords, setPaymentRecords] = useState<InstallmentPaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchInstallmentPayments = async () => {
@@ -67,22 +54,6 @@ export const useInstallmentPayments = () => {
         payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
       }));
       setInstallmentPayments(processedData);
-    }
-  };
-
-  const fetchPaymentRecords = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('installment_payment_records')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('payment_date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching payment records:', error);
-    } else {
-      setPaymentRecords(data || []);
     }
   };
 
@@ -358,6 +329,7 @@ export const useInstallmentPayments = () => {
   // Recalculate installment payment based on linked transactions
   // remaining_amount = total_amount - sum(linked transactions)
   // installment_amount is adjusted so remaining_periods × new_amount = remaining_amount
+  // Also repairs corrupted next_due_date on the linked recurring transaction
   const recalculateInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
@@ -394,13 +366,66 @@ export const useInstallmentPayments = () => {
       newInstallmentAmount = 0;
     }
 
-    // Fetch linked recurring transaction to sync next_payment_date
+    // Fetch linked recurring transaction (full data for date repair)
     const { data: linkedRecurring } = await supabase
       .from('recurring_transactions')
-      .select('next_due_date')
+      .select('*')
       .eq('installment_payment_id', id)
       .eq('user_id', user.id)
       .maybeSingle();
+
+    // Repair corrupted next_due_date if needed
+    let correctedNextDueDate: string | null = null;
+    if (linkedRecurring) {
+      const [sy, sm, sd] = linkedRecurring.start_date.split('-').map(Number);
+      const startDate = new Date(sy, sm - 1, sd);
+
+      const addInterval = (d: Date): Date => {
+        const cy = d.getFullYear(), cm = d.getMonth(), cd = d.getDate();
+        switch (linkedRecurring.recurrence_type) {
+          case 'weekly': return new Date(cy, cm, cd + 7);
+          case 'monthly': {
+            const n = new Date(cy, cm + 1, cd);
+            return n.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : n;
+          }
+          case 'quarterly': {
+            const n = new Date(cy, cm + 3, cd);
+            return n.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : n;
+          }
+          case 'yearly': return new Date(cy + 1, cm, cd);
+          default: return new Date(cy, cm + 1, cd);
+        }
+      };
+
+      const fmtDate = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      // Walk from start_date to find the correct next_due_date
+      const [ny, nm, nd] = linkedRecurring.next_due_date.split('-').map(Number);
+      const storedNextDue = new Date(ny, nm - 1, nd);
+      let occurrence = new Date(startDate);
+      let prevOccurrence = occurrence;
+      let iterations = 0;
+      while (occurrence < storedNextDue && iterations < 500) {
+        prevOccurrence = occurrence;
+        occurrence = addInterval(occurrence);
+        iterations++;
+      }
+
+      const correctDate = occurrence.getTime() === storedNextDue.getTime()
+        ? occurrence
+        : prevOccurrence;
+      correctedNextDueDate = fmtDate(correctDate);
+
+      // Fix corrupted next_due_date on the recurring transaction
+      if (correctedNextDueDate !== linkedRecurring.next_due_date) {
+        await supabase
+          .from('recurring_transactions')
+          .update({ next_due_date: correctedNextDueDate, updated_at: new Date().toISOString() })
+          .eq('id', linkedRecurring.id)
+          .eq('user_id', user.id);
+      }
+    }
 
     // Log the recalculation
     await logHistoryChange(
@@ -429,9 +454,9 @@ export const useInstallmentPayments = () => {
       is_active: !isComplete,
     };
 
-    // Sync next_payment_date from recurring transaction
-    if (linkedRecurring?.next_due_date) {
-      updateData.next_payment_date = linkedRecurring.next_due_date;
+    // Sync next_payment_date from corrected recurring transaction date
+    if (correctedNextDueDate) {
+      updateData.next_payment_date = correctedNextDueDate;
     }
 
     const { error: updateError } = await supabase
@@ -514,86 +539,10 @@ export const useInstallmentPayments = () => {
     return { error: null };
   };
 
-  const recordPayment = async (installmentPaymentId: string, amount: number, transactionId: string | null = null) => {
-    if (!user) return { error: new Error('User not authenticated') };
-
-    const installmentPayment = installmentPayments.find(ip => ip.id === installmentPaymentId);
-    if (!installmentPayment) return { error: new Error('Installment payment not found') };
-
-    if (transactionId) {
-      const { error: linkError } = await supabase
-        .from('transactions')
-        .update({ installment_payment_id: installmentPaymentId })
-        .eq('id', transactionId)
-        .eq('user_id', user.id);
-
-      if (linkError) {
-        console.error('Error linking transaction:', linkError);
-        return { error: linkError };
-      }
-    }
-
-    const { error: recordError } = await supabase
-      .from('installment_payment_records')
-      .insert({
-        user_id: user.id,
-        installment_payment_id: installmentPaymentId,
-        payment_date: new Date().toISOString().split('T')[0],
-        amount,
-        transaction_id: transactionId,
-        is_paid: true,
-      });
-
-    if (recordError) {
-      console.error('Error recording payment:', recordError);
-      return { error: recordError };
-    }
-
-    const newRemainingAmount = installmentPayment.remaining_amount - amount;
-    const nextPaymentDate = calculateNextPaymentDate(installmentPayment.next_payment_date, installmentPayment.frequency);
-    const isComplete = newRemainingAmount <= 0;
-
-    await updateInstallmentPayment(installmentPaymentId, {
-      remaining_amount: newRemainingAmount,
-      next_payment_date: nextPaymentDate,
-      is_active: !isComplete,
-    });
-
-    if (isComplete) {
-      await supabase
-        .from('recurring_transactions')
-        .update({ is_active: false })
-        .eq('installment_payment_id', installmentPaymentId)
-        .eq('user_id', user.id);
-    }
-
-    await fetchPaymentRecords();
-    return { error: null };
-  };
-
-  const calculateNextPaymentDate = (currentDate: string, frequency: 'weekly' | 'monthly' | 'quarterly'): string => {
-    // Parse as local date to avoid UTC timezone shift
-    const [y, m, d] = currentDate.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-
-    let next: Date;
-    switch (frequency) {
-      case 'weekly': next = addWeeks(date, 1); break;
-      case 'monthly': next = addMonths(date, 1); break;
-      case 'quarterly': next = addMonths(date, 3); break;
-      default: next = addMonths(date, 1);
-    }
-
-    const ny = next.getFullYear();
-    const nm = String(next.getMonth() + 1).padStart(2, '0');
-    const nd = String(next.getDate()).padStart(2, '0');
-    return `${ny}-${nm}-${nd}`;
-  };
-
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchInstallmentPayments(), fetchPaymentRecords()]);
+      await fetchInstallmentPayments();
       setLoading(false);
     };
 
@@ -616,25 +565,8 @@ export const useInstallmentPayments = () => {
         )
         .subscribe();
 
-      const recordsSubscription = supabase
-        .channel('installment_payment_records_changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'installment_payment_records',
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            fetchPaymentRecords();
-          }
-        )
-        .subscribe();
-
       return () => {
         installmentPaymentsSubscription.unsubscribe();
-        recordsSubscription.unsubscribe();
       };
     }
   }, [user]);
@@ -692,13 +624,11 @@ export const useInstallmentPayments = () => {
 
   return {
     installmentPayments,
-    paymentRecords,
     loading,
     createInstallmentPayment,
     updateInstallmentPayment,
     deleteInstallmentPayment,
     completeInstallmentPayment,
-    recordPayment,
     adjustInstallmentPlan,
     recalculateInstallmentPayment,
     fetchPaymentHistory,
