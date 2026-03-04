@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Repeat, Calendar, Trash2, Pause, Play, Plus, Pencil, List, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
@@ -16,6 +17,7 @@ const RecurringTransactions = () => {
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const { formatCurrency } = useUserPreferences();
+  const { installmentPayments } = useInstallmentPayments();
   const {
     recurringTransactions,
     transactions,
@@ -247,6 +249,7 @@ const RecurringTransactions = () => {
               <RecurringCalendar
                 transactions={recurringTransactions}
                 actualTransactions={transactions}
+                installmentPayments={installmentPayments}
                 onEdit={setEditingTransaction}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}

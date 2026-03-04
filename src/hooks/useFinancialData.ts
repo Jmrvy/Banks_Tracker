@@ -490,6 +490,20 @@ export function useFinancialData() {
     const rt = recurringTransactions.find(r => r.id === recurringId);
     if (!rt) return { error: { message: 'Transaction récurrente introuvable' } };
 
+    // For installment-linked recurring transactions, fetch the latest installment_amount
+    // from the DB to avoid using a stale React state value
+    let transactionAmount = rt.amount;
+    if (rt.installment_payment_id) {
+      const { data: ipData } = await supabase
+        .from('installment_payments')
+        .select('installment_amount')
+        .eq('id', rt.installment_payment_id)
+        .single();
+      if (ipData) {
+        transactionAmount = ipData.installment_amount;
+      }
+    }
+
     // 1. Create the actual transaction
     const { error: txError } = await supabase
       .from('transactions')
@@ -497,7 +511,7 @@ export function useFinancialData() {
         account_id: rt.account_id,
         category_id: rt.category_id,
         description: rt.description,
-        amount: rt.amount,
+        amount: transactionAmount,
         type: rt.type,
         transaction_date: executionDate,
         value_date: executionDate,

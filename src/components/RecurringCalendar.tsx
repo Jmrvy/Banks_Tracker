@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RecurringTransaction, Transaction } from "@/hooks/useFinancialData";
+import { InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -12,6 +13,7 @@ import { fr } from "date-fns/locale";
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
   actualTransactions?: Transaction[];
+  installmentPayments?: InstallmentPayment[];
   onEdit: (transaction: RecurringTransaction) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
@@ -24,7 +26,7 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(y, m - 1, d);
 };
 
-const RecurringCalendar = ({ transactions, actualTransactions = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedTransaction, setSelectedTransaction] = useState<RecurringTransaction | null>(null);
   const [selectedDisplayAmount, setSelectedDisplayAmount] = useState<number | undefined>(undefined);
@@ -65,6 +67,13 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], onEdit, onTo
     });
     return map;
   }, [actualTransactions]);
+
+  // Build a lookup of installment payments by ID for quick access
+  const installmentPaymentsById = useMemo(() => {
+    const map = new Map<string, InstallmentPayment>();
+    installmentPayments.forEach((ip) => map.set(ip.id, ip));
+    return map;
+  }, [installmentPayments]);
 
   // Map transactions to their due dates within the current month (including past occurrences)
   const transactionsByDay = useMemo(() => {
@@ -107,15 +116,25 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], onEdit, onTo
           const key = format(currentOccurrence, 'yyyy-MM-dd');
           const isPast = isBefore(currentOccurrence, today);
 
-          // For past occurrences of installment-linked recurring transactions,
-          // show the actual amount paid instead of the current installment_amount
+          // For installment-linked recurring transactions, use the correct amount:
+          // - Past: actual amount from linked transactions
+          // - Future: installment_amount from the installment payment (always up-to-date)
           let displayAmount: number | undefined;
-          if (isPast && transaction.installment_payment_id) {
-            const monthKey = format(currentOccurrence, 'yyyy-MM');
-            const actualKey = `${transaction.installment_payment_id}:${monthKey}`;
-            const actualAmount = installmentActualAmounts.get(actualKey);
-            if (actualAmount !== undefined) {
-              displayAmount = actualAmount;
+          if (transaction.installment_payment_id) {
+            if (isPast) {
+              const monthKey = format(currentOccurrence, 'yyyy-MM');
+              const actualKey = `${transaction.installment_payment_id}:${monthKey}`;
+              const actualAmount = installmentActualAmounts.get(actualKey);
+              if (actualAmount !== undefined) {
+                displayAmount = actualAmount;
+              }
+            } else {
+              // For future occurrences, use the installment payment's current amount
+              // This ensures the calendar reflects the latest recalculated amount
+              const ip = installmentPaymentsById.get(transaction.installment_payment_id);
+              if (ip) {
+                displayAmount = ip.installment_amount;
+              }
             }
           }
 
@@ -144,7 +163,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], onEdit, onTo
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById]);
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));

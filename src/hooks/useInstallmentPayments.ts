@@ -157,13 +157,15 @@ export const useInstallmentPayments = () => {
 
     const descriptionSuffix = data.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
 
+    const recurringType = data.payment_type === 'reimbursement' ? 'income' : 'expense';
+
     const { error: recurringError } = await supabase
       .from('recurring_transactions')
       .insert({
         user_id: user.id,
         description: `${data.description} (${descriptionSuffix})`,
         amount: data.installment_amount,
-        type: 'expense',
+        type: recurringType,
         recurrence_type: recurringFrequency,
         start_date: data.start_date,
         next_due_date: data.start_date,
@@ -297,6 +299,15 @@ export const useInstallmentPayments = () => {
     }
     if (updates.next_payment_date !== undefined) {
       recurringUpdates.next_due_date = updates.next_payment_date;
+    }
+    if (updates.payment_type !== undefined) {
+      recurringUpdates.type = updates.payment_type === 'reimbursement' ? 'income' : 'expense';
+      // Also update description suffix if description wasn't already changed
+      if (updates.description === undefined && currentInstallment) {
+        const descriptionSuffix = updates.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
+        const baseName = currentInstallment.description;
+        recurringUpdates.description = `${baseName} (${descriptionSuffix})`;
+      }
     }
     if (updates.frequency !== undefined) {
       const frequencyMap: Record<string, string> = {
