@@ -43,9 +43,10 @@ export const RecordInstallmentPaymentModal = ({
   const linkableTransactions = useMemo(() => {
     if (!installmentPayment) return [];
 
+    const expectedType = installmentPayment.payment_type === 'reimbursement' ? 'income' : 'expense';
     return transactions
       .filter(t => {
-        if (t.type !== 'expense') return false;
+        if (t.type !== expectedType) return false;
         if (t.account_id !== installmentPayment.account_id) return false;
         if (t.installment_payment_id) return false;
         return true;
@@ -81,9 +82,9 @@ export const RecordInstallmentPaymentModal = ({
             user_id: user.id,
             account_id: installmentPayment.account_id,
             category_id: installmentPayment.category_id,
-            description: `${installmentPayment.description} (Paiement manuel)`,
+            description: `${installmentPayment.description} (${installmentPayment.payment_type === 'reimbursement' ? 'Remboursement' : 'Paiement'} manuel)`,
             amount: paymentAmount,
-            type: 'expense',
+            type: installmentPayment.payment_type === 'reimbursement' ? 'income' : 'expense',
             transaction_date: todayStr,
             value_date: todayStr,
             include_in_stats: true,
