@@ -358,6 +358,7 @@ export const useInstallmentPayments = () => {
   // Recalculate installment payment based on linked transactions
   // remaining_amount = total_amount - sum(linked transactions)
   // installment_amount is adjusted so remaining_periods × new_amount = remaining_amount
+  // Also repairs corrupted next_due_date on the linked recurring transaction
   const recalculateInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
@@ -394,13 +395,66 @@ export const useInstallmentPayments = () => {
       newInstallmentAmount = 0;
     }
 
-    // Fetch linked recurring transaction to sync next_payment_date
+    // Fetch linked recurring transaction (full data for date repair)
     const { data: linkedRecurring } = await supabase
       .from('recurring_transactions')
-      .select('next_due_date')
+      .select('*')
       .eq('installment_payment_id', id)
       .eq('user_id', user.id)
       .maybeSingle();
+
+    // Repair corrupted next_due_date if needed
+    let correctedNextDueDate: string | null = null;
+    if (linkedRecurring) {
+      const [sy, sm, sd] = linkedRecurring.start_date.split('-').map(Number);
+      const startDate = new Date(sy, sm - 1, sd);
+
+      const addInterval = (d: Date): Date => {
+        const cy = d.getFullYear(), cm = d.getMonth(), cd = d.getDate();
+        switch (linkedRecurring.recurrence_type) {
+          case 'weekly': return new Date(cy, cm, cd + 7);
+          case 'monthly': {
+            const n = new Date(cy, cm + 1, cd);
+            return n.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : n;
+          }
+          case 'quarterly': {
+            const n = new Date(cy, cm + 3, cd);
+            return n.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : n;
+          }
+          case 'yearly': return new Date(cy + 1, cm, cd);
+          default: return new Date(cy, cm + 1, cd);
+        }
+      };
+
+      const fmtDate = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      // Walk from start_date to find the correct next_due_date
+      const [ny, nm, nd] = linkedRecurring.next_due_date.split('-').map(Number);
+      const storedNextDue = new Date(ny, nm - 1, nd);
+      let occurrence = new Date(startDate);
+      let prevOccurrence = occurrence;
+      let iterations = 0;
+      while (occurrence < storedNextDue && iterations < 500) {
+        prevOccurrence = occurrence;
+        occurrence = addInterval(occurrence);
+        iterations++;
+      }
+
+      const correctDate = occurrence.getTime() === storedNextDue.getTime()
+        ? occurrence
+        : prevOccurrence;
+      correctedNextDueDate = fmtDate(correctDate);
+
+      // Fix corrupted next_due_date on the recurring transaction
+      if (correctedNextDueDate !== linkedRecurring.next_due_date) {
+        await supabase
+          .from('recurring_transactions')
+          .update({ next_due_date: correctedNextDueDate, updated_at: new Date().toISOString() })
+          .eq('id', linkedRecurring.id)
+          .eq('user_id', user.id);
+      }
+    }
 
     // Log the recalculation
     await logHistoryChange(
@@ -429,9 +483,9 @@ export const useInstallmentPayments = () => {
       is_active: !isComplete,
     };
 
-    // Sync next_payment_date from recurring transaction
-    if (linkedRecurring?.next_due_date) {
-      updateData.next_payment_date = linkedRecurring.next_due_date;
+    // Sync next_payment_date from corrected recurring transaction date
+    if (correctedNextDueDate) {
+      updateData.next_payment_date = correctedNextDueDate;
     }
 
     const { error: updateError } = await supabase

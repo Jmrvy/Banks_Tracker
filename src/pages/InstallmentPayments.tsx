@@ -97,7 +97,7 @@ const InstallmentPayments = () => {
     } else if (result) {
       toast({
         title: "Recalcul effectué",
-        description: `${result.linkedTransactionsCount} transaction(s) et ${result.paymentRecordsCount} enregistrement(s) pris en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}`,
+        description: `${result.linkedTransactionsCount} transaction(s) prise(s) en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}`,
       });
     }
   };
