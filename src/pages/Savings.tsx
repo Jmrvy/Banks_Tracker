@@ -355,7 +355,7 @@ const Savings = () => {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reimbursementInstallments.map((installment) => {
-                const progress = installment.total_amount > 0 ? ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100 : 0;
+                const progress = installment.total_amount > 0 ? Math.min(100, Math.round(((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 1000) / 10) : 0;
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (

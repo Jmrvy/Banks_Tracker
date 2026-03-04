@@ -91,7 +91,7 @@ export const InstallmentPaymentDetailsModal = ({
   };
 
   const progress = installmentPayment.total_amount > 0
-    ? ((installmentPayment.total_amount - installmentPayment.remaining_amount) / installmentPayment.total_amount) * 100
+    ? Math.min(100, Math.round(((installmentPayment.total_amount - installmentPayment.remaining_amount) / installmentPayment.total_amount) * 1000) / 10)
     : 0;
 
   const amountPaid = installmentPayment.total_amount - installmentPayment.remaining_amount;
