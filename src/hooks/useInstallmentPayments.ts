@@ -356,6 +356,8 @@ export const useInstallmentPayments = () => {
   };
 
   // Recalculate installment payment based on linked transactions
+  // remaining_amount = total_amount - sum(linked transactions)
+  // installment_amount is adjusted so remaining_periods × new_amount = remaining_amount
   const recalculateInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
@@ -376,96 +378,96 @@ export const useInstallmentPayments = () => {
       return { error: txError };
     }
 
-    // Fetch payment records for this installment
-    const { data: records, error: recordsError } = await supabase
-      .from('installment_payment_records')
-      .select('id, amount, transaction_id')
-      .eq('installment_payment_id', id)
-      .eq('user_id', user.id);
-
-    if (recordsError) {
-      console.error('Error fetching payment records:', recordsError);
-      return { error: recordsError };
-    }
-
-    // Calculate total paid from linked transactions (expenses reduce remaining)
-    const transactionIds = new Set((records || []).map(r => r.transaction_id).filter(Boolean));
-
-    let totalPaidFromTransactions = 0;
-    for (const tx of (linkedTransactions || [])) {
-      // Only count if not already in payment records
-      if (!transactionIds.has(tx.id)) {
-        totalPaidFromTransactions += Number(tx.amount);
-      }
-    }
-
-    // Calculate total from payment records
-    const totalPaidFromRecords = (records || []).reduce((sum, r) => sum + Number(r.amount), 0);
-
-    // Total amount paid
-    const totalPaid = totalPaidFromTransactions + totalPaidFromRecords;
+    // Calculate total paid from linked transactions: total_amount - sum(linked transactions)
+    const totalPaid = (linkedTransactions || []).reduce((sum, tx) => sum + Number(tx.amount), 0);
 
     // Calculate new remaining amount
     const newRemainingAmount = Math.max(0, currentInstallment.total_amount - totalPaid);
     const isComplete = newRemainingAmount <= 0;
 
-    // Only update if values changed
-    if (newRemainingAmount !== currentInstallment.remaining_amount) {
-      // Log the recalculation
-      await logHistoryChange(
-        id,
-        'recalculated',
-        {
-          remaining_amount: currentInstallment.remaining_amount,
-          calculated_from: {
-            total_amount: currentInstallment.total_amount,
-            linked_transactions_count: (linkedTransactions || []).length,
-            payment_records_count: (records || []).length,
-          }
-        },
-        {
-          remaining_amount: newRemainingAmount,
-          total_paid: totalPaid,
-          from_transactions: totalPaidFromTransactions,
-          from_records: totalPaidFromRecords,
-        },
-        `Recalcul: ${totalPaid.toFixed(2)}€ payé sur ${currentInstallment.total_amount.toFixed(2)}€`
-      );
-
-      // Update the installment payment (skip history since we already logged)
-      const { error: updateError } = await supabase
-        .from('installment_payments')
-        .update({
-          remaining_amount: newRemainingAmount,
-          is_active: !isComplete,
-        })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        console.error('Error updating installment payment:', updateError);
-        return { error: updateError };
-      }
-
-      // Update recurring transaction if complete
-      if (isComplete) {
-        await supabase
-          .from('recurring_transactions')
-          .update({ is_active: false })
-          .eq('installment_payment_id', id)
-          .eq('user_id', user.id);
-      }
-
-      await fetchInstallmentPayments();
+    // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
+    let newInstallmentAmount = currentInstallment.installment_amount;
+    if (newRemainingAmount > 0 && currentInstallment.installment_amount > 0) {
+      const remainingPeriods = Math.max(1, Math.round(newRemainingAmount / currentInstallment.installment_amount));
+      newInstallmentAmount = Math.round((newRemainingAmount / remainingPeriods) * 100) / 100;
+    } else if (isComplete) {
+      newInstallmentAmount = 0;
     }
+
+    // Fetch linked recurring transaction to sync next_payment_date
+    const { data: linkedRecurring } = await supabase
+      .from('recurring_transactions')
+      .select('next_due_date')
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    // Log the recalculation
+    await logHistoryChange(
+      id,
+      'recalculated',
+      {
+        remaining_amount: currentInstallment.remaining_amount,
+        installment_amount: currentInstallment.installment_amount,
+        calculated_from: {
+          total_amount: currentInstallment.total_amount,
+          linked_transactions_count: (linkedTransactions || []).length,
+        }
+      },
+      {
+        remaining_amount: newRemainingAmount,
+        installment_amount: newInstallmentAmount,
+        total_paid: totalPaid,
+      },
+      `Recalcul: ${totalPaid.toFixed(2)}€ payé sur ${currentInstallment.total_amount.toFixed(2)}€, mensualité ajustée à ${newInstallmentAmount.toFixed(2)}€`
+    );
+
+    // Update the installment payment
+    const updateData: Record<string, unknown> = {
+      remaining_amount: newRemainingAmount,
+      installment_amount: newInstallmentAmount,
+      is_active: !isComplete,
+    };
+
+    // Sync next_payment_date from recurring transaction
+    if (linkedRecurring?.next_due_date) {
+      updateData.next_payment_date = linkedRecurring.next_due_date;
+    }
+
+    const { error: updateError } = await supabase
+      .from('installment_payments')
+      .update(updateData)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (updateError) {
+      console.error('Error updating installment payment:', updateError);
+      return { error: updateError };
+    }
+
+    // Sync recurring transaction: update amount + deactivate if complete
+    const recurringUpdate: Record<string, unknown> = {
+      amount: newInstallmentAmount,
+      updated_at: new Date().toISOString(),
+    };
+    if (isComplete) {
+      recurringUpdate.is_active = false;
+    }
+    await supabase
+      .from('recurring_transactions')
+      .update(recurringUpdate)
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    await fetchInstallmentPayments();
 
     return {
       error: null,
       result: {
         totalPaid,
         newRemainingAmount,
+        newInstallmentAmount,
         linkedTransactionsCount: (linkedTransactions || []).length,
-        paymentRecordsCount: (records || []).length,
         isComplete,
       }
     };

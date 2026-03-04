@@ -566,16 +566,37 @@ export function useFinancialData() {
     if (rt.installment_payment_id) {
       const { data: installment } = await supabase
         .from('installment_payments')
-        .select('remaining_amount')
+        .select('*')
         .eq('id', rt.installment_payment_id)
         .single();
 
       if (installment) {
-        const newRemaining = Math.max(0, installment.remaining_amount - rt.amount);
+        // Recalculate remaining_amount from actual linked transactions
+        const { data: linkedTxs } = await supabase
+          .from('transactions')
+          .select('amount')
+          .eq('installment_payment_id', rt.installment_payment_id)
+          .eq('user_id', user.id);
+
+        const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
+        const newRemaining = Math.max(0, installment.total_amount - totalPaid);
+
+        // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
+        let newInstallmentAmount = installment.installment_amount;
+        if (newRemaining > 0 && installment.installment_amount > 0) {
+          const remainingPeriods = Math.max(1, Math.round(newRemaining / installment.installment_amount));
+          newInstallmentAmount = Math.round((newRemaining / remainingPeriods) * 100) / 100;
+        }
+
         const installmentUpdate: Record<string, unknown> = {
           remaining_amount: newRemaining,
           next_payment_date: nextDueStr,
         };
+
+        if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
+          installmentUpdate.installment_amount = newInstallmentAmount;
+        }
+
         if (newRemaining <= 0) {
           installmentUpdate.is_active = false;
         }
@@ -628,13 +649,23 @@ export function useFinancialData() {
   };
 
   // Repair corrupted next_due_date values caused by the old setMonth() bug.
-  // Walks forward from start_date with safe math, finds the occurrence closest
-  // to the stored next_due_date, and fixes it if it's off.
-  // Also syncs installment_payments.next_payment_date.
+  // Fetches data directly from DB to avoid stale React state.
+  // Also recalculates installment payment remaining_amount and installment_amount.
   const repairCorruptedNextDueDates = async () => {
     if (!user) return;
 
-    const activeRecurring = recurringTransactions.filter(rt => rt.is_active);
+    // Fetch directly from DB to avoid stale React state
+    const { data: activeRecurring, error: fetchErr } = await supabase
+      .from('recurring_transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    if (fetchErr || !activeRecurring || activeRecurring.length === 0) return;
+
+    const fmtDate = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     let repaired = 0;
 
     for (const rt of activeRecurring) {
@@ -664,8 +695,6 @@ export function useFinancialData() {
 
       let occurrence = new Date(startDate);
       let prevOccurrence = occurrence;
-
-      // Safety limit to avoid infinite loops
       let iterations = 0;
       while (occurrence < storedNextDue && iterations < 500) {
         prevOccurrence = occurrence;
@@ -673,66 +702,107 @@ export function useFinancialData() {
         iterations++;
       }
 
-      // If storedNextDue is exactly on an occurrence, it's fine
-      // Otherwise, the correct date is prevOccurrence (the one we skipped past)
-      let correctDate: Date;
-      if (occurrence.getTime() === storedNextDue.getTime()) {
-        correctDate = occurrence; // Already correct
-      } else {
-        correctDate = prevOccurrence; // Corrupted — use the correct occurrence before
-      }
+      // If exact match → already correct; otherwise use the previous valid occurrence
+      const correctDate = occurrence.getTime() === storedNextDue.getTime()
+        ? occurrence
+        : prevOccurrence;
+      const correctDateStr = fmtDate(correctDate);
 
-      const correctDateStr = `${correctDate.getFullYear()}-${String(correctDate.getMonth() + 1).padStart(2, '0')}-${String(correctDate.getDate()).padStart(2, '0')}`;
-
-      // Also sync installment payment next_payment_date regardless of whether next_due_date is corrupted
-      if (rt.installment_payment_id) {
-        const { data: installment } = await supabase
-          .from('installment_payments')
-          .select('next_payment_date')
-          .eq('id', rt.installment_payment_id)
-          .single();
-
-        if (installment && installment.next_payment_date !== correctDateStr) {
-          await supabase
-            .from('installment_payments')
-            .update({ next_payment_date: correctDateStr })
-            .eq('id', rt.installment_payment_id);
-          repaired++;
-        }
-      }
-
+      // Fix next_due_date if corrupted
       if (correctDateStr !== rt.next_due_date) {
         await supabase
           .from('recurring_transactions')
-          .update({
-            next_due_date: correctDateStr,
-            updated_at: new Date().toISOString()
-          })
+          .update({ next_due_date: correctDateStr, updated_at: new Date().toISOString() })
           .eq('id', rt.id)
           .eq('user_id', user.id);
         repaired++;
       }
+
+      // Sync installment payment: next_payment_date + remaining_amount + installment_amount
+      if (rt.installment_payment_id) {
+        const { data: installment } = await supabase
+          .from('installment_payments')
+          .select('*')
+          .eq('id', rt.installment_payment_id)
+          .single();
+
+        if (installment) {
+          // Recalculate remaining_amount from actual linked transactions
+          const { data: linkedTxs } = await supabase
+            .from('transactions')
+            .select('amount')
+            .eq('installment_payment_id', rt.installment_payment_id)
+            .eq('user_id', user.id);
+
+          const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
+          const correctRemaining = Math.max(0, installment.total_amount - totalPaid);
+
+          // Recalculate installment_amount: remaining_periods × new_amount = remaining_amount
+          let newInstallmentAmount = installment.installment_amount;
+          if (correctRemaining > 0 && installment.installment_amount > 0) {
+            const remainingPeriods = Math.max(1, Math.round(correctRemaining / installment.installment_amount));
+            newInstallmentAmount = Math.round((correctRemaining / remainingPeriods) * 100) / 100;
+          }
+
+          const installmentUpdate: Record<string, unknown> = {
+            next_payment_date: correctDateStr,
+            remaining_amount: correctRemaining,
+          };
+
+          // Update installment_amount if it changed meaningfully
+          if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
+            installmentUpdate.installment_amount = newInstallmentAmount;
+            // Also sync recurring transaction amount
+            await supabase
+              .from('recurring_transactions')
+              .update({ amount: newInstallmentAmount, updated_at: new Date().toISOString() })
+              .eq('id', rt.id)
+              .eq('user_id', user.id);
+          }
+
+          if (correctRemaining <= 0) {
+            installmentUpdate.is_active = false;
+            await supabase
+              .from('recurring_transactions')
+              .update({ is_active: false, updated_at: new Date().toISOString() })
+              .eq('id', rt.id)
+              .eq('user_id', user.id);
+          }
+
+          await supabase
+            .from('installment_payments')
+            .update(installmentUpdate)
+            .eq('id', rt.installment_payment_id);
+
+          repaired++;
+        }
+      }
     }
 
     if (repaired > 0) {
-      // Refetch to get the corrected data before processing due transactions
       await fetchRecurringTransactions();
     }
   };
 
   const processDueRecurringTransactions = async () => {
     if (!user) return;
-    
-    // Use string comparison for dates to avoid timezone issues
-    const todayString = new Date().toISOString().split('T')[0];
-    
-    const dueTransactions = recurringTransactions.filter(rt => {
-      if (!rt.is_active) return false;
-      
-      // Use string comparison for reliable date comparison
+
+    // Fetch directly from DB to avoid stale React state
+    const { data: freshRecurring, error: fetchErr } = await supabase
+      .from('recurring_transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    if (fetchErr || !freshRecurring) return;
+
+    // Use local date to avoid UTC timezone issues
+    const now = new Date();
+    const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const dueTransactions = freshRecurring.filter(rt => {
       const isDue = rt.next_due_date <= todayString;
       const isNotExpired = !rt.end_date || rt.end_date >= rt.next_due_date;
-      
       return isDue && isNotExpired;
     });
 
@@ -742,45 +812,42 @@ export function useFinancialData() {
       try {
         // Check if end_date has passed
         if (rt.end_date && rt.end_date < todayString) {
-          
-          
-          // Deactivate the recurring transaction
           await supabase
             .from('recurring_transactions')
             .update({ is_active: false })
             .eq('id', rt.id);
-          
           continue;
         }
 
-        // Process transactions using string dates to avoid timezone issues
         let currentDueDateString = rt.next_due_date;
         let occurrencesProcessed = 0;
-        const maxOccurrences = 12; // Limit to prevent infinite loops
+        const maxOccurrences = 12;
 
-        // Process all missed occurrences up to today
         while (currentDueDateString <= todayString && occurrencesProcessed < maxOccurrences) {
-          // Skip if this occurrence is after the end_date
-          if (rt.end_date && currentDueDateString > rt.end_date) {
+          if (rt.end_date && currentDueDateString > rt.end_date) break;
+
+          // Insert transaction directly to avoid per-insert refetches
+          const { error: txError } = await supabase
+            .from('transactions')
+            .insert([{
+              account_id: rt.account_id,
+              category_id: rt.category_id,
+              description: `${rt.description} (Récurrence automatique)`,
+              amount: rt.amount,
+              type: rt.type,
+              transaction_date: currentDueDateString,
+              value_date: currentDueDateString,
+              include_in_stats: true,
+              installment_payment_id: rt.installment_payment_id,
+              user_id: user.id
+            }]);
+
+          if (txError) {
+            console.error(`Error creating transaction for ${rt.id}:`, txError);
             break;
           }
 
-          // Create the actual transaction for this occurrence
-          await createTransaction({
-            account_id: rt.account_id,
-            category_id: rt.category_id,
-            description: `${rt.description} (Récurrence automatique)`,
-            amount: rt.amount,
-            type: rt.type,
-            transaction_date: currentDueDateString,
-            value_date: currentDueDateString, // Pour les récurrences, value_date = transaction_date
-            include_in_stats: true, // Les récurrences sont toujours incluses dans les stats
-            installment_payment_id: rt.installment_payment_id // Lien vers le paiement échelonné source
-          });
-
           occurrencesProcessed++;
-
-          // Calculate next occurrence using safe date advancement
           currentDueDateString = safeAdvanceDate(currentDueDateString, rt.recurrence_type);
         }
 
@@ -793,8 +860,64 @@ export function useFinancialData() {
           })
           .eq('id', rt.id);
 
+        // Update installment payment if linked
+        if (rt.installment_payment_id && occurrencesProcessed > 0) {
+          const { data: installment } = await supabase
+            .from('installment_payments')
+            .select('*')
+            .eq('id', rt.installment_payment_id)
+            .single();
+
+          if (installment) {
+            // Recalculate remaining_amount from actual linked transactions
+            const { data: linkedTxs } = await supabase
+              .from('transactions')
+              .select('amount')
+              .eq('installment_payment_id', rt.installment_payment_id)
+              .eq('user_id', user.id);
+
+            const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
+            const newRemaining = Math.max(0, installment.total_amount - totalPaid);
+
+            // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
+            let newInstallmentAmount = installment.installment_amount;
+            if (newRemaining > 0 && installment.installment_amount > 0) {
+              const remainingPeriods = Math.max(1, Math.round(newRemaining / installment.installment_amount));
+              newInstallmentAmount = Math.round((newRemaining / remainingPeriods) * 100) / 100;
+            }
+
+            const installmentUpdate: Record<string, unknown> = {
+              remaining_amount: newRemaining,
+              next_payment_date: currentDueDateString,
+            };
+
+            if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
+              installmentUpdate.installment_amount = newInstallmentAmount;
+              // Sync recurring transaction amount for future occurrences
+              await supabase
+                .from('recurring_transactions')
+                .update({ amount: newInstallmentAmount, updated_at: new Date().toISOString() })
+                .eq('id', rt.id)
+                .eq('user_id', user.id);
+            }
+
+            if (newRemaining <= 0) {
+              installmentUpdate.is_active = false;
+              await supabase
+                .from('recurring_transactions')
+                .update({ is_active: false, updated_at: new Date().toISOString() })
+                .eq('id', rt.id)
+                .eq('user_id', user.id);
+            }
+
+            await supabase
+              .from('installment_payments')
+              .update(installmentUpdate)
+              .eq('id', rt.installment_payment_id);
+          }
+        }
+
         processedCount += occurrencesProcessed;
-        
 
       } catch (error) {
         console.error(`Error processing recurring transaction ${rt.id}:`, error);
@@ -802,11 +925,12 @@ export function useFinancialData() {
     }
 
     if (processedCount > 0) {
-      
-      // Refresh data after processing
-      fetchRecurringTransactions();
-      fetchTransactions();
-      fetchAccounts();
+      // Refresh all data after processing
+      await Promise.all([
+        fetchRecurringTransactions(),
+        fetchTransactions(),
+        fetchAccounts()
+      ]);
     }
   };
 
