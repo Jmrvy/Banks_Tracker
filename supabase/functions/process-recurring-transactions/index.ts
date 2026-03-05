@@ -98,6 +98,7 @@ serve(async (req) => {
         console.log(`Processing recurring transaction: ${recurring.description}`);
 
         // Deduplication: check if a transaction already exists for this recurring + date
+        // Use multiple criteria to avoid false negatives from description mismatches
         const { data: existingTx } = await supabase
           .from('transactions')
           .select('id')
@@ -105,7 +106,7 @@ serve(async (req) => {
           .eq('account_id', recurring.account_id)
           .eq('transaction_date', recurring.next_due_date)
           .eq('amount', recurring.amount)
-          .ilike('description', `${recurring.description} (Récurrence automatique)`)
+          .eq('type', recurring.type)
           .limit(1);
 
         if (existingTx && existingTx.length > 0) {
