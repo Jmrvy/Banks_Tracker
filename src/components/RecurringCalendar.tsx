@@ -55,13 +55,14 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   }, [currentMonth]);
 
   // Build a lookup of actual transactions linked to installment payments
-  // Key: "installmentPaymentId:YYYY-MM" → actual amount paid that month
+  // Key: "installmentPaymentId:YYYY-MM-DD" → actual amount paid on that exact date
   const installmentActualAmounts = useMemo(() => {
     const map = new Map<string, number>();
     actualTransactions.forEach((tx) => {
       if (tx.installment_payment_id) {
-        const monthKey = tx.transaction_date.substring(0, 7); // "YYYY-MM"
-        const key = `${tx.installment_payment_id}:${monthKey}`;
+        // Use exact date for precise matching
+        const dateKey = tx.transaction_date.substring(0, 10); // "YYYY-MM-DD"
+        const key = `${tx.installment_payment_id}:${dateKey}`;
         map.set(key, (map.get(key) || 0) + tx.amount);
       }
     });
@@ -122,8 +123,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           let displayAmount: number | undefined;
           if (transaction.installment_payment_id) {
             if (isPast) {
-              const monthKey = format(currentOccurrence, 'yyyy-MM');
-              const actualKey = `${transaction.installment_payment_id}:${monthKey}`;
+              const dateKey = format(currentOccurrence, 'yyyy-MM-dd');
+              const actualKey = `${transaction.installment_payment_id}:${dateKey}`;
               const actualAmount = installmentActualAmounts.get(actualKey);
               if (actualAmount !== undefined) {
                 displayAmount = actualAmount;

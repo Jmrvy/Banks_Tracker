@@ -9,7 +9,7 @@ export interface InstallmentPayment {
   total_amount: number;
   remaining_amount: number;
   installment_amount: number;
-  frequency: 'weekly' | 'monthly' | 'quarterly';
+  frequency: string;
   start_date: string;
   next_payment_date: string;
   end_date: string | null;
@@ -51,6 +51,7 @@ export const useInstallmentPayments = () => {
     } else {
       const processedData: InstallmentPayment[] = (data || []).map((ip) => ({
         ...ip,
+        frequency: ip.frequency as string,
         payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
       }));
       setInstallmentPayments(processedData);
@@ -58,55 +59,27 @@ export const useInstallmentPayments = () => {
   };
 
   // Fetch history for a specific installment payment
-  const fetchPaymentHistory = async (installmentPaymentId: string): Promise<InstallmentPaymentHistory[]> => {
-    if (!user) return [];
-
-    const { data, error } = await supabase
-      .from('installment_payment_history')
-      .select('*')
-      .eq('installment_payment_id', installmentPaymentId)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching payment history:', error);
-      return [];
-    }
-
-    return (data || []) as InstallmentPaymentHistory[];
+  const fetchPaymentHistory = async (_installmentPaymentId: string): Promise<InstallmentPaymentHistory[]> => {
+    // installment_payment_history table does not exist yet - return empty
+    return [];
   };
 
-  // Log a change to history
+  // Log a change to history (stub - table does not exist yet)
   const logHistoryChange = async (
-    installmentPaymentId: string,
-    changeType: InstallmentPaymentHistory['change_type'],
-    oldValues: Record<string, any> | null,
-    newValues: Record<string, any> | null,
-    changeDescription?: string
+    _installmentPaymentId: string,
+    _changeType: InstallmentPaymentHistory['change_type'],
+    _oldValues: Record<string, any> | null,
+    _newValues: Record<string, any> | null,
+    _changeDescription?: string
   ) => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('installment_payment_history')
-      .insert({
-        installment_payment_id: installmentPaymentId,
-        user_id: user.id,
-        change_type: changeType,
-        old_values: oldValues,
-        new_values: newValues,
-        change_description: changeDescription || null,
-      });
-
-    if (error) {
-      console.error('Error logging history:', error);
-    }
+    // installment_payment_history table does not exist yet - no-op
   };
 
   const createInstallmentPayment = async (data: {
     description: string;
     total_amount: number;
     installment_amount: number;
-    frequency: 'weekly' | 'monthly' | 'quarterly';
+    frequency: string;
     start_date: string;
     account_id: string;
     category_id?: string;

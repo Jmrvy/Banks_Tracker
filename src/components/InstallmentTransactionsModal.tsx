@@ -80,90 +80,93 @@ export const InstallmentTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-lg p-3 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-            Transactions liées
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
+            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+            <span className="truncate">Transactions liées</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3">
           {/* Summary */}
-          <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-2">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-              <span className="text-xs sm:text-sm text-muted-foreground">Paiement échelonné:</span>
-              <span className="font-semibold text-sm sm:text-base truncate">{installmentPayment.description}</span>
+          <div className="bg-muted/50 rounded-lg p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[11px] sm:text-sm text-muted-foreground flex-shrink-0">Paiement:</span>
+              <span className="font-semibold text-xs sm:text-base truncate text-right">{installmentPayment.description}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground">Total payé:</span>
-              <span className="font-bold text-success text-sm sm:text-base">{formatCurrency(totalPaid)}</span>
+              <span className="text-[11px] sm:text-sm text-muted-foreground">Total payé:</span>
+              <span className="font-bold text-success text-xs sm:text-base">{formatCurrency(totalPaid)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground">Transactions:</span>
-              <Badge variant="secondary" className="text-xs">{transactions.length}</Badge>
+              <span className="text-[11px] sm:text-sm text-muted-foreground">Transactions:</span>
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">{transactions.length}</Badge>
             </div>
           </div>
 
           {/* Transactions List */}
-          <ScrollArea className="h-[250px] sm:h-[300px]">
+          <ScrollArea className="h-[220px] sm:h-[300px]">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             ) : transactions.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <Receipt className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50 mb-2" />
+                <Receipt className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground/50 mb-2" />
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Aucune transaction liée à ce paiement échelonné
+                  Aucune transaction liée
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                   Les transactions apparaîtront ici lorsque des paiements seront effectués
                 </p>
               </div>
             ) : (
-              <div className="space-y-2 pr-2">
+              <div className="space-y-1.5 sm:space-y-2 pr-2">
                 {transactions.map((transaction) => {
                   const category = getCategoryInfo(transaction.category_id);
                   return (
                     <div
                       key={transaction.id}
-                      className="bg-card border border-border/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2"
+                      className="bg-card border border-border/50 rounded-lg p-2 sm:p-3"
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      {/* Mobile: compact single-line layout */}
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-xs sm:text-sm truncate">
+                          <p className="font-medium text-[11px] sm:text-sm truncate">
                             {transaction.description}
                           </p>
-                          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground mt-0.5 sm:mt-1">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">
-                              {format(new Date(transaction.transaction_date), "dd MMM yyyy", {
+                          <div className="flex items-center gap-1 sm:gap-2 mt-0.5">
+                            <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-muted-foreground flex-shrink-0" />
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">
+                              {format(new Date(transaction.transaction_date), "dd/MM/yy", {
                                 locale: fr,
                               })}
                             </span>
+                            {category && (
+                              <>
+                                <span className="text-muted-foreground text-[10px]">•</span>
+                                <div className="flex items-center gap-0.5 min-w-0">
+                                  <div
+                                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: category.color }}
+                                  />
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground truncate max-w-[60px] sm:max-w-none">
+                                    {category.name}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <span className="font-bold text-destructive text-xs sm:text-sm whitespace-nowrap">
+                        <span className="font-bold text-destructive text-[11px] sm:text-sm whitespace-nowrap flex-shrink-0">
                           -{formatCurrency(transaction.amount)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Wallet className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate max-w-[100px] sm:max-w-none">
-                            {getAccountName(transaction.account_id)}
-                          </span>
-                        </div>
-                        {category && (
-                          <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0.5">
-                            <div
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            <span className="truncate max-w-[80px] sm:max-w-none">{category.name}</span>
-                          </Badge>
-                        )}
+                      {/* Account info - hidden on very small screens, shown as secondary info */}
+                      <div className="hidden sm:flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                        <Wallet className="h-3 w-3 flex-shrink-0" />
+                        <span>{getAccountName(transaction.account_id)}</span>
                       </div>
                     </div>
                   );
