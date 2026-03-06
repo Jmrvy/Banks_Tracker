@@ -244,6 +244,7 @@ export const useInstallmentPayments = () => {
     }
 
     // Update and select back to confirm persistence
+    console.info('[installment-update] Sending dbUpdates:', JSON.stringify(dbUpdates));
     const { data: updatedRow, error } = await supabase
       .from('installment_payments')
       .update(dbUpdates)
@@ -262,7 +263,44 @@ export const useInstallmentPayments = () => {
       return { error: new Error('Update did not persist — no row returned') };
     }
 
-    console.info('[installment-update] Successfully updated:', id, dbUpdates);
+    console.info('[installment-update] Update returned:', JSON.stringify(updatedRow));
+
+    // Post-update verification: re-read from DB to confirm persistence
+    const { data: verifyRow } = await supabase
+      .from('installment_payments')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (verifyRow) {
+      const mismatches: string[] = [];
+      for (const [key, val] of Object.entries(dbUpdates)) {
+        const dbVal = (verifyRow as any)[key];
+        if (typeof val === 'number' && typeof dbVal === 'number') {
+          if (Math.abs(val - dbVal) > 0.001) mismatches.push(`${key}: sent=${val}, db=${dbVal}`);
+        } else if (val !== dbVal) {
+          mismatches.push(`${key}: sent=${val}, db=${dbVal}`);
+        }
+      }
+      if (mismatches.length > 0) {
+        console.error('[installment-update] VERIFICATION FAILED! Mismatches:', mismatches);
+        // Retry the update once
+        console.info('[installment-update] Retrying update...');
+        const { error: retryError } = await supabase
+          .from('installment_payments')
+          .update(dbUpdates)
+          .eq('id', id)
+          .eq('user_id', user.id);
+        if (retryError) {
+          console.error('[installment-update] Retry failed:', retryError);
+        } else {
+          console.info('[installment-update] Retry succeeded');
+        }
+      } else {
+        console.info('[installment-update] Verification passed ✓');
+      }
+    }
 
     // Log history change — compare DB before vs after
     if (!skipHistory) {
@@ -647,8 +685,9 @@ export const useInstallmentPayments = () => {
     if (user) {
       loadData();
 
+      const channelId = `installment_payments_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       const installmentPaymentsSubscription = supabase
-        .channel('installment_payments_changes')
+        .channel(channelId)
         .on(
           'postgres_changes',
           {
