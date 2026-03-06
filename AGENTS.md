@@ -16,5 +16,6 @@ See `package.json` scripts:
 ### Gotchas
 
 - `npm install` requires `--legacy-peer-deps` due to a `jspdf@4` vs `jspdf-autotable` peer conflict. The update script already handles this.
-- The Supabase project credentials are hardcoded in `src/integrations/supabase/client.ts`. Authentication flows (sign-up/login) depend on the remote Supabase instance being accessible and properly configured; sign-up may reject emails if the Supabase project has email restrictions enabled.
+- The Supabase project credentials are hardcoded in `src/integrations/supabase/client.ts`. Authentication flows (sign-up/login) depend on the remote Supabase instance being accessible and properly configured.
 - There are no automated tests in this repository.
+- Supabase email verification may need to be disabled in the Supabase dashboard (Authentication > Settings > Email Auth > "Confirm email") for sign-up to work in dev/test without a real inbox.
