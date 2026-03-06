@@ -56,6 +56,16 @@ const InstallmentPayments = () => {
     newRemainingAmount: number;
   } | null>(null);
 
+  // Keep selectedPayment in sync with refreshed installmentPayments
+  useEffect(() => {
+    if (selectedPayment) {
+      const updated = installmentPayments.find(ip => ip.id === selectedPayment.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPayment)) {
+        setSelectedPayment(updated);
+      }
+    }
+  }, [installmentPayments]);
+
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
       case 'weekly': return 'Hebdomadaire';
