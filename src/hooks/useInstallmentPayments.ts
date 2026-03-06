@@ -195,26 +195,66 @@ export const useInstallmentPayments = () => {
   ) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    const currentInstallment = installmentPayments.find(ip => ip.id === id);
-    if (!currentInstallment && !skipHistory) {
-      return { error: new Error('Installment payment not found') };
+    // Always fetch current state from DB to avoid stale in-memory state
+    const { data: freshData, error: fetchError } = await supabase
+      .from('installment_payments')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchError || !freshData) {
+      console.error('Error fetching current installment for update:', fetchError);
+      return { error: fetchError || new Error('Installment payment not found') };
     }
 
-    const finalUpdates = { ...updates };
+    const currentInstallment: InstallmentPayment = {
+      ...freshData,
+      payment_type: (freshData.payment_type as 'reimbursement' | 'payment') || 'payment',
+    };
 
-    // If total_amount is being updated, recalculate remaining_amount
-    if (updates.total_amount !== undefined && currentInstallment) {
-      const amountAlreadyPaid = currentInstallment.total_amount - currentInstallment.remaining_amount;
-      finalUpdates.remaining_amount = Math.max(0, updates.total_amount - amountAlreadyPaid);
+    // Build only the fields that actually changed for the DB update
+    const dbUpdates: Record<string, unknown> = {};
+    const trackableFields: Array<keyof InstallmentPayment> = [
+      'description', 'total_amount', 'installment_amount', 'frequency',
+      'next_payment_date', 'account_id', 'category_id', 'payment_type',
+      'is_active', 'remaining_amount',
+    ];
 
-      if (finalUpdates.remaining_amount <= 0) {
-        finalUpdates.is_active = false;
+    for (const field of trackableFields) {
+      if (updates[field] !== undefined) {
+        // Compare with current DB value (handle type coercion for numbers)
+        const currentVal = currentInstallment[field];
+        const newVal = updates[field];
+        if (typeof currentVal === 'number' && typeof newVal === 'number') {
+          if (Math.abs(currentVal - newVal) > 0.001) {
+            dbUpdates[field] = newVal;
+          }
+        } else if (currentVal !== newVal) {
+          dbUpdates[field] = newVal;
+        }
       }
+    }
+
+    // If total_amount changed, recalculate remaining_amount
+    if (dbUpdates.total_amount !== undefined) {
+      const amountAlreadyPaid = currentInstallment.total_amount - currentInstallment.remaining_amount;
+      const newRemaining = Math.max(0, (dbUpdates.total_amount as number) - amountAlreadyPaid);
+      dbUpdates.remaining_amount = newRemaining;
+      if (newRemaining <= 0) {
+        dbUpdates.is_active = false;
+      }
+    }
+
+    // Nothing changed — no update needed
+    if (Object.keys(dbUpdates).length === 0) {
+      console.info('[installment-update] No changes detected, skipping update');
+      return { error: null };
     }
 
     const { error } = await supabase
       .from('installment_payments')
-      .update(finalUpdates)
+      .update(dbUpdates)
       .eq('id', id)
       .eq('user_id', user.id);
 
@@ -224,104 +264,87 @@ export const useInstallmentPayments = () => {
     }
 
     // Log history change
-    if (!skipHistory && currentInstallment) {
+    if (!skipHistory) {
       const changedFields: string[] = [];
       const oldValues: Record<string, string | number | boolean | null> = {};
       const newValues: Record<string, string | number | boolean | null> = {};
 
-      // Track what changed
-      if (updates.total_amount !== undefined && updates.total_amount !== currentInstallment.total_amount) {
-        changedFields.push('montant total');
-        oldValues.total_amount = currentInstallment.total_amount;
-        newValues.total_amount = updates.total_amount;
-      }
-      if (updates.installment_amount !== undefined && updates.installment_amount !== currentInstallment.installment_amount) {
-        changedFields.push('mensualité');
-        oldValues.installment_amount = currentInstallment.installment_amount;
-        newValues.installment_amount = updates.installment_amount;
-      }
-      if (updates.remaining_amount !== undefined && updates.remaining_amount !== currentInstallment.remaining_amount) {
-        oldValues.remaining_amount = currentInstallment.remaining_amount;
-        newValues.remaining_amount = updates.remaining_amount;
-      }
-      if (finalUpdates.remaining_amount !== undefined && finalUpdates.remaining_amount !== currentInstallment.remaining_amount) {
-        oldValues.remaining_amount = currentInstallment.remaining_amount;
-        newValues.remaining_amount = finalUpdates.remaining_amount;
-      }
-      if (updates.is_active !== undefined && updates.is_active !== currentInstallment.is_active) {
-        changedFields.push(updates.is_active ? 'réactivé' : 'terminé');
-        oldValues.is_active = currentInstallment.is_active;
-        newValues.is_active = updates.is_active;
-      }
-      if (updates.frequency !== undefined && updates.frequency !== currentInstallment.frequency) {
-        changedFields.push('fréquence');
-        oldValues.frequency = currentInstallment.frequency;
-        newValues.frequency = updates.frequency;
+      // Track ALL changed fields
+      const fieldLabels: Record<string, string> = {
+        total_amount: 'montant total',
+        installment_amount: 'mensualité',
+        remaining_amount: 'montant restant',
+        frequency: 'fréquence',
+        description: 'description',
+        payment_type: 'type de paiement',
+        next_payment_date: 'prochain paiement',
+        account_id: 'compte',
+        category_id: 'catégorie',
+        is_active: 'statut',
+      };
+
+      for (const [field, value] of Object.entries(dbUpdates)) {
+        const currentVal = currentInstallment[field as keyof InstallmentPayment];
+        oldValues[field] = currentVal as string | number | boolean | null;
+        newValues[field] = value as string | number | boolean | null;
+        if (fieldLabels[field]) {
+          changedFields.push(fieldLabels[field]);
+        }
       }
 
       // Determine change type
       let changeType: InstallmentPaymentHistory['change_type'] = 'updated';
-      if (updates.total_amount !== undefined || updates.installment_amount !== undefined) {
+      if (dbUpdates.total_amount !== undefined || dbUpdates.installment_amount !== undefined) {
         changeType = 'amount_changed';
       }
-      if (updates.is_active === false && currentInstallment.is_active === true) {
+      if (dbUpdates.is_active === false && currentInstallment.is_active === true) {
         changeType = 'completed';
       }
-      if (updates.is_active === true && currentInstallment.is_active === false) {
+      if (dbUpdates.is_active === true && currentInstallment.is_active === false) {
         changeType = 'reactivated';
       }
 
-      if (Object.keys(newValues).length > 0) {
-        const description = changedFields.length > 0
-          ? `Modification: ${changedFields.join(', ')}`
-          : 'Mise à jour';
+      const description = changedFields.length > 0
+        ? `Modification: ${changedFields.join(', ')}`
+        : 'Mise à jour';
 
-        await logHistoryChange(id, changeType, oldValues, newValues, description);
-      }
+      await logHistoryChange(id, changeType, oldValues, newValues, description);
     }
 
-    // Synchronize with recurring transaction
+    // Synchronize with recurring transaction — use the effective final values
     const recurringUpdates: Record<string, string | number | boolean | null> = {};
+    const effectivePaymentType = (dbUpdates.payment_type as string) ?? currentInstallment.payment_type ?? 'payment';
+    const effectiveDescription = (dbUpdates.description as string) ?? currentInstallment.description;
 
-    if (updates.description !== undefined) {
-      const paymentType = updates.payment_type || currentInstallment?.payment_type || 'payment';
-      const descriptionSuffix = paymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
-      recurringUpdates.description = `${updates.description} (${descriptionSuffix})`;
+    // Always sync type to ensure it matches payment_type
+    recurringUpdates.type = effectivePaymentType === 'reimbursement' ? 'income' : 'expense';
+
+    // Always sync description with correct suffix
+    const descriptionSuffix = effectivePaymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
+    recurringUpdates.description = `${effectiveDescription} (${descriptionSuffix})`;
+
+    if (dbUpdates.installment_amount !== undefined) {
+      recurringUpdates.amount = dbUpdates.installment_amount as number;
     }
-    if (updates.installment_amount !== undefined) {
-      recurringUpdates.amount = updates.installment_amount;
+    if (dbUpdates.account_id !== undefined) {
+      recurringUpdates.account_id = dbUpdates.account_id as string;
     }
-    if (updates.account_id !== undefined) {
-      recurringUpdates.account_id = updates.account_id;
+    if (dbUpdates.category_id !== undefined) {
+      recurringUpdates.category_id = dbUpdates.category_id as string | null;
     }
-    if (updates.category_id !== undefined) {
-      recurringUpdates.category_id = updates.category_id;
+    if (dbUpdates.next_payment_date !== undefined || updates.next_payment_date !== undefined) {
+      recurringUpdates.next_due_date = (dbUpdates.next_payment_date ?? updates.next_payment_date) as string;
     }
-    if (updates.next_payment_date !== undefined) {
-      recurringUpdates.next_due_date = updates.next_payment_date;
-    }
-    // Always ensure recurring type matches the installment payment_type
-    // This also repairs any historical type mismatch
-    {
-      const effectivePaymentType = updates.payment_type ?? currentInstallment?.payment_type ?? 'payment';
-      recurringUpdates.type = effectivePaymentType === 'reimbursement' ? 'income' : 'expense';
-      // Update description suffix if payment_type changed but description wasn't explicitly changed
-      if (updates.payment_type !== undefined && updates.description === undefined && currentInstallment) {
-        const descriptionSuffix = effectivePaymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
-        const baseName = currentInstallment.description;
-        recurringUpdates.description = `${baseName} (${descriptionSuffix})`;
-      }
-    }
-    if (updates.frequency !== undefined) {
+    if (dbUpdates.frequency !== undefined) {
       const frequencyMap: Record<string, string> = {
         'weekly': 'weekly',
         'monthly': 'monthly',
         'quarterly': 'quarterly'
       };
-      recurringUpdates.recurrence_type = frequencyMap[updates.frequency] || 'monthly';
+      recurringUpdates.recurrence_type = frequencyMap[dbUpdates.frequency as string] || 'monthly';
     }
-    if (updates.is_active !== undefined) {
-      recurringUpdates.is_active = updates.is_active;
+    if (dbUpdates.is_active !== undefined) {
+      recurringUpdates.is_active = dbUpdates.is_active as boolean;
     }
 
     if (Object.keys(recurringUpdates).length > 0) {

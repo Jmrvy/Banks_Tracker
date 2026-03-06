@@ -261,15 +261,15 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     return null;
   };
 
-  const renderChart = (height: number, gradientSuffix: string) => (
-    <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={chartData} margin={height < 250 ? { top: 5, right: 5, left: -15, bottom: 0 } : { top: 5, right: 10, left: 0, bottom: 0 }}>
+  const renderChart = () => (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
         <defs>
-          <linearGradient id={`colorBalance${gradientSuffix}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
           </linearGradient>
-          <linearGradient id={`colorProjected${gradientSuffix}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="colorProjected" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15}/>
             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
           </linearGradient>
@@ -278,19 +278,16 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         <XAxis
           dataKey="date"
           stroke="hsl(var(--muted-foreground))"
-          fontSize={height < 250 ? 9 : 12}
+          fontSize={12}
           tickLine={false}
-          interval={height < 250 ? Math.max(0, Math.floor(chartData.length / 5) - 1) : "preserveStartEnd"}
-          angle={height < 250 ? -30 : 0}
-          textAnchor={height < 250 ? "end" : "middle"}
-          height={height < 250 ? 35 : 30}
+          interval="preserveStartEnd"
         />
         <YAxis
           stroke="hsl(var(--muted-foreground))"
-          fontSize={height < 250 ? 9 : 12}
+          fontSize={12}
           tickLine={false}
-          tickFormatter={(value) => height < 250 ? `${(value/1000).toFixed(0)}k` : `${value.toLocaleString()}€`}
-          width={height < 250 ? 30 : 60}
+          tickFormatter={(value) => `${value.toLocaleString()}€`}
+          width={60}
         />
         <Tooltip content={<CustomTooltip />} />
         <Area
@@ -298,7 +295,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           dataKey="balance"
           stroke="hsl(var(--primary))"
           strokeWidth={2}
-          fill={`url(#colorBalance${gradientSuffix})`}
+          fill="url(#colorBalance)"
           connectNulls={false}
         />
         <Area
@@ -307,7 +304,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           stroke="hsl(var(--primary))"
           strokeWidth={2}
           strokeDasharray="5 5"
-          fill={`url(#colorProjected${gradientSuffix})`}
+          fill="url(#colorProjected)"
           connectNulls={true}
         />
       </ComposedChart>
@@ -338,11 +335,8 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         </div>
 
         <div className={isPrivacyMode ? "blur-md select-none" : ""}>
-          <div className="sm:hidden">
-            {renderChart(200, "Mobile")}
-          </div>
-          <div className="hidden sm:block">
-            {renderChart(300, "")}
+          <div className="h-[250px] sm:h-[300px]">
+            {renderChart()}
           </div>
         </div>
       </CardContent>
