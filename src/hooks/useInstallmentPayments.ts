@@ -300,11 +300,14 @@ export const useInstallmentPayments = () => {
     if (updates.next_payment_date !== undefined) {
       recurringUpdates.next_due_date = updates.next_payment_date;
     }
-    if (updates.payment_type !== undefined) {
-      recurringUpdates.type = updates.payment_type === 'reimbursement' ? 'income' : 'expense';
-      // Also update description suffix if description wasn't already changed
-      if (updates.description === undefined && currentInstallment) {
-        const descriptionSuffix = updates.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
+    // Always ensure recurring type matches the installment payment_type
+    // This also repairs any historical type mismatch
+    {
+      const effectivePaymentType = updates.payment_type ?? currentInstallment?.payment_type ?? 'payment';
+      recurringUpdates.type = effectivePaymentType === 'reimbursement' ? 'income' : 'expense';
+      // Update description suffix if payment_type changed but description wasn't explicitly changed
+      if (updates.payment_type !== undefined && updates.description === undefined && currentInstallment) {
+        const descriptionSuffix = effectivePaymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
         const baseName = currentInstallment.description;
         recurringUpdates.description = `${baseName} (${descriptionSuffix})`;
       }
