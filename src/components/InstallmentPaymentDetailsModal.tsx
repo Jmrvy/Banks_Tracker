@@ -11,7 +11,7 @@ import {
   InstallmentPayment,
   InstallmentPaymentHistory,
 } from '@/hooks/useInstallmentPayments';
-import { RefreshCw, History, TrendingDown, TrendingUp, ArrowRight, Calendar, Loader2 } from 'lucide-react';
+import { RefreshCw, History, TrendingDown, TrendingUp, ArrowRight, Calendar, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -27,7 +27,7 @@ export const InstallmentPaymentDetailsModal = ({
   installmentPayment,
 }: InstallmentPaymentDetailsModalProps) => {
   const { toast } = useToast();
-  const { recalculateInstallmentPayment, fetchPaymentHistory } = useInstallmentPayments();
+  const { recalculateInstallmentPayment, fetchPaymentHistory, deleteHistoryEntry } = useInstallmentPayments();
   const [history, setHistory] = useState<InstallmentPaymentHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
@@ -217,16 +217,31 @@ export const InstallmentPaymentDetailsModal = ({
                   {history.map((entry) => {
                     const typeInfo = getChangeTypeLabel(entry.change_type);
                     return (
-                      <Card key={entry.id} className="overflow-hidden">
+                      <Card key={entry.id} className="overflow-hidden group">
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
                               <div className={`w-2 h-2 rounded-full ${typeInfo.color}`} />
                               <span className="text-sm font-medium">{typeInfo.label}</span>
                             </div>
-                            <span className="text-[10px] text-muted-foreground">
-                              {formatDate(entry.created_at)}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatDate(entry.created_at)}
+                              </span>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const { error } = await deleteHistoryEntry(entry.id);
+                                  if (!error) {
+                                    setHistory(prev => prev.filter(h => h.id !== entry.id));
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
+                                title="Supprimer cette entrée"
+                              >
+                                <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                              </button>
+                            </div>
                           </div>
 
                           {entry.change_description && (

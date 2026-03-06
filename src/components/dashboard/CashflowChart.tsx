@@ -263,7 +263,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
 
   const renderChart = (height: number, gradientSuffix: string) => (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={chartData}>
+      <ComposedChart data={chartData} margin={height < 250 ? { top: 5, right: 5, left: -15, bottom: 0 } : { top: 5, right: 10, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={`colorBalance${gradientSuffix}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -280,7 +280,10 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           stroke="hsl(var(--muted-foreground))"
           fontSize={height < 250 ? 9 : 12}
           tickLine={false}
-          interval="preserveStartEnd"
+          interval={height < 250 ? Math.max(0, Math.floor(chartData.length / 5) - 1) : "preserveStartEnd"}
+          angle={height < 250 ? -30 : 0}
+          textAnchor={height < 250 ? "end" : "middle"}
+          height={height < 250 ? 35 : 30}
         />
         <YAxis
           stroke="hsl(var(--muted-foreground))"

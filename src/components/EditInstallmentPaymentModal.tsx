@@ -77,9 +77,10 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
         variant: "destructive",
       });
     } else {
+      const label = formData.payment_type === 'reimbursement' ? 'remboursement' : 'paiement';
       toast({
-        title: "Paiement modifié",
-        description: "Le paiement en plusieurs fois a été modifié avec succès.",
+        title: `${label.charAt(0).toUpperCase() + label.slice(1)} échelonné modifié`,
+        description: `Le ${label} échelonné a été modifié avec succès.`,
       });
       onOpenChange(false);
     }
