@@ -85,6 +85,13 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     transactions.forEach((transaction) => {
       if (!transaction.is_active) return;
 
+      // Skip if end_date has passed before this month
+      let endDateLimit: Date | null = null;
+      if (transaction.end_date) {
+        endDateLimit = parseLocalDate(transaction.end_date);
+        if (endDateLimit < monthStart) return;
+      }
+
       const startDate = parseLocalDate(transaction.start_date);
 
       // Calculate all occurrences of this transaction in the current month
@@ -110,8 +117,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         }
       }
 
-      // Add all occurrences within this month
+      // Add all occurrences within this month (respecting end_date)
       while (currentOccurrence <= monthEnd) {
+        // Stop if past end_date
+        if (endDateLimit && currentOccurrence > endDateLimit) break;
+
         if (isSameMonth(currentOccurrence, currentMonth)) {
           const key = format(currentOccurrence, 'yyyy-MM-dd');
           const isPast = isBefore(currentOccurrence, today);

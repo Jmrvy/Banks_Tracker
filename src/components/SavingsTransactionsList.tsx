@@ -30,16 +30,23 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
         })
       : sortedTransactions;
 
+    // In savings context:
+    // - Investment expenses (deposit) = +balance
+    // - Investment income (withdrawal) = -balance
+    // - Reimbursement (income with installment_payment_id) = +balance
+    const getSavingsEffect = (tx: Transaction) => {
+      if (tx.installment_payment_id) return tx.amount; // reimbursement = positive
+      if (tx.type === 'expense') return tx.amount;      // investment deposit = positive
+      if (tx.type === 'income') return -tx.amount;      // investment withdrawal = negative
+      return 0;
+    };
+
     let runningBalance = 0;
     if (startDate) {
       sortedTransactions.forEach(tx => {
         const transactionDate = new Date(tx.transaction_date);
         if (transactionDate < startDate) {
-          if (tx.type === 'expense') {
-            runningBalance += tx.amount;
-          } else if (tx.type === 'income') {
-            runningBalance -= tx.amount;
-          }
+          runningBalance += getSavingsEffect(tx);
         }
       });
     }
@@ -48,12 +55,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
 
     periodTransactions.forEach((tx) => {
       const balanceBefore = runningBalance;
-
-      if (tx.type === 'expense') {
-        runningBalance += tx.amount;
-      } else if (tx.type === 'income') {
-        runningBalance -= tx.amount;
-      }
+      runningBalance += getSavingsEffect(tx);
 
       result.push({
         ...tx,
@@ -65,7 +67,14 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
     return result.reverse();
   }, [transactions, startDate, endDate]);
 
-  const getTransactionIcon = (type: string) => {
+  // In savings context: expense = deposit (money going into savings), income = withdrawal (money coming out)
+  // But reimbursement transactions (linked to installment payments) are income type and should show as positive savings
+  const isReimbursement = (tx: Transaction) => !!tx.installment_payment_id;
+
+  const getTransactionIcon = (type: string, tx: Transaction) => {
+    if (isReimbursement(tx)) {
+      return <TrendingUp className="h-4 w-4 text-success" />;
+    }
     switch (type) {
       case 'expense':
         return <TrendingUp className="h-4 w-4 text-success" />;
@@ -76,7 +85,10 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
     }
   };
 
-  const getTypeLabel = (type: string) => {
+  const getTypeLabel = (type: string, tx: Transaction) => {
+    if (isReimbursement(tx)) {
+      return t('savings.reimbursement', 'Remboursement');
+    }
     switch (type) {
       case 'expense':
         return t('savings.deposit');
@@ -85,6 +97,16 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
       default:
         return type;
     }
+  };
+
+  const getAmountColor = (tx: Transaction) => {
+    if (isReimbursement(tx)) return 'text-success';
+    return tx.type === 'expense' ? 'text-success' : 'text-destructive';
+  };
+
+  const getAmountPrefix = (tx: Transaction) => {
+    if (isReimbursement(tx)) return '+';
+    return tx.type === 'expense' ? '+' : '-';
   };
 
   return (
@@ -111,23 +133,21 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 {/* Mobile: Single line compact view */}
                 <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
                   <div className="flex-shrink-0">
-                    {getTransactionIcon(tx.type)}
+                    {getTransactionIcon(tx.type, tx)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{tx.description}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {format(new Date(tx.transaction_date), 'dd/MM', { locale: fr })}
-                      <span className="ml-1">&bull; {getTypeLabel(tx.type)}</span>
+                      <span className="ml-1">&bull; {getTypeLabel(tx.type, tx)}</span>
                     </p>
                   </div>
                 </div>
 
                 {/* Mobile: Amount and balance */}
                 <div className="flex items-center gap-3 flex-shrink-0 sm:hidden">
-                  <p className={`font-bold text-xs ${
-                    tx.type === 'expense' ? 'text-success' : 'text-destructive'
-                  }`}>
-                    {tx.type === 'expense' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  <p className={`font-bold text-xs ${getAmountColor(tx)}`}>
+                    {getAmountPrefix(tx)}{formatCurrency(tx.amount)}
                   </p>
                   <p className={`font-medium text-xs ${
                     tx.balanceAfter >= 0 ? 'text-primary/70' : 'text-destructive/70'
@@ -139,7 +159,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 {/* Desktop: Full view */}
                 <div className="hidden sm:flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
-                    {getTransactionIcon(tx.type)}
+                    {getTransactionIcon(tx.type, tx)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{tx.description}</p>
@@ -147,7 +167,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                       <span>{format(new Date(tx.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
                       <span>&bull;</span>
                       <Badge variant="outline" className="text-xs">
-                        {getTypeLabel(tx.type)}
+                        {getTypeLabel(tx.type, tx)}
                       </Badge>
                       {tx.account && (
                         <>
@@ -160,10 +180,8 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 </div>
                 <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
                   <div className="text-right">
-                    <p className={`font-bold text-base ${
-                      tx.type === 'expense' ? 'text-success' : 'text-destructive'
-                    }`}>
-                      {tx.type === 'expense' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    <p className={`font-bold text-base ${getAmountColor(tx)}`}>
+                      {getAmountPrefix(tx)}{formatCurrency(tx.amount)}
                     </p>
                   </div>
                   <div className="text-right w-32">
