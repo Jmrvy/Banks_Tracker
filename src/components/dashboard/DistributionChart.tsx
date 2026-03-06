@@ -51,9 +51,12 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     monthTransactions.forEach(t => {
       const catName = t.category?.name || 'Unknown';
       const catColor = t.category?.color || COLORS[0];
+      const refundedAmount = t.refunded_amount || 0;
+      const netAmount = Math.max(0, t.amount - refundedAmount);
+      if (netAmount <= 0) return; // Skip fully refunded transactions
       const existing = categoryTotals.get(catName);
       categoryTotals.set(catName, { 
-        amount: (existing?.amount || 0) + t.amount,
+        amount: (existing?.amount || 0) + netAmount,
         color: existing?.color || catColor
       });
     });
