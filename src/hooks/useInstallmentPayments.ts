@@ -204,7 +204,7 @@ export const useInstallmentPayments = () => {
       .single();
 
     if (fetchError || !freshData) {
-      console.error('Error fetching current installment for update:', fetchError);
+      console.error('[installment-update] Error fetching current:', fetchError);
       return { error: fetchError || new Error('Installment payment not found') };
     }
 
@@ -213,30 +213,21 @@ export const useInstallmentPayments = () => {
       payment_type: (freshData.payment_type as 'reimbursement' | 'payment') || 'payment',
     };
 
-    // Build only the fields that actually changed for the DB update
+    // Build the update payload — send all provided fields
     const dbUpdates: Record<string, unknown> = {};
-    const trackableFields: Array<keyof InstallmentPayment> = [
+    const allowedFields: Array<keyof InstallmentPayment> = [
       'description', 'total_amount', 'installment_amount', 'frequency',
       'next_payment_date', 'account_id', 'category_id', 'payment_type',
-      'is_active', 'remaining_amount',
+      'is_active', 'remaining_amount', 'end_date',
     ];
 
-    for (const field of trackableFields) {
+    for (const field of allowedFields) {
       if (updates[field] !== undefined) {
-        // Compare with current DB value (handle type coercion for numbers)
-        const currentVal = currentInstallment[field];
-        const newVal = updates[field];
-        if (typeof currentVal === 'number' && typeof newVal === 'number') {
-          if (Math.abs(currentVal - newVal) > 0.001) {
-            dbUpdates[field] = newVal;
-          }
-        } else if (currentVal !== newVal) {
-          dbUpdates[field] = newVal;
-        }
+        dbUpdates[field] = updates[field];
       }
     }
 
-    // If total_amount changed, recalculate remaining_amount
+    // If total_amount is being updated, recalculate remaining_amount
     if (dbUpdates.total_amount !== undefined) {
       const amountAlreadyPaid = currentInstallment.total_amount - currentInstallment.remaining_amount;
       const newRemaining = Math.max(0, (dbUpdates.total_amount as number) - amountAlreadyPaid);
@@ -246,30 +237,37 @@ export const useInstallmentPayments = () => {
       }
     }
 
-    // Nothing changed — no update needed
     if (Object.keys(dbUpdates).length === 0) {
-      console.info('[installment-update] No changes detected, skipping update');
       return { error: null };
     }
 
-    const { error } = await supabase
+    // Update and select back to confirm persistence
+    const { data: updatedRow, error } = await supabase
       .from('installment_payments')
       .update(dbUpdates)
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .select()
+      .single();
 
     if (error) {
-      console.error('Error updating installment payment:', error);
+      console.error('[installment-update] Supabase update error:', error);
       return { error };
     }
 
-    // Log history change
+    if (!updatedRow) {
+      console.error('[installment-update] Update returned no row — RLS or filter issue');
+      return { error: new Error('Update did not persist — no row returned') };
+    }
+
+    console.info('[installment-update] Successfully updated:', id, dbUpdates);
+
+    // Log history change — compare DB before vs after
     if (!skipHistory) {
       const changedFields: string[] = [];
       const oldValues: Record<string, string | number | boolean | null> = {};
       const newValues: Record<string, string | number | boolean | null> = {};
 
-      // Track ALL changed fields
       const fieldLabels: Record<string, string> = {
         total_amount: 'montant total',
         installment_amount: 'mensualité',
@@ -283,68 +281,68 @@ export const useInstallmentPayments = () => {
         is_active: 'statut',
       };
 
-      for (const [field, value] of Object.entries(dbUpdates)) {
-        const currentVal = currentInstallment[field as keyof InstallmentPayment];
-        oldValues[field] = currentVal as string | number | boolean | null;
-        newValues[field] = value as string | number | boolean | null;
-        if (fieldLabels[field]) {
-          changedFields.push(fieldLabels[field]);
+      for (const field of allowedFields) {
+        const oldVal = currentInstallment[field];
+        const newVal = updatedRow[field];
+        let changed = false;
+        if (typeof oldVal === 'number' && typeof newVal === 'number') {
+          changed = Math.abs(oldVal - newVal) > 0.001;
+        } else {
+          changed = oldVal !== newVal;
+        }
+        if (changed) {
+          oldValues[field] = oldVal as string | number | boolean | null;
+          newValues[field] = newVal as string | number | boolean | null;
+          if (fieldLabels[field]) {
+            changedFields.push(fieldLabels[field]);
+          }
         }
       }
 
-      // Determine change type
-      let changeType: InstallmentPaymentHistory['change_type'] = 'updated';
-      if (dbUpdates.total_amount !== undefined || dbUpdates.installment_amount !== undefined) {
-        changeType = 'amount_changed';
+      if (Object.keys(newValues).length > 0) {
+        let changeType: InstallmentPaymentHistory['change_type'] = 'updated';
+        if (newValues.total_amount !== undefined || newValues.installment_amount !== undefined) {
+          changeType = 'amount_changed';
+        }
+        if (updatedRow.is_active === false && currentInstallment.is_active === true) {
+          changeType = 'completed';
+        }
+        if (updatedRow.is_active === true && currentInstallment.is_active === false) {
+          changeType = 'reactivated';
+        }
+
+        const description = changedFields.length > 0
+          ? `Modification: ${changedFields.join(', ')}`
+          : 'Mise à jour';
+
+        await logHistoryChange(id, changeType, oldValues, newValues, description);
       }
-      if (dbUpdates.is_active === false && currentInstallment.is_active === true) {
-        changeType = 'completed';
-      }
-      if (dbUpdates.is_active === true && currentInstallment.is_active === false) {
-        changeType = 'reactivated';
-      }
-
-      const description = changedFields.length > 0
-        ? `Modification: ${changedFields.join(', ')}`
-        : 'Mise à jour';
-
-      await logHistoryChange(id, changeType, oldValues, newValues, description);
     }
 
-    // Synchronize with recurring transaction — use the effective final values
-    const recurringUpdates: Record<string, string | number | boolean | null> = {};
-    const effectivePaymentType = (dbUpdates.payment_type as string) ?? currentInstallment.payment_type ?? 'payment';
-    const effectiveDescription = (dbUpdates.description as string) ?? currentInstallment.description;
+    // Synchronize with recurring transaction using the confirmed updated values
+    const effectivePaymentType = (updatedRow.payment_type as string) || 'payment';
+    const effectiveDescription = updatedRow.description as string;
+    const descSuffix = effectivePaymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
 
-    // Always sync type to ensure it matches payment_type
-    recurringUpdates.type = effectivePaymentType === 'reimbursement' ? 'income' : 'expense';
+    const recurringUpdates: Record<string, string | number | boolean | null> = {
+      type: effectivePaymentType === 'reimbursement' ? 'income' : 'expense',
+      description: `${effectiveDescription} (${descSuffix})`,
+      amount: updatedRow.installment_amount,
+      account_id: updatedRow.account_id,
+      category_id: updatedRow.category_id,
+      is_active: updatedRow.is_active,
+    };
 
-    // Always sync description with correct suffix
-    const descriptionSuffix = effectivePaymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
-    recurringUpdates.description = `${effectiveDescription} (${descriptionSuffix})`;
-
-    if (dbUpdates.installment_amount !== undefined) {
-      recurringUpdates.amount = dbUpdates.installment_amount as number;
+    if (updates.next_payment_date !== undefined) {
+      recurringUpdates.next_due_date = updates.next_payment_date;
     }
-    if (dbUpdates.account_id !== undefined) {
-      recurringUpdates.account_id = dbUpdates.account_id as string;
-    }
-    if (dbUpdates.category_id !== undefined) {
-      recurringUpdates.category_id = dbUpdates.category_id as string | null;
-    }
-    if (dbUpdates.next_payment_date !== undefined || updates.next_payment_date !== undefined) {
-      recurringUpdates.next_due_date = (dbUpdates.next_payment_date ?? updates.next_payment_date) as string;
-    }
-    if (dbUpdates.frequency !== undefined) {
+    if (updates.frequency !== undefined) {
       const frequencyMap: Record<string, string> = {
         'weekly': 'weekly',
         'monthly': 'monthly',
         'quarterly': 'quarterly'
       };
-      recurringUpdates.recurrence_type = frequencyMap[dbUpdates.frequency as string] || 'monthly';
-    }
-    if (dbUpdates.is_active !== undefined) {
-      recurringUpdates.is_active = dbUpdates.is_active as boolean;
+      recurringUpdates.recurrence_type = frequencyMap[updates.frequency] || 'monthly';
     }
 
     if (Object.keys(recurringUpdates).length > 0) {
