@@ -325,7 +325,7 @@ export const useInstallmentPayments = () => {
     }
 
     if (Object.keys(recurringUpdates).length > 0) {
-      const { error: recurringError } = await supabase
+      const { error: recurringError, count } = await supabase
         .from('recurring_transactions')
         .update(recurringUpdates)
         .eq('installment_payment_id', id)
@@ -333,6 +333,9 @@ export const useInstallmentPayments = () => {
 
       if (recurringError) {
         console.error('Error syncing recurring transaction:', recurringError);
+      } else {
+        // Notify useFinancialData to refresh recurring transactions
+        window.dispatchEvent(new CustomEvent('installment-recurring-updated'));
       }
     }
 
@@ -643,6 +646,22 @@ export const useInstallmentPayments = () => {
     }
   }, [user]);
 
+  const deleteHistoryEntry = async (entryId: string) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const { error } = await supabase
+      .from('installment_payment_history')
+      .delete()
+      .eq('id', entryId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting history entry:', error);
+      return { error };
+    }
+    return { error: null };
+  };
+
   const completeInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
@@ -704,5 +723,6 @@ export const useInstallmentPayments = () => {
     adjustInstallmentPlan,
     recalculateInstallmentPayment,
     fetchPaymentHistory,
+    deleteHistoryEntry,
   };
 };

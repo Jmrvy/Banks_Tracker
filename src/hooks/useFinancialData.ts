@@ -1059,10 +1059,17 @@ export function useFinancialData() {
       )
       .subscribe();
 
+    // Listen for cross-hook installment→recurring sync events
+    const handleInstallmentSync = () => {
+      fetchRecurringTransactions();
+    };
+    window.addEventListener('installment-recurring-updated', handleInstallmentSync);
+
     return () => {
-      
+
       clearInterval(recurringCheckInterval);
       supabase.removeChannel(channel);
+      window.removeEventListener('installment-recurring-updated', handleInstallmentSync);
     };
   }, [user?.id]);
 

@@ -41,15 +41,9 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
       return 0;
     };
 
+    // Running balance starts at 0 for the selected period
+    // (period net savings, not cumulative from all time)
     let runningBalance = 0;
-    if (startDate) {
-      sortedTransactions.forEach(tx => {
-        const transactionDate = new Date(tx.transaction_date);
-        if (transactionDate < startDate) {
-          runningBalance += getSavingsEffect(tx);
-        }
-      });
-    }
 
     const result: Array<Transaction & { balanceBefore: number; balanceAfter: number }> = [];
 
