@@ -338,7 +338,7 @@ const Savings = () => {
 
         {/* Transactions List with Running Balance */}
         <SavingsTransactionsList
-          transactions={periodTransactions}
+          transactions={[...periodTransactions, ...reimbursementTransactions]}
           startDate={dateRange.start}
           endDate={dateRange.end}
         />
@@ -355,7 +355,7 @@ const Savings = () => {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reimbursementInstallments.map((installment) => {
-                const progress = installment.total_amount > 0 ? ((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 100 : 0;
+                const progress = installment.total_amount > 0 ? Math.min(100, Math.round(((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 1000) / 10) : 0;
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (
@@ -384,6 +384,19 @@ const Savings = () => {
                           <span>{t('savings.monthly')}: {formatCurrency(installment.installment_amount)}</span>
                           <span>{t('savings.remaining')}: {formatCurrency(installment.remaining_amount)}</span>
                         </div>
+                        {installment.is_active && (
+                          <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border/50 mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Prochain: {format(new Date(installment.next_payment_date), 'dd/MM/yyyy', { locale: fr })}
+                            </span>
+                            {installment.installment_amount > 0 && (
+                              <span>
+                                ~{Math.ceil(installment.remaining_amount / installment.installment_amount)} échéances
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

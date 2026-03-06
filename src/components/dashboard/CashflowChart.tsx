@@ -107,6 +107,13 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         const recurringOccurrences = new Map<number, { income: number; expense: number }>();
 
         for (const rt of activeRecurring) {
+          // Parse end_date to stop projecting past it
+          let endDateLimit: Date | null = null;
+          if (rt.end_date) {
+            const [ey, em, ed] = rt.end_date.split('-').map(Number);
+            endDateLimit = new Date(ey, em - 1, ed);
+          }
+
           const [_y, _m, _d] = rt.next_due_date.split('-').map(Number);
           let nextDue = new Date(_y, _m - 1, _d);
 
@@ -126,8 +133,11 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
             nextDue = advanceDate(nextDue);
           }
 
-          // Collect all occurrences within the future period
+          // Collect all occurrences within the future period, respecting end_date
           while (isBefore(nextDue, periodEnd) || isSameDay(nextDue, periodEnd)) {
+            // Stop if this recurring transaction has ended
+            if (endDateLimit && isBefore(endDateLimit, nextDue)) break;
+
             if (isBefore(today, nextDue) || isSameDay(today, nextDue)) {
               const dayIndex = data.findIndex(d => isSameDay(d.dateObj, nextDue));
               if (dayIndex !== -1 && data[dayIndex].balance === null) {
@@ -148,9 +158,15 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         const totalPastIncome = pastDays.reduce((sum, d) => sum + d.income, 0);
 
         // Estimate recurring portion of past spending to isolate non-recurring daily average
+        // Only count recurring transactions that are still active (not ended)
         const recurringMonthlyExpense = activeRecurring
           .filter(rt => rt.type === 'expense')
           .reduce((sum, rt) => {
+            // Skip if end_date has passed
+            if (rt.end_date) {
+              const [ey, em, ed] = rt.end_date.split('-').map(Number);
+              if (new Date(ey, em - 1, ed) < today) return sum;
+            }
             const amount = Number(rt.amount);
             switch (rt.recurrence_type) {
               case 'weekly': return sum + amount * 4.33;
@@ -164,6 +180,10 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         const recurringMonthlyIncome = activeRecurring
           .filter(rt => rt.type === 'income')
           .reduce((sum, rt) => {
+            if (rt.end_date) {
+              const [ey, em, ed] = rt.end_date.split('-').map(Number);
+              if (new Date(ey, em - 1, ed) < today) return sum;
+            }
             const amount = Number(rt.amount);
             switch (rt.recurrence_type) {
               case 'weekly': return sum + amount * 4.33;
