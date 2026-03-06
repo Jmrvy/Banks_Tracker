@@ -300,12 +300,22 @@ const RecurringTransactions = () => {
                     <CardHeader className="p-3 sm:p-6">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-sm sm:text-lg font-semibold truncate">{recurring.description}</CardTitle>
-                        <Badge 
-                          variant={recurring.is_active ? 'default' : 'secondary'}
-                          className="text-[10px] sm:text-xs flex-shrink-0"
-                        >
-                          {recurring.is_active ? 'Actif' : 'Inactif'}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {recurring.installment_payment_id && (
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
+                              {(() => {
+                                const ip = installmentPayments.find(p => p.id === recurring.installment_payment_id);
+                                return ip?.payment_type === 'reimbursement' ? 'Remboursement' : 'Échelonné';
+                              })()}
+                            </Badge>
+                          )}
+                          <Badge
+                            variant={recurring.is_active ? 'default' : 'secondary'}
+                            className="text-[10px] sm:text-xs"
+                          >
+                            {recurring.is_active ? 'Actif' : 'Inactif'}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">

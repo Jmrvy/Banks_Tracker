@@ -127,9 +127,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           const isPast = isBefore(currentOccurrence, today);
 
           // For installment-linked recurring transactions, use the correct amount:
-          // - Past: actual amount from linked transactions
+          // - Past: actual amount from the linked transaction that month
+          //         If no actual transaction exists, skip (occurrence wasn't executed)
           // - Future: installment_amount from the installment payment (always up-to-date)
           let displayAmount: number | undefined;
+          let skipOccurrence = false;
           if (transaction.installment_payment_id) {
             if (isPast) {
               const monthKey = format(currentOccurrence, 'yyyy-MM');
@@ -137,10 +139,12 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               const actualAmount = installmentActualAmounts.get(actualKey);
               if (actualAmount !== undefined) {
                 displayAmount = actualAmount;
+              } else {
+                // No actual transaction for this past month — occurrence wasn't executed
+                skipOccurrence = true;
               }
             } else {
               // For future occurrences, use the installment payment's current amount
-              // This ensures the calendar reflects the latest recalculated amount
               const ip = installmentPaymentsById.get(transaction.installment_payment_id);
               if (ip) {
                 displayAmount = ip.installment_amount;
@@ -148,8 +152,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
-          const existing = map.get(key) || [];
-          map.set(key, [...existing, { transaction, isPast, displayAmount }]);
+          if (!skipOccurrence) {
+            const existing = map.get(key) || [];
+            map.set(key, [...existing, { transaction, isPast, displayAmount }]);
+          }
         }
 
         // Move to next occurrence
@@ -449,6 +455,29 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                     {selectedTransaction.is_active ? 'Actif' : 'Inactif'}
                   </Badge>
                 </div>
+                {selectedTransaction.installment_payment_id && (() => {
+                  const ip = installmentPaymentsById.get(selectedTransaction.installment_payment_id);
+                  if (!ip) return null;
+                  const paid = ip.total_amount - ip.remaining_amount;
+                  const pct = ip.total_amount > 0 ? Math.min(100, Math.round((paid / ip.total_amount) * 1000) / 10) : 0;
+                  return (
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-1.5 mt-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">
+                          {ip.payment_type === 'reimbursement' ? 'Remboursement' : 'Paiement'} échelonné
+                        </span>
+                        <span className="text-xs font-medium">{pct}%</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>{formatCurrency(paid)} payé</span>
+                        <span>{formatCurrency(ip.remaining_amount)} restant</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Execute early button — only for future/today non-past occurrences */}
