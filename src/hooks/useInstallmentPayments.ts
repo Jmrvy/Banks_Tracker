@@ -685,8 +685,9 @@ export const useInstallmentPayments = () => {
     if (user) {
       loadData();
 
+      const channelId = `installment_payments_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       const installmentPaymentsSubscription = supabase
-        .channel('installment_payments_changes')
+        .channel(channelId)
         .on(
           'postgres_changes',
           {
