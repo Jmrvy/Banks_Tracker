@@ -39,7 +39,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
     try {
       const { error } = await supabase
         .from('accounts')
-        .update({ name: editingValues.name, bank: editingValues.bank })
+        .update({ name: editingValues.name, bank: editingValues.bank as Account['bank'] })
         .eq('id', accountId);
 
       if (error) throw error;

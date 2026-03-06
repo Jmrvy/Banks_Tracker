@@ -52,6 +52,7 @@ const InstallmentPayments = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [adjustmentData, setAdjustmentData] = useState<{
     payment: InstallmentPayment;
+    paymentAmount: number;
     newRemainingAmount: number;
   } | null>(null);
 
