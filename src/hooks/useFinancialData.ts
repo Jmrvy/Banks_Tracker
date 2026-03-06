@@ -1165,7 +1165,6 @@ export function useFinancialData() {
     processDueRecurringTransactions,
     executeRecurringTransactionEarly,
     fetchRecurringTransactions,
-    fetchTransactions,
     refetch: () => {
       fetchAccounts();
       fetchTransactions();
