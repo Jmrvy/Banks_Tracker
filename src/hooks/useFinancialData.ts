@@ -490,17 +490,19 @@ export function useFinancialData() {
     const rt = recurringTransactions.find(r => r.id === recurringId);
     if (!rt) return { error: { message: 'Transaction récurrente introuvable' } };
 
-    // For installment-linked recurring transactions, fetch the latest installment_amount
-    // from the DB to avoid using a stale React state value
+    // For installment-linked recurring transactions, fetch the latest data
+    // from the DB to avoid using stale React state values
     let transactionAmount = rt.amount;
+    let transactionType = rt.type;
     if (rt.installment_payment_id) {
       const { data: ipData } = await supabase
         .from('installment_payments')
-        .select('installment_amount')
+        .select('installment_amount, payment_type')
         .eq('id', rt.installment_payment_id)
         .single();
       if (ipData) {
         transactionAmount = ipData.installment_amount;
+        transactionType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
       }
     }
 
@@ -512,7 +514,7 @@ export function useFinancialData() {
         category_id: rt.category_id,
         description: rt.description,
         amount: transactionAmount,
-        type: rt.type,
+        type: transactionType,
         transaction_date: executionDate,
         value_date: executionDate,
         include_in_stats: true,
@@ -833,6 +835,21 @@ export function useFinancialData() {
           continue;
         }
 
+        // For installment-linked recurring, fetch correct type from installment
+        let txType = rt.type;
+        let txAmount = rt.amount;
+        if (rt.installment_payment_id) {
+          const { data: ipData } = await supabase
+            .from('installment_payments')
+            .select('installment_amount, payment_type')
+            .eq('id', rt.installment_payment_id)
+            .single();
+          if (ipData) {
+            txType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
+            txAmount = ipData.installment_amount;
+          }
+        }
+
         let currentDueDateString = rt.next_due_date;
         let occurrencesProcessed = 0;
         const maxOccurrences = 12;
@@ -847,8 +864,8 @@ export function useFinancialData() {
               account_id: rt.account_id,
               category_id: rt.category_id,
               description: `${rt.description} (Récurrence automatique)`,
-              amount: rt.amount,
-              type: rt.type,
+              amount: txAmount,
+              type: txType,
               transaction_date: currentDueDateString,
               value_date: currentDueDateString,
               include_in_stats: true,
