@@ -51,6 +51,7 @@ export const useInstallmentPayments = () => {
     } else {
       const processedData: InstallmentPayment[] = (data || []).map((ip) => ({
         ...ip,
+        frequency: ip.frequency as 'weekly' | 'monthly' | 'quarterly',
         payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
       }));
       setInstallmentPayments(processedData);
@@ -62,7 +63,7 @@ export const useInstallmentPayments = () => {
     if (!user) return [];
 
     const { data, error } = await supabase
-      .from('installment_payment_history')
+      .from('installment_payment_history' as any)
       .select('*')
       .eq('installment_payment_id', installmentPaymentId)
       .eq('user_id', user.id)
@@ -73,7 +74,7 @@ export const useInstallmentPayments = () => {
       return [];
     }
 
-    return (data || []) as InstallmentPaymentHistory[];
+    return (data || []) as unknown as InstallmentPaymentHistory[];
   };
 
   // Log a change to history
@@ -87,7 +88,7 @@ export const useInstallmentPayments = () => {
     if (!user) return;
 
     const { error } = await supabase
-      .from('installment_payment_history')
+      .from('installment_payment_history' as any)
       .insert({
         installment_payment_id: installmentPaymentId,
         user_id: user.id,
@@ -210,6 +211,7 @@ export const useInstallmentPayments = () => {
 
     const currentInstallment: InstallmentPayment = {
       ...freshData,
+      frequency: freshData.frequency as 'weekly' | 'monthly' | 'quarterly',
       payment_type: (freshData.payment_type as 'reimbursement' | 'payment') || 'payment',
     };
 
@@ -671,7 +673,7 @@ export const useInstallmentPayments = () => {
     if (!user) return { error: new Error('User not authenticated') };
 
     const { error } = await supabase
-      .from('installment_payment_history')
+      .from('installment_payment_history' as any)
       .delete()
       .eq('id', entryId)
       .eq('user_id', user.id);

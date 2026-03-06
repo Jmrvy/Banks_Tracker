@@ -206,6 +206,47 @@ export type Database = {
           },
         ]
       }
+      installment_payment_history: {
+        Row: {
+          change_description: string | null
+          change_type: string
+          created_at: string
+          id: string
+          installment_payment_id: string
+          new_values: Json | null
+          old_values: Json | null
+          user_id: string
+        }
+        Insert: {
+          change_description?: string | null
+          change_type: string
+          created_at?: string
+          id?: string
+          installment_payment_id: string
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id: string
+        }
+        Update: {
+          change_description?: string | null
+          change_type?: string
+          created_at?: string
+          id?: string
+          installment_payment_id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_payment_history_installment_payment_id_fkey"
+            columns: ["installment_payment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installment_payment_records: {
         Row: {
           amount: number

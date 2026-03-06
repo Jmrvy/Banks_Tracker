@@ -31,7 +31,7 @@ export const RecordInstallmentPaymentModal = ({
   const { toast } = useToast();
   const { user } = useAuth();
   const { installmentPayments, recalculateInstallmentPayment } = useInstallmentPayments();
-  const { transactions, fetchTransactions } = useFinancialData();
+  const { transactions, refetch } = useFinancialData();
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'new' | 'link'>('new');
@@ -118,7 +118,7 @@ export const RecordInstallmentPaymentModal = ({
       }
 
       // Recalculate remaining_amount from all linked transactions
-      await fetchTransactions();
+      await refetch();
       const { error: recalcError, result } = await recalculateInstallmentPayment(installmentPaymentId);
 
       if (recalcError) {

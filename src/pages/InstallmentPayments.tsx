@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,8 +52,19 @@ const InstallmentPayments = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [adjustmentData, setAdjustmentData] = useState<{
     payment: InstallmentPayment;
+    paymentAmount: number;
     newRemainingAmount: number;
   } | null>(null);
+
+  // Keep selectedPayment in sync with refreshed installmentPayments
+  useEffect(() => {
+    if (selectedPayment) {
+      const updated = installmentPayments.find(ip => ip.id === selectedPayment.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPayment)) {
+        setSelectedPayment(updated);
+      }
+    }
+  }, [installmentPayments]);
 
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
