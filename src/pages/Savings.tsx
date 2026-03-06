@@ -77,6 +77,23 @@ const Savings = () => {
     });
   }, [transactions, investmentCategory, dateRange]);
 
+  // ALL savings-related transactions (no date filter) for running balance calculation
+  const allSavingsTransactions = useMemo(() => {
+    const investmentTxs = investmentCategory
+      ? transactions.filter(tx => tx.category?.id === investmentCategory.id)
+      : [];
+    const reimbursementTxs = transactions.filter(tx =>
+      tx.installment_payment_id && reimbursementInstallmentIds.has(tx.installment_payment_id)
+    );
+    // Deduplicate (a tx could match both filters in theory)
+    const seen = new Set<string>();
+    return [...investmentTxs, ...reimbursementTxs].filter(tx => {
+      if (seen.has(tx.id)) return false;
+      seen.add(tx.id);
+      return true;
+    });
+  }, [transactions, investmentCategory, reimbursementInstallmentIds]);
+
   // Calculate investment statistics for the selected period
   const investmentStats = useMemo(() => {
     const hasInvestments = investmentCategory && periodTransactions.length > 0;
@@ -338,7 +355,7 @@ const Savings = () => {
 
         {/* Transactions List with Running Balance */}
         <SavingsTransactionsList
-          transactions={[...periodTransactions, ...reimbursementTransactions]}
+          transactions={allSavingsTransactions}
           startDate={dateRange.start}
           endDate={dateRange.end}
         />

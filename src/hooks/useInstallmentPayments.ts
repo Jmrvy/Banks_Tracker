@@ -484,14 +484,20 @@ export const useInstallmentPayments = () => {
       return { error: updateError };
     }
 
-    // Sync recurring transaction: update amount + deactivate if complete
+    // Sync recurring transaction: update amount, type + deactivate if complete
     const recurringUpdate: Record<string, unknown> = {
       amount: newInstallmentAmount,
+      type: currentInstallment.payment_type === 'reimbursement' ? 'income' : 'expense',
       updated_at: new Date().toISOString(),
     };
     if (isComplete) {
       recurringUpdate.is_active = false;
     }
+
+    // Also update the description suffix to match current payment_type
+    const descSuffix = currentInstallment.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
+    recurringUpdate.description = `${currentInstallment.description} (${descSuffix})`;
+
     await supabase
       .from('recurring_transactions')
       .update(recurringUpdate)
@@ -553,10 +559,62 @@ export const useInstallmentPayments = () => {
     return { error: null };
   };
 
+  // Repair stale links: ensure each installment's linked recurring transaction
+  // has matching type, amount, and description suffix
+  const repairStaleLinks = async () => {
+    if (!user) return;
+
+    const { data: installments } = await supabase
+      .from('installment_payments')
+      .select('id, description, installment_amount, payment_type, is_active, frequency')
+      .eq('user_id', user.id);
+
+    if (!installments || installments.length === 0) return;
+
+    const { data: recurrings } = await supabase
+      .from('recurring_transactions')
+      .select('id, installment_payment_id, type, amount, description, is_active, recurrence_type')
+      .eq('user_id', user.id)
+      .not('installment_payment_id', 'is', null);
+
+    if (!recurrings) return;
+
+    const recurringByInstallmentId = new Map(
+      recurrings.map(r => [r.installment_payment_id, r])
+    );
+
+    for (const ip of installments) {
+      const rt = recurringByInstallmentId.get(ip.id);
+      if (!rt) continue;
+
+      const expectedType = ip.payment_type === 'reimbursement' ? 'income' : 'expense';
+      const expectedSuffix = ip.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
+      const expectedDesc = `${ip.description} (${expectedSuffix})`;
+
+      const fixes: Record<string, unknown> = {};
+      if (rt.type !== expectedType) fixes.type = expectedType;
+      if (Math.abs(Number(rt.amount) - ip.installment_amount) > 0.01) fixes.amount = ip.installment_amount;
+      if (rt.description !== expectedDesc) fixes.description = expectedDesc;
+      if (rt.is_active !== ip.is_active) fixes.is_active = ip.is_active;
+
+      if (Object.keys(fixes).length > 0) {
+        fixes.updated_at = new Date().toISOString();
+        console.info(`[installment-repair] Fixing recurring ${rt.id} for installment ${ip.id}:`, fixes);
+        await supabase
+          .from('recurring_transactions')
+          .update(fixes)
+          .eq('id', rt.id)
+          .eq('user_id', user.id);
+      }
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await fetchInstallmentPayments();
+      // Repair stale links after initial load
+      await repairStaleLinks();
       setLoading(false);
     };
 
