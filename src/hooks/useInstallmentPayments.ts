@@ -435,12 +435,9 @@ export const useInstallmentPayments = () => {
     const newRemainingAmount = Math.max(0, currentInstallment.total_amount - totalPaid);
     const isComplete = newRemainingAmount <= 0;
 
-    // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
+    // Preserve the user-defined installment_amount — only set to 0 when fully paid
     let newInstallmentAmount = currentInstallment.installment_amount;
-    if (newRemainingAmount > 0 && currentInstallment.installment_amount > 0) {
-      const remainingPeriods = Math.max(1, Math.round(newRemainingAmount / currentInstallment.installment_amount));
-      newInstallmentAmount = Math.round((newRemainingAmount / remainingPeriods) * 100) / 100;
-    } else if (isComplete) {
+    if (isComplete) {
       newInstallmentAmount = 0;
     }
 
