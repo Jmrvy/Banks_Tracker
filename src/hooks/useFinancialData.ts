@@ -597,21 +597,10 @@ export function useFinancialData() {
         const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
         const newRemaining = Math.max(0, installment.total_amount - totalPaid);
 
-        // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
-        let newInstallmentAmount = installment.installment_amount;
-        if (newRemaining > 0 && installment.installment_amount > 0) {
-          const remainingPeriods = Math.max(1, Math.round(newRemaining / installment.installment_amount));
-          newInstallmentAmount = Math.round((newRemaining / remainingPeriods) * 100) / 100;
-        }
-
         const installmentUpdate: Record<string, unknown> = {
           remaining_amount: newRemaining,
           next_payment_date: nextDueStr,
         };
-
-        if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
-          installmentUpdate.installment_amount = newInstallmentAmount;
-        }
 
         if (newRemaining <= 0) {
           installmentUpdate.is_active = false;
