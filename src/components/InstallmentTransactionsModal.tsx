@@ -80,7 +80,7 @@ export const InstallmentTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6 overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -106,7 +106,7 @@ export const InstallmentTransactionsModal = ({
           </div>
 
           {/* Transactions List */}
-          <ScrollArea className="h-[250px] sm:h-[300px]">
+          <ScrollArea className="h-[250px] sm:h-[300px] w-full overflow-x-hidden">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -122,13 +122,13 @@ export const InstallmentTransactionsModal = ({
                 </p>
               </div>
             ) : (
-              <div className="space-y-2 pr-2">
+              <div className="space-y-2 pr-3">
                 {transactions.map((transaction) => {
                   const category = getCategoryInfo(transaction.category_id);
                   return (
                     <div
                       key={transaction.id}
-                      className="bg-card border border-border/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2"
+                      className="bg-card border border-border/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 overflow-hidden"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
