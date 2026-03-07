@@ -597,21 +597,10 @@ export function useFinancialData() {
         const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
         const newRemaining = Math.max(0, installment.total_amount - totalPaid);
 
-        // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
-        let newInstallmentAmount = installment.installment_amount;
-        if (newRemaining > 0 && installment.installment_amount > 0) {
-          const remainingPeriods = Math.max(1, Math.round(newRemaining / installment.installment_amount));
-          newInstallmentAmount = Math.round((newRemaining / remainingPeriods) * 100) / 100;
-        }
-
         const installmentUpdate: Record<string, unknown> = {
           remaining_amount: newRemaining,
           next_payment_date: nextDueStr,
         };
-
-        if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
-          installmentUpdate.installment_amount = newInstallmentAmount;
-        }
 
         if (newRemaining <= 0) {
           installmentUpdate.is_active = false;
@@ -753,28 +742,10 @@ export function useFinancialData() {
           const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
           const correctRemaining = Math.max(0, installment.total_amount - totalPaid);
 
-          // Recalculate installment_amount: remaining_periods × new_amount = remaining_amount
-          let newInstallmentAmount = installment.installment_amount;
-          if (correctRemaining > 0 && installment.installment_amount > 0) {
-            const remainingPeriods = Math.max(1, Math.round(correctRemaining / installment.installment_amount));
-            newInstallmentAmount = Math.round((correctRemaining / remainingPeriods) * 100) / 100;
-          }
-
           const installmentUpdate: Record<string, unknown> = {
             next_payment_date: correctDateStr,
             remaining_amount: correctRemaining,
           };
-
-          // Update installment_amount if it changed meaningfully
-          if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
-            installmentUpdate.installment_amount = newInstallmentAmount;
-            // Also sync recurring transaction amount
-            await supabase
-              .from('recurring_transactions')
-              .update({ amount: newInstallmentAmount, updated_at: new Date().toISOString() })
-              .eq('id', rt.id)
-              .eq('user_id', user.id);
-          }
 
           if (correctRemaining <= 0) {
             installmentUpdate.is_active = false;
@@ -910,27 +881,10 @@ export function useFinancialData() {
             const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
             const newRemaining = Math.max(0, installment.total_amount - totalPaid);
 
-            // Recalculate installment_amount so remaining_periods × new_amount = remaining_amount
-            let newInstallmentAmount = installment.installment_amount;
-            if (newRemaining > 0 && installment.installment_amount > 0) {
-              const remainingPeriods = Math.max(1, Math.round(newRemaining / installment.installment_amount));
-              newInstallmentAmount = Math.round((newRemaining / remainingPeriods) * 100) / 100;
-            }
-
             const installmentUpdate: Record<string, unknown> = {
               remaining_amount: newRemaining,
               next_payment_date: currentDueDateString,
             };
-
-            if (Math.abs(newInstallmentAmount - installment.installment_amount) > 0.01) {
-              installmentUpdate.installment_amount = newInstallmentAmount;
-              // Sync recurring transaction amount for future occurrences
-              await supabase
-                .from('recurring_transactions')
-                .update({ amount: newInstallmentAmount, updated_at: new Date().toISOString() })
-                .eq('id', rt.id)
-                .eq('user_id', user.id);
-            }
 
             if (newRemaining <= 0) {
               installmentUpdate.is_active = false;
