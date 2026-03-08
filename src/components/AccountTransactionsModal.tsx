@@ -67,7 +67,7 @@ export const AccountTransactionsModal = ({
             <div className="flex items-center justify-between text-sm font-normal">
               <span className="text-muted-foreground">{bankName}</span>
               <span className="text-lg font-semibold">
-                {balance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                {formatCurrency(balance)}
               </span>
             </div>
           </DialogTitle>
