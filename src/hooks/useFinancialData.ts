@@ -1159,11 +1159,7 @@ const FinancialDataContext = createContext<FinancialDataType | null>(null);
 
 export function FinancialDataProvider({ children }: { children: React.ReactNode }) {
   const value = useFinancialDataInternal();
-  return (
-    <FinancialDataContext.Provider value={value}>
-      {children}
-    </FinancialDataContext.Provider>
-  );
+  return React.createElement(FinancialDataContext.Provider, { value }, children);
 }
 
 export function useFinancialData(): FinancialDataType {
