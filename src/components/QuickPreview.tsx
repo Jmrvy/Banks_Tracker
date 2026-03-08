@@ -222,7 +222,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                   </span>
                   <BlurredAmount 
                     amount={formatCurrency(account.balance)}
-                    className={`text-xs sm:text-sm md:text-base font-semibold ${account.balance >= 0 ? 'text-foreground' : 'text-red-500'}`}
+                    className={`text-xs sm:text-sm md:text-base font-semibold ${account.balance >= 0 ? 'text-foreground' : 'text-destructive'}`}
                   />
                 </div>
               ))}
