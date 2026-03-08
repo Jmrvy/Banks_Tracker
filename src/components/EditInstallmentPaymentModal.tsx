@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { format, parseISO } from 'date-fns';
 
 interface EditInstallmentPaymentModalProps {
   open: boolean;
@@ -25,7 +27,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
     total_amount: installmentPayment.total_amount.toString(),
     installment_amount: installmentPayment.installment_amount.toString(),
     frequency: installmentPayment.frequency,
-    next_payment_date: installmentPayment.next_payment_date,
+    next_payment_date: parseISO(installmentPayment.next_payment_date),
     account_id: installmentPayment.account_id,
     category_id: installmentPayment.category_id || '',
     payment_type: (installmentPayment.payment_type || 'payment') as 'reimbursement' | 'payment',
@@ -38,7 +40,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
       total_amount: installmentPayment.total_amount.toString(),
       installment_amount: installmentPayment.installment_amount.toString(),
       frequency: installmentPayment.frequency,
-      next_payment_date: installmentPayment.next_payment_date,
+      next_payment_date: parseISO(installmentPayment.next_payment_date),
       account_id: installmentPayment.account_id,
       category_id: installmentPayment.category_id || '',
       payment_type: (installmentPayment.payment_type || 'payment') as 'reimbursement' | 'payment',
@@ -64,7 +66,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
       total_amount: parseFloat(formData.total_amount),
       installment_amount: parseFloat(formData.installment_amount),
       frequency: formData.frequency,
-      next_payment_date: formData.next_payment_date,
+      next_payment_date: format(formData.next_payment_date, 'yyyy-MM-dd'),
       account_id: formData.account_id,
       category_id: formData.category_id || null,
       payment_type: formData.payment_type,
@@ -90,47 +92,41 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Modifier le Paiement Échelonné</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          {/* Payment Type Selection */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4 pb-2">
+          {/* Payment Type */}
           <div className="space-y-2">
-            <Label>Type de paiement *</Label>
+            <Label>Type *</Label>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant={formData.payment_type === 'payment' ? 'default' : 'outline'}
                 onClick={() => setFormData({ ...formData, payment_type: 'payment' })}
-                className="w-full"
+                className="w-full text-xs sm:text-sm"
+                size="sm"
               >
-                <span className="mr-2">💳</span>
-                Paiement
+                💳 Paiement
               </Button>
               <Button
                 type="button"
                 variant={formData.payment_type === 'reimbursement' ? 'default' : 'outline'}
                 onClick={() => setFormData({ ...formData, payment_type: 'reimbursement' })}
-                className="w-full"
+                className="w-full text-xs sm:text-sm"
+                size="sm"
               >
-                <span className="mr-2">💰</span>
-                Remboursement
+                💰 Remboursement
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {formData.payment_type === 'payment'
-                ? "Paiement via une plateforme (ex: Klarna, Alma) - comptabilisé uniquement comme dépense"
-                : "Vous avancez avec votre épargne et êtes remboursé périodiquement - apparaît dans les dépenses et comme entrée d'épargne"
-              }
-            </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label>Description *</Label>
             <Textarea
-              id="description"
               placeholder="Ex: Achat ordinateur portable"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -139,11 +135,11 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
             />
           </div>
 
+          {/* Amounts */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="total_amount">Montant Total *</Label>
+            <div className="space-y-1.5">
+              <Label>Montant Total *</Label>
               <Input
-                id="total_amount"
                 type="number"
                 inputMode="decimal"
                 step="0.01"
@@ -153,11 +149,9 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
                 required
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="installment_amount">Montant de la Mensualité *</Label>
+            <div className="space-y-1.5">
+              <Label>Montant par échéance *</Label>
               <Input
-                id="installment_amount"
                 type="number"
                 inputMode="decimal"
                 step="0.01"
@@ -169,9 +163,10 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
             </div>
           </div>
 
+          {/* Frequency + Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="frequency">Fréquence *</Label>
+            <div className="space-y-1.5">
+              <Label>Fréquence *</Label>
               <Select
                 value={formData.frequency}
                 onValueChange={(value: 'weekly' | 'monthly' | 'quarterly') => setFormData({ ...formData, frequency: value })}
@@ -186,21 +181,19 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="next_payment_date">Prochain Paiement *</Label>
-              <Input
-                id="next_payment_date"
-                type="date"
-                value={formData.next_payment_date}
-                onChange={(e) => setFormData({ ...formData, next_payment_date: e.target.value })}
-                required
+            <div className="space-y-1.5">
+              <Label>Prochain paiement *</Label>
+              <DatePicker
+                date={formData.next_payment_date}
+                onDateChange={(d) => d && setFormData({ ...formData, next_payment_date: d })}
+                placeholder="Choisir une date"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="account">Compte Source *</Label>
+          {/* Account */}
+          <div className="space-y-1.5">
+            <Label>Compte source *</Label>
             <Select
               value={formData.account_id}
               onValueChange={(value) => setFormData({ ...formData, account_id: value })}
@@ -218,21 +211,22 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="category">Catégorie</Label>
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label>Catégorie</Label>
             <Select
               value={formData.category_id}
               onValueChange={(value) => setFormData({ ...formData, category_id: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                <SelectValue placeholder="Optionnel" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-3 h-3 rounded-full"
+                        className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: category.color }}
                       />
                       {category.name}
@@ -242,22 +236,23 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
               </SelectContent>
             </Select>
           </div>
-
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-              className="flex-1"
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Modification...' : 'Modifier'}
-            </Button>
-          </div>
         </form>
+
+        {/* Footer */}
+        <div className="flex gap-2 pt-3 flex-shrink-0 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="flex-1"
+          >
+            Annuler
+          </Button>
+          <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+            {loading ? 'Modification...' : 'Modifier'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
