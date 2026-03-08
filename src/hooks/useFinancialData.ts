@@ -59,7 +59,7 @@ export interface RecurringTransaction {
   updated_at: string;
 }
 
-export function useFinancialData() {
+export function useFinancialDataInternal() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
