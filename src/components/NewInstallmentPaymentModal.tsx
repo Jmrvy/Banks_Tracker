@@ -1,31 +1,49 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/ui/amount-input';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { Calculator, ListChecks, Pencil } from 'lucide-react';
+import { addWeeks, addMonths, format } from 'date-fns';
+
+type CalculationMode = 'auto_count' | 'auto_amount' | 'manual';
 
 interface NewInstallmentPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+const getNextDate = (current: Date, frequency: string): Date => {
+  switch (frequency) {
+    case 'weekly': return addWeeks(current, 1);
+    case 'quarterly': return addMonths(current, 3);
+    default: return addMonths(current, 1);
+  }
+};
+
 export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmentPaymentModalProps) => {
   const { toast } = useToast();
   const { createInstallmentPayment } = useInstallmentPayments();
   const { accounts, categories } = useFinancialData();
-  
+  const { formatCurrency } = useUserPreferences();
+
+  const [step, setStep] = useState<1 | 2>(1);
+  const [calculationMode, setCalculationMode] = useState<CalculationMode>('auto_count');
   const [formData, setFormData] = useState({
     description: '',
     total_amount: '',
     installment_amount: '',
+    num_installments: '',
     frequency: 'monthly' as 'weekly' | 'monthly' | 'quarterly',
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: new Date(),
     account_id: '',
     category_id: '',
     payment_type: 'payment' as 'reimbursement' | 'payment',
@@ -37,18 +55,68 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
       description: '',
       total_amount: '',
       installment_amount: '',
+      num_installments: '',
       frequency: 'monthly',
-      start_date: new Date().toISOString().split('T')[0],
+      start_date: new Date(),
       account_id: '',
       category_id: '',
       payment_type: 'payment',
     });
+    setStep(1);
+    setCalculationMode('auto_count');
   };
+
+  // Auto-calculated values based on mode
+  const computed = useMemo(() => {
+    const total = parseFloat(formData.total_amount) || 0;
+    const installment = parseFloat(formData.installment_amount) || 0;
+    const count = parseInt(formData.num_installments) || 0;
+
+    if (calculationMode === 'auto_count' && total > 0 && count > 0) {
+      return {
+        installment_amount: Math.round((total / count) * 100) / 100,
+        num_installments: count,
+        valid: true,
+      };
+    }
+    if (calculationMode === 'auto_amount' && total > 0 && installment > 0) {
+      return {
+        installment_amount: installment,
+        num_installments: Math.ceil(total / installment),
+        valid: true,
+      };
+    }
+    if (calculationMode === 'manual' && total > 0 && installment > 0) {
+      return {
+        installment_amount: installment,
+        num_installments: Math.ceil(total / installment),
+        valid: true,
+      };
+    }
+    return { installment_amount: 0, num_installments: 0, valid: false };
+  }, [formData.total_amount, formData.installment_amount, formData.num_installments, calculationMode]);
+
+  // Schedule preview
+  const schedulePreview = useMemo(() => {
+    if (!computed.valid || computed.num_installments <= 0) return [];
+    const items: { date: Date; amount: number; index: number }[] = [];
+    let date = formData.start_date;
+    const total = parseFloat(formData.total_amount) || 0;
+    let remaining = total;
+
+    for (let i = 0; i < Math.min(computed.num_installments, 60); i++) {
+      const amount = Math.min(computed.installment_amount, remaining);
+      items.push({ date: new Date(date), amount: Math.round(amount * 100) / 100, index: i + 1 });
+      remaining -= amount;
+      date = getNextDate(date, formData.frequency);
+    }
+    return items;
+  }, [computed, formData.start_date, formData.frequency, formData.total_amount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.description || !formData.total_amount || !formData.installment_amount || !formData.account_id) {
+    if (!formData.description || !formData.total_amount || !computed.valid || !formData.account_id) {
       toast({
         title: "Informations manquantes",
         description: "Veuillez remplir tous les champs obligatoires.",
@@ -62,9 +130,9 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
     const { error } = await createInstallmentPayment({
       description: formData.description,
       total_amount: parseFloat(formData.total_amount),
-      installment_amount: parseFloat(formData.installment_amount),
+      installment_amount: computed.installment_amount,
       frequency: formData.frequency,
-      start_date: formData.start_date,
+      start_date: format(formData.start_date, 'yyyy-MM-dd'),
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
       payment_type: formData.payment_type,
@@ -88,65 +156,108 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
     setLoading(false);
   };
 
+  const frequencyLabel = (f: string) => {
+    switch (f) {
+      case 'weekly': return 'semaine';
+      case 'quarterly': return 'trimestre';
+      default: return 'mois';
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Nouveau Paiement en Plusieurs Fois</DialogTitle>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
+      <DialogContent className="max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle>Nouveau Paiement Échelonné</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          {/* Payment Type Selection */}
-          <div className="space-y-2">
-            <Label>Type de paiement *</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={formData.payment_type === 'payment' ? 'default' : 'outline'}
-                onClick={() => setFormData({ ...formData, payment_type: 'payment' })}
-                className="w-full"
-              >
-                <span className="mr-2">💳</span>
-                Paiement
-              </Button>
-              <Button
-                type="button"
-                variant={formData.payment_type === 'reimbursement' ? 'default' : 'outline'}
-                onClick={() => setFormData({ ...formData, payment_type: 'reimbursement' })}
-                className="w-full"
-              >
-                <span className="mr-2">💰</span>
-                Remboursement
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {formData.payment_type === 'payment'
-                ? "Paiement via une plateforme (ex: Klarna, Alma) - comptabilisé uniquement comme dépense"
-                : "Vous avancez avec votre épargne et êtes remboursé périodiquement - apparaît dans les dépenses et comme entrée d'épargne"
-              }
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
-            <Textarea
-              id="description"
-              placeholder={formData.payment_type === 'payment'
-                ? "Ex: Achat ordinateur portable via Klarna"
-                : "Ex: Abonnement Netflix avancé pour coloc"
-              }
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              required
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+        {step === 1 ? (
+          <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4 pb-2">
+            {/* Payment Type */}
             <div className="space-y-2">
-              <Label htmlFor="total_amount">Montant Total *</Label>
+              <Label>Type *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={formData.payment_type === 'payment' ? 'default' : 'outline'}
+                  onClick={() => setFormData({ ...formData, payment_type: 'payment' })}
+                  className="w-full text-xs sm:text-sm"
+                  size="sm"
+                >
+                  💳 Paiement
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.payment_type === 'reimbursement' ? 'default' : 'outline'}
+                  onClick={() => setFormData({ ...formData, payment_type: 'reimbursement' })}
+                  className="w-full text-xs sm:text-sm"
+                  size="sm"
+                >
+                  💰 Remboursement
+                </Button>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label>Description *</Label>
+              <Textarea
+                placeholder={formData.payment_type === 'payment'
+                  ? "Ex: Achat ordinateur portable via Klarna"
+                  : "Ex: Abonnement Netflix avancé pour coloc"
+                }
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+
+            {/* Calculation Mode */}
+            <div className="space-y-2">
+              <Label>Mode de calcul *</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={calculationMode === 'auto_count' ? 'default' : 'outline'}
+                  onClick={() => setCalculationMode('auto_count')}
+                  className="w-full text-xs justify-start gap-1.5"
+                  size="sm"
+                >
+                  <Calculator className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">Nb d'échéances</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={calculationMode === 'auto_amount' ? 'default' : 'outline'}
+                  onClick={() => setCalculationMode('auto_amount')}
+                  className="w-full text-xs justify-start gap-1.5"
+                  size="sm"
+                >
+                  <Calculator className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">Montant / échéance</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={calculationMode === 'manual' ? 'default' : 'outline'}
+                  onClick={() => setCalculationMode('manual')}
+                  className="w-full text-xs justify-start gap-1.5"
+                  size="sm"
+                >
+                  <Pencil className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">Manuel</span>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {calculationMode === 'auto_count' && "Entrez le montant total et le nombre d'échéances, le montant par échéance sera calculé automatiquement."}
+                {calculationMode === 'auto_amount' && "Entrez le montant total et le montant par échéance, le nombre d'échéances sera calculé automatiquement."}
+                {calculationMode === 'manual' && "Entrez le montant total et le montant par échéance manuellement."}
+              </p>
+            </div>
+
+            {/* Amounts */}
+            <div className="space-y-1.5">
+              <Label>Montant Total *</Label>
               <AmountInput
-                id="total_amount"
                 placeholder="0.00"
                 value={formData.total_amount}
                 onChange={(value) => setFormData({ ...formData, total_amount: value })}
@@ -154,107 +265,203 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="installment_amount">Montant de la Mensualité *</Label>
-              <AmountInput
-                id="installment_amount"
-                placeholder="0.00"
-                value={formData.installment_amount}
-                onChange={(value) => setFormData({ ...formData, installment_amount: value })}
-                required
-              />
-            </div>
-          </div>
+            {calculationMode === 'auto_count' ? (
+              <div className="space-y-1.5">
+                <Label>Nombre d'échéances *</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  max="120"
+                  placeholder="Ex: 4"
+                  value={formData.num_installments}
+                  onChange={(e) => setFormData({ ...formData, num_installments: e.target.value })}
+                />
+                {computed.valid && (
+                  <p className="text-xs text-primary font-medium">
+                    → {formatCurrency(computed.installment_amount)} / {frequencyLabel(formData.frequency)}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Montant par échéance *</Label>
+                <AmountInput
+                  placeholder="0.00"
+                  value={formData.installment_amount}
+                  onChange={(value) => setFormData({ ...formData, installment_amount: value })}
+                  required
+                />
+                {computed.valid && (
+                  <p className="text-xs text-primary font-medium">
+                    → {computed.num_installments} échéance{computed.num_installments > 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+            )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="frequency">Fréquence *</Label>
-              <Select 
-                value={formData.frequency} 
-                onValueChange={(value: 'weekly' | 'monthly' | 'quarterly') => setFormData({ ...formData, frequency: value })}
+            {/* Frequency + Start Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Fréquence *</Label>
+                <Select
+                  value={formData.frequency}
+                  onValueChange={(value: 'weekly' | 'monthly' | 'quarterly') => setFormData({ ...formData, frequency: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Hebdomadaire</SelectItem>
+                    <SelectItem value="monthly">Mensuel</SelectItem>
+                    <SelectItem value="quarterly">Trimestriel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Date de début *</Label>
+                <DatePicker
+                  date={formData.start_date}
+                  onDateChange={(d) => d && setFormData({ ...formData, start_date: d })}
+                  placeholder="Choisir une date"
+                />
+              </div>
+            </div>
+
+            {/* Account + Category */}
+            <div className="space-y-1.5">
+              <Label>Compte source *</Label>
+              <Select
+                value={formData.account_id}
+                onValueChange={(value) => setFormData({ ...formData, account_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sélectionner un compte" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="weekly">Hebdomadaire</SelectItem>
-                  <SelectItem value="monthly">Mensuel</SelectItem>
-                  <SelectItem value="quarterly">Trimestriel</SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="start_date">Date de Début *</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                required
-              />
+            <div className="space-y-1.5">
+              <Label>Catégorie</Label>
+              <Select
+                value={formData.category_id}
+                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optionnel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+        ) : (
+          /* Step 2: Schedule Preview */
+          <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-3 pb-2">
+            {/* Summary */}
+            <div className="p-3 rounded-lg bg-muted space-y-1">
+              <p className="text-sm font-medium">{formData.description || 'Sans description'}</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>Total: <span className="font-semibold text-foreground">{formatCurrency(parseFloat(formData.total_amount) || 0)}</span></span>
+                <span>Échéance: <span className="font-semibold text-foreground">{formatCurrency(computed.installment_amount)}</span></span>
+                <span>{computed.num_installments} paiement{computed.num_installments > 1 ? 's' : ''}</span>
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="account">Compte Source *</Label>
-            <Select 
-              value={formData.account_id} 
-              onValueChange={(value) => setFormData({ ...formData, account_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un compte" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">Catégorie</Label>
-            <Select 
-              value={formData.category_id} 
-              onValueChange={(value) => setFormData({ ...formData, category_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: category.color }}
-                      />
-                      {category.name}
+            {/* Schedule table */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Échéancier prévisionnel</Label>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
+                  <span>#</span>
+                  <span>Date</span>
+                  <span className="text-right">Montant</span>
+                </div>
+                <div className="max-h-[40vh] overflow-y-auto divide-y divide-border">
+                  {schedulePreview.map((item) => (
+                    <div key={item.index} className="grid grid-cols-3 gap-2 px-3 py-2 text-xs">
+                      <span className="text-muted-foreground">{item.index}</span>
+                      <span>{format(item.date, 'dd/MM/yyyy')}</span>
+                      <span className="text-right font-medium">{formatCurrency(item.amount)}</span>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
+        )}
 
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-              className="flex-1"
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Création...' : 'Créer'}
-            </Button>
-          </div>
-        </form>
+        {/* Footer buttons */}
+        <div className="flex gap-2 pt-3 flex-shrink-0 border-t">
+          {step === 1 ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { resetForm(); onOpenChange(false); }}
+                disabled={loading}
+                className="flex-1"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!formData.description || !formData.total_amount || !computed.valid || !formData.account_id) {
+                    toast({ title: "Informations manquantes", description: "Veuillez remplir tous les champs obligatoires.", variant: "destructive" });
+                    return;
+                  }
+                  setStep(2);
+                }}
+                className="flex-1"
+              >
+                Voir l'échéancier →
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(1)}
+                disabled={loading}
+                className="flex-1"
+              >
+                ← Retour
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="flex-1"
+              >
+                {loading ? 'Création...' : 'Confirmer'}
+              </Button>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
