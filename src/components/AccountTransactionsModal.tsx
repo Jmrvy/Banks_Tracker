@@ -137,20 +137,10 @@ export const AccountTransactionsModal = ({
                         : transaction.type === 'transfer'
                         ? '→'
                         : '-'
-                      }{Math.abs(transaction.amount).toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'EUR',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2
-                      })}
+                      }{formatCurrency(Math.abs(transaction.amount))}
                     </span>
                     <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                      Solde: {transaction.balanceAfter.toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'EUR',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2
-                      })}
+                      Solde: {formatCurrency(transaction.balanceAfter)}
                     </span>
                   </div>
                 </div>
