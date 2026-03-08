@@ -2,11 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReportsStats } from "@/hooks/useReportsData";
-
-interface Transaction {
-  id: string;
-  type: 'income' | 'expense' | 'transfer';
-}
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface StatsCardsProps {
   stats: ReportsStats;
@@ -16,8 +12,7 @@ interface StatsCardsProps {
 }
 
 export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClick }: StatsCardsProps) => {
-  const formatCurrency = (amount: number) => 
-    amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  const { formatCurrency } = useUserPreferences();
 
   return (
     <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-3">

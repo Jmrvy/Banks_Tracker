@@ -200,8 +200,7 @@ export const AccountCards = () => {
                   ) : (
                     <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                   )}
-                  <span className="hidden sm:inline">{formatCurrency(Math.abs(account.monthlyChange))}</span>
-                  <span className="sm:hidden">{Math.abs(account.monthlyChange).toFixed(0)}</span>
+                  <span className="truncate">{formatCurrency(Math.abs(account.monthlyChange))}</span>
                 </Badge>
               </div>
               

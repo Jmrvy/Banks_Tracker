@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, ArrowRightLeft } from "lucide-react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface Transaction {
   id: string;
@@ -28,6 +29,7 @@ export const AccountTransactionsModal = ({
   transactions,
   balance
 }: AccountTransactionsModalProps) => {
+  const { formatCurrency } = useUserPreferences();
   const sortedTransactions = transactions.sort((a, b) =>
     new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
   );
@@ -65,7 +67,7 @@ export const AccountTransactionsModal = ({
             <div className="flex items-center justify-between text-sm font-normal">
               <span className="text-muted-foreground">{bankName}</span>
               <span className="text-lg font-semibold">
-                {balance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                {formatCurrency(balance)}
               </span>
             </div>
           </DialogTitle>
@@ -135,20 +137,10 @@ export const AccountTransactionsModal = ({
                         : transaction.type === 'transfer'
                         ? '→'
                         : '-'
-                      }{Math.abs(transaction.amount).toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'EUR',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2
-                      })}
+                      }{formatCurrency(Math.abs(transaction.amount))}
                     </span>
                     <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                      Solde: {transaction.balanceAfter.toLocaleString('fr-FR', {
-                        style: 'currency',
-                        currency: 'EUR',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2
-                      })}
+                      Solde: {formatCurrency(transaction.balanceAfter)}
                     </span>
                   </div>
                 </div>

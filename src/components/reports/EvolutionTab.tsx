@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { BalanceDataPoint, ReportsStats, RecurringData, SpendingPatternsData } from "@/hooks/useReportsData";
 import { MonthlyProjections } from "@/components/MonthlyProjections";
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
@@ -35,8 +36,7 @@ export const EvolutionTab = ({
   useSpendingPatterns,
   setUseSpendingPatterns
 }: EvolutionTabProps) => {
-  const formatCurrency = (amount: number) => 
-    amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  const { formatCurrency } = useUserPreferences();
 
   return (
     <div className="space-y-3 sm:space-y-4">
