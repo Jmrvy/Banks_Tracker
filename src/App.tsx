@@ -184,6 +184,7 @@ const App = () => (
                     <OfflineIndicator />
                   </PrivacyProvider>
                 </PeriodProvider>
+                </FinancialDataProvider>
               </AuthProvider>
             </BrowserRouter>
           </Suspense>
