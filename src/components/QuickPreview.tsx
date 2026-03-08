@@ -152,12 +152,12 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 </PieChart>
               </ResponsiveContainer>
 
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center w-full px-2">
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center w-[90%] px-1">
                 <div className="flex items-center justify-center gap-1 mb-0.5">
                   {isPositive ? (
-                    <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-green-500" />
+                    <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-success" />
                   ) : (
-                    <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-red-500" />
+                    <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-destructive" />
                   )}
                   <span className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground">
                     Solde total
@@ -166,14 +166,14 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
                 <button
                   onClick={() => hasDateDifference && setShowDateDifferenceModal(true)}
-                  className={`inline-flex items-center gap-1 ${hasDateDifference ? "cursor-pointer hover:opacity-80" : "cursor-default"}`}
+                  className={`inline-flex items-center gap-1 max-w-full ${hasDateDifference ? "cursor-pointer hover:opacity-80" : "cursor-default"}`}
                 >
                   <BlurredAmount
                     amount={formatCurrency(totalBalance)}
-                    className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold ${isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                    className={`text-base sm:text-lg md:text-2xl lg:text-3xl font-bold truncate ${isPositive ? "text-success" : "text-destructive"}`}
                   />
                   {hasDateDifference && (
-                    <Info className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-primary/70" />
+                    <Info className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-primary/70 flex-shrink-0" />
                   )}
                 </button>
               </div>
