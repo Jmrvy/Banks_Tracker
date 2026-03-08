@@ -15,7 +15,7 @@ interface QuickPreviewProps {
 }
 
 export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
-  const [isRevealed, setIsRevealed] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(true);
   const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
   const { accounts, recurringTransactions, transactions, loading } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
