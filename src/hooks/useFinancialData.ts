@@ -1152,3 +1152,24 @@ export function useFinancialDataInternal() {
     manualProcessRecurring: processDueRecurringTransactions
   };
 }
+
+export type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;
+
+const FinancialDataContext = createContext<FinancialDataType | null>(null);
+
+export function FinancialDataProvider({ children }: { children: React.ReactNode }) {
+  const value = useFinancialDataInternal();
+  return (
+    <FinancialDataContext.Provider value={value}>
+      {children}
+    </FinancialDataContext.Provider>
+  );
+}
+
+export function useFinancialData(): FinancialDataType {
+  const context = useContext(FinancialDataContext);
+  if (!context) {
+    throw new Error('useFinancialData must be used within FinancialDataProvider');
+  }
+  return context;
+}
