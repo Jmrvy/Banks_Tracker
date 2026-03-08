@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import Index from "@/pages/Index";
+import { FinancialDataProvider } from "@/hooks/useFinancialData";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 import Reports from "@/pages/Reports";
