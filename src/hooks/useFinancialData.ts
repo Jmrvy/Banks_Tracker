@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -59,7 +59,7 @@ export interface RecurringTransaction {
   updated_at: string;
 }
 
-export function useFinancialData() {
+export function useFinancialDataInternal() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1151,4 +1151,21 @@ export function useFinancialData() {
     },
     manualProcessRecurring: processDueRecurringTransactions
   };
+}
+
+export type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;
+
+const FinancialDataContext = createContext<FinancialDataType | null>(null);
+
+export function FinancialDataProvider({ children }: { children: React.ReactNode }) {
+  const value = useFinancialDataInternal();
+  return React.createElement(FinancialDataContext.Provider, { value }, children);
+}
+
+export function useFinancialData(): FinancialDataType {
+  const context = useContext(FinancialDataContext);
+  if (!context) {
+    throw new Error('useFinancialData must be used within FinancialDataProvider');
+  }
+  return context;
 }
