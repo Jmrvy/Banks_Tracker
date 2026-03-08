@@ -29,6 +29,7 @@ export const AccountTransactionsModal = ({
   transactions,
   balance
 }: AccountTransactionsModalProps) => {
+  const { formatCurrency } = useUserPreferences();
   const sortedTransactions = transactions.sort((a, b) =>
     new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
   );
