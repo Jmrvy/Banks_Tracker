@@ -271,7 +271,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                   <BlurredAmount 
                     amount={`${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(transaction.amount)}`}
                     className={`text-xs sm:text-sm md:text-base font-semibold whitespace-nowrap ${
-                      transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-500'
+                      transaction.type === 'income' ? 'text-success' : 'text-destructive'
                     }`}
                   />
                 </div>
