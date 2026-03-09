@@ -68,8 +68,11 @@ interface AccountDraft {
 const Onboarding = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { createAccount, createCategory } = useFinancialData();
+  const { createAccount, createCategory, accounts: existingAccounts, categories: existingCategories } = useFinancialData();
   const { updatePreferences } = useUserPreferences();
+
+  // Review mode: existing user revisiting the guide from settings
+  const isReviewMode = existingAccounts.length > 0 || existingCategories.length > 0;
 
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -129,38 +132,40 @@ const Onboarding = () => {
   const handleFinish = async () => {
     setLoading(true);
     try {
-      // 1. Create accounts
-      for (const account of accounts) {
-        if (account.name.trim()) {
-          await createAccount({
-            name: account.name.trim(),
-            bank: account.bank as any,
-            account_type: account.account_type as any,
-            balance: parseFloat(account.balance) || 0,
+      if (!isReviewMode) {
+        // 1. Create accounts (only for new users)
+        for (const account of accounts) {
+          if (account.name.trim()) {
+            await createAccount({
+              name: account.name.trim(),
+              bank: account.bank as any,
+              account_type: account.account_type as any,
+              balance: parseFloat(account.balance) || 0,
+            });
+          }
+        }
+
+        // 2. Create selected categories (only for new users)
+        for (const index of selectedCategories) {
+          const cat = defaultCategories[index];
+          await createCategory({
+            name: cat.name,
+            color: cat.color,
+            budget: null,
           });
         }
-      }
 
-      // 2. Create selected categories
-      for (const index of selectedCategories) {
-        const cat = defaultCategories[index];
-        await createCategory({
-          name: cat.name,
-          color: cat.color,
-          budget: null,
-        });
+        // 3. Save currency preference
+        updatePreferences({ currency });
       }
-
-      // 3. Save currency preference
-      updatePreferences({ currency });
 
       // 4. Mark onboarding as done and clear signup flag
       localStorage.setItem('budget-app-onboarding-done', 'true');
       localStorage.removeItem('budget-app-needs-onboarding');
 
       toast({
-        title: "Configuration terminee !",
-        description: "Votre application est prete. Bienvenue !",
+        title: isReviewMode ? "Guide termine !" : "Configuration terminee !",
+        description: isReviewMode ? "Vous pouvez revenir ici depuis les parametres." : "Votre application est prete. Bienvenue !",
       });
 
       navigate('/', { replace: true });
