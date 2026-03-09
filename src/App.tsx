@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -23,6 +23,7 @@ import Transactions from "@/pages/Transactions";
 import InstallmentPayments from "@/pages/InstallmentPayments";
 import Savings from "@/pages/Savings";
 import Install from "@/pages/Install";
+import Onboarding from "@/pages/Onboarding";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { MobileHeader } from "@/components/MobileHeader";
@@ -48,6 +49,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const isOnboardingPage = location.pathname === '/onboarding';
 
   if (loading) {
     return (
@@ -62,9 +65,9 @@ function AppRoutes() {
 
   return (
     <>
-      {user && !isMobile && <AppSidebar />}
-      {user && isMobile && <MobileHeader />}
-      <div className={user && !isMobile ? "ml-64 min-h-screen" : user && isMobile ? "pt-14 pb-20 min-h-screen" : "min-h-screen"}>
+      {user && !isOnboardingPage && !isMobile && <AppSidebar />}
+      {user && !isOnboardingPage && isMobile && <MobileHeader />}
+      <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pt-14 pb-20 min-h-screen" : "min-h-screen"}>
         <Routes>
           <Route 
             path="/auth" 
@@ -150,11 +153,19 @@ function AppRoutes() {
               </ProtectedRoute>
             } 
           />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/install" element={<Install />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
-      {user && isMobile && <MobileNavigation />}
+      {user && !isOnboardingPage && isMobile && <MobileNavigation />}
     </>
   );
 }

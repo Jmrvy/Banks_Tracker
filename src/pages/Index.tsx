@@ -3,6 +3,7 @@ import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
@@ -20,8 +21,9 @@ const QUICK_PREVIEW_SHOWN_KEY = "budget-app-quick-preview-shown";
 const Index = () => {
   const { user } = useAuth();
   const { loading } = useFinancialData();
-  const { isOnboarding } = useOnboarding();
+  const { needsOnboarding } = useOnboarding();
   const { selectedPeriod, setSelectedPeriod, dateRange, periodLabel } = usePeriod();
+  const navigate = useNavigate();
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExcludedModal, setShowExcludedModal] = useState(false);
@@ -40,12 +42,19 @@ const Index = () => {
     setShowQuickPreview(false);
   };
 
-  if (loading || isOnboarding) {
+  // Redirect new users to onboarding
+  useEffect(() => {
+    if (!loading && needsOnboarding) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [loading, needsOnboarding, navigate]);
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <div>{isOnboarding ? 'Configuration de votre compte...' : 'Chargement de vos données financières...'}</div>
+          <div>Chargement de vos données financières...</div>
         </div>
       </div>
     );
