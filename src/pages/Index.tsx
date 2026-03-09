@@ -2,8 +2,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePeriod } from "@/contexts/PeriodContext";
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
@@ -23,7 +23,6 @@ const Index = () => {
   const { loading } = useFinancialData();
   const { needsOnboarding } = useOnboarding();
   const { selectedPeriod, setSelectedPeriod, dateRange, periodLabel } = usePeriod();
-  const navigate = useNavigate();
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExcludedModal, setShowExcludedModal] = useState(false);
@@ -42,13 +41,6 @@ const Index = () => {
     setShowQuickPreview(false);
   };
 
-  // Redirect new users to onboarding
-  useEffect(() => {
-    if (!loading && needsOnboarding) {
-      navigate('/onboarding', { replace: true });
-    }
-  }, [loading, needsOnboarding, navigate]);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -58,6 +50,11 @@ const Index = () => {
         </div>
       </div>
     );
+  }
+
+  // Redirect new users to onboarding setup
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   // Show quick preview only on first visit

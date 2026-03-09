@@ -925,6 +925,8 @@ export function useFinancialDataInternal() {
       return;
     }
 
+    setLoading(true);
+
     const loadData = async () => {
       try {
         await Promise.all([
