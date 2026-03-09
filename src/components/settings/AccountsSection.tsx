@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Database, Edit3, Save, Trash2, X, RefreshCw, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -36,13 +37,14 @@ interface AccountsSectionProps {
 interface EditingValues {
   name: string;
   bank: string;
+  initial_balance: string;
 }
 
 export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsSectionProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<EditingValues>({ name: "", bank: "" });
+  const [editingValues, setEditingValues] = useState<EditingValues>({ name: "", bank: "", initial_balance: "0" });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState(false);
@@ -86,16 +88,27 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
     fetchHistory();
   };
 
-  const startEditing = (account: Account) => {
+  const startEditing = async (account: Account) => {
+    // Fetch initial_balance from DB since it's not in the Account interface
+    const { data } = await supabase
+      .from('accounts')
+      .select('initial_balance' as any)
+      .eq('id', account.id)
+      .single();
+    const initialBal = (data as any)?.initial_balance ?? 0;
     setEditingAccount(account.id);
-    setEditingValues({ name: account.name, bank: account.bank });
+    setEditingValues({ name: account.name, bank: account.bank, initial_balance: String(initialBal) });
   };
 
   const saveAccount = async (accountId: string) => {
     try {
       const { error } = await supabase
         .from('accounts')
-        .update({ name: editingValues.name, bank: editingValues.bank as Account['bank'] })
+        .update({
+          name: editingValues.name,
+          bank: editingValues.bank as Account['bank'],
+          initial_balance: parseFloat(editingValues.initial_balance) || 0,
+        } as any)
         .eq('id', accountId);
 
       if (error) throw error;
@@ -230,7 +243,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     {editingAccount === account.id ? (
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="grid gap-2 sm:grid-cols-3">
                         <Input
                           value={editingValues.name}
                           onChange={(e) => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
@@ -252,6 +265,12 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                             ))}
                           </SelectContent>
                         </Select>
+                        <AmountInput
+                          value={editingValues.initial_balance}
+                          onChange={(value) => setEditingValues(prev => ({ ...prev, initial_balance: value }))}
+                          placeholder="Solde initial"
+                          className="h-8 sm:h-10 text-xs sm:text-sm"
+                        />
                       </div>
                     ) : (
                       <div>
