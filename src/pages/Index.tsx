@@ -16,8 +16,6 @@ import { AggregatedBalanceEvolution } from "@/components/dashboard/AggregatedBal
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard } from "lucide-react";
 
-const QUICK_PREVIEW_SHOWN_KEY = "budget-app-quick-preview-shown";
-
 const Index = () => {
   const { user } = useAuth();
   const { loading } = useFinancialData();
@@ -28,16 +26,11 @@ const Index = () => {
   const [showExcludedModal, setShowExcludedModal] = useState(false);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
-  
-  // Show quick preview only on first visit (check localStorage)
-  const [showQuickPreview, setShowQuickPreview] = useState(() => {
-    const hasSeenPreview = localStorage.getItem(QUICK_PREVIEW_SHOWN_KEY);
-    return !hasSeenPreview;
-  });
 
-  // Mark preview as seen when user clicks to go to full dashboard
+  // Always show quick preview on login/refresh, user can switch to full dashboard during session
+  const [showQuickPreview, setShowQuickPreview] = useState(true);
+
   const handleShowFullDashboard = () => {
-    localStorage.setItem(QUICK_PREVIEW_SHOWN_KEY, "true");
     setShowQuickPreview(false);
   };
 
@@ -57,7 +50,7 @@ const Index = () => {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Show quick preview only on first visit
+  // Show quick preview on each login / page refresh
   if (showQuickPreview) {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-8">
