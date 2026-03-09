@@ -154,8 +154,9 @@ const Onboarding = () => {
       // 3. Save currency preference
       updatePreferences({ currency });
 
-      // 4. Mark onboarding as done
+      // 4. Mark onboarding as done and clear signup flag
       localStorage.setItem('budget-app-onboarding-done', 'true');
+      localStorage.removeItem('budget-app-needs-onboarding');
 
       toast({
         title: "Configuration terminee !",
@@ -190,6 +191,7 @@ const Onboarding = () => {
 
   const handleSkip = () => {
     localStorage.setItem('budget-app-onboarding-done', 'true');
+    localStorage.removeItem('budget-app-needs-onboarding');
     navigate('/', { replace: true });
   };
 
