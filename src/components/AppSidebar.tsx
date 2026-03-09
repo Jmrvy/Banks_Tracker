@@ -113,6 +113,11 @@ export function AppSidebar() {
         </div>
       </nav>
 
+      {/* Language selector */}
+      <div className="px-4 pb-2">
+        <LanguageSelector />
+      </div>
+
       {/* User section - links to settings */}
       <div className="p-4 border-t border-white/[0.06]">
         <Link
