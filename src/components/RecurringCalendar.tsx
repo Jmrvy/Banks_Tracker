@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, ArrowDownRight, ArrowUpRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowDownRight, ArrowUpRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -181,6 +181,39 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById]);
 
+  // Monthly summary: total, already passed, and upcoming amounts
+  const monthlySummary = useMemo(() => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let pastIncome = 0;
+    let pastExpense = 0;
+
+    transactionsByDay.forEach((entries) => {
+      entries.forEach(({ transaction, isPast, displayAmount }) => {
+        const amount = displayAmount ?? transaction.amount;
+        if (transaction.type === 'income') {
+          totalIncome += amount;
+          if (isPast) pastIncome += amount;
+        } else {
+          totalExpense += amount;
+          if (isPast) pastExpense += amount;
+        }
+      });
+    });
+
+    return {
+      totalIncome,
+      totalExpense,
+      totalNet: totalIncome - totalExpense,
+      pastIncome,
+      pastExpense,
+      pastNet: pastIncome - pastExpense,
+      upcomingIncome: totalIncome - pastIncome,
+      upcomingExpense: totalExpense - pastExpense,
+      upcomingNet: (totalIncome - pastIncome) - (totalExpense - pastExpense),
+    };
+  }, [transactionsByDay]);
+
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
 
@@ -331,6 +364,58 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               <span className="text-[10px] sm:text-xs text-muted-foreground">Passées</span>
             </div>
           </div>
+
+          {/* Monthly Summary */}
+          {(monthlySummary.totalIncome > 0 || monthlySummary.totalExpense > 0) && (
+            <div className="mt-3 sm:mt-4 pt-3 border-t border-border/50">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {/* Total du mois */}
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">Total du mois</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.totalIncome)}</p>
+                    <p className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(monthlySummary.totalExpense)}</p>
+                    <p className={`text-xs sm:text-sm font-bold ${monthlySummary.totalNet >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {monthlySummary.totalNet >= 0 ? '+' : ''}{formatCurrency(monthlySummary.totalNet)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Déjà passé */}
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">Déjà passé</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.pastIncome)}</p>
+                    <p className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(monthlySummary.pastExpense)}</p>
+                    <p className={`text-xs sm:text-sm font-bold ${monthlySummary.pastNet >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {monthlySummary.pastNet >= 0 ? '+' : ''}{formatCurrency(monthlySummary.pastNet)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* À venir */}
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">À venir</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.upcomingIncome)}</p>
+                    <p className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(monthlySummary.upcomingExpense)}</p>
+                    <p className={`text-xs sm:text-sm font-bold ${monthlySummary.upcomingNet >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {monthlySummary.upcomingNet >= 0 ? '+' : ''}{formatCurrency(monthlySummary.upcomingNet)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
