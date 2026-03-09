@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
 
 export function AppSidebar() {
