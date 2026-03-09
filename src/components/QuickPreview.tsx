@@ -15,7 +15,7 @@ interface QuickPreviewProps {
 export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   const [isRevealed, setIsRevealed] = useState(true);
   const { accounts, recurringTransactions, transactions } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const navigate = useNavigate();
 
   const totalBalance = useMemo(() => {
@@ -29,9 +29,12 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
     const now = new Date();
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
+    const activeDateType = preferences.dateType;
 
     const monthTransactions = transactions.filter(t => {
-      const date = new Date(t.transaction_date);
+      const date = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
       return date >= monthStart && date <= monthEnd && t.include_in_stats !== false;
     });
 
@@ -47,7 +50,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       }, 0);
 
     return { income, expenses, net: income - expenses };
-  }, [transactions]);
+  }, [transactions, preferences.dateType]);
 
   // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
   const parseLocalDate = (dateStr: string): Date => {
