@@ -195,9 +195,13 @@ const Onboarding = () => {
   };
 
   const handleSkip = () => {
-    localStorage.setItem('budget-app-onboarding-done', 'true');
-    localStorage.removeItem('budget-app-needs-onboarding');
-    navigate('/', { replace: true });
+    if (currentStep < TOTAL_STEPS - 1) {
+      // Skip this step, go to next
+      setCurrentStep(currentStep + 1);
+    } else {
+      // Last step: finish the setup
+      handleFinish();
+    }
   };
 
   return (
