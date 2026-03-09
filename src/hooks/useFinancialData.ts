@@ -207,7 +207,7 @@ export function useFinancialDataInternal() {
     if (!user) return;
     const { error } = await supabase
       .from('accounts')
-      .insert([{ ...account, user_id: user.id }]);
+      .insert([{ ...account, initial_balance: account.balance, user_id: user.id }]);
 
     if (!error) {
       fetchAccounts();
