@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Database, Edit3, Save, Trash2, X } from "lucide-react";
+import { Database, Edit3, Save, Trash2, X, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -29,6 +29,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
   const [editingValues, setEditingValues] = useState<EditingValues>({ name: "", bank: "" });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
 
   const startEditing = (account: Account) => {
     setEditingAccount(account.id);
@@ -90,17 +91,71 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
     }
   };
 
+  const recalculateBalances = async () => {
+    setRecalculating(true);
+    try {
+      const { data, error } = await supabase.rpc('recalculate_account_balances' as any);
+
+      if (error) throw error;
+
+      const changes = (data as { account_name: string; old_balance: number; new_balance: number; difference: number }[] || [])
+        .filter((r: { difference: number }) => r.difference !== 0);
+
+      refetch();
+
+      if (changes.length === 0) {
+        toast({
+          title: "Soldes vérifiés",
+          description: "Tous les soldes sont déjà corrects.",
+        });
+      } else {
+        const details = changes
+          .map((r: { account_name: string; old_balance: number; new_balance: number }) =>
+            `${r.account_name}: ${formatCurrency(r.old_balance)} → ${formatCurrency(r.new_balance)}`
+          )
+          .join('\n');
+        toast({
+          title: "Soldes recalculés",
+          description: `${changes.length} compte(s) corrigé(s):\n${details}`,
+        });
+      }
+    } catch {
+      toast({
+        title: t('common.error'),
+        description: "Impossible de recalculer les soldes. Vérifiez que la migration a été appliquée.",
+        variant: "destructive",
+      });
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   return (
     <>
       <Card>
         <CardHeader className="p-3 sm:p-6">
-          <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 sm:h-5 sm:w-5" />
-            <CardTitle className="text-sm sm:text-base">{t('settings.myAccounts')}</CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-sm sm:text-base">{t('settings.myAccounts')}</CardTitle>
+              </div>
+              <CardDescription className="text-xs sm:text-sm hidden sm:block mt-1.5">
+                {t('settings.manageAccounts')}
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={recalculateBalances}
+              disabled={recalculating}
+              className="h-8 text-xs gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${recalculating ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{recalculating ? 'Recalcul...' : 'Recalculer les soldes'}</span>
+              <span className="sm:hidden">{recalculating ? '...' : 'Recalculer'}</span>
+            </Button>
           </div>
-          <CardDescription className="text-xs sm:text-sm hidden sm:block">
-            {t('settings.manageAccounts')}
-          </CardDescription>
         </CardHeader>
         <CardContent className="p-3 sm:p-6">
           <div className="space-y-2 sm:space-y-3">
