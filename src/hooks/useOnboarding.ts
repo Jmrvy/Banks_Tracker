@@ -8,12 +8,15 @@ export function useOnboarding() {
     if (loading) return false;
     const done = localStorage.getItem('budget-app-onboarding-done');
     if (done) return false;
-    // New user: no accounts created yet
+    // Explicit flag set during signup
+    const signupFlag = localStorage.getItem('budget-app-needs-onboarding');
+    if (signupFlag) return true;
+    // Fallback: new user with no accounts
     return accounts.length === 0;
   }, [accounts, loading]);
 
   return {
-    isOnboarding: false, // Keep false to not show loading spinner
+    isOnboarding: false,
     needsOnboarding,
   };
 }

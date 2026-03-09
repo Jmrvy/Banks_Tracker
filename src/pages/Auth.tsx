@@ -35,7 +35,13 @@ export default function Auth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate('/');
+        // After signup, redirect to onboarding; otherwise to dashboard
+        const needsOnboarding = localStorage.getItem('budget-app-needs-onboarding');
+        if (needsOnboarding) {
+          navigate('/onboarding');
+        } else {
+          navigate('/');
+        }
       }
     });
 
@@ -117,6 +123,8 @@ export default function Auth() {
           variant: "destructive",
         });
       } else {
+        // Flag for onboarding redirect after email confirmation or auto-login
+        localStorage.setItem('budget-app-needs-onboarding', 'true');
         toast({
           title: "Vérifiez votre email",
           description: "Nous vous avons envoyé un lien de confirmation.",
