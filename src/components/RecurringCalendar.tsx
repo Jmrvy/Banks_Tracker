@@ -182,6 +182,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById]);
 
   // Monthly summary: total, already passed, and upcoming amounts
+  // Installment reimbursements (payment_type === 'reimbursement') are stored as 'income'
+  // but are actually expenses — treat them accordingly.
   const monthlySummary = useMemo(() => {
     let totalIncome = 0;
     let totalExpense = 0;
@@ -191,7 +193,17 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     transactionsByDay.forEach((entries) => {
       entries.forEach(({ transaction, isPast, displayAmount }) => {
         const amount = displayAmount ?? transaction.amount;
-        if (transaction.type === 'income') {
+
+        // Determine effective type: reimbursement installments are expenses
+        let effectiveType = transaction.type;
+        if (transaction.installment_payment_id) {
+          const ip = installmentPaymentsById.get(transaction.installment_payment_id);
+          if (ip?.payment_type === 'reimbursement') {
+            effectiveType = 'expense';
+          }
+        }
+
+        if (effectiveType === 'income') {
           totalIncome += amount;
           if (isPast) pastIncome += amount;
         } else {
@@ -212,7 +224,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       upcomingExpense: totalExpense - pastExpense,
       upcomingNet: (totalIncome - pastIncome) - (totalExpense - pastExpense),
     };
-  }, [transactionsByDay]);
+  }, [transactionsByDay, installmentPaymentsById]);
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
