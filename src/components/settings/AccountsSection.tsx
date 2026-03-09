@@ -4,12 +4,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Database, Edit3, Save, Trash2, X, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Database, Edit3, Save, Trash2, X, RefreshCw, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BANK_IDS, getBankLabel } from "@/lib/constants";
 import type { Account } from "@/hooks/useFinancialData";
+
+interface RecalcHistoryEntry {
+  run_id: string;
+  account_name: string;
+  old_balance: number;
+  new_balance: number;
+  difference: number;
+  created_at: string;
+}
+
+interface RecalcRun {
+  run_id: string;
+  created_at: string;
+  entries: RecalcHistoryEntry[];
+}
 
 interface AccountsSectionProps {
   accounts: Account[];
@@ -30,6 +46,45 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRuns, setHistoryRuns] = useState<RecalcRun[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('balance_recalculation_history' as any)
+        .select('run_id, account_name, old_balance, new_balance, difference, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const entries = (data as unknown as RecalcHistoryEntry[]) || [];
+      const runMap = new Map<string, RecalcRun>();
+      for (const entry of entries) {
+        if (!runMap.has(entry.run_id)) {
+          runMap.set(entry.run_id, { run_id: entry.run_id, created_at: entry.created_at, entries: [] });
+        }
+        runMap.get(entry.run_id)!.entries.push(entry);
+      }
+      setHistoryRuns(Array.from(runMap.values()));
+    } catch {
+      toast({
+        title: t('common.error'),
+        description: "Impossible de charger l'historique des recalculs.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const openHistory = () => {
+    setHistoryOpen(true);
+    fetchHistory();
+  };
 
   const startEditing = (account: Account) => {
     setEditingAccount(account.id);
@@ -144,17 +199,28 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                 {t('settings.manageAccounts')}
               </CardDescription>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={recalculateBalances}
-              disabled={recalculating}
-              className="h-8 text-xs gap-1.5"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${recalculating ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{recalculating ? 'Recalcul...' : 'Recalculer les soldes'}</span>
-              <span className="sm:hidden">{recalculating ? '...' : 'Recalculer'}</span>
-            </Button>
+            <div className="flex gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openHistory}
+                className="h-8 text-xs gap-1.5"
+              >
+                <History className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Historique</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={recalculateBalances}
+                disabled={recalculating}
+                className="h-8 text-xs gap-1.5"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${recalculating ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{recalculating ? 'Recalcul...' : 'Recalculer les soldes'}</span>
+                <span className="sm:hidden">{recalculating ? '...' : 'Recalculer'}</span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-6">
@@ -237,6 +303,44 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
         title={t('confirmations.deleteTitle')}
         description={t('accounts.confirmDelete')}
       />
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm sm:text-base">Historique des recalculs</DialogTitle>
+          </DialogHeader>
+          {loadingHistory ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Chargement...</p>
+          ) : historyRuns.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Aucun recalcul effectué.</p>
+          ) : (
+            <div className="space-y-4">
+              {historyRuns.map((run) => (
+                <div key={run.run_id} className="border rounded-lg p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    {new Date(run.created_at).toLocaleString('fr-FR')}
+                  </p>
+                  <div className="space-y-1.5">
+                    {run.entries.map((entry, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="font-medium">{entry.account_name}</span>
+                        <span className={entry.difference !== 0 ? 'text-orange-500 font-semibold' : 'text-muted-foreground'}>
+                          {formatCurrency(entry.old_balance)} → {formatCurrency(entry.new_balance)}
+                          {entry.difference !== 0 && (
+                            <span className="ml-1">
+                              ({entry.difference > 0 ? '+' : ''}{formatCurrency(entry.difference)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
