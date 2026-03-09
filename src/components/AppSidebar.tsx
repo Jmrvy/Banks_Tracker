@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
 
 export function AppSidebar() {
@@ -111,6 +112,11 @@ export function AppSidebar() {
 
         </div>
       </nav>
+
+      {/* Language selector */}
+      <div className="px-4 pb-2">
+        <LanguageSelector />
+      </div>
 
       {/* User section - links to settings */}
       <div className="p-4 border-t border-white/[0.06]">
