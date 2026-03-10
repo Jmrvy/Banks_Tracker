@@ -15,11 +15,12 @@ import {
   Wallet, ChevronRight, ChevronLeft, Check, Sparkles,
   CreditCard, Tag, BookOpen, TrendingUp, PieChart,
   Calendar, ArrowLeftRight, BarChart3, Plus, X, Repeat,
-  ChevronDown, Eye, DollarSign, ListFilter, Target,
-  PiggyBank, Scale, History, Receipt, Bell, Mail,
-  FileText, Settings
+  DollarSign, Target, PiggyBank, Scale, History, Receipt,
+  Bell, Mail, FileText, Settings, Filter, Pause,
+  ArrowUpRight, ArrowDownRight, MousePointerClick
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Progress } from "@/components/ui/progress";
 
 const TOTAL_STEPS = 5;
 
@@ -62,6 +63,411 @@ const currencyOptions = [
   { value: 'CHF', label: 'Franc Suisse', symbol: 'CHF' },
 ];
 
+/* ── Visual mockup for each feature guide ── */
+const FeatureMockup = ({ id }: { id: string }) => {
+  const mockupWrapper = "rounded-xl border bg-card overflow-hidden text-xs";
+  const mockupHeader = "flex items-center justify-between px-3 py-2 border-b bg-muted/40";
+  const mockupRow = "flex items-center justify-between px-3 py-2 border-b last:border-0";
+
+  switch (id) {
+    case 'dashboard':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Tableau de bord</span>
+            <span className="text-muted-foreground">Mars 2026</span>
+          </div>
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-px bg-border">
+            <div className="bg-card p-2.5 text-center">
+              <p className="text-muted-foreground text-[10px]">Solde total</p>
+              <p className="font-bold text-sm text-primary">3 250 €</p>
+            </div>
+            <div className="bg-card p-2.5 text-center">
+              <p className="text-muted-foreground text-[10px]">Revenus</p>
+              <p className="font-bold text-sm text-emerald-500">+2 800 €</p>
+            </div>
+            <div className="bg-card p-2.5 text-center">
+              <p className="text-muted-foreground text-[10px]">Depenses</p>
+              <p className="font-bold text-sm text-red-500">-1 450 €</p>
+            </div>
+          </div>
+          {/* Mini chart mockup */}
+          <div className="p-3 space-y-1.5">
+            <p className="text-[10px] font-medium text-muted-foreground">Evolution du solde</p>
+            <div className="flex items-end gap-1 h-10">
+              {[40, 55, 45, 60, 50, 70, 65, 80, 75, 85, 78, 90].map((h, i) => (
+                <div key={i} className="flex-1 rounded-sm bg-primary/20" style={{ height: `${h}%` }}>
+                  <div className="w-full rounded-sm bg-primary" style={{ height: '60%', marginTop: 'auto' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Annotation */}
+          <div className="px-3 pb-2.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Cliquez sur les stats pour voir le detail des transactions</span>
+          </div>
+        </div>
+      );
+
+    case 'accounts':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Mes comptes</span>
+            <div className="h-5 w-5 rounded-md bg-primary/10 flex items-center justify-center">
+              <Plus className="h-3 w-3 text-primary" />
+            </div>
+          </div>
+          {[
+            { name: 'Compte Courant', bank: 'Societe Generale', amount: '2 150,00 €', color: 'text-foreground' },
+            { name: 'Livret A', bank: 'Boursorama', amount: '8 500,00 €', color: 'text-foreground' },
+            { name: 'Revolut', bank: 'Revolut', amount: '320,00 €', color: 'text-foreground' },
+          ].map((acc, i) => (
+            <div key={i} className={mockupRow}>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Wallet className="h-3 w-3 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-[11px]">{acc.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{acc.bank}</p>
+                </div>
+              </div>
+              <span className={`font-semibold text-[11px] ${acc.color}`}>{acc.amount}</span>
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Cliquez sur un compte pour voir ses transactions</span>
+          </div>
+        </div>
+      );
+
+    case 'transactions':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Transactions</span>
+            <div className="flex gap-1.5">
+              <div className="h-5 px-2 rounded-md bg-muted flex items-center gap-1">
+                <Filter className="h-2.5 w-2.5" />
+                <span className="text-[10px]">Filtres</span>
+              </div>
+              <div className="h-5 w-5 rounded-md bg-primary flex items-center justify-center">
+                <Plus className="h-3 w-3 text-primary-foreground" />
+              </div>
+            </div>
+          </div>
+          {/* Type selector */}
+          <div className="px-3 pt-2 pb-1 flex gap-1.5">
+            {['Depense', 'Revenu', 'Virement'].map((type, i) => (
+              <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                {type}
+              </span>
+            ))}
+          </div>
+          {[
+            { desc: 'Courses Carrefour', cat: 'Alimentation', amount: '-45,90 €', amountColor: 'text-red-500', icon: ArrowDownRight },
+            { desc: 'Salaire Mars', cat: 'Salaire', amount: '+2 800,00 €', amountColor: 'text-emerald-500', icon: ArrowUpRight },
+            { desc: 'Vers Livret A', cat: 'Virement', amount: '-500,00 €', amountColor: 'text-blue-500', icon: ArrowLeftRight },
+          ].map((tx, i) => (
+            <div key={i} className={mockupRow}>
+              <div className="flex items-center gap-2">
+                <div className={`h-6 w-6 rounded-lg flex items-center justify-center ${i === 2 ? 'bg-blue-500/10' : i === 1 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                  <tx.icon className={`h-3 w-3 ${i === 2 ? 'text-blue-500' : i === 1 ? 'text-emerald-500' : 'text-red-500'}`} />
+                </div>
+                <div>
+                  <p className="font-medium text-[11px]">{tx.desc}</p>
+                  <p className="text-[10px] text-muted-foreground">{tx.cat}</p>
+                </div>
+              </div>
+              <span className={`font-semibold text-[11px] ${tx.amountColor}`}>{tx.amount}</span>
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Appuyez sur + pour ajouter, choisissez le type en haut</span>
+          </div>
+        </div>
+      );
+
+    case 'savings':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Epargne</span>
+            <span className="text-muted-foreground">3 objectifs</span>
+          </div>
+          <div className="px-3 py-2 bg-primary/5 border-b flex items-center gap-1.5">
+            <Tag className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Basee sur vos transactions categoriees en investissement</span>
+          </div>
+          {[
+            { name: 'Vacances ete', current: 1200, target: 2000, pct: 60 },
+            { name: 'Fonds urgence', current: 4500, target: 5000, pct: 90 },
+          ].map((goal, i) => (
+            <div key={i} className="px-3 py-2.5 border-b space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <PiggyBank className="h-3.5 w-3.5 text-primary" />
+                  <span className="font-medium text-[11px]">{goal.name}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">{goal.current.toLocaleString()} / {goal.target.toLocaleString()} €</span>
+              </div>
+              <Progress value={goal.pct} className="h-1.5" />
+              <p className="text-[10px] text-muted-foreground">
+                {goal.pct >= 90 ? 'Presque atteint !' : `Estimation : ${Math.ceil((goal.target - goal.current) / 200)} mois restants`}
+              </p>
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Creez un objectif et suivez la projection automatique</span>
+          </div>
+        </div>
+      );
+
+    case 'debts':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Dettes</span>
+            <span className="text-[10px] text-emerald-500 font-medium">Position : +70 €</span>
+          </div>
+          {/* Tabs */}
+          <div className="px-3 pt-2 pb-1 flex gap-1.5">
+            {['Tous', 'Prets donnes', 'Prets recus'].map((tab, i) => (
+              <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                {tab}
+              </span>
+            ))}
+          </div>
+          {[
+            { person: 'Pierre', type: 'Pret donne', amount: '+150,00 €', color: 'text-emerald-500' },
+            { person: 'Marie', type: 'Pret recu', amount: '-80,00 €', color: 'text-red-500' },
+          ].map((debt, i) => (
+            <div key={i} className={mockupRow}>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                  <span className="text-[10px] font-bold">{debt.person[0]}</span>
+                </div>
+                <div>
+                  <p className="font-medium text-[11px]">{debt.person}</p>
+                  <p className="text-[10px] text-muted-foreground">{debt.type}</p>
+                </div>
+              </div>
+              <span className={`font-semibold text-[11px] ${debt.color}`}>{debt.amount}</span>
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Enregistrez les remboursements partiels au fur et a mesure</span>
+          </div>
+        </div>
+      );
+
+    case 'recurring':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Recurrentes</span>
+            <div className="flex gap-1.5">
+              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">Calendrier</span>
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">Liste</span>
+            </div>
+          </div>
+          {[
+            { name: 'Loyer', freq: 'Mensuel · 1er', amount: '-850,00 €', color: 'text-red-500', active: true },
+            { name: 'Salaire', freq: 'Mensuel · 28', amount: '+2 800,00 €', color: 'text-emerald-500', active: true },
+            { name: 'Netflix', freq: 'Mensuel · 15', amount: '-13,49 €', color: 'text-red-500', active: false },
+          ].map((rec, i) => (
+            <div key={i} className={mockupRow}>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Repeat className="h-3 w-3 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-[11px]">{rec.name}</p>
+                    {!rec.active && <Pause className="h-2.5 w-2.5 text-muted-foreground" />}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{rec.freq}</p>
+                </div>
+              </div>
+              <span className={`font-semibold text-[11px] ${rec.color}`}>{rec.amount}</span>
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Mettez en pause ou executez en avance depuis la liste</span>
+          </div>
+        </div>
+      );
+
+    case 'installments':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Paiements echelonnes</span>
+            <span className="text-muted-foreground">2 en cours</span>
+          </div>
+          {[
+            { name: 'Ordinateur portable', total: '1 200 €', paid: 2, of: 4, pct: 50, remaining: '600 €' },
+            { name: 'Canape', total: '900 €', paid: 5, of: 10, pct: 50, remaining: '450 €' },
+          ].map((inst, i) => (
+            <div key={i} className="px-3 py-2.5 border-b space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-3.5 w-3.5 text-primary" />
+                  <span className="font-medium text-[11px]">{inst.name}</span>
+                </div>
+                <span className="text-[10px] font-semibold">{inst.total}</span>
+              </div>
+              <Progress value={inst.pct} className="h-1.5" />
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{inst.paid}/{inst.of} echeances</span>
+                <span>Restant : {inst.remaining}</span>
+              </div>
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Cliquez pour enregistrer un paiement ou voir l'historique</span>
+          </div>
+        </div>
+      );
+
+    case 'reports':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Rapports</span>
+            <span className="text-muted-foreground">Fevrier 2026</span>
+          </div>
+          {/* Tabs */}
+          <div className="px-3 pt-2 pb-1 flex gap-1.5">
+            {['Evolution', 'Revenus', 'Depenses', 'Recurrentes'].map((tab, i) => (
+              <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                {tab}
+              </span>
+            ))}
+          </div>
+          {/* Mini bar chart */}
+          <div className="px-3 py-3 space-y-2">
+            {[
+              { cat: 'Alimentation', pct: 35, amount: '320 €', color: 'bg-emerald-500' },
+              { cat: 'Transport', pct: 20, amount: '180 €', color: 'bg-blue-500' },
+              { cat: 'Logement', pct: 55, amount: '850 €', color: 'bg-violet-500' },
+              { cat: 'Loisirs', pct: 12, amount: '95 €', color: 'bg-amber-500' },
+            ].map((row, i) => (
+              <div key={i} className="space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium">{row.cat}</span>
+                  <span className="text-[10px] text-muted-foreground">{row.amount}</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${row.color}`} style={{ width: `${row.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-3 pb-2.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Changez d'onglet et de periode pour analyser vos finances</span>
+          </div>
+        </div>
+      );
+
+    case 'notifications':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Notifications email</span>
+            <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          {/* Settings toggles mockup */}
+          <div className="px-3 py-2.5 border-b space-y-2.5">
+            {[
+              { label: 'Alertes de budget', desc: 'Email quand un budget est depasse', on: true },
+              { label: 'Rapports mensuels', desc: 'Resume financier chaque debut de mois', on: true },
+            ].map((toggle, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-[11px]">{toggle.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{toggle.desc}</p>
+                </div>
+                <div className={`w-8 h-4.5 rounded-full flex items-center px-0.5 ${toggle.on ? 'bg-primary justify-end' : 'bg-muted justify-start'}`}>
+                  <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Email preview */}
+          <div className="px-3 py-2.5 space-y-1.5">
+            <p className="text-[10px] font-medium text-muted-foreground">Exemple de mail recu</p>
+            <div className="rounded-lg border bg-muted/30 p-2 space-y-1">
+              <div className="flex items-center gap-1.5">
+                <Mail className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-semibold">Alerte : Budget Alimentation depasse</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Vous avez depense 420 € sur un budget de 400 €. Depassement de 20 €.</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-2 space-y-1">
+              <div className="flex items-center gap-1.5">
+                <FileText className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-semibold">Rapport mensuel · Fevrier 2026</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Revenus : 2 800 € · Depenses : 1 450 € · PDF en piece jointe</p>
+            </div>
+          </div>
+          <div className="px-3 pb-2.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Activez dans Parametres → Notifications par Email</span>
+          </div>
+        </div>
+      );
+
+    case 'settings':
+      return (
+        <div className={mockupWrapper}>
+          <div className={mockupHeader}>
+            <span className="font-semibold">Parametres</span>
+            <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          {[
+            { icon: DollarSign, label: 'Preferences', desc: 'Devise, compte par defaut, alias' },
+            { icon: Bell, label: 'Notifications', desc: 'Alertes budget, rapports mensuels' },
+            { icon: Wallet, label: 'Comptes', desc: 'Ajouter, modifier, supprimer' },
+            { icon: Tag, label: 'Categories', desc: 'Personnaliser noms et couleurs' },
+            { icon: BookOpen, label: 'Guide', desc: 'Revoir la presentation' },
+          ].map((item, i) => (
+            <div key={i} className={mockupRow}>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <item.icon className="h-3 w-3 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-[11px]">{item.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+            </div>
+          ))}
+          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Tout se configure ici, accessible depuis le menu</span>
+          </div>
+        </div>
+      );
+
+    default:
+      return null;
+  }
+};
+
 const featureGuides = [
   {
     id: 'dashboard',
@@ -73,12 +479,6 @@ const featureGuides = [
       "Visualisez vos revenus et depenses du mois en cours avec les indicateurs colores.",
       "Explorez le graphique d'evolution pour suivre vos finances sur plusieurs mois.",
       "Consultez la repartition par categorie pour identifier vos principaux postes de depenses."
-    ],
-    example: [
-      { icon: Wallet, text: "Solde total : 3 250,00 \u20AC", highlight: true },
-      { icon: TrendingUp, text: "Revenus ce mois : +2 800,00 \u20AC", highlight: false },
-      { icon: ArrowLeftRight, text: "Depenses ce mois : -1 450,00 \u20AC", highlight: false },
-      { icon: PieChart, text: "Top categorie : Alimentation (320 \u20AC)", highlight: false },
     ],
     tips: [
       "Le tableau de bord s'actualise automatiquement a chaque nouvelle transaction.",
@@ -95,12 +495,6 @@ const featureGuides = [
       "Cliquez sur un compte pour voir son detail et l'historique de ses transactions.",
       "Ajoutez un nouveau compte a tout moment via le bouton '+' en haut de la page.",
       "Modifiez le nom, la banque ou le type d'un compte depuis ses parametres."
-    ],
-    example: [
-      { icon: Wallet, text: "Compte Courant SG : 2 150,00 \u20AC", highlight: true },
-      { icon: Wallet, text: "Livret A : 8 500,00 \u20AC", highlight: false },
-      { icon: Wallet, text: "Revolut : 320,00 \u20AC", highlight: false },
-      { icon: TrendingUp, text: "Solde total : 10 970,00 \u20AC", highlight: false },
     ],
     tips: [
       "Vous pouvez definir des alias pour vos comptes dans les parametres pour un affichage plus court.",
@@ -119,12 +513,6 @@ const featureGuides = [
       "Pour un virement, selectionnez le compte source et le compte destination.",
       "Retrouvez toutes vos transactions dans la liste avec filtres et recherche."
     ],
-    example: [
-      { icon: Tag, text: "Categorie : Alimentation", highlight: false },
-      { icon: DollarSign, text: "Montant : -45,90 \u20AC", highlight: true },
-      { icon: CreditCard, text: "Compte : Compte Courant", highlight: false },
-      { icon: ListFilter, text: "Description : Courses Carrefour", highlight: false },
-    ],
     tips: [
       "Utilisez les filtres pour retrouver rapidement une transaction par categorie, compte ou periode.",
       "Les virements entre comptes n'affectent pas votre solde global, seulement la repartition entre comptes.",
@@ -141,12 +529,6 @@ const featureGuides = [
       "Consultez vos statistiques d'epargne : epargne nette, depots, retraits et remboursements.",
       "Creez des objectifs d'epargne en indiquant le nom et le montant cible.",
       "Suivez la progression de chaque objectif et les projections (mois restants, montant mensuel necessaire)."
-    ],
-    example: [
-      { icon: Tag, text: "Categorie 'Epargne' → comptee automatiquement", highlight: true },
-      { icon: PiggyBank, text: "Vacances ete : 1 200 / 2 000 \u20AC", highlight: false },
-      { icon: Target, text: "Progression : 60%", highlight: false },
-      { icon: Calendar, text: "Estimation : atteint dans 4 mois", highlight: false },
     ],
     tips: [
       "Pour qu'une transaction apparaisse ici, il suffit de lui attribuer une categorie de type investissement (ex: Epargne, Investissement).",
@@ -165,12 +547,6 @@ const featureGuides = [
       "Enregistrez les remboursements partiels au fur et a mesure.",
       "Consultez votre position nette : total prete vs total du."
     ],
-    example: [
-      { icon: Scale, text: "Pret a Pierre : 150,00 \u20AC", highlight: true },
-      { icon: Scale, text: "Du a Marie : -80,00 \u20AC", highlight: false },
-      { icon: ArrowLeftRight, text: "Position nette : +70,00 \u20AC", highlight: false },
-      { icon: Check, text: "1 remboursement en attente", highlight: false },
-    ],
     tips: [
       "Filtrez par onglet (tous, prets donnes, prets recus) pour une vue ciblee.",
       "Chaque remboursement est lie automatiquement a la dette correspondante."
@@ -186,12 +562,6 @@ const featureGuides = [
       "Definissez la date de debut et eventuellement une date de fin.",
       "Consultez le calendrier pour visualiser toutes vos echeances a venir.",
       "Mettez en pause ou executez en avance une recurrence selon vos besoins."
-    ],
-    example: [
-      { icon: Repeat, text: "Loyer : -850,00 \u20AC / mois", highlight: true },
-      { icon: Repeat, text: "Salaire : +2 800,00 \u20AC / mois", highlight: false },
-      { icon: Repeat, text: "Netflix : -13,49 \u20AC / mois", highlight: false },
-      { icon: Calendar, text: "Prochaine echeance : 1er du mois", highlight: false },
     ],
     tips: [
       "Configurez vos recurrentes des le depart pour avoir une vision precise de votre budget mensuel.",
@@ -209,12 +579,6 @@ const featureGuides = [
       "Suivez la progression avec la barre de completion et le montant restant.",
       "Chaque echeance est automatiquement comptabilisee dans vos transactions."
     ],
-    example: [
-      { icon: CreditCard, text: "Ordinateur portable : 1 200 \u20AC", highlight: true },
-      { icon: Calendar, text: "4x sans frais : 300 \u20AC / mois", highlight: false },
-      { icon: Check, text: "Progression : 2/4 echeances payees", highlight: false },
-      { icon: Target, text: "Restant : 600 \u20AC", highlight: false },
-    ],
     tips: [
       "Ideal pour suivre les achats en plusieurs fois ou les credits en cours.",
       "La barre de progression vous montre en un coup d'oeil ou vous en etes."
@@ -231,12 +595,6 @@ const featureGuides = [
       "Explorez les 4 onglets : Evolution, Revenus, Depenses et Recurrentes.",
       "Exportez vos rapports pour les conserver ou les partager."
     ],
-    example: [
-      { icon: PieChart, text: "Repartition : 6 categories actives", highlight: true },
-      { icon: TrendingUp, text: "Tendance : depenses en baisse de 12%", highlight: false },
-      { icon: BarChart3, text: "Mois le plus depensier : Janvier", highlight: false },
-      { icon: Eye, text: "Comparaison mois par mois disponible", highlight: false },
-    ],
     tips: [
       "Comparez vos depenses d'un mois a l'autre pour identifier les tendances.",
       "Utilisez les rapports pour ajuster vos habitudes de depenses."
@@ -252,12 +610,6 @@ const featureGuides = [
       "Activez les alertes de budget pour etre prevenu quand une categorie depasse son plafond.",
       "Activez les rapports mensuels pour recevoir un resume financier complet chaque debut de mois.",
       "Le rapport mensuel inclut un PDF avec vos revenus, depenses, repartition par categorie et evolution."
-    ],
-    example: [
-      { icon: Bell, text: "Alerte : Budget Alimentation depasse !", highlight: true },
-      { icon: Mail, text: "Rapport de Fevrier 2026 disponible", highlight: false },
-      { icon: FileText, text: "PDF joint : revenus, depenses, categories", highlight: false },
-      { icon: TrendingUp, text: "Tendance : depenses en hausse de 5%", highlight: false },
     ],
     tips: [
       "Les alertes de budget sont envoyees une seule fois par categorie par mois pour eviter le spam.",
@@ -276,12 +628,6 @@ const featureGuides = [
       "Personnalisez vos categories de depenses et revenus avec des couleurs.",
       "Configurez vos notifications email (alertes budget et rapports mensuels).",
       "Relisez le guide de l'application a tout moment depuis cette page."
-    ],
-    example: [
-      { icon: DollarSign, text: "Devise : Euro (\u20AC)", highlight: false },
-      { icon: Wallet, text: "Compte par defaut : Compte Courant", highlight: true },
-      { icon: Tag, text: "12 categories personnalisees", highlight: false },
-      { icon: Bell, text: "Notifications : activees", highlight: false },
     ],
     tips: [
       "Definir un compte par defaut accelere la saisie de vos transactions.",
@@ -777,19 +1123,10 @@ const Onboarding = () => {
                             </div>
                           </div>
 
-                          {/* Visual example */}
+                          {/* UI Mockup */}
                           <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Exemple</p>
-                            <div className="rounded-xl border bg-muted/30 p-4 space-y-2.5">
-                              {guide.example.map((line, i) => (
-                                <div key={i} className="flex items-center gap-2.5 text-sm">
-                                  <line.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <span className={line.highlight ? "font-medium text-primary" : "text-muted-foreground"}>
-                                    {line.text}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Apercu de l'interface</p>
+                            <FeatureMockup id={guide.id} />
                           </div>
 
                           {/* Tips */}
