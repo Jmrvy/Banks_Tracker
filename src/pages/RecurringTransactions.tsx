@@ -123,7 +123,7 @@ const RecurringTransactions = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3">
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="icon-badge icon-badge-md bg-primary/10">
                   <Repeat className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 </div>
                 Transactions Récurrentes
@@ -144,43 +144,43 @@ const RecurringTransactions = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="">
+          <Card className="stat-card">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Active</p>
+                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Active</p>
                   <p className="text-lg sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => t.is_active).length}
                   </p>
                 </div>
-                <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0">
+                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0">
                   <Play className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
                 </div>
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="">
+
+          <Card className="stat-card">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Inactive</p>
+                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Inactive</p>
                   <p className="text-lg sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => !t.is_active).length}
                   </p>
                 </div>
-                <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-full bg-muted/20 flex items-center justify-center flex-shrink-0">
+                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0">
                   <Pause className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="">
+
+          <Card className="stat-card">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">7 jours</p>
+                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">7 jours</p>
                   <p className="text-lg sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => {
                       if (!t.is_active) return false;
@@ -191,7 +191,7 @@ const RecurringTransactions = () => {
                     }).length}
                   </p>
                 </div>
-                <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
+                <div className="icon-badge icon-badge-sm bg-warning/10 flex-shrink-0">
                   <Calendar className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-warning" />
                 </div>
               </div>
@@ -231,7 +231,7 @@ const RecurringTransactions = () => {
               <Card className="">
                 <CardContent className="p-8 sm:p-12">
                   <div className="text-center">
-                    <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                    <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
                       <CalendarDays className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-base sm:text-lg font-medium mb-2">Aucune récurrente</h3>
@@ -261,7 +261,7 @@ const RecurringTransactions = () => {
           {/* List View */}
           <TabsContent value="list" className="mt-4">
             <div className="mb-4">
-              <h2 className="text-sm sm:text-base font-semibold">Toutes les Récurrentes</h2>
+              <h2 className="section-header text-sm sm:text-base font-semibold">Toutes les Récurrentes</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {recurringTransactions.length} transaction{recurringTransactions.length > 1 ? 's' : ''}
               </p>
@@ -279,7 +279,7 @@ const RecurringTransactions = () => {
               <Card className="">
                 <CardContent className="p-8 sm:p-12">
                   <div className="text-center">
-                    <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                    <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
                       <Repeat className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-base sm:text-lg font-medium mb-2">Aucune récurrente</h3>
@@ -296,7 +296,7 @@ const RecurringTransactions = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {recurringTransactions.map((recurring) => (
-                  <Card key={recurring.id} className="hover:shadow-lg transition-all duration-200">
+                  <Card key={recurring.id} className="glass-hover hover:shadow-lg transition-all duration-200">
                     <CardHeader className="p-3 sm:p-6">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-sm sm:text-lg font-semibold truncate">{recurring.description}</CardTitle>

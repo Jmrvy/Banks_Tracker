@@ -58,7 +58,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
   };
 
   return (
-    <Card>
+    <Card className="glass-hover">
       <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 flex-1 min-w-0">

@@ -64,42 +64,48 @@ const Debts = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4 pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Prêts accordés</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground">Prêts accordés</p>
                   <p className="text-lg sm:text-2xl font-bold text-success">{formatCurrency(totalLoansGiven)}</p>
                 </div>
-                <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-success" />
+                <div className="icon-badge icon-badge-md bg-success/10">
+                  <Wallet className="h-5 w-5 text-success" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4 pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Prêts contractés</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground">Prêts contractés</p>
                   <p className="text-lg sm:text-2xl font-bold text-destructive">
                     {formatCurrency(totalLoansReceived)}
                   </p>
                 </div>
-                <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-destructive" />
+                <div className="icon-badge icon-badge-md bg-destructive/10">
+                  <Wallet className="h-5 w-5 text-destructive" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4 pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Position nette</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground">Position nette</p>
                   <p className={`text-lg sm:text-2xl font-bold ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`}>
                     {formatCurrency(netPosition)}
                   </p>
                 </div>
-                <Wallet className={`h-6 w-6 sm:h-8 sm:w-8 ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`} />
+                <div className={`icon-badge icon-badge-md ${netPosition >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                  <Wallet className={`h-5 w-5 ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`} />
+                </div>
               </div>
             </CardContent>
           </Card>
