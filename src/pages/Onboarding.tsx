@@ -135,22 +135,23 @@ const featureGuides = [
     id: 'savings',
     icon: PiggyBank,
     title: "Epargne",
-    desc: "Definissez des objectifs d'epargne, suivez votre progression et estimez quand vous atteindrez vos cibles.",
+    desc: "Suivez votre epargne basee sur toutes les transactions categoriees en investissement, avec objectifs et projections.",
     steps: [
-      "Creez un objectif d'epargne en indiquant le nom et le montant cible.",
+      "Toutes les transactions (depenses et revenus) avec une categorie de type investissement sont automatiquement comptabilisees dans l'onglet Epargne.",
       "Consultez vos statistiques d'epargne : epargne nette, depots, retraits et remboursements.",
-      "Suivez la progression de chaque objectif avec la barre de completion.",
-      "L'application estime automatiquement le nombre de mois restants et le montant mensuel necessaire."
+      "Creez des objectifs d'epargne en indiquant le nom et le montant cible.",
+      "Suivez la progression de chaque objectif et les projections (mois restants, montant mensuel necessaire)."
     ],
     example: [
-      { icon: PiggyBank, text: "Vacances ete : 1 200 / 2 000 \u20AC", highlight: true },
+      { icon: Tag, text: "Categorie 'Epargne' → comptee automatiquement", highlight: true },
+      { icon: PiggyBank, text: "Vacances ete : 1 200 / 2 000 \u20AC", highlight: false },
       { icon: Target, text: "Progression : 60%", highlight: false },
       { icon: Calendar, text: "Estimation : atteint dans 4 mois", highlight: false },
-      { icon: TrendingUp, text: "Epargne mensuelle necessaire : 200 \u20AC", highlight: false },
     ],
     tips: [
-      "Definissez des objectifs realistes bases sur votre epargne mensuelle moyenne visible dans les rapports.",
-      "Vous pouvez suivre les remboursements et echeances lies a vos objectifs d'epargne."
+      "Pour qu'une transaction apparaisse ici, il suffit de lui attribuer une categorie de type investissement (ex: Epargne, Investissement).",
+      "Les revenus en categorie investissement sont comptabilises comme depots, les depenses comme retraits.",
+      "Definissez des objectifs realistes bases sur votre epargne mensuelle moyenne visible dans les rapports."
     ]
   },
   {
