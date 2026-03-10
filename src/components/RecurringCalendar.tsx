@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, ArrowDownRight, ArrowUpRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock } from "lucide-react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,11 +33,23 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(y, m - 1, d);
 };
 
+// Helper to advance a date by recurrence type
+function advanceDate(date: Date, recurrenceType: string): Date {
+  switch (recurrenceType) {
+    case 'weekly': return addWeeks(date, 1);
+    case 'monthly': return addMonths(date, 1);
+    case 'quarterly': return addQuarters(date, 1);
+    case 'yearly': return addYears(date, 1);
+    default: return addMonths(date, 1);
+  }
+}
+
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const { formatCurrency } = useUserPreferences();
+  const transactionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -106,52 +118,54 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       const nextDueDate = parseLocalDate(transaction.next_due_date);
 
       // For installment-linked transactions, calculate max future occurrences
-      let maxFutureOccurrences = Infinity;
+      // and compute the effective last occurrence date
+      let effectiveEndDate: Date | null = endDateLimit;
       if (transaction.installment_payment_id) {
         const ip = installmentPaymentsById.get(transaction.installment_payment_id);
         if (ip && ip.installment_amount > 0) {
-          maxFutureOccurrences = Math.ceil(ip.remaining_amount / ip.installment_amount);
+          const maxFutureOccurrences = Math.ceil(ip.remaining_amount / ip.installment_amount);
+          // Calculate the last valid future occurrence date from next_due_date
+          let lastOccurrence = new Date(nextDueDate);
+          for (let i = 1; i < maxFutureOccurrences; i++) {
+            lastOccurrence = advanceDate(lastOccurrence, transaction.recurrence_type);
+          }
+          // Use the stricter limit
+          if (maxFutureOccurrences <= 0) {
+            // No remaining payments - don't show any future occurrences
+            if (!endDateLimit || lastOccurrence < endDateLimit) {
+              effectiveEndDate = nextDueDate; // Set to before next_due_date effectively
+            }
+          } else if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
+            effectiveEndDate = lastOccurrence;
+          }
         }
       }
+
+      // Skip if effective end date is before this month
+      if (effectiveEndDate && effectiveEndDate < monthStart) return;
 
       // Calculate all occurrences of this transaction in the current month
       let currentOccurrence = new Date(startDate);
 
       // Move to first occurrence that could be in or before this month
       while (currentOccurrence < monthStart) {
-        switch (transaction.recurrence_type) {
-          case 'weekly': currentOccurrence = addWeeks(currentOccurrence, 1); break;
-          case 'monthly': currentOccurrence = addMonths(currentOccurrence, 1); break;
-          case 'quarterly': currentOccurrence = addQuarters(currentOccurrence, 1); break;
-          case 'yearly': currentOccurrence = addYears(currentOccurrence, 1); break;
-          default: currentOccurrence = addMonths(currentOccurrence, 1);
-        }
+        currentOccurrence = advanceDate(currentOccurrence, transaction.recurrence_type);
       }
-
-      let futureCount = 0;
 
       // Add all occurrences within this month
       while (currentOccurrence <= monthEnd) {
-        if (endDateLimit && currentOccurrence > endDateLimit) break;
+        // Stop if past effective end date
+        if (effectiveEndDate && currentOccurrence > effectiveEndDate) break;
 
         if (isSameMonth(currentOccurrence, currentMonth)) {
           const key = format(currentOccurrence, 'yyyy-MM-dd');
           const isPast = isBefore(currentOccurrence, today);
 
-          // FIX #1: For future occurrences, skip if before next_due_date
-          // This prevents showing occurrences that have already been executed
+          // For future occurrences, skip if before next_due_date
+          // (these have already been executed)
           if (!isPast && isBefore(currentOccurrence, nextDueDate)) {
-            // Skip - this occurrence was already executed
             currentOccurrence = advanceDate(currentOccurrence, transaction.recurrence_type);
             continue;
-          }
-
-          // FIX #1b: For installment-linked, limit future occurrences to remaining payments
-          if (!isPast && transaction.installment_payment_id) {
-            if (futureCount >= maxFutureOccurrences) {
-              break;
-            }
-            futureCount++;
           }
 
           let displayAmount: number | undefined;
@@ -203,9 +217,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       });
     });
 
-    // Sort upcoming by date ascending
     upcoming.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
-    // Sort past by date descending (most recent first)
     past.sort((a, b) => b.occurrenceDate.localeCompare(a.occurrenceDate));
 
     return { upcomingOccurrences: upcoming, pastOccurrences: past };
@@ -257,12 +269,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
   const monthName = format(currentMonth, 'MMMM', { locale: fr });
 
-  // Calculate total for a section
   const sectionTotal = (occurrences: CalendarOccurrence[]) => {
     return occurrences.reduce((sum, o) => sum + (o.displayAmount ?? o.transaction.amount), 0);
   };
 
-  // Get installment info for a transaction
   const getInstallmentInfo = (transaction: RecurringTransaction) => {
     if (!transaction.installment_payment_id) return null;
     const ip = installmentPaymentsById.get(transaction.installment_payment_id);
@@ -274,11 +284,237 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return { ip, paid, paidCount, totalCount, pct };
   };
 
-  // Get actual payment history for an installment
   const getPaymentHistory = (installmentPaymentId: string) => {
     return actualTransactions
       .filter(tx => tx.installment_payment_id === installmentPaymentId)
       .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
+  };
+
+  // Handle calendar day click: scroll to the first transaction of that day
+  const handleDayClick = useCallback((dateKey: string, dayTransactions: CalendarOccurrence[]) => {
+    if (dayTransactions.length === 0) return;
+
+    const firstOccurrence = dayTransactions[0];
+    const isPast = firstOccurrence.isPast;
+    const cardId = isPast
+      ? `past:${firstOccurrence.transaction.id}:${firstOccurrence.occurrenceDate}`
+      : `${firstOccurrence.transaction.id}:${firstOccurrence.occurrenceDate}`;
+
+    setExpandedTransactionId(cardId);
+
+    // Scroll to the card after React renders
+    requestAnimationFrame(() => {
+      const el = transactionRefs.current.get(cardId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }, []);
+
+  const setRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      transactionRefs.current.set(id, el);
+    } else {
+      transactionRefs.current.delete(id);
+    }
+  }, []);
+
+  // Render an occurrence card (shared between upcoming and past)
+  const renderOccurrenceCard = (occurrence: CalendarOccurrence, keyPrefix: string) => {
+    const { transaction, displayAmount, occurrenceDate, isPast } = occurrence;
+    const occDate = parseLocalDate(occurrenceDate);
+    const today = startOfDay(new Date());
+    const daysUntil = differenceInDays(occDate, today);
+    const cardId = keyPrefix === 'past' ? `past:${transaction.id}:${occurrenceDate}` : `${transaction.id}:${occurrenceDate}`;
+    const isExpanded = expandedTransactionId === cardId;
+    const installmentInfo = getInstallmentInfo(transaction);
+
+    return (
+      <Card
+        key={cardId}
+        ref={(el) => setRef(cardId, el)}
+        className={`overflow-hidden border-border/50 ${isPast ? 'bg-card/50 opacity-70' : 'bg-card/80'}`}
+      >
+        {/* Main row */}
+        <div
+          className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+          onClick={() => setExpandedTransactionId(isExpanded ? null : cardId)}
+        >
+          {/* Date badge */}
+          <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
+            isPast ? 'bg-muted/30' : transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'
+          }`}>
+            <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
+              {format(occDate, 'MMM', { locale: fr })}
+            </span>
+            <span className={`text-sm sm:text-base font-bold leading-none ${isPast ? 'text-muted-foreground' : ''}`}>
+              {format(occDate, 'd')}
+            </span>
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm sm:text-base font-semibold truncate ${isPast ? 'text-muted-foreground' : ''}`}>
+              {transaction.description}
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {isPast ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3 text-success" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    Payé le {format(occDate, 'd MMM', { locale: fr })}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    {daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? 'Demain' : `Dans ${daysUntil} jours`}
+                  </span>
+                </>
+              )}
+            </div>
+            {installmentInfo && (
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                {isPast ? installmentInfo.paidCount : installmentInfo.paidCount + 1} sur {installmentInfo.totalCount} ({formatCurrency(installmentInfo.ip.total_amount)})
+              </span>
+            )}
+          </div>
+
+          {/* Amount + chevron */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className={`text-sm sm:text-base font-bold ${
+              isPast ? 'text-muted-foreground' : transaction.type === 'income' ? 'text-success' : 'text-destructive'
+            }`}>
+              {formatCurrency(displayAmount ?? transaction.amount)}
+            </span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {/* Expanded detail */}
+        {isExpanded && (
+          <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Fréquence</span>
+                <span className="font-medium text-xs sm:text-sm">{getRecurrenceLabel(transaction.recurrence_type)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Compte</span>
+                <span className="font-medium text-xs sm:text-sm truncate max-w-[150px]">{transaction.account?.name}</span>
+              </div>
+              {transaction.category && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-xs">Catégorie</span>
+                  <Badge variant="outline" className="gap-1.5 text-xs">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: transaction.category.color }} />
+                    {transaction.category.name}
+                  </Badge>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Prochain paiement</span>
+                <span className="font-medium text-xs sm:text-sm">
+                  {parseLocalDate(transaction.next_due_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Statut</span>
+                <Badge variant={transaction.is_active ? 'default' : 'secondary'} className="text-xs">
+                  {transaction.is_active ? 'Actif' : 'Inactif'}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Installment progress */}
+            {installmentInfo && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.paid)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.ip.remaining_amount)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
+                    </div>
+                  </div>
+                  <Progress value={installmentInfo.pct} className="h-2" />
+                </div>
+
+                {/* Payment timeline */}
+                <div className="space-y-1">
+                  {getPaymentHistory(transaction.installment_payment_id!).map((tx) => (
+                    <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                      <span className="text-xs sm:text-sm flex-1">
+                        {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
+                    </div>
+                  ))}
+                  {/* Show next pending payment for upcoming */}
+                  {!isPast && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                      <span className="text-xs sm:text-sm flex-1">
+                        {occDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-medium">
+                        {formatCurrency(displayAmount ?? transaction.amount)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Execute early button - only for upcoming */}
+            {!isPast && onExecuteEarly && (
+              <Button
+                size="sm"
+                className="w-full h-9 text-xs sm:text-sm gap-1.5"
+                disabled={executingId === transaction.id}
+                onClick={async () => {
+                  setExecutingId(transaction.id);
+                  const result = await onExecuteEarly(transaction.id, occurrenceDate);
+                  setExecutingId(null);
+                  if (!result?.error) {
+                    setExpandedTransactionId(null);
+                  }
+                }}
+              >
+                {executingId === transaction.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
+                Passer la transaction
+              </Button>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2 pt-2 border-t border-border/50">
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => onEdit(transaction)}>
+                <Pencil className="h-3.5 w-3.5" /> Modifier
+              </Button>
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
+                {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {transaction.is_active ? 'Désactiver' : 'Activer'}
+              </Button>
+              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
+                onClick={() => onDelete(transaction.id, transaction.description)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+    );
   };
 
   return (
@@ -308,7 +544,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             ))}
           </div>
 
-          {/* Calendar grid - simplified, just show amounts on days */}
+          {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
             {calendarDays.map((day, index) => {
               if (!day) {
@@ -319,7 +555,6 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               const dayTransactions = transactionsByDay.get(dateKey) || [];
               const isToday = isSameDay(day, new Date());
 
-              // Calculate day total
               const dayTotal = dayTransactions.reduce((sum, { transaction, displayAmount }) => {
                 const amount = displayAmount ?? transaction.amount;
                 return sum + (transaction.type === 'income' ? amount : -amount);
@@ -334,7 +569,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                       : dayTransactions.length > 0
                         ? 'border-border/50 bg-muted/20'
                         : 'border-border/30'
-                  }`}
+                  } ${dayTransactions.length > 0 ? 'cursor-pointer hover:bg-muted/40' : ''}`}
+                  onClick={() => handleDayClick(dateKey, dayTransactions)}
                 >
                   <span className={`text-[10px] sm:text-xs font-medium ${
                     isToday ? 'text-primary' : 'text-foreground'
@@ -423,8 +659,6 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         </CardContent>
       </Card>
 
-      {/* Klarna-style transaction list below calendar */}
-
       {/* Upcoming / Due section */}
       {upcomingOccurrences.length > 0 && (
         <div className="space-y-2">
@@ -436,179 +670,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               {formatCurrency(sectionTotal(upcomingOccurrences))}
             </span>
           </div>
-
           <div className="space-y-2">
-            {upcomingOccurrences.map((occurrence) => {
-              const { transaction, displayAmount, occurrenceDate } = occurrence;
-              const occDate = parseLocalDate(occurrenceDate);
-              const today = startOfDay(new Date());
-              const daysUntil = differenceInDays(occDate, today);
-              const isExpanded = expandedTransactionId === `${transaction.id}:${occurrenceDate}`;
-              const installmentInfo = getInstallmentInfo(transaction);
-
-              return (
-                <Card
-                  key={`${transaction.id}:${occurrenceDate}`}
-                  className="overflow-hidden border-border/50 bg-card/80"
-                >
-                  {/* Main row */}
-                  <div
-                    className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => setExpandedTransactionId(
-                      isExpanded ? null : `${transaction.id}:${occurrenceDate}`
-                    )}
-                  >
-                    {/* Date badge */}
-                    <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
-                      transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'
-                    }`}>
-                      <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
-                        {format(occDate, 'MMM', { locale: fr })}
-                      </span>
-                      <span className="text-sm sm:text-base font-bold leading-none">
-                        {format(occDate, 'd')}
-                      </span>
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm sm:text-base font-semibold truncate">{transaction.description}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">
-                          {daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? 'Demain' : `Dans ${daysUntil} jours`}
-                        </span>
-                      </div>
-                      {installmentInfo && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">
-                          {installmentInfo.paidCount + 1} sur {installmentInfo.totalCount} ({formatCurrency(installmentInfo.ip.total_amount)})
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Amount + chevron */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-sm sm:text-base font-bold ${
-                        transaction.type === 'income' ? 'text-success' : 'text-destructive'
-                      }`}>
-                        {formatCurrency(displayAmount ?? transaction.amount)}
-                      </span>
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </div>
-                  </div>
-
-                  {/* Expanded detail (Klarna-style) */}
-                  {isExpanded && (
-                    <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
-                      {/* Transaction info */}
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">Fréquence</span>
-                          <span className="font-medium text-xs sm:text-sm">{getRecurrenceLabel(transaction.recurrence_type)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">Compte</span>
-                          <span className="font-medium text-xs sm:text-sm truncate max-w-[150px]">{transaction.account?.name}</span>
-                        </div>
-                        {transaction.category && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground text-xs">Catégorie</span>
-                            <Badge variant="outline" className="gap-1.5 text-xs">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: transaction.category.color }} />
-                              {transaction.category.name}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Installment progress */}
-                      {installmentInfo && (
-                        <div className="space-y-3">
-                          {/* Progress bar */}
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-end">
-                              <div>
-                                <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.paid)}</p>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.ip.remaining_amount)}</p>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
-                              </div>
-                            </div>
-                            <Progress value={installmentInfo.pct} className="h-2" />
-                          </div>
-
-                          {/* Payment timeline */}
-                          <div className="space-y-1">
-                            {getPaymentHistory(transaction.installment_payment_id!).map((tx) => (
-                              <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
-                                <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
-                                <span className="text-xs sm:text-sm flex-1">
-                                  {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                                </span>
-                                <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
-                              </div>
-                            ))}
-                            {/* Next payment (current occurrence) */}
-                            <div className="flex items-center gap-2.5 py-1.5">
-                              <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
-                              <span className="text-xs sm:text-sm flex-1">
-                                {occDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                              </span>
-                              <span className="text-xs sm:text-sm font-medium">
-                                {formatCurrency(displayAmount ?? transaction.amount)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Execute early button */}
-                      {onExecuteEarly && (
-                        <Button
-                          size="sm"
-                          className="w-full h-9 text-xs sm:text-sm gap-1.5"
-                          disabled={executingId === transaction.id}
-                          onClick={async () => {
-                            setExecutingId(transaction.id);
-                            const result = await onExecuteEarly(transaction.id, occurrenceDate);
-                            setExecutingId(null);
-                            if (!result?.error) {
-                              setExpandedTransactionId(null);
-                            }
-                          }}
-                        >
-                          {executingId === transaction.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          )}
-                          Passer la transaction
-                        </Button>
-                      )}
-
-                      {/* Action buttons */}
-                      <div className="flex gap-2 pt-2 border-t border-border/50">
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                          onClick={() => onEdit(transaction)}>
-                          <Pencil className="h-3.5 w-3.5" /> Modifier
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                          onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
-                          {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                          {transaction.is_active ? 'Désactiver' : 'Activer'}
-                        </Button>
-                        <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
-                          onClick={() => onDelete(transaction.id, transaction.description)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+            {upcomingOccurrences.map((o) => renderOccurrenceCard(o, 'upcoming'))}
           </div>
         </div>
       )}
@@ -624,150 +687,13 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               {formatCurrency(sectionTotal(pastOccurrences))}
             </span>
           </div>
-
           <div className="space-y-2">
-            {pastOccurrences.map((occurrence) => {
-              const { transaction, displayAmount, occurrenceDate } = occurrence;
-              const occDate = parseLocalDate(occurrenceDate);
-              const isExpanded = expandedTransactionId === `past:${transaction.id}:${occurrenceDate}`;
-              const installmentInfo = getInstallmentInfo(transaction);
-
-              return (
-                <Card
-                  key={`past:${transaction.id}:${occurrenceDate}`}
-                  className="overflow-hidden border-border/50 bg-card/50 opacity-70"
-                >
-                  {/* Main row */}
-                  <div
-                    className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => setExpandedTransactionId(
-                      isExpanded ? null : `past:${transaction.id}:${occurrenceDate}`
-                    )}
-                  >
-                    {/* Date badge */}
-                    <div className="flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center bg-muted/30">
-                      <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
-                        {format(occDate, 'MMM', { locale: fr })}
-                      </span>
-                      <span className="text-sm sm:text-base font-bold leading-none text-muted-foreground">
-                        {format(occDate, 'd')}
-                      </span>
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm sm:text-base font-semibold truncate text-muted-foreground">{transaction.description}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <CheckCircle2 className="h-3 w-3 text-success" />
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">
-                          Payé le {format(occDate, 'd MMM', { locale: fr })}
-                        </span>
-                      </div>
-                      {installmentInfo && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">
-                          {installmentInfo.paidCount} sur {installmentInfo.totalCount} ({formatCurrency(installmentInfo.ip.total_amount)})
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Amount + chevron */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm sm:text-base font-bold text-muted-foreground">
-                        {formatCurrency(displayAmount ?? transaction.amount)}
-                      </span>
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </div>
-                  </div>
-
-                  {/* Expanded detail */}
-                  {isExpanded && (
-                    <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">Fréquence</span>
-                          <span className="font-medium text-xs sm:text-sm">{getRecurrenceLabel(transaction.recurrence_type)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">Compte</span>
-                          <span className="font-medium text-xs sm:text-sm truncate max-w-[150px]">{transaction.account?.name}</span>
-                        </div>
-                        {transaction.category && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground text-xs">Catégorie</span>
-                            <Badge variant="outline" className="gap-1.5 text-xs">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: transaction.category.color }} />
-                              {transaction.category.name}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-
-                      {installmentInfo && (
-                        <div className="space-y-3">
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-end">
-                              <div>
-                                <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.paid)}</p>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.ip.remaining_amount)}</p>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
-                              </div>
-                            </div>
-                            <Progress value={installmentInfo.pct} className="h-2" />
-                          </div>
-
-                          <div className="space-y-1">
-                            {getPaymentHistory(transaction.installment_payment_id!).map((tx) => (
-                              <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
-                                <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
-                                <span className="text-xs sm:text-sm flex-1">
-                                  {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                                </span>
-                                <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2 pt-2 border-t border-border/50">
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                          onClick={() => onEdit(transaction)}>
-                          <Pencil className="h-3.5 w-3.5" /> Modifier
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                          onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
-                          {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                          {transaction.is_active ? 'Désactiver' : 'Activer'}
-                        </Button>
-                        <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
-                          onClick={() => onDelete(transaction.id, transaction.description)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+            {pastOccurrences.map((o) => renderOccurrenceCard(o, 'past'))}
           </div>
         </div>
       )}
     </div>
   );
 };
-
-// Helper to advance a date by recurrence type
-function advanceDate(date: Date, recurrenceType: string): Date {
-  switch (recurrenceType) {
-    case 'weekly': return addWeeks(date, 1);
-    case 'monthly': return addMonths(date, 1);
-    case 'quarterly': return addQuarters(date, 1);
-    case 'yearly': return addYears(date, 1);
-    default: return addMonths(date, 1);
-  }
-}
 
 export default RecurringCalendar;
