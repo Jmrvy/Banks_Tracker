@@ -16,7 +16,8 @@ import {
   CreditCard, Tag, BookOpen, TrendingUp, PieChart,
   Calendar, ArrowLeftRight, BarChart3, Plus, X, Repeat,
   ChevronDown, Eye, DollarSign, ListFilter, Target,
-  PiggyBank, Scale, History, Receipt
+  PiggyBank, Scale, History, Receipt, Bell, Mail,
+  FileText, Settings
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -238,6 +239,52 @@ const featureGuides = [
     tips: [
       "Comparez vos depenses d'un mois a l'autre pour identifier les tendances.",
       "Utilisez les rapports pour ajuster vos habitudes de depenses."
+    ]
+  },
+  {
+    id: 'notifications',
+    icon: Bell,
+    title: "Notifications par email",
+    desc: "Recevez des alertes de depassement de budget et un rapport financier mensuel par email.",
+    steps: [
+      "Activez les notifications dans Parametres > Notifications par Email.",
+      "Activez les alertes de budget pour etre prevenu quand une categorie depasse son plafond.",
+      "Activez les rapports mensuels pour recevoir un resume financier complet chaque debut de mois.",
+      "Le rapport mensuel inclut un PDF avec vos revenus, depenses, repartition par categorie et evolution."
+    ],
+    example: [
+      { icon: Bell, text: "Alerte : Budget Alimentation depasse !", highlight: true },
+      { icon: Mail, text: "Rapport de Fevrier 2026 disponible", highlight: false },
+      { icon: FileText, text: "PDF joint : revenus, depenses, categories", highlight: false },
+      { icon: TrendingUp, text: "Tendance : depenses en hausse de 5%", highlight: false },
+    ],
+    tips: [
+      "Les alertes de budget sont envoyees une seule fois par categorie par mois pour eviter le spam.",
+      "Le rapport mensuel compare automatiquement avec le mois precedent pour identifier les tendances.",
+      "Definissez d'abord des budgets par categorie dans vos comptes pour que les alertes fonctionnent."
+    ]
+  },
+  {
+    id: 'settings',
+    icon: Settings,
+    title: "Parametres",
+    desc: "Personnalisez l'application : devise, comptes, categories, notifications et preferences.",
+    steps: [
+      "Modifiez votre devise et votre compte par defaut dans les preferences.",
+      "Gerez vos comptes bancaires : ajoutez, modifiez ou supprimez des comptes.",
+      "Personnalisez vos categories de depenses et revenus avec des couleurs.",
+      "Configurez vos notifications email (alertes budget et rapports mensuels).",
+      "Relisez le guide de l'application a tout moment depuis cette page."
+    ],
+    example: [
+      { icon: DollarSign, text: "Devise : Euro (\u20AC)", highlight: false },
+      { icon: Wallet, text: "Compte par defaut : Compte Courant", highlight: true },
+      { icon: Tag, text: "12 categories personnalisees", highlight: false },
+      { icon: Bell, text: "Notifications : activees", highlight: false },
+    ],
+    tips: [
+      "Definir un compte par defaut accelere la saisie de vos transactions.",
+      "Vous pouvez creer des alias pour vos comptes afin d'avoir des noms plus courts dans l'app."
     ]
   },
 ];
