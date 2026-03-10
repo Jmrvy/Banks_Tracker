@@ -14,8 +14,10 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import {
   Wallet, ChevronRight, ChevronLeft, Check, Sparkles,
   CreditCard, Tag, BookOpen, TrendingUp, PieChart,
-  Calendar, ArrowLeftRight, BarChart3, Plus, X, Repeat
+  Calendar, ArrowLeftRight, BarChart3, Plus, X, Repeat,
+  ChevronDown, Eye, DollarSign, ListFilter, Target
 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 const TOTAL_STEPS = 5;
 
@@ -58,6 +60,143 @@ const currencyOptions = [
   { value: 'CHF', label: 'Franc Suisse', symbol: 'CHF' },
 ];
 
+const featureGuides = [
+  {
+    id: 'dashboard',
+    icon: TrendingUp,
+    title: "Tableau de bord",
+    desc: "Vue d'ensemble avec solde total, revenus et depenses du mois, graphiques d'evolution et repartition par categorie.",
+    steps: [
+      "Consultez votre solde total en haut de la page d'accueil, mis a jour en temps reel.",
+      "Visualisez vos revenus et depenses du mois en cours avec les indicateurs colores.",
+      "Explorez le graphique d'evolution pour suivre vos finances sur plusieurs mois.",
+      "Consultez la repartition par categorie pour identifier vos principaux postes de depenses."
+    ],
+    example: [
+      { icon: Wallet, text: "Solde total : 3 250,00 \u20AC", highlight: true },
+      { icon: TrendingUp, text: "Revenus ce mois : +2 800,00 \u20AC", highlight: false },
+      { icon: ArrowLeftRight, text: "Depenses ce mois : -1 450,00 \u20AC", highlight: false },
+      { icon: PieChart, text: "Top categorie : Alimentation (320 \u20AC)", highlight: false },
+    ],
+    tips: [
+      "Le tableau de bord s'actualise automatiquement a chaque nouvelle transaction.",
+      "Cliquez sur le graphique pour voir le detail d'un mois specifique."
+    ]
+  },
+  {
+    id: 'transactions',
+    icon: ArrowLeftRight,
+    title: "Transactions",
+    desc: "Enregistrez revenus, depenses et virements entre comptes. Gerez les remboursements et les transactions exclues des stats.",
+    steps: [
+      "Appuyez sur le bouton '+' pour creer une nouvelle transaction.",
+      "Choisissez le type : depense, revenu ou virement entre comptes.",
+      "Renseignez le montant, la categorie, le compte et une description.",
+      "Pour un virement, selectionnez le compte source et le compte destination.",
+      "Retrouvez toutes vos transactions dans la liste avec filtres et recherche."
+    ],
+    example: [
+      { icon: Tag, text: "Categorie : Alimentation", highlight: false },
+      { icon: DollarSign, text: "Montant : -45,90 \u20AC", highlight: true },
+      { icon: CreditCard, text: "Compte : Compte Courant", highlight: false },
+      { icon: ListFilter, text: "Description : Courses Carrefour", highlight: false },
+    ],
+    tips: [
+      "Utilisez les filtres pour retrouver rapidement une transaction par categorie, compte ou periode.",
+      "Les virements entre comptes n'affectent pas votre solde global, seulement la repartition entre comptes.",
+      "Vous pouvez exclure une transaction des statistiques si c'est un remboursement ou un cas particulier."
+    ]
+  },
+  {
+    id: 'recurring',
+    icon: Repeat,
+    title: "Recurrentes",
+    desc: "Programmez vos depenses et revenus reguliers (loyer, salaire, abonnements...). Calendrier visuel des echeances.",
+    steps: [
+      "Ajoutez une transaction recurrente en precisant le montant et la frequence (mensuel, hebdomadaire...).",
+      "Definissez la date de debut et eventuellement une date de fin.",
+      "Consultez le calendrier pour visualiser toutes vos echeances a venir.",
+      "Les transactions sont automatiquement creees aux dates prevues."
+    ],
+    example: [
+      { icon: Repeat, text: "Loyer : -850,00 \u20AC / mois", highlight: true },
+      { icon: Repeat, text: "Salaire : +2 800,00 \u20AC / mois", highlight: false },
+      { icon: Repeat, text: "Netflix : -13,49 \u20AC / mois", highlight: false },
+      { icon: Calendar, text: "Prochaine echeance : 1er du mois", highlight: false },
+    ],
+    tips: [
+      "Configurez vos recurrentes des le depart pour avoir une vision precise de votre budget mensuel.",
+      "Vous pouvez mettre en pause une recurrence sans la supprimer."
+    ]
+  },
+  {
+    id: 'installments',
+    icon: Calendar,
+    title: "Paiements echelonnes",
+    desc: "Suivez vos credits et remboursements en cours avec progression et montants restants.",
+    steps: [
+      "Creez un paiement echelonne en indiquant le montant total et le nombre d'echeances.",
+      "Renseignez la date de debut et la frequence des paiements.",
+      "Suivez la progression avec la barre de completion et le montant restant.",
+      "Chaque echeance est automatiquement comptabilisee dans vos transactions."
+    ],
+    example: [
+      { icon: CreditCard, text: "Ordinateur portable : 1 200 \u20AC", highlight: true },
+      { icon: Calendar, text: "4x sans frais : 300 \u20AC / mois", highlight: false },
+      { icon: Check, text: "Progression : 2/4 echeances payees", highlight: false },
+      { icon: Target, text: "Restant : 600 \u20AC", highlight: false },
+    ],
+    tips: [
+      "Ideal pour suivre les achats en plusieurs fois ou les credits en cours.",
+      "La barre de progression vous montre en un coup d'oeil ou vous en etes."
+    ]
+  },
+  {
+    id: 'reports',
+    icon: PieChart,
+    title: "Rapports",
+    desc: "Analyses detaillees de vos finances : tendances, repartition, evolution dans le temps.",
+    steps: [
+      "Accedez a la page Rapports depuis le menu de navigation.",
+      "Selectionnez la periode d'analyse souhaitee (mois, trimestre, annee).",
+      "Consultez le graphique de repartition par categorie en camembert.",
+      "Analysez l'evolution de vos depenses et revenus avec le graphique en barres."
+    ],
+    example: [
+      { icon: PieChart, text: "Repartition : 6 categories actives", highlight: true },
+      { icon: TrendingUp, text: "Tendance : depenses en baisse de 12%", highlight: false },
+      { icon: BarChart3, text: "Mois le plus depensier : Janvier", highlight: false },
+      { icon: Eye, text: "Comparaison mois par mois disponible", highlight: false },
+    ],
+    tips: [
+      "Comparez vos depenses d'un mois a l'autre pour identifier les tendances.",
+      "Utilisez les rapports pour ajuster vos budgets mensuels."
+    ]
+  },
+  {
+    id: 'budgets',
+    icon: BarChart3,
+    title: "Budget par categorie",
+    desc: "Definissez des limites de depenses mensuelles par categorie et suivez votre progression.",
+    steps: [
+      "Choisissez une categorie et definissez un plafond mensuel de depenses.",
+      "Suivez en temps reel combien vous avez depense par rapport a votre budget.",
+      "La barre de progression change de couleur selon votre consommation (vert, orange, rouge).",
+      "Recevez des alertes visuelles quand vous approchez ou depassez votre limite."
+    ],
+    example: [
+      { icon: Tag, text: "Alimentation : 350 \u20AC / 400 \u20AC", highlight: false },
+      { icon: Tag, text: "Transport : 80 \u20AC / 150 \u20AC", highlight: false },
+      { icon: Tag, text: "Loisirs : 195 \u20AC / 200 \u20AC", highlight: true },
+      { icon: Target, text: "Budget global utilise a 72%", highlight: false },
+    ],
+    tips: [
+      "Commencez par vos 3 plus grosses categories de depenses pour un budget efficace.",
+      "Ajustez vos plafonds chaque mois en fonction de vos rapports du mois precedent."
+    ]
+  },
+];
+
 interface AccountDraft {
   name: string;
   bank: string;
@@ -76,6 +215,7 @@ const Onboarding = () => {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [selectedGuide, setSelectedGuide] = useState<string | null>(null);
 
   // Step 2: Accounts
   const [accounts, setAccounts] = useState<AccountDraft[]>([
@@ -483,56 +623,102 @@ const Onboarding = () => {
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold">Decouvrez l'application</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Voici un apercu des fonctionnalites principales
+                  Cliquez sur une fonctionnalite pour decouvrir comment l'utiliser
                 </p>
               </div>
 
               <div className="space-y-2.5">
-                {[
-                  {
-                    icon: TrendingUp,
-                    title: "Tableau de bord",
-                    desc: "Vue d'ensemble avec solde total, revenus et depenses du mois, graphiques d'evolution et repartition par categorie."
-                  },
-                  {
-                    icon: ArrowLeftRight,
-                    title: "Transactions",
-                    desc: "Enregistrez revenus, depenses et virements entre comptes. Gerez les remboursements et les transactions exclues des stats."
-                  },
-                  {
-                    icon: Repeat,
-                    title: "Recurrentes",
-                    desc: "Programmez vos depenses et revenus reguliers (loyer, salaire, abonnements...). Calendrier visuel des echeances."
-                  },
-                  {
-                    icon: Calendar,
-                    title: "Paiements echelonnes",
-                    desc: "Suivez vos credits et remboursements en cours avec progression et montants restants."
-                  },
-                  {
-                    icon: PieChart,
-                    title: "Rapports",
-                    desc: "Analyses detaillees de vos finances : tendances, repartition, evolution dans le temps."
-                  },
-                  {
-                    icon: BarChart3,
-                    title: "Budget par categorie",
-                    desc: "Definissez des limites de depenses mensuelles par categorie et suivez votre progression."
-                  },
-                ].map((feature, index) => (
-                  <Card key={index} className="border shadow-sm">
+                {featureGuides.map((feature, index) => (
+                  <Card
+                    key={index}
+                    className="border shadow-sm cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.98]"
+                    onClick={() => setSelectedGuide(feature.id)}
+                  >
                     <CardContent className="p-3 sm:p-4 flex items-start gap-3">
                       <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <feature.icon className="h-4.5 w-4.5 text-primary" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold">{feature.title}</p>
                         <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{feature.desc}</p>
                       </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
                     </CardContent>
                   </Card>
                 ))}
               </div>
+
+              {/* Feature detail sheet */}
+              <Sheet open={!!selectedGuide} onOpenChange={(open) => !open && setSelectedGuide(null)}>
+                <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl px-4 sm:px-6 pb-8">
+                  {selectedGuide && (() => {
+                    const guide = featureGuides.find(f => f.id === selectedGuide);
+                    if (!guide) return null;
+                    return (
+                      <>
+                        <SheetHeader className="text-left mb-5">
+                          <div className="flex items-center gap-3 mb-1">
+                            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                              <guide.icon className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <SheetTitle className="text-lg">{guide.title}</SheetTitle>
+                              <SheetDescription>{guide.desc}</SheetDescription>
+                            </div>
+                          </div>
+                        </SheetHeader>
+
+                        <div className="space-y-5">
+                          {/* Steps */}
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comment faire</p>
+                            <div className="space-y-2.5">
+                              {guide.steps.map((step, i) => (
+                                <div key={i} className="flex items-start gap-3">
+                                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-xs font-bold text-primary">{i + 1}</span>
+                                  </div>
+                                  <p className="text-sm leading-relaxed">{step}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Visual example */}
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Exemple</p>
+                            <div className="rounded-xl border bg-muted/30 p-4 space-y-2.5">
+                              {guide.example.map((line, i) => (
+                                <div key={i} className="flex items-center gap-2.5 text-sm">
+                                  <line.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className={line.highlight ? "font-medium text-primary" : "text-muted-foreground"}>
+                                    {line.text}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Tips */}
+                          {guide.tips && (
+                            <div className="space-y-2.5">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Astuces</p>
+                              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2">
+                                {guide.tips.map((tip, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-sm">
+                                    <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                                    <span className="text-sm leading-relaxed">{tip}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </SheetContent>
+              </Sheet>
             </div>
           )}
         </div>
