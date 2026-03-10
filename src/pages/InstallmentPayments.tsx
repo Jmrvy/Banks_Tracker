@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
-import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +14,6 @@ import { AdjustInstallmentPlanModal } from "@/components/AdjustInstallmentPlanMo
 import { InstallmentTransactionsModal } from "@/components/InstallmentTransactionsModal";
 import { InstallmentPaymentDetailsModal } from "@/components/InstallmentPaymentDetailsModal";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -32,12 +25,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { differenceInDays, startOfDay } from "date-fns";
+
+// Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
+const parseLocalDate = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
 
 const InstallmentPayments = () => {
   const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment } = useInstallmentPayments();
-  const { accounts, categories } = useFinancialData();
+  const { accounts, categories, transactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
   const [showNewModal, setShowNewModal] = useState(false);
@@ -50,6 +48,7 @@ const InstallmentPayments = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [adjustmentData, setAdjustmentData] = useState<{
     payment: InstallmentPayment;
     paymentAmount: number;
@@ -156,12 +155,255 @@ const InstallmentPayments = () => {
     }
   };
 
+  // Get payment history for a specific installment
+  const getPaymentHistory = (paymentId: string) => {
+    return transactions
+      .filter(tx => tx.installment_payment_id === paymentId)
+      .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
+  };
+
   // Filter payments based on selected tab
   const filteredPayments = installmentPayments.filter(payment => {
     if (filter === 'active') return payment.is_active;
     if (filter === 'completed') return !payment.is_active;
-    return true; // 'all'
+    return true;
   });
+
+  const renderPaymentCard = (payment: InstallmentPayment) => {
+    const account = accounts.find(a => a.id === payment.account_id);
+    const category = categories.find(c => c.id === payment.category_id);
+    const paid = payment.total_amount - payment.remaining_amount;
+    const progress = payment.total_amount > 0 ? Math.min(100, Math.round((paid / payment.total_amount) * 1000) / 10) : 0;
+    const isExpanded = expandedId === payment.id;
+    const nextDue = parseLocalDate(payment.next_payment_date);
+    const today = startOfDay(new Date());
+    const daysUntil = differenceInDays(nextDue, today);
+    const paidCount = getPaymentHistory(payment.id).length;
+    const totalCount = payment.installment_amount > 0 ? Math.ceil(payment.total_amount / payment.installment_amount) : 0;
+    const paymentHistory = getPaymentHistory(payment.id);
+
+    return (
+      <Card
+        key={payment.id}
+        className={`overflow-hidden border-border/50 ${payment.is_active ? 'bg-card/80' : 'bg-card/50 opacity-70'}`}
+      >
+        {/* Main row */}
+        <div
+          className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+          onClick={() => setExpandedId(isExpanded ? null : payment.id)}
+        >
+          {/* Type indicator */}
+          <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
+            !payment.is_active ? 'bg-muted/30' : payment.payment_type === 'reimbursement' ? 'bg-success/10' : 'bg-orange-500/10'
+          }`}>
+            <CreditCard className={`h-4 w-4 sm:h-5 sm:w-5 ${
+              !payment.is_active ? 'text-muted-foreground' : payment.payment_type === 'reimbursement' ? 'text-success' : 'text-orange-500'
+            }`} />
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className={`text-sm sm:text-base font-semibold truncate ${!payment.is_active ? 'text-muted-foreground' : ''}`}>
+                {payment.description}
+              </p>
+              <Badge
+                variant="outline"
+                className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
+              >
+                {payment.payment_type === 'reimbursement' ? 'Remb.' : 'Paiem.'}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {payment.is_active ? (
+                <>
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    {daysUntil < 0 ? 'En retard' :
+                     daysUntil === 0 ? "Aujourd'hui" :
+                     daysUntil === 1 ? 'Demain' :
+                     `Dans ${daysUntil} jours`}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    · {getFrequencyLabel(payment.frequency)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3 w-3 text-success" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Terminé</span>
+                </>
+              )}
+            </div>
+            <span className="text-[10px] sm:text-xs text-muted-foreground">
+              {paidCount} sur {totalCount} payé ({formatCurrency(payment.total_amount)})
+            </span>
+          </div>
+
+          {/* Amount + chevron */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="text-right">
+              <span className={`text-sm sm:text-base font-bold ${
+                !payment.is_active ? 'text-muted-foreground' : 'text-orange-500'
+              }`}>
+                {formatCurrency(payment.remaining_amount)}
+              </span>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">restant</p>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {/* Expanded detail */}
+        {isExpanded && (
+          <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
+            {/* Progress bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-sm sm:text-base font-bold">{formatCurrency(paid)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm sm:text-base font-bold">{formatCurrency(payment.remaining_amount)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
+                </div>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+
+            {/* Details */}
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Total</span>
+                <span className="font-bold text-xs sm:text-sm">{formatCurrency(payment.total_amount)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Mensualité</span>
+                <span className="font-medium text-xs sm:text-sm">{formatCurrency(payment.installment_amount)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Fréquence</span>
+                <span className="font-medium text-xs sm:text-sm">{getFrequencyLabel(payment.frequency)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Prochain paiement</span>
+                <span className={`font-medium text-xs sm:text-sm ${daysUntil < 0 ? 'text-warning' : ''}`}>
+                  {nextDue.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              {account && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-xs">Compte</span>
+                  <span className="font-medium text-xs sm:text-sm">{account.name}</span>
+                </div>
+              )}
+              {category && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-xs">Catégorie</span>
+                  <Badge variant="outline" className="gap-1.5 text-xs">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color }} />
+                    {category.name}
+                  </Badge>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Type</span>
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
+                >
+                  {payment.payment_type === 'reimbursement' ? 'Remboursement' : 'Paiement'}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">Statut</span>
+                <Badge variant={payment.is_active ? 'default' : 'secondary'} className="text-xs">
+                  {payment.is_active ? 'Actif' : 'Terminé'}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Payment timeline */}
+            {paymentHistory.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Historique des paiements</p>
+                {paymentHistory.map((tx) => (
+                  <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
+                    <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
+                      <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-xs sm:text-sm flex-1">
+                      {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    </span>
+                    <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
+                  </div>
+                ))}
+                {/* Next pending payment */}
+                {payment.is_active && payment.remaining_amount > 0 && (
+                  <div className="flex items-center gap-2.5 py-1.5">
+                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                    <span className="text-xs sm:text-sm flex-1">
+                      {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    </span>
+                    <span className="text-xs sm:text-sm font-medium">
+                      {formatCurrency(payment.installment_amount)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Record payment button */}
+            {payment.is_active && (
+              <Button
+                size="sm"
+                className="w-full h-9 text-xs sm:text-sm gap-1.5"
+                onClick={() => handleRecordPayment(payment)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Enregistrer un paiement
+              </Button>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => handleViewDetails(payment)}>
+                <History className="h-3.5 w-3.5" /> Détails
+              </Button>
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => handleViewTransactions(payment)}>
+                <Receipt className="h-3.5 w-3.5" /> Transactions
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 px-3"
+                onClick={() => handleRecalculate(payment)}>
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => handleEdit(payment)}>
+                <Pencil className="h-3.5 w-3.5" /> Modifier
+              </Button>
+              {payment.is_active && (
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                  onClick={() => handleComplete(payment)}>
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Terminer
+                </Button>
+              )}
+              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
+                onClick={() => handleDeleteClick(payment.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
@@ -185,9 +427,6 @@ const InstallmentPayments = () => {
             </h1>
             <p className="text-xs md:text-sm text-muted-foreground mt-2 ml-11 md:ml-13">
               Gérez vos paiements échelonnés financés par votre épargne
-            </p>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 ml-11 md:ml-13">
-              💡 Chaque paiement crée automatiquement une transaction récurrente
             </p>
           </div>
           <Button
@@ -253,165 +492,33 @@ const InstallmentPayments = () => {
 
         {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="active">Actifs ({installmentPayments.filter(p => p.is_active).length})</TabsTrigger>
-            <TabsTrigger value="completed">Terminés ({installmentPayments.filter(p => !p.is_active).length})</TabsTrigger>
-            <TabsTrigger value="all">Tous ({installmentPayments.length})</TabsTrigger>
+          <TabsList className="grid w-full max-w-md grid-cols-3 h-9 sm:h-10">
+            <TabsTrigger value="active" className="text-xs sm:text-sm">Actifs ({installmentPayments.filter(p => p.is_active).length})</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs sm:text-sm">Terminés ({installmentPayments.filter(p => !p.is_active).length})</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs sm:text-sm">Tous ({installmentPayments.length})</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        {/* Installment Payments List */}
+        {/* Payments List */}
         {filteredPayments.length === 0 ? (
-          <Card className="">
-            <CardContent className="p-12 text-center">
-              <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-4">
-                <CreditCard className="h-8 w-8 text-muted-foreground" />
+          <Card>
+            <CardContent className="p-8 sm:p-12 text-center">
+              <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
+                <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Aucun paiement échelonné</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <h3 className="text-base sm:text-lg font-medium mb-2">Aucun paiement échelonné</h3>
+              <p className="text-muted-foreground text-xs sm:text-sm mb-4">
                 Créez votre premier paiement en plusieurs fois pour commencer
               </p>
-              <Button 
-                onClick={() => setShowNewModal(true)}
-              >
+              <Button onClick={() => setShowNewModal(true)} className="h-9 text-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un paiement
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {filteredPayments.map((payment) => {
-              const account = accounts.find(a => a.id === payment.account_id);
-              const category = categories.find(c => c.id === payment.category_id);
-              const progress = payment.total_amount > 0 ? Math.min(100, Math.round(((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 1000) / 10) : 0;
-
-              return (
-                <Card key={payment.id} className="glass-hover hover:shadow-lg transition-all duration-200">
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base md:text-lg font-semibold flex-1 min-w-0 truncate">{payment.description}</CardTitle>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge
-                          variant={payment.payment_type === 'reimbursement' ? "outline" : "secondary"}
-                          className={`text-xs ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
-                        >
-                          {payment.payment_type === 'reimbursement' ? '💰 Remboursement' : '💳 Paiement'}
-                        </Badge>
-                        <Badge
-                          variant={payment.is_active ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {payment.is_active ? "Actif" : "Terminé"}
-                        </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewDetails(payment)}>
-                              <History className="h-4 w-4 mr-2" />
-                              Détails & Historique
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewTransactions(payment)}>
-                              <Receipt className="h-4 w-4 mr-2" />
-                              Voir les transactions
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleRecalculate(payment)}>
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Recalculer
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleEdit(payment)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Modifier
-                            </DropdownMenuItem>
-                            {payment.is_active && (
-                              <>
-                                <DropdownMenuItem onClick={() => handleComplete(payment)}>
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  Marquer comme terminé
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                              </>
-                            )}
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteClick(payment.id)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Supprimer
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="section-header text-muted-foreground text-xs">Progression</span>
-                        <span className="font-semibold">{progress.toFixed(0)}%</span>
-                      </div>
-                      <Progress value={progress} className="h-2.5" />
-                    </div>
-
-                    <div className="space-y-2.5 text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground text-xs">Total:</span>
-                        <span className="font-bold text-base">{formatCurrency(payment.total_amount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground text-xs">Restant:</span>
-                        <span className="font-bold text-base text-orange-500">{formatCurrency(payment.remaining_amount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground text-xs">Mensualité:</span>
-                        <span className="font-semibold">{formatCurrency(payment.installment_amount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground text-xs">Fréquence:</span>
-                        <span className="font-medium">{getFrequencyLabel(payment.frequency)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground text-xs">Prochain paiement:</span>
-                        <span className="font-medium">{format((() => { const [y,m,d] = payment.next_payment_date.split('-').map(Number); return new Date(y, m-1, d); })(), 'dd MMM yyyy', { locale: fr })}</span>
-                      </div>
-                      {account && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">Compte:</span>
-                          <span className="font-medium">{account.name}</span>
-                        </div>
-                      )}
-                      {category && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">Catégorie:</span>
-                          <Badge variant="outline" className="gap-1.5">
-                            <div 
-                              className="w-2.5 h-2.5 rounded-full" 
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-
-                    {payment.is_active && (
-                      <Button
-                        onClick={() => handleRecordPayment(payment)}
-                        className="w-full"
-                        size="sm"
-                      >
-                        Enregistrer un paiement
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="space-y-2">
+            {filteredPayments.map(renderPaymentCard)}
           </div>
         )}
       </div>
