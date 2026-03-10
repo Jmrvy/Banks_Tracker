@@ -20,7 +20,6 @@ import {
   ArrowUpRight, ArrowDownRight, MousePointerClick
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Progress } from "@/components/ui/progress";
 
 const TOTAL_STEPS = 5;
 
