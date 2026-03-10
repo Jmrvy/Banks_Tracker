@@ -15,7 +15,8 @@ import {
   Wallet, ChevronRight, ChevronLeft, Check, Sparkles,
   CreditCard, Tag, BookOpen, TrendingUp, PieChart,
   Calendar, ArrowLeftRight, BarChart3, Plus, X, Repeat,
-  ChevronDown, Eye, DollarSign, ListFilter, Target
+  ChevronDown, Eye, DollarSign, ListFilter, Target,
+  PiggyBank, Scale, History, Receipt
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -84,10 +85,32 @@ const featureGuides = [
     ]
   },
   {
+    id: 'accounts',
+    icon: Wallet,
+    title: "Comptes",
+    desc: "Gerez tous vos comptes bancaires, consultez les soldes individuels et l'historique par compte.",
+    steps: [
+      "Retrouvez tous vos comptes bancaires avec leur solde respectif sur la page Comptes.",
+      "Cliquez sur un compte pour voir son detail et l'historique de ses transactions.",
+      "Ajoutez un nouveau compte a tout moment via le bouton '+' en haut de la page.",
+      "Modifiez le nom, la banque ou le type d'un compte depuis ses parametres."
+    ],
+    example: [
+      { icon: Wallet, text: "Compte Courant SG : 2 150,00 \u20AC", highlight: true },
+      { icon: Wallet, text: "Livret A : 8 500,00 \u20AC", highlight: false },
+      { icon: Wallet, text: "Revolut : 320,00 \u20AC", highlight: false },
+      { icon: TrendingUp, text: "Solde total : 10 970,00 \u20AC", highlight: false },
+    ],
+    tips: [
+      "Vous pouvez definir des alias pour vos comptes dans les parametres pour un affichage plus court.",
+      "Le solde de chaque compte est automatiquement mis a jour a chaque transaction."
+    ]
+  },
+  {
     id: 'transactions',
-    icon: ArrowLeftRight,
+    icon: History,
     title: "Transactions",
-    desc: "Enregistrez revenus, depenses et virements entre comptes. Gerez les remboursements et les transactions exclues des stats.",
+    desc: "Enregistrez revenus, depenses et virements entre comptes. Filtrez et recherchez dans votre historique.",
     steps: [
       "Appuyez sur le bouton '+' pour creer une nouvelle transaction.",
       "Choisissez le type : depense, revenu ou virement entre comptes.",
@@ -108,15 +131,59 @@ const featureGuides = [
     ]
   },
   {
+    id: 'savings',
+    icon: PiggyBank,
+    title: "Epargne",
+    desc: "Definissez des objectifs d'epargne, suivez votre progression et estimez quand vous atteindrez vos cibles.",
+    steps: [
+      "Creez un objectif d'epargne en indiquant le nom et le montant cible.",
+      "Consultez vos statistiques d'epargne : epargne nette, depots, retraits et remboursements.",
+      "Suivez la progression de chaque objectif avec la barre de completion.",
+      "L'application estime automatiquement le nombre de mois restants et le montant mensuel necessaire."
+    ],
+    example: [
+      { icon: PiggyBank, text: "Vacances ete : 1 200 / 2 000 \u20AC", highlight: true },
+      { icon: Target, text: "Progression : 60%", highlight: false },
+      { icon: Calendar, text: "Estimation : atteint dans 4 mois", highlight: false },
+      { icon: TrendingUp, text: "Epargne mensuelle necessaire : 200 \u20AC", highlight: false },
+    ],
+    tips: [
+      "Definissez des objectifs realistes bases sur votre epargne mensuelle moyenne visible dans les rapports.",
+      "Vous pouvez suivre les remboursements et echeances lies a vos objectifs d'epargne."
+    ]
+  },
+  {
+    id: 'debts',
+    icon: Scale,
+    title: "Dettes",
+    desc: "Suivez les prets donnes et recus, gerez les remboursements et visualisez votre position nette.",
+    steps: [
+      "Ajoutez une dette en precisant s'il s'agit d'un pret donne ou recu.",
+      "Renseignez le montant, la personne concernee et une description.",
+      "Enregistrez les remboursements partiels au fur et a mesure.",
+      "Consultez votre position nette : total prete vs total du."
+    ],
+    example: [
+      { icon: Scale, text: "Pret a Pierre : 150,00 \u20AC", highlight: true },
+      { icon: Scale, text: "Du a Marie : -80,00 \u20AC", highlight: false },
+      { icon: ArrowLeftRight, text: "Position nette : +70,00 \u20AC", highlight: false },
+      { icon: Check, text: "1 remboursement en attente", highlight: false },
+    ],
+    tips: [
+      "Filtrez par onglet (tous, prets donnes, prets recus) pour une vue ciblee.",
+      "Chaque remboursement est lie automatiquement a la dette correspondante."
+    ]
+  },
+  {
     id: 'recurring',
-    icon: Repeat,
+    icon: Receipt,
     title: "Recurrentes",
     desc: "Programmez vos depenses et revenus reguliers (loyer, salaire, abonnements...). Calendrier visuel des echeances.",
     steps: [
       "Ajoutez une transaction recurrente en precisant le montant et la frequence (mensuel, hebdomadaire...).",
       "Definissez la date de debut et eventuellement une date de fin.",
       "Consultez le calendrier pour visualiser toutes vos echeances a venir.",
-      "Les transactions sont automatiquement creees aux dates prevues."
+      "Mettez en pause ou executez en avance une recurrence selon vos besoins."
     ],
     example: [
       { icon: Repeat, text: "Loyer : -850,00 \u20AC / mois", highlight: true },
@@ -126,14 +193,14 @@ const featureGuides = [
     ],
     tips: [
       "Configurez vos recurrentes des le depart pour avoir une vision precise de votre budget mensuel.",
-      "Vous pouvez mettre en pause une recurrence sans la supprimer."
+      "Vous pouvez mettre en pause une recurrence sans la supprimer, et l'executer en avance si besoin."
     ]
   },
   {
     id: 'installments',
-    icon: Calendar,
+    icon: CreditCard,
     title: "Paiements echelonnes",
-    desc: "Suivez vos credits et remboursements en cours avec progression et montants restants.",
+    desc: "Suivez vos achats en plusieurs fois et credits en cours avec progression et montants restants.",
     steps: [
       "Creez un paiement echelonne en indiquant le montant total et le nombre d'echeances.",
       "Renseignez la date de debut et la frequence des paiements.",
@@ -159,8 +226,8 @@ const featureGuides = [
     steps: [
       "Accedez a la page Rapports depuis le menu de navigation.",
       "Selectionnez la periode d'analyse souhaitee (mois, trimestre, annee).",
-      "Consultez le graphique de repartition par categorie en camembert.",
-      "Analysez l'evolution de vos depenses et revenus avec le graphique en barres."
+      "Explorez les 4 onglets : Evolution, Revenus, Depenses et Recurrentes.",
+      "Exportez vos rapports pour les conserver ou les partager."
     ],
     example: [
       { icon: PieChart, text: "Repartition : 6 categories actives", highlight: true },
@@ -170,29 +237,7 @@ const featureGuides = [
     ],
     tips: [
       "Comparez vos depenses d'un mois a l'autre pour identifier les tendances.",
-      "Utilisez les rapports pour ajuster vos budgets mensuels."
-    ]
-  },
-  {
-    id: 'budgets',
-    icon: BarChart3,
-    title: "Budget par categorie",
-    desc: "Definissez des limites de depenses mensuelles par categorie et suivez votre progression.",
-    steps: [
-      "Choisissez une categorie et definissez un plafond mensuel de depenses.",
-      "Suivez en temps reel combien vous avez depense par rapport a votre budget.",
-      "La barre de progression change de couleur selon votre consommation (vert, orange, rouge).",
-      "Recevez des alertes visuelles quand vous approchez ou depassez votre limite."
-    ],
-    example: [
-      { icon: Tag, text: "Alimentation : 350 \u20AC / 400 \u20AC", highlight: false },
-      { icon: Tag, text: "Transport : 80 \u20AC / 150 \u20AC", highlight: false },
-      { icon: Tag, text: "Loisirs : 195 \u20AC / 200 \u20AC", highlight: true },
-      { icon: Target, text: "Budget global utilise a 72%", highlight: false },
-    ],
-    tips: [
-      "Commencez par vos 3 plus grosses categories de depenses pour un budget efficace.",
-      "Ajustez vos plafonds chaque mois en fonction de vos rapports du mois precedent."
+      "Utilisez les rapports pour ajuster vos habitudes de depenses."
     ]
   },
 ];
