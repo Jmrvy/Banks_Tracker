@@ -16,8 +16,9 @@ import {
   CreditCard, Tag, BookOpen, TrendingUp, PieChart,
   Calendar, ArrowLeftRight, BarChart3, Plus, X, Repeat,
   DollarSign, Target, PiggyBank, Scale, History, Receipt,
-  Bell, Mail, FileText, Settings, Filter, Pause,
-  ArrowUpRight, ArrowDownRight, MousePointerClick
+  Bell, Mail, FileText, Settings, Filter, Pause, Play,
+  ArrowUpRight, ArrowDownRight, MousePointerClick,
+  Search, Download, Pencil, Trash2, MoreVertical
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -65,329 +66,583 @@ const currencyOptions = [
 /* ── Visual mockup for each feature guide ── */
 const FeatureMockup = ({ id }: { id: string }) => {
   const mockupWrapper = "rounded-xl border bg-card overflow-hidden text-xs";
-  const mockupHeader = "flex items-center justify-between px-3 py-2 border-b bg-muted/40";
   const mockupRow = "flex items-center justify-between px-3 py-2 border-b last:border-0";
 
   switch (id) {
+    /* ── Dashboard: QuickPreview (what users see first) ── */
     case 'dashboard':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Tableau de bord</span>
-            <span className="text-muted-foreground">Mars 2026</span>
-          </div>
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-px bg-border">
-            <div className="bg-card p-2.5 text-center">
-              <p className="text-muted-foreground text-[10px]">Solde total</p>
-              <p className="font-bold text-sm text-primary">3 250 €</p>
-            </div>
-            <div className="bg-card p-2.5 text-center">
-              <p className="text-muted-foreground text-[10px]">Revenus</p>
-              <p className="font-bold text-sm text-emerald-500">+2 800 €</p>
-            </div>
-            <div className="bg-card p-2.5 text-center">
-              <p className="text-muted-foreground text-[10px]">Depenses</p>
-              <p className="font-bold text-sm text-red-500">-1 450 €</p>
+          {/* Hero balance card */}
+          <div className="p-3 bg-gradient-to-br from-card via-card to-primary/5 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Solde total</p>
+                <p className="text-lg font-bold text-success">3 250,00 €</p>
+              </div>
+              <div className="h-9 w-9 rounded-2xl bg-success/10 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-success" />
+              </div>
             </div>
           </div>
-          {/* Mini chart mockup */}
-          <div className="p-3 space-y-1.5">
-            <p className="text-[10px] font-medium text-muted-foreground">Evolution du solde</p>
-            <div className="flex items-end gap-1 h-10">
-              {[40, 55, 45, 60, 50, 70, 65, 80, 75, 85, 78, 90].map((h, i) => (
-                <div key={i} className="flex-1 rounded-sm bg-primary/20" style={{ height: `${h}%` }}>
-                  <div className="w-full rounded-sm bg-primary" style={{ height: '60%', marginTop: 'auto' }} />
+          {/* Monthly summary — 3 mini cards */}
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-[10px] text-muted-foreground mb-1.5">Mars 2026</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="rounded-lg border p-2">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <div className="h-4 w-4 rounded bg-success/10 flex items-center justify-center">
+                    <ArrowDownRight className="w-2.5 h-2.5 text-success" />
+                  </div>
+                  <span className="text-[9px] text-muted-foreground">Revenus</span>
+                </div>
+                <p className="font-bold text-[11px] text-success">+2 800 €</p>
+              </div>
+              <div className="rounded-lg border p-2">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <div className="h-4 w-4 rounded bg-destructive/10 flex items-center justify-center">
+                    <ArrowUpRight className="w-2.5 h-2.5 text-destructive" />
+                  </div>
+                  <span className="text-[9px] text-muted-foreground">Depenses</span>
+                </div>
+                <p className="font-bold text-[11px] text-destructive">-1 450 €</p>
+              </div>
+              <div className="rounded-lg border p-2">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <div className="h-4 w-4 rounded bg-primary/10 flex items-center justify-center">
+                    <Wallet className="w-2.5 h-2.5 text-primary" />
+                  </div>
+                  <span className="text-[9px] text-muted-foreground">Net</span>
+                </div>
+                <p className="font-bold text-[11px] text-success">+1 350 €</p>
+              </div>
+            </div>
+          </div>
+          {/* Accounts + Upcoming side by side */}
+          <div className="px-3 py-2 grid grid-cols-2 gap-2">
+            <div className="rounded-lg border p-2 space-y-1">
+              <div className="flex items-center gap-1 mb-1">
+                <CreditCard className="w-2.5 h-2.5 text-primary" />
+                <span className="text-[10px] font-semibold">Mes comptes</span>
+              </div>
+              {['Compte Courant', 'Livret A'].map((n, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <div className={`h-1.5 w-1.5 rounded-full ${i === 0 ? 'bg-success' : 'bg-success'}`} />
+                    <span className="text-[9px]">{n}</span>
+                  </div>
+                  <span className="text-[9px] font-semibold">{i === 0 ? '2 150 €' : '8 500 €'}</span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg border p-2 space-y-1">
+              <div className="flex items-center gap-1 mb-1">
+                <Calendar className="w-2.5 h-2.5 text-primary" />
+                <span className="text-[10px] font-semibold">A venir (7j)</span>
+              </div>
+              {[{ n: 'Loyer', d: 'Lun 1 avr', a: '-850 €', c: 'text-destructive' }, { n: 'Salaire', d: 'Ven 28 mar', a: '+2 800 €', c: 'text-success' }].map((tx, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-medium">{tx.n}</p>
+                    <p className="text-[8px] text-muted-foreground">{tx.d}</p>
+                  </div>
+                  <span className={`text-[9px] font-semibold ${tx.c}`}>{tx.a}</span>
                 </div>
               ))}
             </div>
           </div>
-          {/* Annotation */}
-          <div className="px-3 pb-2.5 flex items-center gap-1.5">
+          {/* CTA */}
+          <div className="px-3 pb-2.5 pt-0.5">
+            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-primary/10 py-1.5">
+              <span className="text-[10px] text-primary font-medium">Tableau de bord complet</span>
+              <ChevronRight className="h-3 w-3 text-primary" />
+            </div>
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
             <span className="text-[10px] text-primary font-medium">Cliquez sur les stats pour voir le detail des transactions</span>
           </div>
         </div>
       );
 
+    /* ── Accounts: List view with total balance card ── */
     case 'accounts':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Mes comptes</span>
-            <div className="h-5 w-5 rounded-md bg-primary/10 flex items-center justify-center">
-              <Plus className="h-3 w-3 text-primary" />
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <div className="flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5 text-primary" />
+              <span className="font-semibold">Comptes</span>
+            </div>
+            <div className="h-6 px-2 rounded-md bg-primary text-primary-foreground flex items-center gap-1">
+              <Plus className="h-2.5 w-2.5" />
+              <span className="text-[10px] font-medium">Nouveau compte</span>
             </div>
           </div>
-          {[
-            { name: 'Compte Courant', bank: 'Societe Generale', amount: '2 150,00 €', color: 'text-foreground' },
-            { name: 'Livret A', bank: 'Boursorama', amount: '8 500,00 €', color: 'text-foreground' },
-            { name: 'Revolut', bank: 'Revolut', amount: '320,00 €', color: 'text-foreground' },
-          ].map((acc, i) => (
-            <div key={i} className={mockupRow}>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Wallet className="h-3 w-3 text-primary" />
+          {/* Total balance card */}
+          <div className="mx-3 mt-2 mb-1.5 rounded-lg border p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-muted-foreground">Solde total</p>
+              <p className="text-base font-bold">10 970,00 €</p>
+            </div>
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+              <Wallet className="h-4 w-4 text-primary" />
+            </div>
+          </div>
+          {/* Account cards */}
+          <div className="px-3 pb-2 space-y-1.5">
+            <p className="text-[10px] text-muted-foreground font-medium">Tous les comptes (3)</p>
+            {[
+              { name: 'Compte Courant', bank: 'Societe Generale', type: 'Courant', amount: '2 150,00 €', positive: true },
+              { name: 'Livret A', bank: 'Boursorama', type: 'Epargne', amount: '8 500,00 €', positive: true },
+              { name: 'Revolut', bank: 'Revolut', type: 'Courant', amount: '320,00 €', positive: true },
+            ].map((acc, i) => (
+              <div key={i} className="rounded-lg border p-2 space-y-1.5 hover:bg-accent/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-[11px]">{acc.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{acc.bank}</p>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded border text-muted-foreground">{acc.type}</span>
                 </div>
-                <div>
-                  <p className="font-medium text-[11px]">{acc.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{acc.bank}</p>
+                <div className="pt-1 border-t">
+                  <p className="text-[9px] text-muted-foreground">Solde</p>
+                  <p className={`font-bold text-[12px] ${acc.positive ? 'text-success' : 'text-destructive'}`}>{acc.amount}</p>
                 </div>
               </div>
-              <span className={`font-semibold text-[11px] ${acc.color}`}>{acc.amount}</span>
-            </div>
-          ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            ))}
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Cliquez sur un compte pour voir ses transactions</span>
+            <span className="text-[10px] text-primary font-medium">Cliquez sur un compte pour voir ses transactions et graphiques</span>
           </div>
         </div>
       );
 
+    /* ── Transactions: Search + filter + list ── */
     case 'transactions':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Transactions</span>
-            <div className="flex gap-1.5">
-              <div className="h-5 px-2 rounded-md bg-muted flex items-center gap-1">
-                <Filter className="h-2.5 w-2.5" />
-                <span className="text-[10px]">Filtres</span>
-              </div>
-              <div className="h-5 w-5 rounded-md bg-primary flex items-center justify-center">
-                <Plus className="h-3 w-3 text-primary-foreground" />
-              </div>
+          {/* Header */}
+          <div className="px-3 py-2 border-b">
+            <p className="font-semibold flex items-center gap-1.5">
+              <History className="h-3.5 w-3.5 text-primary" />
+              Transactions
+            </p>
+            <p className="text-[10px] text-muted-foreground">Historique complet avec filtres avances</p>
+          </div>
+          {/* Search bar + filter button */}
+          <div className="px-3 py-2 border-b flex gap-1.5">
+            <div className="flex-1 flex items-center gap-1.5 rounded-md border px-2 py-1">
+              <Search className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">Rechercher une transaction...</span>
+            </div>
+            <div className="flex items-center gap-1 rounded-md border px-2 py-1 relative">
+              <Filter className="h-3 w-3" />
+              <span className="text-[10px]">Filtres</span>
+              <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-destructive text-[8px] text-white flex items-center justify-center font-bold">2</span>
             </div>
           </div>
-          {/* Type selector */}
-          <div className="px-3 pt-2 pb-1 flex gap-1.5">
-            {['Depense', 'Revenu', 'Virement'].map((type, i) => (
-              <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                {type}
-              </span>
-            ))}
-          </div>
+          {/* Transaction rows (matching real app: bank color bar + type icon + desc/cat/date + amount + actions) */}
           {[
-            { desc: 'Courses Carrefour', cat: 'Alimentation', amount: '-45,90 €', amountColor: 'text-red-500', icon: ArrowDownRight },
-            { desc: 'Salaire Mars', cat: 'Salaire', amount: '+2 800,00 €', amountColor: 'text-emerald-500', icon: ArrowUpRight },
-            { desc: 'Vers Livret A', cat: 'Virement', amount: '-500,00 €', amountColor: 'text-blue-500', icon: ArrowLeftRight },
+            { desc: 'Courses Carrefour', cat: 'Alimentation', catColor: '#22c55e', date: '10/03/2026', account: 'Compte Courant', amount: '-45,90 €', type: 'expense', bankColor: 'bg-red-500' },
+            { desc: 'Salaire Mars', cat: 'Salaire', catColor: '#3b82f6', date: '28/02/2026', account: 'Compte Courant', amount: '+2 800,00 €', type: 'income', bankColor: 'bg-red-500' },
+            { desc: 'Vers Livret A', cat: 'Virement', catColor: '#8b5cf6', date: '05/03/2026', account: 'Courant → Livret A', amount: '↔500,00 €', type: 'transfer', bankColor: 'bg-blue-500' },
           ].map((tx, i) => (
-            <div key={i} className={mockupRow}>
-              <div className="flex items-center gap-2">
-                <div className={`h-6 w-6 rounded-lg flex items-center justify-center ${i === 2 ? 'bg-blue-500/10' : i === 1 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                  <tx.icon className={`h-3 w-3 ${i === 2 ? 'text-blue-500' : i === 1 ? 'text-emerald-500' : 'text-red-500'}`} />
+            <div key={i} className="flex items-center justify-between px-3 py-2 border-b hover:bg-accent/30">
+              <div className="flex items-center gap-1.5">
+                {/* Bank color bar */}
+                <div className={`w-1 h-5 rounded-full ${tx.bankColor}`} />
+                {/* Type icon */}
+                <div className={`h-5 w-5 rounded-full flex items-center justify-center ${tx.type === 'income' ? 'bg-muted' : tx.type === 'transfer' ? 'bg-muted' : 'bg-muted'}`}>
+                  {tx.type === 'income' && <ArrowDownRight className="w-2.5 h-2.5 text-green-600" />}
+                  {tx.type === 'expense' && <ArrowUpRight className="w-2.5 h-2.5 text-red-600" />}
+                  {tx.type === 'transfer' && <ArrowLeftRight className="w-2.5 h-2.5 text-blue-600" />}
                 </div>
                 <div>
                   <p className="font-medium text-[11px]">{tx.desc}</p>
-                  <p className="text-[10px] text-muted-foreground">{tx.cat}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[9px] px-1 py-0 rounded text-white" style={{ backgroundColor: tx.catColor }}>{tx.cat}</span>
+                    <span className="text-[9px] text-muted-foreground">{tx.date}</span>
+                  </div>
                 </div>
               </div>
-              <span className={`font-semibold text-[11px] ${tx.amountColor}`}>{tx.amount}</span>
+              <div className="flex items-center gap-1">
+                <span className={`font-semibold text-[11px] ${tx.type === 'income' ? 'text-green-600' : tx.type === 'transfer' ? 'text-blue-600' : 'text-foreground'}`}>{tx.amount}</span>
+                <Pencil className="h-2.5 w-2.5 text-muted-foreground/40" />
+                <Trash2 className="h-2.5 w-2.5 text-muted-foreground/40" />
+              </div>
             </div>
           ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+          <div className="px-3 py-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Appuyez sur + pour ajouter, choisissez le type en haut</span>
+            <span className="text-[10px] text-primary font-medium">Filtrez par type, categorie, compte, date ou montant</span>
           </div>
         </div>
       );
 
+    /* ── Savings: Stats cards + goals with progress ── */
     case 'savings':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Epargne</span>
-            <span className="text-muted-foreground">3 objectifs</span>
-          </div>
-          <div className="px-3 py-2 bg-primary/5 border-b flex items-center gap-1.5">
-            <Tag className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Basee sur vos transactions categoriees en investissement</span>
-          </div>
-          {[
-            { name: 'Vacances ete', current: 1200, target: 2000, pct: 60 },
-            { name: 'Fonds urgence', current: 4500, target: 5000, pct: 90 },
-          ].map((goal, i) => (
-            <div key={i} className="px-3 py-2.5 border-b space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <PiggyBank className="h-3.5 w-3.5 text-primary" />
-                  <span className="font-medium text-[11px]">{goal.name}</span>
-                </div>
-                <span className="text-[10px] text-muted-foreground">{goal.current.toLocaleString()} / {goal.target.toLocaleString()} €</span>
-              </div>
-              <Progress value={goal.pct} className="h-1.5" />
-              <p className="text-[10px] text-muted-foreground">
-                {goal.pct >= 90 ? 'Presque atteint !' : `Estimation : ${Math.ceil((goal.target - goal.current) / 200)} mois restants`}
-              </p>
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <div className="flex items-center gap-1.5">
+              <PiggyBank className="h-3.5 w-3.5 text-primary" />
+              <span className="font-semibold">Epargne</span>
+              <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded">Mar. 2026</span>
             </div>
-          ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <div className="h-5 px-1.5 rounded-md bg-primary text-primary-foreground flex items-center gap-0.5">
+              <Plus className="h-2.5 w-2.5" />
+              <span className="text-[10px]">Nouveau but</span>
+            </div>
+          </div>
+          {/* Stats cards row */}
+          <div className="px-3 py-2 grid grid-cols-3 gap-1.5 border-b">
+            <div className="rounded-lg border p-1.5 text-center">
+              <p className="text-[9px] text-muted-foreground">Epargne nette</p>
+              <p className="font-bold text-[11px] text-success">+4 200 €</p>
+            </div>
+            <div className="rounded-lg border p-1.5 text-center">
+              <p className="text-[9px] text-muted-foreground">Depots</p>
+              <p className="font-bold text-[11px] text-success">+5 000 €</p>
+            </div>
+            <div className="rounded-lg border p-1.5 text-center">
+              <p className="text-[9px] text-muted-foreground">Retraits</p>
+              <p className="font-bold text-[11px] text-destructive">-800 €</p>
+            </div>
+          </div>
+          {/* Goals */}
+          <div className="px-3 py-2 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+              <Target className="h-3 w-3" /> Objectifs (2)
+            </p>
+            {[
+              { name: 'Vacances ete', current: 1200, target: 2000, pct: 60, color: '#3b82f6', months: 4 },
+              { name: 'Fonds urgence', current: 4500, target: 5000, pct: 90, color: '#22c55e', months: 1 },
+            ].map((goal, i) => (
+              <div key={i} className="rounded-lg border p-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: goal.color }} />
+                    <span className="font-medium text-[11px]">{goal.name}</span>
+                  </div>
+                  {goal.pct >= 90 && <span className="text-[9px] px-1 py-0.5 rounded bg-success/10 text-success font-medium">Presque !</span>}
+                </div>
+                <Progress value={goal.pct} className="h-1.5" />
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>{goal.current.toLocaleString()} / {goal.target.toLocaleString()} €</span>
+                  <span>~{goal.months} mois restants</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Creez un objectif et suivez la projection automatique</span>
+            <span className="text-[10px] text-primary font-medium">Toute transaction en categorie investissement est comptee ici</span>
           </div>
         </div>
       );
 
+    /* ── Debts: 3 stats + tabs + debt cards ── */
     case 'debts':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Dettes</span>
-            <span className="text-[10px] text-emerald-500 font-medium">Position : +70 €</span>
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <div>
+              <p className="font-semibold flex items-center gap-1.5">
+                <Scale className="h-3.5 w-3.5 text-primary" />
+                Gestion des dettes
+              </p>
+              <p className="text-[10px] text-muted-foreground">Suivez vos prets et remboursements</p>
+            </div>
+            <div className="h-5 px-1.5 rounded-md bg-primary text-primary-foreground flex items-center gap-0.5">
+              <Plus className="h-2.5 w-2.5" />
+              <span className="text-[10px]">Nouvelle dette</span>
+            </div>
           </div>
-          {/* Tabs */}
-          <div className="px-3 pt-2 pb-1 flex gap-1.5">
-            {['Tous', 'Prets donnes', 'Prets recus'].map((tab, i) => (
-              <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                {tab}
-              </span>
-            ))}
-          </div>
-          {[
-            { person: 'Pierre', type: 'Pret donne', amount: '+150,00 €', color: 'text-emerald-500' },
-            { person: 'Marie', type: 'Pret recu', amount: '-80,00 €', color: 'text-red-500' },
-          ].map((debt, i) => (
-            <div key={i} className={mockupRow}>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                  <span className="text-[10px] font-bold">{debt.person[0]}</span>
-                </div>
-                <div>
-                  <p className="font-medium text-[11px]">{debt.person}</p>
-                  <p className="text-[10px] text-muted-foreground">{debt.type}</p>
+          {/* 3 stat cards */}
+          <div className="px-3 py-2 grid grid-cols-3 gap-1.5 border-b">
+            <div className="rounded-lg border p-1.5">
+              <div className="flex items-center gap-1 mb-0.5">
+                <div className="h-4 w-4 rounded-full bg-success/10 flex items-center justify-center">
+                  <Wallet className="w-2 h-2 text-success" />
                 </div>
               </div>
-              <span className={`font-semibold text-[11px] ${debt.color}`}>{debt.amount}</span>
+              <p className="text-[9px] text-muted-foreground">Prets accordes</p>
+              <p className="font-bold text-[11px] text-success">150 €</p>
             </div>
-          ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <div className="rounded-lg border p-1.5">
+              <div className="flex items-center gap-1 mb-0.5">
+                <div className="h-4 w-4 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <Wallet className="w-2 h-2 text-destructive" />
+                </div>
+              </div>
+              <p className="text-[9px] text-muted-foreground">Prets contractes</p>
+              <p className="font-bold text-[11px] text-destructive">80 €</p>
+            </div>
+            <div className="rounded-lg border p-1.5">
+              <div className="flex items-center gap-1 mb-0.5">
+                <div className="h-4 w-4 rounded-full bg-success/10 flex items-center justify-center">
+                  <Wallet className="w-2 h-2 text-success" />
+                </div>
+              </div>
+              <p className="text-[9px] text-muted-foreground">Position nette</p>
+              <p className="font-bold text-[11px] text-success">+70 €</p>
+            </div>
+          </div>
+          {/* Tabs */}
+          <div className="mx-3 mt-2 rounded-lg bg-muted/30 p-0.5 grid grid-cols-3 gap-0.5">
+            {[{ l: 'Tous', n: 2 }, { l: 'Accordes', n: 1 }, { l: 'Contractes', n: 1 }].map((tab, i) => (
+              <div key={i} className={`text-center py-1 rounded text-[10px] font-medium ${i === 0 ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+                {tab.l} ({tab.n})
+              </div>
+            ))}
+          </div>
+          {/* Debt card */}
+          <div className="px-3 py-2">
+            <div className="rounded-lg border p-2 space-y-1">
+              <p className="font-semibold text-[11px]">Pret a Pierre</p>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-muted-foreground">Restant :</span>
+                <span className="font-bold text-success">150,00 €</span>
+              </div>
+            </div>
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Enregistrez les remboursements partiels au fur et a mesure</span>
+            <span className="text-[10px] text-primary font-medium">Ajoutez des paiements partiels depuis chaque carte</span>
           </div>
         </div>
       );
 
+    /* ── Recurring: 3 stats + Calendar/List tabs + cards ── */
     case 'recurring':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Recurrentes</span>
-            <div className="flex gap-1.5">
-              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">Calendrier</span>
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">Liste</span>
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <div className="flex items-center gap-1.5">
+              <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Repeat className="h-3 w-3 text-primary" />
+              </div>
+              <span className="font-semibold">Transactions Recurrentes</span>
+            </div>
+            <div className="h-5 px-1.5 rounded-md bg-primary text-primary-foreground flex items-center gap-0.5">
+              <Plus className="h-2.5 w-2.5" />
+              <span className="text-[10px]">Nouvelle</span>
             </div>
           </div>
-          {[
-            { name: 'Loyer', freq: 'Mensuel · 1er', amount: '-850,00 €', color: 'text-red-500', active: true },
-            { name: 'Salaire', freq: 'Mensuel · 28', amount: '+2 800,00 €', color: 'text-emerald-500', active: true },
-            { name: 'Netflix', freq: 'Mensuel · 15', amount: '-13,49 €', color: 'text-red-500', active: false },
-          ].map((rec, i) => (
-            <div key={i} className={mockupRow}>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Repeat className="h-3 w-3 text-primary" />
+          {/* 3 stats */}
+          <div className="px-3 py-2 grid grid-cols-3 gap-1.5 border-b">
+            <div className="rounded-lg border p-1.5 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] text-muted-foreground">Active</p>
+                <p className="font-bold text-sm">3</p>
+              </div>
+              <div className="h-5 w-5 rounded-full bg-success/10 flex items-center justify-center">
+                <Play className="h-2.5 w-2.5 text-success" />
+              </div>
+            </div>
+            <div className="rounded-lg border p-1.5 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] text-muted-foreground">Inactive</p>
+                <p className="font-bold text-sm">1</p>
+              </div>
+              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                <Pause className="h-2.5 w-2.5 text-muted-foreground" />
+              </div>
+            </div>
+            <div className="rounded-lg border p-1.5 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] text-muted-foreground">7 jours</p>
+                <p className="font-bold text-sm">2</p>
+              </div>
+              <div className="h-5 w-5 rounded-full bg-warning/10 flex items-center justify-center">
+                <Calendar className="h-2.5 w-2.5 text-warning" />
+              </div>
+            </div>
+          </div>
+          {/* Tab switcher */}
+          <div className="mx-3 mt-2 rounded-lg bg-muted/30 p-0.5 grid grid-cols-2 gap-0.5">
+            <div className="text-center py-1 rounded bg-background shadow-sm text-[10px] font-medium">Calendrier</div>
+            <div className="text-center py-1 rounded text-[10px] font-medium text-muted-foreground">Liste</div>
+          </div>
+          {/* Card (list view preview) */}
+          <div className="px-3 py-2 space-y-1.5">
+            {[
+              { name: 'Loyer', amount: '850,00 €', type: 'expense', freq: 'Mensuelle', next: '01 avr 2026', active: true },
+              { name: 'Salaire', amount: '2 800,00 €', type: 'income', freq: 'Mensuelle', next: '28 mar 2026', active: true },
+            ].map((r, i) => (
+              <div key={i} className="rounded-lg border p-2 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[11px]">{r.name}</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground">Actif</span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-medium text-[11px]">{rec.name}</p>
-                    {!rec.active && <Pause className="h-2.5 w-2.5 text-muted-foreground" />}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">{rec.freq}</p>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Montant:</span><span className={`font-bold ${r.type === 'income' ? 'text-success' : 'text-destructive'}`}>{r.amount}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Frequence:</span><span className="font-medium">{r.freq}</span></div>
+                  <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Prochain:</span><span className="font-medium">{r.next}</span></div>
+                </div>
+                <div className="flex gap-1 pt-1 border-t">
+                  <div className="flex-1 flex items-center justify-center py-0.5 rounded hover:bg-muted"><Pencil className="h-2.5 w-2.5 text-muted-foreground" /></div>
+                  <div className="flex-1 flex items-center justify-center py-0.5 rounded hover:bg-muted"><Pause className="h-2.5 w-2.5 text-muted-foreground" /></div>
+                  <div className="flex-1 flex items-center justify-center py-0.5 rounded hover:bg-muted"><Trash2 className="h-2.5 w-2.5 text-muted-foreground" /></div>
                 </div>
               </div>
-              <span className={`font-semibold text-[11px] ${rec.color}`}>{rec.amount}</span>
-            </div>
-          ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            ))}
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Mettez en pause ou executez en avance depuis la liste</span>
+            <span className="text-[10px] text-primary font-medium">Mettez en pause ou executez en avance depuis chaque carte</span>
           </div>
         </div>
       );
 
+    /* ── Installments: Filter tabs + cards with progress ── */
     case 'installments':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Paiements echelonnes</span>
-            <span className="text-muted-foreground">2 en cours</span>
-          </div>
-          {[
-            { name: 'Ordinateur portable', total: '1 200 €', paid: 2, of: 4, pct: 50, remaining: '600 €' },
-            { name: 'Canape', total: '900 €', paid: 5, of: 10, pct: 50, remaining: '450 €' },
-          ].map((inst, i) => (
-            <div key={i} className="px-3 py-2.5 border-b space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-3.5 w-3.5 text-primary" />
-                  <span className="font-medium text-[11px]">{inst.name}</span>
+          {/* Header */}
+          <div className="px-3 py-2 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <CreditCard className="h-3 w-3 text-primary" />
                 </div>
-                <span className="text-[10px] font-semibold">{inst.total}</span>
+                <span className="font-semibold">Paiements Echelonnes</span>
               </div>
-              <Progress value={inst.pct} className="h-1.5" />
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>{inst.paid}/{inst.of} echeances</span>
-                <span>Restant : {inst.remaining}</span>
+              <div className="h-5 px-1.5 rounded-md bg-primary text-primary-foreground flex items-center gap-0.5">
+                <Plus className="h-2.5 w-2.5" />
+                <span className="text-[10px]">Nouveau</span>
               </div>
             </div>
-          ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            <p className="text-[10px] text-muted-foreground mt-1 ml-[30px]">Chaque paiement cree une transaction recurrente</p>
+          </div>
+          {/* Filter tabs */}
+          <div className="mx-3 mt-2 rounded-lg bg-muted/30 p-0.5 grid grid-cols-3 gap-0.5">
+            {['Actifs (2)', 'Termines (0)', 'Tous (2)'].map((tab, i) => (
+              <div key={i} className={`text-center py-1 rounded text-[10px] font-medium ${i === 0 ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>{tab}</div>
+            ))}
+          </div>
+          {/* Cards */}
+          <div className="px-3 py-2 space-y-1.5">
+            {[
+              { name: 'Ordinateur portable', total: '1 200 €', remaining: '600 €', installment: '300 €', pct: 50, type: 'payment' },
+              { name: 'Remboursement assurance', total: '900 €', remaining: '450 €', installment: '90 €', pct: 50, type: 'reimbursement' },
+            ].map((inst, i) => (
+              <div key={i} className="rounded-lg border p-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[11px]">{inst.name}</span>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-[9px] px-1 py-0.5 rounded border ${inst.type === 'reimbursement' ? 'border-success text-success' : ''}`}>
+                      {inst.type === 'reimbursement' ? 'Remboursement' : 'Paiement'}
+                    </span>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-primary text-primary-foreground">Actif</span>
+                    <MoreVertical className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </div>
+                {/* Progress */}
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-muted-foreground">Progression</span>
+                    <span className="font-semibold">{inst.pct}%</span>
+                  </div>
+                  <Progress value={inst.pct} className="h-1.5" />
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total:</span><span className="font-bold">{inst.total}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Restant:</span><span className="font-bold text-orange-500">{inst.remaining}</span></div>
+                  <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Mensualite:</span><span className="font-semibold">{inst.installment}</span></div>
+                </div>
+                <div className="pt-1 border-t">
+                  <div className="rounded bg-primary text-primary-foreground text-center py-1 text-[10px] font-medium">Enregistrer un paiement</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Cliquez pour enregistrer un paiement ou voir l'historique</span>
+            <span className="text-[10px] text-primary font-medium">Menu ··· pour details, historique ou recalculer</span>
           </div>
         </div>
       );
 
+    /* ── Reports: Period selector + 4 tabs + charts ── */
     case 'reports':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Rapports</span>
-            <span className="text-muted-foreground">Fevrier 2026</span>
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <div>
+              <p className="font-semibold flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                Rapports
+              </p>
+              <p className="text-[10px] text-muted-foreground">Mars 2026</p>
+            </div>
+            <div className="flex items-center gap-1 rounded-md border px-2 py-1">
+              <Download className="h-3 w-3" />
+              <span className="text-[10px]">Exporter</span>
+            </div>
           </div>
-          {/* Tabs */}
-          <div className="px-3 pt-2 pb-1 flex gap-1.5">
-            {['Evolution', 'Revenus', 'Depenses', 'Recurrentes'].map((tab, i) => (
-              <span key={i} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                {tab}
-              </span>
+          {/* Period selector */}
+          <div className="px-3 py-1.5 border-b flex gap-1.5">
+            {['Mois', 'Annee', 'Personnalise'].map((p, i) => (
+              <span key={i} className={`px-2 py-0.5 rounded text-[10px] font-medium ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{p}</span>
             ))}
           </div>
-          {/* Mini bar chart */}
-          <div className="px-3 py-3 space-y-2">
+          {/* 4 tabs */}
+          <div className="mx-3 mt-2 rounded-lg bg-muted/30 p-0.5 grid grid-cols-4 gap-0.5">
+            {['Evolution', 'Revenus', 'Depenses', 'Recurrents'].map((tab, i) => (
+              <div key={i} className={`text-center py-1 rounded text-[9px] font-medium ${i === 2 ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>{tab}</div>
+            ))}
+          </div>
+          {/* Categories breakdown (Depenses tab) */}
+          <div className="px-3 py-2 space-y-1.5">
             {[
-              { cat: 'Alimentation', pct: 35, amount: '320 €', color: 'bg-emerald-500' },
-              { cat: 'Transport', pct: 20, amount: '180 €', color: 'bg-blue-500' },
-              { cat: 'Logement', pct: 55, amount: '850 €', color: 'bg-violet-500' },
-              { cat: 'Loisirs', pct: 12, amount: '95 €', color: 'bg-amber-500' },
+              { cat: 'Logement', pct: 58, amount: '850 €', color: '#8b5cf6' },
+              { cat: 'Alimentation', pct: 22, amount: '320 €', color: '#22c55e' },
+              { cat: 'Transport', pct: 12, amount: '180 €', color: '#3b82f6' },
+              { cat: 'Loisirs', pct: 6, amount: '95 €', color: '#f59e0b' },
             ].map((row, i) => (
               <div key={i} className="space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-medium">{row.cat}</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
+                    <span className="text-[10px] font-medium">{row.cat}</span>
+                  </div>
                   <span className="text-[10px] text-muted-foreground">{row.amount}</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${row.color}`} style={{ width: `${row.pct}%` }} />
+                  <div className="h-full rounded-full" style={{ width: `${row.pct}%`, backgroundColor: row.color }} />
                 </div>
               </div>
             ))}
           </div>
-          <div className="px-3 pb-2.5 flex items-center gap-1.5">
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
             <span className="text-[10px] text-primary font-medium">Changez d'onglet et de periode pour analyser vos finances</span>
           </div>
         </div>
       );
 
+    /* ── Notifications: Settings section toggles + email preview ── */
     case 'notifications':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Notifications email</span>
-            <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+          {/* Located in Settings */}
+          <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-1.5">
+            <Settings className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Parametres</span>
+            <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
+            <Bell className="h-3 w-3 text-primary" />
+            <span className="text-[10px] font-medium">Notifications par Email</span>
           </div>
-          {/* Settings toggles mockup */}
-          <div className="px-3 py-2.5 border-b space-y-2.5">
+          {/* Toggle switches */}
+          <div className="px-3 py-2.5 border-b space-y-3">
             {[
               { label: 'Alertes de budget', desc: 'Email quand un budget est depasse', on: true },
               { label: 'Rapports mensuels', desc: 'Resume financier chaque debut de mois', on: true },
@@ -397,67 +652,88 @@ const FeatureMockup = ({ id }: { id: string }) => {
                   <p className="font-medium text-[11px]">{toggle.label}</p>
                   <p className="text-[10px] text-muted-foreground">{toggle.desc}</p>
                 </div>
-                <div className={`w-8 h-4.5 rounded-full flex items-center px-0.5 ${toggle.on ? 'bg-primary justify-end' : 'bg-muted justify-start'}`}>
-                  <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
+                <div className={`w-8 h-4 rounded-full flex items-center px-0.5 ${toggle.on ? 'bg-primary justify-end' : 'bg-muted justify-start'}`}>
+                  <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
                 </div>
               </div>
             ))}
           </div>
           {/* Email preview */}
           <div className="px-3 py-2.5 space-y-1.5">
-            <p className="text-[10px] font-medium text-muted-foreground">Exemple de mail recu</p>
+            <p className="text-[10px] font-medium text-muted-foreground">Exemples de mails recus</p>
             <div className="rounded-lg border bg-muted/30 p-2 space-y-1">
               <div className="flex items-center gap-1.5">
                 <Mail className="h-3 w-3 text-primary" />
                 <span className="text-[10px] font-semibold">Alerte : Budget Alimentation depasse</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">Vous avez depense 420 € sur un budget de 400 €. Depassement de 20 €.</p>
+              <p className="text-[10px] text-muted-foreground">Vous avez depense 420 € sur un budget de 400 €.</p>
             </div>
             <div className="rounded-lg border bg-muted/30 p-2 space-y-1">
               <div className="flex items-center gap-1.5">
                 <FileText className="h-3 w-3 text-primary" />
                 <span className="text-[10px] font-semibold">Rapport mensuel · Fevrier 2026</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">Revenus : 2 800 € · Depenses : 1 450 € · PDF en piece jointe</p>
+              <p className="text-[10px] text-muted-foreground">Revenus : 2 800 € · Depenses : 1 450 € · PDF joint</p>
             </div>
           </div>
-          <div className="px-3 pb-2.5 flex items-center gap-1.5">
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
             <span className="text-[10px] text-primary font-medium">Activez dans Parametres → Notifications par Email</span>
           </div>
         </div>
       );
 
+    /* ── Settings: Section cards list ── */
     case 'settings':
       return (
         <div className={mockupWrapper}>
-          <div className={mockupHeader}>
-            <span className="font-semibold">Parametres</span>
-            <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+          {/* Header */}
+          <div className="px-3 py-2 border-b">
+            <p className="font-semibold">Parametres</p>
+            <p className="text-[10px] text-muted-foreground">Gerer votre profil</p>
           </div>
-          {[
-            { icon: DollarSign, label: 'Preferences', desc: 'Devise, compte par defaut, alias' },
-            { icon: Bell, label: 'Notifications', desc: 'Alertes budget, rapports mensuels' },
-            { icon: Wallet, label: 'Comptes', desc: 'Ajouter, modifier, supprimer' },
-            { icon: Tag, label: 'Categories', desc: 'Personnaliser noms et couleurs' },
-            { icon: BookOpen, label: 'Guide', desc: 'Revoir la presentation' },
-          ].map((item, i) => (
-            <div key={i} className={mockupRow}>
+          {/* Section cards (matching real Settings page) */}
+          <div className="px-3 py-2 space-y-1.5">
+            {[
+              { icon: DollarSign, label: 'Preferences', desc: 'Devise, compte par defaut' },
+              { icon: Bell, label: 'Notifications', desc: 'Alertes budget, rapports mensuels' },
+              { icon: Wallet, label: 'Comptes', desc: 'Ajouter, modifier, supprimer' },
+              { icon: Tag, label: 'Categories', desc: 'Personnaliser noms et couleurs' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg border p-2 hover:bg-accent/30 transition-colors">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <item.icon className="h-3 w-3 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-[11px]">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              </div>
+            ))}
+            {/* Guide card */}
+            <div className="flex items-center justify-between rounded-lg border p-2">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <item.icon className="h-3 w-3 text-primary" />
+                  <BookOpen className="h-3 w-3 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-[11px]">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  <p className="font-medium text-[11px]">Guide de l'application</p>
+                  <p className="text-[10px] text-muted-foreground">Revoir la presentation</p>
                 </div>
               </div>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              <div className="rounded border px-1.5 py-0.5 text-[10px] font-medium">Revoir le guide</div>
             </div>
-          ))}
-          <div className="px-3 pb-2.5 pt-1.5 flex items-center gap-1.5">
+            {/* Sign out */}
+            <div className="rounded-lg bg-destructive text-destructive-foreground text-center py-1.5 text-[10px] font-medium mt-1">
+              Deconnexion
+            </div>
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Tout se configure ici, accessible depuis le menu</span>
+            <span className="text-[10px] text-primary font-medium">Tout se configure ici, accessible depuis le menu lateral</span>
           </div>
         </div>
       );
