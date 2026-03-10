@@ -233,7 +233,9 @@ const Savings = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-                <PiggyBank className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+                <div className="icon-badge icon-badge-md">
+                  <PiggyBank className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+                </div>
                 <span className="truncate">{t('savings.pageTitle')}</span>
               </h1>
               <Badge variant="secondary" className="flex items-center gap-1 text-xs">
@@ -257,10 +259,12 @@ const Savings = () => {
 
         {/* Investment Statistics for Period */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <PiggyBank className="h-4 w-4 text-primary" />
+                <div className="icon-badge icon-badge-sm">
+                  <PiggyBank className="h-4 w-4 text-primary" />
+                </div>
                 <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.netSavings')}</span>
               </div>
               <p className={`text-lg sm:text-2xl font-bold ${investmentStats.netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
@@ -269,10 +273,12 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-4 w-4 text-primary" />
+                <div className="icon-badge icon-badge-sm">
+                  <TrendingDown className="h-4 w-4 text-primary" />
+                </div>
                 <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.deposits')}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-success">
@@ -281,10 +287,12 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-destructive" />
+                <div className="icon-badge icon-badge-sm">
+                  <TrendingUp className="h-4 w-4 text-destructive" />
+                </div>
                 <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.withdrawals')}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-destructive">
@@ -293,10 +301,12 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-success">
+          <Card className="stat-card border-l-4 border-l-success">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <CreditCard className="h-4 w-4 text-success" />
+                <div className="icon-badge icon-badge-sm">
+                  <CreditCard className="h-4 w-4 text-success" />
+                </div>
                 <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.reimbursements')}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-success">
@@ -308,10 +318,12 @@ const Savings = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Target className="h-4 w-4 text-primary" />
+                <div className="icon-badge icon-badge-sm">
+                  <Target className="h-4 w-4 text-primary" />
+                </div>
                 <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.transactions')}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold">
@@ -363,8 +375,10 @@ const Savings = () => {
         {/* Reimbursement Installments */}
         {reimbursementInstallments.length > 0 && (
           <div>
-            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
-              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+            <h2 className="section-header flex items-center gap-2 mb-3 sm:mb-4">
+              <div className="icon-badge icon-badge-sm">
+                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+              </div>
               {t('savings.reimbursementInstallments')} ({reimbursementInstallments.length})
             </h2>
             <p className="text-xs text-muted-foreground mb-3">
@@ -376,7 +390,7 @@ const Savings = () => {
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (
-                  <Card key={installment.id} className="border-l-4 border-l-success">
+                  <Card key={installment.id} className="glass-hover border-l-4 border-l-success">
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="flex-1 min-w-0">
@@ -425,14 +439,19 @@ const Savings = () => {
 
         {/* Savings Goals */}
         <div>
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
+          <h2 className="section-header flex items-center gap-2 mb-3 sm:mb-4">
+            <div className="icon-badge icon-badge-sm">
+              <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            </div>
             {t('savings.goalsTitle')} ({goals.length})
           </h2>
 
           {goals.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
-                <Target className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <div className="icon-badge icon-badge-lg mx-auto mb-3">
+                  <Target className="h-10 w-10 text-muted-foreground" />
+                </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   {t('savings.noGoals')}
                 </p>

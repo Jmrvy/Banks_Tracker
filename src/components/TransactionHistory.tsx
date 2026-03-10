@@ -171,7 +171,9 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" />
+                <div className="icon-badge icon-badge-sm bg-primary/10">
+                  <History className="h-5 w-5 text-primary" />
+                </div>
                 Historique des Transactions
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
@@ -183,7 +185,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
         <CardContent>
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-card/50">
+              <div key={i} className="glass-row flex items-center justify-between p-3">
                 <div className="flex items-center space-x-4">
                   <div className="animate-pulse w-2 h-6 rounded-full bg-muted" />
                   <div className="animate-pulse w-8 h-8 rounded-full bg-muted" />
@@ -206,7 +208,9 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
       <Card className="border-0 shadow-md">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
+            <div className="icon-badge icon-badge-sm bg-primary/10">
+              <History className="h-5 w-5 text-primary" />
+            </div>
             Historique des Transactions
           </CardTitle>
         </CardHeader>
@@ -265,14 +269,18 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
               <div 
                 key={transaction.id} 
                 onClick={() => setViewingTransaction(transaction)}
-                className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-card/80 hover:bg-accent/50 hover:border-accent transition-all duration-200 shadow-sm cursor-pointer"
+                className="glass-row flex items-center justify-between p-3 cursor-pointer"
               >
                 <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                   <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                     <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
                       bankColors[transaction.account?.bank || 'other'] || 'bg-gray-500'
                     }`} />
-                    <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-muted">
+                    <div className={`icon-badge icon-badge-sm ${
+                      transaction.type === 'income' ? 'bg-green-500/10' :
+                      transaction.type === 'transfer' ? 'bg-blue-500/10' :
+                      'bg-red-500/10'
+                    }`}>
                       {transaction.type === 'income' ? (
                         <ArrowDownRight className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                       ) : transaction.type === 'transfer' ? (

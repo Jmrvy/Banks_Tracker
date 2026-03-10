@@ -81,7 +81,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   const currentMonth = format(new Date(), 'MMMM yyyy', { locale: fr });
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-3 sm:space-y-4 md:space-y-5 max-w-5xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-5 md:space-y-6 max-w-5xl mx-auto">
       {/* Toggle Button */}
       <div className="flex justify-end">
         <Button
@@ -99,82 +99,74 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       </div>
 
       {/* Total Balance - Hero card */}
-      <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-card via-card to-primary/5">
-        <CardContent className="p-4 sm:p-5 md:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde total</p>
-              <BlurredAmount
-                amount={formatCurrency(totalBalance)}
-                className={`text-2xl sm:text-3xl md:text-4xl font-bold ${isPositive ? "text-success" : "text-destructive"}`}
-              />
-            </div>
-            <div className={`h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center ${isPositive ? 'bg-success/10' : 'bg-destructive/10'}`}>
-              {isPositive ? (
-                <TrendingUp className="w-6 h-6 sm:w-7 sm:h-7 text-success" />
-              ) : (
-                <TrendingDown className="w-6 h-6 sm:w-7 sm:h-7 text-destructive" />
-              )}
-            </div>
+      <div className="hero-card p-5 sm:p-6 md:p-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs sm:text-sm text-muted-foreground/80 font-medium">Solde total</p>
+            <BlurredAmount
+              amount={formatCurrency(totalBalance)}
+              className={`text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight ${isPositive ? "text-success" : "text-destructive"}`}
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div className={`icon-badge icon-badge-lg ${isPositive ? 'bg-success/10' : 'bg-destructive/10'}`}>
+            {isPositive ? (
+              <TrendingUp className="w-6 h-6 sm:w-7 sm:h-7 text-success" />
+            ) : (
+              <TrendingDown className="w-6 h-6 sm:w-7 sm:h-7 text-destructive" />
+            )}
+          </div>
+        </div>
+      </div>
 
-      {/* Monthly summary - 3 mini cards */}
+      {/* Monthly summary - 3 stat cards */}
       <div>
-        <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 capitalize">{currentMonth}</p>
+        <p className="section-header mb-3 capitalize">{currentMonth}</p>
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 sm:p-3 md:p-4">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg bg-success/10 flex items-center justify-center">
-                  <ArrowDownRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
-                </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
+          <div className="stat-card">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="icon-badge icon-badge-sm bg-success/10">
+                <ArrowDownRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success" />
               </div>
-              <BlurredAmount
-                amount={formatCurrency(monthlyStats.income)}
-                className="text-sm sm:text-base md:text-lg font-bold text-success"
-              />
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Revenus</p>
+            <BlurredAmount
+              amount={formatCurrency(monthlyStats.income)}
+              className="text-sm sm:text-base md:text-lg font-bold text-success"
+            />
+          </div>
 
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 sm:p-3 md:p-4">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
-                </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Depenses</span>
+          <div className="stat-card">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="icon-badge icon-badge-sm bg-destructive/10">
+                <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive" />
               </div>
-              <BlurredAmount
-                amount={formatCurrency(monthlyStats.expenses)}
-                className="text-sm sm:text-base md:text-lg font-bold text-destructive"
-              />
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Depenses</p>
+            <BlurredAmount
+              amount={formatCurrency(monthlyStats.expenses)}
+              className="text-sm sm:text-base md:text-lg font-bold text-destructive"
+            />
+          </div>
 
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 sm:p-3 md:p-4">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
-                </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Net</span>
+          <div className="stat-card">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="icon-badge icon-badge-sm bg-primary/10">
+                <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
               </div>
-              <BlurredAmount
-                amount={formatCurrency(monthlyStats.net)}
-                className={`text-sm sm:text-base md:text-lg font-bold ${monthlyStats.net >= 0 ? 'text-success' : 'text-destructive'}`}
-              />
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Net</p>
+            <BlurredAmount
+              amount={formatCurrency(monthlyStats.net)}
+              className={`text-sm sm:text-base md:text-lg font-bold ${monthlyStats.net >= 0 ? 'text-success' : 'text-destructive'}`}
+            />
+          </div>
         </div>
       </div>
 
       {/* Accounts and Upcoming grid */}
       <div className="grid md:grid-cols-2 gap-3 sm:gap-4">
         {/* Accounts Card */}
-        <Card className="border-0 shadow-md">
+        <Card className="border-white/[0.06]">
           <CardContent className="p-3 sm:p-4 md:p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -192,11 +184,11 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               </Button>
             </div>
 
-            <div className="space-y-1.5 sm:space-y-2">
+            <div className="space-y-1">
               {accounts.slice(0, 4).map((account) => (
                 <div
                   key={account.id}
-                  className="flex items-center justify-between py-2 sm:py-2.5 px-2.5 sm:px-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                  className="glass-row flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <div className={`h-2 w-2 rounded-full flex-shrink-0 ${account.balance >= 0 ? 'bg-success' : 'bg-destructive'}`} />
@@ -225,7 +217,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
         </Card>
 
         {/* Upcoming Transactions Card */}
-        <Card className="border-0 shadow-md">
+        <Card className="border-white/[0.06]">
           <CardContent className="p-3 sm:p-4 md:p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -243,11 +235,11 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               </Button>
             </div>
 
-            <div className="space-y-1.5 sm:space-y-2">
+            <div className="space-y-1">
               {upcomingTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between py-2 sm:py-2.5 px-2.5 sm:px-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                  className="glass-row flex items-center justify-between"
                 >
                   <div className="flex flex-col min-w-0 flex-1 mr-2">
                     <span className="text-xs sm:text-sm font-medium truncate">
@@ -279,7 +271,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       <div className="flex justify-center pt-1 sm:pt-2">
         <Button
           onClick={onShowFullDashboard}
-          className="w-full md:w-auto md:min-w-[280px] h-9 sm:h-10 md:h-11"
+          className="w-full md:w-auto md:min-w-[280px] h-10 sm:h-11 md:h-12 rounded-2xl"
           size="lg"
         >
           <span className="text-xs sm:text-sm md:text-base">Tableau de bord complet</span>

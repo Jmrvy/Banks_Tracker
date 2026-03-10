@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, Plus, ArrowLeft } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
@@ -106,51 +105,48 @@ const Accounts = () => {
         </div>
 
         {/* Total Balance Card */}
-        <Card className="">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde total</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold">{formatCurrency(totalBalance)}</p>
-              </div>
-              <div className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Wallet className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-              </div>
+        <div className="hero-card p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde total</p>
+              <p className="text-xl sm:text-2xl md:text-3xl font-bold">{formatCurrency(totalBalance)}</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="icon-badge icon-badge-lg">
+              <Wallet className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+            </div>
+          </div>
+        </div>
 
         {/* Accounts List */}
         <div>
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Tous les comptes ({accounts.length})</h2>
+          <h2 className="section-header mb-3 sm:mb-4">Tous les comptes ({accounts.length})</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {accounts.map((account) => (
-              <Card
+              <div
                 key={account.id}
-                className="glass-hover transition-colors cursor-pointer active:scale-[0.98]"
+                className="stat-card glass-hover rounded-2xl p-4 sm:p-6 cursor-pointer active:scale-[0.98]"
                 onClick={() => setSelectedAccountId(account.id)}
               >
-                <CardContent className="p-4 sm:p-6">
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base sm:text-lg truncate">{account.name}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{getBankLabel(account.bank, t)}</p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] sm:text-xs flex-shrink-0">
-                        {getAccountTypeLabel(account.account_type, t)}
-                      </Badge>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base sm:text-lg truncate">{account.name}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{getBankLabel(account.bank, t)}</p>
                     </div>
-                    
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde</p>
-                      <p className={`text-lg sm:text-xl md:text-2xl font-bold ${account.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {formatCurrency(account.balance)}
-                      </p>
-                    </div>
+                    <Badge variant="outline" className="text-[10px] sm:text-xs flex-shrink-0">
+                      {getAccountTypeLabel(account.account_type, t)}
+                    </Badge>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <div className="pt-2">
+                    <div className="glass-divider mb-2" />
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde</p>
+                    <p className={`text-lg sm:text-xl md:text-2xl font-bold ${account.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(account.balance)}
+                    </p>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History } from "lucide-react";
+import { CreditCard, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -178,7 +178,7 @@ const InstallmentPayments = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
           <div>
             <h1 className="text-xl md:text-2xl font-bold flex items-center gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="icon-badge icon-badge-md bg-primary/10">
                 <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
               Paiements Échelonnés
@@ -200,6 +200,57 @@ const InstallmentPayments = () => {
           </Button>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <Card className="stat-card">
+            <CardContent className="p-2.5 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Total dû</p>
+                  <p className="text-lg sm:text-2xl font-bold">
+                    {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0">
+                  <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-orange-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="stat-card">
+            <CardContent className="p-2.5 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Actifs</p>
+                  <p className="text-lg sm:text-2xl font-bold">
+                    {installmentPayments.filter(p => p.is_active).length}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0">
+                  <CreditCard className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="stat-card">
+            <CardContent className="p-2.5 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Terminés</p>
+                  <p className="text-lg sm:text-2xl font-bold">
+                    {installmentPayments.filter(p => !p.is_active).length}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0">
+                  <Clock className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3">
@@ -213,7 +264,7 @@ const InstallmentPayments = () => {
         {filteredPayments.length === 0 ? (
           <Card className="">
             <CardContent className="p-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-4">
                 <CreditCard className="h-8 w-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Aucun paiement échelonné</h3>
@@ -236,7 +287,7 @@ const InstallmentPayments = () => {
               const progress = payment.total_amount > 0 ? Math.min(100, Math.round(((payment.total_amount - payment.remaining_amount) / payment.total_amount) * 1000) / 10) : 0;
 
               return (
-                <Card key={payment.id} className="hover:shadow-lg transition-all duration-200">
+                <Card key={payment.id} className="glass-hover hover:shadow-lg transition-all duration-200">
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-base md:text-lg font-semibold flex-1 min-w-0 truncate">{payment.description}</CardTitle>
@@ -301,7 +352,7 @@ const InstallmentPayments = () => {
                   <CardContent className="space-y-4">
                     <div>
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-muted-foreground text-xs">Progression</span>
+                        <span className="section-header text-muted-foreground text-xs">Progression</span>
                         <span className="font-semibold">{progress.toFixed(0)}%</span>
                       </div>
                       <Progress value={progress} className="h-2.5" />
