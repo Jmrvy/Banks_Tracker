@@ -59,64 +59,66 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Ajouter un paiement</DialogTitle>
+      <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Ajouter un paiement</DialogTitle>
         </DialogHeader>
-        
-        <div className="space-y-2 mb-4 p-4 bg-muted rounded-lg">
-          <p className="text-sm font-medium">{debt.description}</p>
-          <p className="text-sm text-muted-foreground">
-            Montant restant: <span className="font-semibold text-primary">{formatCurrency(debt.remaining_amount)}</span>
-          </p>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="amount">Montant *</Label>
-            <AmountInput
-              id="amount"
-              value={formData.amount}
-              onChange={(value) => setFormData({ ...formData, amount: value })}
-              placeholder="0.00"
-              required
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Maximum: {formatCurrency(debt.remaining_amount)}
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
+          <div className="space-y-2 p-4 bg-muted rounded-lg">
+            <p className="text-sm font-medium">{debt.description}</p>
+            <p className="text-sm text-muted-foreground">
+              Montant restant: <span className="font-semibold text-primary">{formatCurrency(debt.remaining_amount)}</span>
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="payment_date">Date du paiement *</Label>
-            <Input
-              id="payment_date"
-              type="date"
-              value={formData.payment_date}
-              onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-              required
-            />
-          </div>
+          <form id="add-payment-form" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="amount">Montant *</Label>
+              <AmountInput
+                id="amount"
+                value={formData.amount}
+                onChange={(value) => setFormData({ ...formData, amount: value })}
+                placeholder="0.00"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Maximum: {formatCurrency(debt.remaining_amount)}
+              </p>
+            </div>
 
-          <div>
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Notes sur ce paiement..."
-            />
-          </div>
+            <div>
+              <Label htmlFor="payment_date">Date du paiement *</Label>
+              <Input
+                id="payment_date"
+                type="date"
+                value={formData.payment_date}
+                onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                required
+              />
+            </div>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Enregistrer
-            </Button>
-          </div>
-        </form>
+            <div>
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Notes sur ce paiement..."
+              />
+            </div>
+          </form>
+        </div>
+
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs sm:text-sm">
+            Annuler
+          </Button>
+          <Button type="submit" form="add-payment-form" disabled={loading} className="h-9 text-xs sm:text-sm">
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Enregistrer
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -258,77 +258,87 @@ const Savings = () => {
         </div>
 
         {/* Investment Statistics for Period */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
           <Card className="stat-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="icon-badge icon-badge-sm">
+            <CardContent className="p-2 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.netSavings')}</p>
+                  <p className={`text-sm sm:text-2xl font-bold truncate ${investmentStats.netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm flex-shrink-0 hidden sm:flex">
                   <PiggyBank className="h-4 w-4 text-primary" />
                 </div>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.netSavings')}</span>
               </div>
-              <p className={`text-lg sm:text-2xl font-bold ${investmentStats.netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
-              </p>
             </CardContent>
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="icon-badge icon-badge-sm">
+            <CardContent className="p-2 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.deposits')}</p>
+                  <p className="text-sm sm:text-2xl font-bold text-success truncate">
+                    +{formatCurrency(investmentStats.expenseTotal)}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm flex-shrink-0 hidden sm:flex">
                   <TrendingDown className="h-4 w-4 text-primary" />
                 </div>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.deposits')}</span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold text-success">
-                +{formatCurrency(investmentStats.expenseTotal)}
-              </p>
             </CardContent>
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="icon-badge icon-badge-sm">
+            <CardContent className="p-2 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.withdrawals')}</p>
+                  <p className="text-sm sm:text-2xl font-bold text-destructive truncate">
+                    -{formatCurrency(investmentStats.incomeTotal)}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm flex-shrink-0 hidden sm:flex">
                   <TrendingUp className="h-4 w-4 text-destructive" />
                 </div>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.withdrawals')}</span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold text-destructive">
-                -{formatCurrency(investmentStats.incomeTotal)}
-              </p>
             </CardContent>
           </Card>
 
           <Card className="stat-card border-l-4 border-l-success">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="icon-badge icon-badge-sm">
+            <CardContent className="p-2 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.reimbursements')}</p>
+                  <p className="text-sm sm:text-2xl font-bold text-success truncate">
+                    +{formatCurrency(reimbursementStats.total)}
+                  </p>
+                  <p className="text-[9px] sm:text-xs text-muted-foreground">
+                    {reimbursementStats.count} tx
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm flex-shrink-0 hidden sm:flex">
                   <CreditCard className="h-4 w-4 text-success" />
                 </div>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.reimbursements')}</span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold text-success">
-                +{formatCurrency(reimbursementStats.total)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {reimbursementStats.count} transaction{reimbursementStats.count > 1 ? 's' : ''}
-              </p>
             </CardContent>
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="icon-badge icon-badge-sm">
+            <CardContent className="p-2 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.transactions')}</p>
+                  <p className="text-sm sm:text-2xl font-bold">
+                    {investmentStats.transactionCount}
+                  </p>
+                </div>
+                <div className="icon-badge icon-badge-sm flex-shrink-0 hidden sm:flex">
                   <Target className="h-4 w-4 text-primary" />
                 </div>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('savings.transactions')}</span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold">
-                {investmentStats.transactionCount}
-              </p>
             </CardContent>
           </Card>
         </div>

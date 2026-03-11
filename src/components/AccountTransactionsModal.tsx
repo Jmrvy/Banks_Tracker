@@ -60,9 +60,9 @@ export const AccountTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="flex flex-col gap-1">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex flex-col gap-1 text-sm sm:text-lg">
             <span>{accountName}</span>
             <div className="flex items-center justify-between text-sm font-normal">
               <span className="text-muted-foreground">{bankName}</span>
@@ -76,7 +76,7 @@ export const AccountTransactionsModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-2">
           {transactionsWithBalance.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Aucune transaction trouvée pour ce compte

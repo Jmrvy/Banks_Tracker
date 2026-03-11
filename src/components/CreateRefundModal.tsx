@@ -148,9 +148,9 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg flex items-center gap-2">
             <RotateCcw className="h-5 w-5 text-primary" />
             Créer un remboursement
           </DialogTitle>
@@ -159,6 +159,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
         {/* Original transaction info */}
         <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
           <p className="text-sm font-medium">Transaction originale :</p>
@@ -213,7 +214,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="refund-form" onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="refund-amount">Montant du remboursement *</Label>
             <AmountInput
@@ -310,16 +311,19 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+          </form>
+        </div>
+
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={loading} className="flex-1">
+              <Button type="submit" form="refund-form" disabled={loading} className="flex-1 h-9 text-xs sm:text-sm">
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -332,8 +336,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
                   </>
                 )}
               </Button>
-            </div>
-          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

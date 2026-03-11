@@ -119,15 +119,15 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
             {getTypeIcon()}
             Détails de la transaction
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           {/* Description and amount */}
           <div className="text-center py-4 bg-muted/30 rounded-lg">
             <p className="text-lg font-semibold mb-2">{transaction.description}</p>

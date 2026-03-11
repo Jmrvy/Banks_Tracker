@@ -126,12 +126,13 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl">Nouvelle Transaction</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Nouvelle Transaction</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 pt-2 sm:pt-4">
+
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+        <form id="new-transaction-form" onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 pt-2 sm:pt-4">
           {/* Transaction Type Toggle */}
           <div className="flex gap-1.5 sm:gap-2">
             <Button
@@ -374,22 +375,24 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
             />
           </div>
 
+        </form>
+        </div>
+
           {/* Actions */}
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
-              className="flex-1"
+              className="flex-1 h-9 text-xs sm:text-sm"
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
+            <Button type="submit" form="new-transaction-form" disabled={loading} className="flex-1 h-9 text-xs sm:text-sm">
               {loading ? 'Création...' : 'Créer'}
             </Button>
           </div>
-        </form>
       </DialogContent>
     </Dialog>
   );

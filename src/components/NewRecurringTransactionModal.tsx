@@ -134,9 +134,9 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg flex items-center gap-2">
             <Repeat className="h-5 w-5 text-primary" />
             Nouvelle Transaction Récurrente
           </DialogTitle>
@@ -145,7 +145,8 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+        <form id="new-recurring-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Transaction Type Toggle */}
           <div className="flex gap-2">
             <Button
@@ -370,21 +371,24 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
             </Card>
           )}
 
+        </form>
+        </div>
+
           {/* Form Actions */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+          <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
+              className="h-9 text-xs sm:text-sm"
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" form="new-recurring-form" disabled={loading} className="h-9 text-xs sm:text-sm">
               {loading ? 'Création...' : 'Créer la récurrence'}
             </Button>
           </div>
-        </form>
       </DialogContent>
     </Dialog>
   );
