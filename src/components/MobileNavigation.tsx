@@ -96,7 +96,7 @@ export const MobileNavigation = () => {
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
                         "hover:bg-accent hover:text-accent-foreground",
                         active
                           ? "bg-accent text-accent-foreground"
@@ -125,7 +125,7 @@ export const MobileNavigation = () => {
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
                         "hover:bg-accent hover:text-accent-foreground",
                         active
                           ? "bg-accent text-accent-foreground"
@@ -154,7 +154,7 @@ export const MobileNavigation = () => {
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
                         "hover:bg-accent hover:text-accent-foreground",
                         active
                           ? "bg-accent text-accent-foreground"
@@ -175,7 +175,7 @@ export const MobileNavigation = () => {
                 to={settingsItem.path}
                 onClick={() => setMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
                   "hover:bg-accent hover:text-accent-foreground",
                   isActive(settingsItem.path)
                     ? "bg-accent text-accent-foreground"

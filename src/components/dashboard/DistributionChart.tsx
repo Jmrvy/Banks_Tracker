@@ -88,7 +88,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       const data = payload[0].payload;
       return (
         <div className={cn(
-          "bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl",
+          "bg-popover/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-[0_8px_32px_-4px_hsl(220_20%_4%/0.6)]",
           "p-2.5 sm:p-3 max-w-[160px] sm:max-w-none",
           "animate-scale-in"
         )}>
@@ -117,7 +117,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
 
   if (chartData.length === 0) {
     return (
-      <Card className="border-border bg-card/80 backdrop-blur-sm">
+      <Card>
         <CardContent className="p-3 sm:p-4 md:p-6">
           <div className="text-center py-8 sm:py-12">
             <h3 className="text-base sm:text-lg font-semibold mb-2">Distribution</h3>
@@ -130,8 +130,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
 
   return (
     <Card className={cn(
-      "border-border bg-card/80 backdrop-blur-sm shadow-sm",
-      "transition-all duration-300 hover:shadow-md"
+      "glass-hover animate-glass-slide-up"
     )}>
       <CardContent className="p-3 sm:p-4 md:p-6">
         <div className={cn(
@@ -210,7 +209,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                   key={item.name} 
                   className={cn(
                     "flex items-center justify-between text-[11px] sm:text-sm",
-                    "p-1.5 sm:p-2 rounded-md bg-muted/30"
+                    "p-1.5 sm:p-2 rounded-xl bg-white/[0.03] border border-white/[0.04]"
                   )}
                 >
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">

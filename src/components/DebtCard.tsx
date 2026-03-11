@@ -58,7 +58,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
   };
 
   return (
-    <Card className="glass-hover">
+    <Card className="glass-hover animate-glass-scale-in">
       <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 flex-1 min-w-0">
@@ -75,7 +75,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
               variant="ghost"
               size="icon"
               onClick={() => onEdit(debt)}
-              className="h-7 w-7 sm:h-8 sm:w-8"
+              className="h-9 w-9 sm:h-8 sm:w-8"
             >
               <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
