@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2 } from "lucide-react";
 import { type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format } from "date-fns";
@@ -13,6 +14,9 @@ interface TransactionDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction: Transaction | null;
+  onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
+  onRefund?: (transaction: Transaction) => void;
 }
 
 interface RefundTransaction {
@@ -29,7 +33,7 @@ interface OriginalTransaction {
   transaction_date: string;
 }
 
-export function TransactionDetailModal({ open, onOpenChange, transaction }: TransactionDetailModalProps) {
+export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund }: TransactionDetailModalProps) {
   const { formatCurrency } = useUserPreferences();
   const [refunds, setRefunds] = useState<RefundTransaction[]>([]);
   const [originalTransaction, setOriginalTransaction] = useState<OriginalTransaction | null>(null);
@@ -323,6 +327,48 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
               </div>
             </div>
           </div>
+
+          {/* Action buttons */}
+          {(onEdit || onDelete || onRefund) && (
+            <>
+              <Separator />
+              <div className="flex flex-wrap gap-2 pt-1">
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { onEdit(transaction); onOpenChange(false); }}
+                  >
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                    Modifier
+                  </Button>
+                )}
+                {onRefund && transaction.type === 'expense' && remainingToRefund > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-green-600 border-green-500/30 hover:bg-green-500/10"
+                    onClick={() => { onRefund(transaction); onOpenChange(false); }}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                    Rembourser
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => { onDelete(transaction); onOpenChange(false); }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                    Supprimer
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
