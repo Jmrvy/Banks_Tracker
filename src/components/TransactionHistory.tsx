@@ -121,11 +121,14 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
   const displayedTransactions = filteredAndSortedTransactions.slice(0, displayCount);
 
-  // Calculate net total of filtered transactions (income - expenses, transfers excluded)
+  // Calculate net total of filtered transactions (income - expenses net of refunds, transfers excluded)
   const filteredNetTotal = useMemo(() => {
     return filteredAndSortedTransactions.reduce((acc, t) => {
       if (t.type === 'income') return acc + t.amount;
-      if (t.type === 'expense') return acc - t.amount;
+      if (t.type === 'expense') {
+        const netAmount = t.amount - (t.refunded_amount || 0);
+        return acc - Math.max(0, netAmount);
+      }
       return acc; // transfers don't affect net total
     }, 0);
   }, [filteredAndSortedTransactions]);
@@ -261,9 +264,17 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
       <CardContent>
         <div className="space-y-2">
           {displayedTransactions.map((transaction) => {
-            const displayDate = preferences.dateType === 'value' 
+            const displayDate = preferences.dateType === 'value'
               ? new Date(transaction.value_date || transaction.transaction_date)
               : new Date(transaction.transaction_date);
+
+            // Calculate net amount (after refunds for expenses, with fees for transfers)
+            const refundedAmount = transaction.refunded_amount || 0;
+            const isFullyRefunded = transaction.type === 'expense' && refundedAmount >= transaction.amount;
+            const isPartiallyRefunded = transaction.type === 'expense' && refundedAmount > 0 && refundedAmount < transaction.amount;
+            const netExpenseAmount = transaction.type === 'expense' ? Math.max(0, transaction.amount - refundedAmount) : transaction.amount;
+            const transferFee = (transaction.type === 'transfer' && transaction.transfer_fee) ? transaction.transfer_fee : 0;
+            const displayAmount = transaction.type === 'expense' ? netExpenseAmount : transaction.amount;
 
             return (
               <div 
@@ -364,8 +375,10 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                 
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
                   <div className="flex flex-col items-end">
+                    {/* Net amount display */}
                     <span
                       className={`font-semibold text-xs sm:text-sm ${
+                        isFullyRefunded ? 'text-muted-foreground line-through' :
                         transaction.type === 'income' ? 'text-green-600' :
                         transaction.type === 'transfer' ? 'text-blue-600' :
                         'text-foreground'
@@ -373,11 +386,18 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                     >
                       {transaction.type === 'income' ? '+' :
                        transaction.type === 'transfer' ? '↔' :
-                       '-'}{formatCurrency(Math.abs(transaction.amount))}
+                       '-'}{formatCurrency(Math.abs(displayAmount))}
                     </span>
-                    {transaction.type === 'transfer' && transaction.transfer_fee && transaction.transfer_fee > 0 && (
-                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                        +{formatCurrency(transaction.transfer_fee)} frais
+                    {/* Show original amount if partially refunded */}
+                    {isPartiallyRefunded && (
+                      <span className="text-[10px] text-muted-foreground line-through">
+                        -{formatCurrency(transaction.amount)}
+                      </span>
+                    )}
+                    {/* Transfer fee */}
+                    {transferFee > 0 && (
+                      <span className="text-[10px] text-amber-500">
+                        +{formatCurrency(transferFee)} frais
                       </span>
                     )}
                     {/* Mobile: show account name under amount */}
@@ -498,6 +518,9 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
         open={!!viewingTransaction}
         onOpenChange={(open) => !open && setViewingTransaction(null)}
         transaction={viewingTransaction}
+        onEdit={(t) => { setViewingTransaction(null); setEditingTransaction(t); }}
+        onDelete={(t) => { setViewingTransaction(null); setDeletingTransaction(t); }}
+        onRefund={(t) => { setViewingTransaction(null); setRefundingTransaction(t); }}
       />
     </Card>
   );
