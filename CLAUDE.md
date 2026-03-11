@@ -256,6 +256,9 @@ src/
 
 | Date | Changes |
 |------|---------|
+| 2026-03-11 | Full UX polish: liquid glass morphism, consistent rounded-xl/2xl borders, entrance animations across all components |
+| 2026-03-11 | Improved mobile stat cards: larger text (text-base), visible icons on all screens, better touch targets (44px min) |
+| 2026-03-11 | Enhanced UI primitives: buttons, dialogs, alerts, tabs, badges, inputs, selects with glass effects |
 | 2026-03-11 | Fixed mobile UX for all 22 modal dialogs (consistent DialogContent styling) |
 | 2026-03-11 | Fixed mobile UX for installment payment modals |
 | 2026-03-11 | Fixed mobile layout for installment payments page |
