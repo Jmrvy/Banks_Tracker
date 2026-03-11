@@ -103,7 +103,7 @@ export const AggregatedBalanceEvolution = () => {
 
   if (transactionsWithBalance.length === 0) {
     return (
-      <Card className="">
+      <Card className="animate-glass-fade-in">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">Évolution du solde global</CardTitle>
         </CardHeader>
@@ -118,7 +118,7 @@ export const AggregatedBalanceEvolution = () => {
 
   return (
     <>
-      <Card className="">
+      <Card className="animate-glass-fade-in">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">Évolution du solde global</CardTitle>
         </CardHeader>
@@ -127,7 +127,7 @@ export const AggregatedBalanceEvolution = () => {
             {transactionsWithBalance.map(({ transaction: t, balanceAfter }) => (
               <div
                 key={t.id}
-                className="flex items-center justify-between p-2 sm:p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border border-border/50"
+                className="glass-row flex items-center justify-between p-2 sm:p-3 cursor-pointer border border-white/[0.04]"
                 onClick={() => setSelectedTransaction(t)}
               >
                 {/* Mobile: Compact view */}

@@ -156,8 +156,8 @@ export const AccountCards = () => {
   return (
     <div className="space-y-6">
       {/* Total Overview */}
-      <Card className="border-0 shadow-md overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card">
-        <CardContent className="p-4 sm:p-6">
+      <div className="hero-card glass-shimmer animate-glass-fade-in">
+        <div className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-muted-foreground text-xs sm:text-sm font-medium mb-1">Solde Total</p>
@@ -168,19 +168,19 @@ export const AccountCards = () => {
                 {accounts.length} compte{accounts.length > 1 ? 's' : ''} bancaire{accounts.length > 1 ? 's' : ''}
               </p>
             </div>
-            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0 shadow-[0_0_16px_-4px_hsl(38_70%_68%/0.2)]">
               <CreditCard className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Account Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {enrichedAccounts.map((account) => (
-          <Card 
-            key={account.id} 
-            className="hover:shadow-md transition-all duration-300 border-0 shadow-sm cursor-pointer hover:scale-[1.02] hover:bg-accent/30 overflow-hidden"
+          <Card
+            key={account.id}
+            className="glass-hover cursor-pointer hover:scale-[1.02] overflow-hidden animate-glass-scale-in"
             onClick={() => handleAccountClick(account)}
           >
             <CardContent className="p-4 sm:p-5">

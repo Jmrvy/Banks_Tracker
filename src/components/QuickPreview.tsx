@@ -99,7 +99,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       </div>
 
       {/* Total Balance - Hero card */}
-      <div className="hero-card p-5 sm:p-6 md:p-8">
+      <div className="hero-card glass-shimmer p-5 sm:p-6 md:p-8 animate-glass-fade-in">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <p className="text-xs sm:text-sm text-muted-foreground/80 font-medium">Solde total</p>

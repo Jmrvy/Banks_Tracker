@@ -269,10 +269,12 @@ Liquid Glass UX Design System — Inspired by Apple's translucent material langu
   /* ─── Clickable Row (transaction list item) ─── */
   .glass-row {
     @apply rounded-xl px-3 py-2.5;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
   }
   .glass-row:hover {
     background: hsl(var(--glass-highlight) / 0.04);
+    border-color: hsl(var(--glass-highlight) / 0.06);
   }
   .glass-row:active {
     transform: scale(0.99);
