@@ -144,92 +144,89 @@ export const AdjustInstallmentPlanModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" />
-            Ajuster le Plan de Paiement
+      <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
+            <Calculator className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+            Ajuster le Plan
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 pt-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3 sm:space-y-4">
           {/* Summary */}
-          <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-            <div className="font-semibold text-base mb-3">Résumé du paiement</div>
+          <div className="p-3 bg-muted rounded-lg space-y-1.5">
+            <div className="font-semibold text-xs sm:text-sm mb-2">Résumé</div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Paiement enregistré:</span>
-              <span className="font-medium text-green-600">{formatCurrency(paymentAmount)}</span>
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Enregistré</span>
+              <span className="font-medium text-green-600 text-[11px] sm:text-sm whitespace-nowrap">{formatCurrency(paymentAmount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Nouveau montant restant:</span>
-              <span className="font-bold text-primary">{formatCurrency(newRemainingAmount)}</span>
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Restant</span>
+              <span className="font-bold text-primary text-[11px] sm:text-sm whitespace-nowrap">{formatCurrency(newRemainingAmount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Mensualité actuelle:</span>
-              <span className="font-medium">{formatCurrency(installmentPayment.installment_amount)}</span>
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance actuelle</span>
+              <span className="font-medium text-[11px] sm:text-sm whitespace-nowrap">{formatCurrency(installmentPayment.installment_amount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Paiements restants estimés:</span>
-              <span className="font-medium">{remainingPaymentsWithCurrentAmount} paiements</span>
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Restants estimés</span>
+              <span className="font-medium text-[11px] sm:text-sm">{remainingPaymentsWithCurrentAmount}</span>
             </div>
           </div>
 
           {/* Adjustment Options */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Comment souhaitez-vous ajuster le plan ?</Label>
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-xs sm:text-sm font-semibold">Comment ajuster le plan ?</Label>
 
               <RadioGroup value={adjustmentType} onValueChange={(v) => setAdjustmentType(v as AdjustmentType)}>
                 {/* Keep Current */}
-                <div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
+                <div className="flex items-start space-x-2.5 p-2.5 sm:p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="keep_current" id="keep_current" className="mt-0.5" />
-                  <div className="flex-1">
-                    <Label htmlFor="keep_current" className="cursor-pointer font-medium">
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="keep_current" className="cursor-pointer font-medium text-xs sm:text-sm">
                       Garder le plan actuel
                     </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Continuer avec {formatCurrency(installmentPayment.installment_amount)} par paiement
-                      (≈ {remainingPaymentsWithCurrentAmount} paiements restants)
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                      {formatCurrency(installmentPayment.installment_amount)}/éch. (≈{remainingPaymentsWithCurrentAmount} restants)
                     </p>
                   </div>
                 </div>
 
                 {/* Reduce Amount */}
-                <div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
+                <div className="flex items-start space-x-2.5 p-2.5 sm:p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="reduce_amount" id="reduce_amount" className="mt-0.5" />
-                  <div className="flex-1">
-                    <Label htmlFor="reduce_amount" className="cursor-pointer font-medium">
-                      Réduire le montant par paiement
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="reduce_amount" className="cursor-pointer font-medium text-xs sm:text-sm">
+                      Réduire le montant
                     </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Nouveau montant: {formatCurrency(reducedInstallmentAmount)} par paiement
-                      (≈ {originalRemainingPayments} paiements restants)
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                      {formatCurrency(reducedInstallmentAmount)}/éch. (≈{originalRemainingPayments} restants)
                     </p>
                   </div>
                 </div>
 
                 {/* Reduce Count - Keep Amount */}
-                <div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
+                <div className="flex items-start space-x-2.5 p-2.5 sm:p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="reduce_count" id="reduce_count" className="mt-0.5" />
-                  <div className="flex-1">
-                    <Label htmlFor="reduce_count" className="cursor-pointer font-medium">
-                      Garder le montant, réduire le nombre de paiements
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="reduce_count" className="cursor-pointer font-medium text-xs sm:text-sm">
+                      Réduire le nombre
                     </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Continuer avec {formatCurrency(installmentPayment.installment_amount)} par paiement
-                      (≈ {Math.ceil(newRemainingAmount / installmentPayment.installment_amount)} paiements restants)
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                      {formatCurrency(installmentPayment.installment_amount)}/éch. (≈{Math.ceil(newRemainingAmount / installmentPayment.installment_amount)} restants)
                     </p>
                   </div>
                 </div>
 
                 {/* Custom */}
-                <div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
+                <div className="flex items-start space-x-2.5 p-2.5 sm:p-3 rounded-lg border hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="custom" id="custom" className="mt-0.5" />
-                  <div className="flex-1">
-                    <Label htmlFor="custom" className="cursor-pointer font-medium">
-                      Montant personnalisé
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="custom" className="cursor-pointer font-medium text-xs sm:text-sm">
+                      Personnalisé
                     </Label>
-                    <div className="mt-2">
+                    <div className="mt-1.5">
                       <Input
                         type="number"
                         inputMode="decimal"
@@ -238,11 +235,11 @@ export const AdjustInstallmentPlanModal = ({
                         value={customAmount}
                         onChange={(e) => setCustomAmount(e.target.value)}
                         disabled={adjustmentType !== 'custom'}
-                        className="w-full"
+                        className="w-full h-8 text-xs sm:text-sm"
                       />
                       {adjustmentType === 'custom' && parseFloat(customAmount) > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ {Math.ceil(newRemainingAmount / parseFloat(customAmount))} paiements restants
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                          ≈{Math.ceil(newRemainingAmount / parseFloat(customAmount))} restants
                         </p>
                       )}
                     </div>
@@ -252,34 +249,31 @@ export const AdjustInstallmentPlanModal = ({
             </div>
 
             {/* Preview */}
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="text-sm font-semibold mb-2">Aperçu de l'ajustement</div>
-              <div className="space-y-1.5 text-sm">
+            <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <div className="text-xs sm:text-sm font-semibold mb-1.5">Aperçu</div>
+              <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nouveau montant par paiement:</span>
-                  <span className="font-bold">{formatCurrency(preview.installmentAmount)}</span>
+                  <span className="text-muted-foreground text-[11px] sm:text-xs">Nouvelle échéance</span>
+                  <span className="font-bold text-[11px] sm:text-sm whitespace-nowrap">{formatCurrency(preview.installmentAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Paiements restants estimés:</span>
-                  <span className="font-medium">{preview.estimatedPayments}</span>
+                  <span className="text-muted-foreground text-[11px] sm:text-xs">Restants estimés</span>
+                  <span className="font-medium text-[11px] sm:text-sm">{preview.estimatedPayments}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 italic">
-                  {preview.description}
-                </p>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={loading} className="flex-1">
+              <Button type="submit" disabled={loading} className="flex-1 h-9 text-xs sm:text-sm">
                 {loading ? 'Ajustement...' : 'Appliquer'}
               </Button>
             </div>

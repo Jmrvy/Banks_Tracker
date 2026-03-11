@@ -144,44 +144,45 @@ export const RecordInstallmentPaymentModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Enregistrer un Paiement</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Enregistrer un Paiement</DialogTitle>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
         {installmentPayment && (
-          <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Description:</span>
-              <span className="font-medium">{installmentPayment.description}</span>
+          <div className="p-3 bg-muted rounded-lg space-y-1.5 text-xs sm:text-sm mb-3">
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Description</span>
+              <span className="font-medium truncate">{installmentPayment.description}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Montant suggéré:</span>
-              <span className="font-medium">{installmentPayment.installment_amount.toFixed(2)}€</span>
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Suggéré</span>
+              <span className="font-medium whitespace-nowrap">{formatCurrency(installmentPayment.installment_amount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Restant à payer:</span>
-              <span className="font-medium text-primary">{installmentPayment.remaining_amount.toFixed(2)}€</span>
+              <span className="text-muted-foreground text-[11px] sm:text-xs">Restant</span>
+              <span className="font-medium text-primary whitespace-nowrap">{formatCurrency(installmentPayment.remaining_amount)}</span>
             </div>
           </div>
         )}
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as 'new' | 'link')} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="new" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nouvelle transaction
+            <TabsTrigger value="new" className="gap-1.5 text-xs sm:text-sm">
+              <Plus className="h-3.5 w-3.5" />
+              Nouvelle
             </TabsTrigger>
-            <TabsTrigger value="link" className="gap-2">
-              <Link className="h-4 w-4" />
+            <TabsTrigger value="link" className="gap-1.5 text-xs sm:text-sm">
+              <Link className="h-3.5 w-3.5" />
               Lier existante
             </TabsTrigger>
           </TabsList>
 
           <form onSubmit={handleSubmit}>
-            <TabsContent value="new" className="space-y-4 pt-4">
+            <TabsContent value="new" className="space-y-3 pt-3">
               <div className="space-y-2">
-                <Label htmlFor="amount">Montant du Paiement *</Label>
+                <Label htmlFor="amount" className="text-xs sm:text-sm">Montant du Paiement *</Label>
                 <AmountInput
                   id="amount"
                   placeholder="0.00"
@@ -195,9 +196,9 @@ export const RecordInstallmentPaymentModal = ({
               </div>
             </TabsContent>
 
-            <TabsContent value="link" className="space-y-4 pt-4">
+            <TabsContent value="link" className="space-y-3 pt-3">
               <div className="space-y-2">
-                <Label>Sélectionner une transaction existante</Label>
+                <Label className="text-xs sm:text-sm">Sélectionner une transaction existante</Label>
                 {linkableTransactions.length > 0 ? (
                   <ScrollArea className="h-[200px] border rounded-md p-2">
                     <div className="space-y-1">
@@ -254,26 +255,27 @@ export const RecordInstallmentPaymentModal = ({
               </div>
             </TabsContent>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 Annuler
               </Button>
               <Button
                 type="submit"
                 disabled={loading || (mode === 'link' && !selectedTransactionId)}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 {loading ? 'Enregistrement...' : mode === 'new' ? 'Enregistrer' : 'Lier'}
               </Button>
             </div>
           </form>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

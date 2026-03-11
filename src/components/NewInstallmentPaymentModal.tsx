@@ -264,13 +264,13 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
-      <DialogContent className="max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Nouveau Paiement Échelonné</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Nouveau Paiement Échelonné</DialogTitle>
         </DialogHeader>
 
         {step === 1 ? (
-          <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4 pb-2">
+          <div className="flex-1 overflow-y-auto px-4 pb-2 sm:px-6 space-y-3 sm:space-y-4">
             {/* Payment Type */}
             <div className="space-y-2">
               <Label>Type *</Label>
@@ -610,7 +610,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
           </div>
         ) : (
           /* Step 2: Schedule Preview */
-          <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-3 pb-2">
+          <div className="flex-1 overflow-y-auto px-4 pb-2 sm:px-6 space-y-3">
             {/* Summary */}
             <div className="p-3 rounded-lg bg-muted space-y-1">
               <p className="text-sm font-medium">{formData.description || 'Sans description'}</p>
@@ -656,7 +656,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
         )}
 
         {/* Footer buttons */}
-        <div className="flex gap-2 pt-3 flex-shrink-0 border-t">
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
           {step === 1 ? (
             <>
               <Button
@@ -664,7 +664,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 variant="outline"
                 onClick={() => { resetForm(); onOpenChange(false); }}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 Annuler
               </Button>
@@ -683,9 +683,9 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                   }
                   setStep(2);
                 }}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
-                Voir l'échéancier →
+                Échéancier →
               </Button>
             </>
           ) : (
@@ -695,7 +695,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 variant="outline"
                 onClick={() => setStep(1)}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 ← Retour
               </Button>
@@ -703,7 +703,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-9 text-xs sm:text-sm"
               >
                 {loading ? 'Création...' : 'Confirmer'}
               </Button>
