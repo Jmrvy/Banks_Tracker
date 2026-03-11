@@ -101,11 +101,12 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nouvelle dette</DialogTitle>
+      <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Nouvelle dette</DialogTitle>
         </DialogHeader>
-        
+
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="calculator" className="gap-2">
@@ -193,13 +194,13 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setActiveTab('calculator')}>
+                <Button type="button" variant="outline" onClick={() => setActiveTab('calculator')} className="h-9 text-xs sm:text-sm">
                   Retour
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setActiveTab('schedule')}>
+                <Button type="button" variant="outline" onClick={() => setActiveTab('schedule')} className="h-9 text-xs sm:text-sm">
                   Voir l'échéancier
                 </Button>
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading} className="h-9 text-xs sm:text-sm">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Créer
                 </Button>
@@ -210,12 +211,13 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
           <TabsContent value="schedule" className="space-y-4 mt-4">
             {calculation && <AmortizationSchedule calculation={calculation} />}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setActiveTab('details')}>
+              <Button variant="outline" onClick={() => setActiveTab('details')} className="h-9 text-xs sm:text-sm">
                 Retour aux détails
               </Button>
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

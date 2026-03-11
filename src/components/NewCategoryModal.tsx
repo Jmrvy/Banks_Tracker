@@ -76,9 +76,9 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-[425px] p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="w-[95vw] sm:max-w-[425px] max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
             <Tag className="h-5 w-5" />
             Nouvelle Catégorie
           </DialogTitle>
@@ -86,8 +86,8 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
             Ajouter une nouvelle catégorie pour organiser vos transactions.
           </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form id="new-category-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           {/* Category Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Nom de la catégorie *</Label>
@@ -139,22 +139,22 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
             </p>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-              className="flex-1"
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Création...' : 'Créer la catégorie'}
-            </Button>
-          </div>
         </form>
+
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="flex-1 h-9 text-xs sm:text-sm"
+          >
+            Annuler
+          </Button>
+          <Button type="submit" form="new-category-form" disabled={loading} className="flex-1 h-9 text-xs sm:text-sm">
+            {loading ? 'Création...' : 'Créer la catégorie'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

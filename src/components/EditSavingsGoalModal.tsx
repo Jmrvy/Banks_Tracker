@@ -102,12 +102,13 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('savings.editGoalTitle')}</DialogTitle>
+        <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+          <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+            <DialogTitle className="text-sm sm:text-lg">{t('savings.editGoalTitle')}</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
             {/* Quick add/withdraw section */}
             <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">{t('savings.quickAdd')}</Label>
@@ -233,19 +234,21 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4">
+            </div>
+
+            <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
               <Button
                 type="button"
                 variant="destructive"
                 onClick={() => setShowDeleteDialog(true)}
-                className="flex-shrink-0"
+                className="flex-shrink-0 h-9 text-xs sm:text-sm"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-9 text-xs sm:text-sm">
                 {t('savings.cancel')}
               </Button>
-              <Button type="submit" className="flex-1" disabled={updateGoal.isPending}>
+              <Button type="submit" className="flex-1 h-9 text-xs sm:text-sm" disabled={updateGoal.isPending}>
                 {updateGoal.isPending ? t('savings.saving') : t('savings.save')}
               </Button>
             </div>

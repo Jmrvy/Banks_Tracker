@@ -92,12 +92,12 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Modifier le Paiement Échelonné</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Modifier le Paiement Échelonné</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4 pb-2">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-2 sm:px-6 space-y-3 sm:space-y-4">
           {/* Payment Type */}
           <div className="space-y-2">
             <Label>Type *</Label>
@@ -239,17 +239,17 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
         </form>
 
         {/* Footer */}
-        <div className="flex gap-2 pt-3 flex-shrink-0 border-t">
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
-            className="flex-1"
+            className="flex-1 h-9 text-xs sm:text-sm"
           >
             Annuler
           </Button>
-          <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+          <Button onClick={handleSubmit} disabled={loading} className="flex-1 h-9 text-xs sm:text-sm">
             {loading ? 'Modification...' : 'Modifier'}
           </Button>
         </div>

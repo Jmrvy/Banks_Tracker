@@ -95,9 +95,9 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
             <CreditCard className="h-5 w-5" />
             {t('accounts.newAccount')}
           </DialogTitle>
@@ -106,7 +106,7 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="new-account-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           {/* Account Name */}
           <div className="space-y-2">
             <Label htmlFor="name">{t('accounts.accountName')} *</Label>
@@ -175,22 +175,22 @@ export function NewAccountModal({ open, onOpenChange }: NewAccountModalProps) {
               {t('accounts.enterCurrentBalance')}
             </p>
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? t('common.loading') : t('accounts.createAccount')}
-            </Button>
-          </div>
         </form>
+
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="h-9 text-xs sm:text-sm"
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" disabled={loading} form="new-account-form" className="h-9 text-xs sm:text-sm">
+            {loading ? t('common.loading') : t('accounts.createAccount')}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

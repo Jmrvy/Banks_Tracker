@@ -161,11 +161,11 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
             }`}
             onClick={() => handleCardClick(card.label)}
           >
-            <CardContent className="p-3 md:p-4 lg:p-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-2.5 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 min-w-0 mb-1 md:mb-2">
-                    <p className="text-xs md:text-sm text-muted-foreground truncate min-w-0">{card.label}</p>
+                  <div className="flex items-center gap-1 min-w-0 mb-0.5 sm:mb-1">
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate min-w-0">{card.label}</p>
                     {card.label === "Disponible" && hasDateDifference && (
                       <button
                         type="button"
@@ -176,17 +176,17 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
                         className="p-0.5 rounded-lg hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                         aria-label="Voir les écarts entre date comptable et date valeur"
                       >
-                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
                       </button>
                     )}
                   </div>
 
-                  <p className={`text-base md:text-xl lg:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+                  <p className={`text-base sm:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
                     {card.isCount ? card.value : formatCurrency(card.value)}
                   </p>
                 </div>
-                <div className={`h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-full ${card.bgColor} backdrop-blur-sm flex items-center justify-center flex-shrink-0 ml-2`}>
-                  <card.icon className={`h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ${card.color}`} />
+                <div className={`h-7 w-7 sm:h-10 sm:w-10 rounded-full ${card.bgColor} backdrop-blur-sm items-center justify-center flex-shrink-0 ml-1 flex`}>
+                  <card.icon className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${card.color}`} />
                 </div>
               </div>
             </CardContent>

@@ -12,8 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { InstallmentPayment } from "@/hooks/useInstallmentPayments";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Receipt, Calendar, Wallet } from "lucide-react";
 
 interface Transaction {
@@ -25,6 +23,12 @@ interface Transaction {
   account_id: string;
   category_id: string | null;
 }
+
+// Parse "YYYY-MM-DD" as local date
+const parseLocalDate = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
 
 interface InstallmentTransactionsModalProps {
   open: boolean;
@@ -80,97 +84,99 @@ export const InstallmentTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6 overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-            Transactions liées
+      <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
+            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+            <span className="truncate">Transactions liées</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3">
           {/* Summary */}
-          <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-2">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-              <span className="text-xs sm:text-sm text-muted-foreground">Paiement échelonné:</span>
-              <span className="font-semibold text-sm sm:text-base truncate">{installmentPayment.description}</span>
+          <div className="bg-muted/50 rounded-lg p-3 space-y-1.5">
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-[11px] sm:text-xs text-muted-foreground flex-shrink-0">Paiement</span>
+              <span className="font-semibold text-xs sm:text-sm truncate">{installmentPayment.description}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground">Total payé:</span>
-              <span className="font-bold text-success text-sm sm:text-base">{formatCurrency(totalPaid)}</span>
+              <span className="text-[11px] sm:text-xs text-muted-foreground">Total payé</span>
+              <span className="font-bold text-success text-xs sm:text-sm">{formatCurrency(totalPaid)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground">Transactions:</span>
-              <Badge variant="secondary" className="text-xs">{transactions.length}</Badge>
+              <span className="text-[11px] sm:text-xs text-muted-foreground">Transactions</span>
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">{transactions.length}</Badge>
             </div>
           </div>
 
           {/* Transactions List */}
-          <ScrollArea className="h-[250px] sm:h-[300px] w-full overflow-x-hidden">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              </div>
-            ) : transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <Receipt className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50 mb-2" />
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Aucune transaction liée à ce paiement échelonné
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Les transactions apparaîtront ici lorsque des paiements seront effectués
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 pr-3">
-                {transactions.map((transaction) => {
-                  const category = getCategoryInfo(transaction.category_id);
-                  return (
-                    <div
-                      key={transaction.id}
-                      className="bg-card border border-border/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 overflow-hidden"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-xs sm:text-sm truncate">
-                            {transaction.description}
-                          </p>
-                          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground mt-0.5 sm:mt-1">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">
-                              {format(new Date(transaction.transaction_date), "dd MMM yyyy", {
-                                locale: fr,
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="font-bold text-destructive text-xs sm:text-sm whitespace-nowrap">
-                          -{formatCurrency(transaction.amount)}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Receipt className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/50 mb-2" />
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Aucune transaction liée
+              </p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                Les transactions apparaîtront ici lorsque des paiements seront effectués
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {transactions.map((transaction) => {
+                const category = getCategoryInfo(transaction.category_id);
+                return (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center gap-2.5 p-2.5 rounded-lg bg-card border border-border/50"
+                  >
+                    {/* Date indicator */}
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-muted/50 flex flex-col items-center justify-center">
+                      <span className="text-[10px] font-bold leading-tight">
+                        {parseLocalDate(transaction.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric' })}
+                      </span>
+                      <span className="text-[8px] sm:text-[9px] text-muted-foreground uppercase leading-tight">
+                        {parseLocalDate(transaction.transaction_date).toLocaleDateString('fr-FR', { month: 'short' })}
+                      </span>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-xs sm:text-sm truncate">
+                        {transaction.description}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Wallet className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                          {getAccountName(transaction.account_id)}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Wallet className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate max-w-[100px] sm:max-w-none">
-                            {getAccountName(transaction.account_id)}
-                          </span>
-                        </div>
                         {category && (
-                          <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0.5">
+                          <>
+                            <span className="text-[10px] text-muted-foreground">·</span>
                             <div
-                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
                               style={{ backgroundColor: category.color }}
                             />
-                            <span className="truncate max-w-[80px] sm:max-w-none">{category.name}</span>
-                          </Badge>
+                            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                              {category.name}
+                            </span>
+                          </>
                         )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </ScrollArea>
+
+                    {/* Amount */}
+                    <span className="font-bold text-destructive text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+                      -{formatCurrency(transaction.amount)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

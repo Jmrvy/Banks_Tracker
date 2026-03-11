@@ -79,12 +79,12 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Modifier la dette</DialogTitle>
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Modifier la dette</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form id="edit-debt-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           <div>
             <Label htmlFor="description">Description *</Label>
             <Input
@@ -198,16 +198,17 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
             />
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Modifier
-            </Button>
-          </div>
         </form>
+
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs sm:text-sm">
+            Annuler
+          </Button>
+          <Button type="submit" form="edit-debt-form" disabled={loading} className="h-9 text-xs sm:text-sm">
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Modifier
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -363,15 +363,15 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                 </div>
                 
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
-                  <span 
+                  <span
                     className={`font-semibold text-xs sm:text-sm ${
-                      transaction.type === 'income' ? 'text-green-600' : 
-                      transaction.type === 'transfer' ? 'text-blue-600' : 
+                      transaction.type === 'income' ? 'text-green-600' :
+                      transaction.type === 'transfer' ? 'text-blue-600' :
                       'text-foreground'
                     }`}
                   >
-                    {transaction.type === 'income' ? '+' : 
-                     transaction.type === 'transfer' ? '↔' : 
+                    {transaction.type === 'income' ? '+' :
+                     transaction.type === 'transfer' ? '↔' :
                      '-'}{formatCurrency(Math.abs(transaction.amount))}
                     {transaction.type === 'transfer' && transaction.transfer_fee && transaction.transfer_fee > 0 && (
                       <span className="text-[10px] text-muted-foreground ml-0.5 hidden sm:inline">
@@ -379,7 +379,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                       </span>
                     )}
                   </span>
-                  <div className="flex items-center gap-0.5 sm:gap-1">
+                  <div className="flex items-center gap-0">
                     {/* Refund button - only for expenses that can still be refunded */}
                     {transaction.type === 'expense' && (transaction.refunded_amount || 0) < transaction.amount && (
                       <Tooltip>
@@ -387,10 +387,11 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            className="h-9 w-9 sm:h-8 sm:w-8"
+                            aria-label="Créer un remboursement"
                             onClick={(e) => { e.stopPropagation(); setRefundingTransaction(transaction); }}
                           >
-                            <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-green-600" />
+                            <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-green-600" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -401,18 +402,20 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8"
+                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      aria-label="Modifier la transaction"
                       onClick={(e) => { e.stopPropagation(); setEditingTransaction(transaction); }}
                     >
-                      <Pencil className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary" />
+                      <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8"
+                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      aria-label="Supprimer la transaction"
                       onClick={(e) => { e.stopPropagation(); setDeletingTransaction(transaction); }}
                     >
-                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-destructive" />
+                      <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-destructive" />
                     </Button>
                   </div>
                 </div>

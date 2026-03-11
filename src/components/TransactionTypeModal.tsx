@@ -89,9 +89,9 @@ export const TransactionTypeModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-4 sm:p-6">
-        <DialogHeader className="pb-3 sm:pb-4 border-b">
-          <DialogTitle className="flex items-center gap-2 sm:gap-3 text-base sm:text-xl">
+      <DialogContent className="w-[95vw] max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0 border-b">
+          <DialogTitle className="flex items-center gap-2 sm:gap-3 text-sm sm:text-lg">
             <div className={`p-1.5 sm:p-2 rounded-lg ${type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
               <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${colorClass}`} />
             </div>
@@ -102,7 +102,7 @@ export const TransactionTypeModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 py-3 sm:py-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3 sm:space-y-4">
           {/* Summary Card */}
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <Card className="bg-muted/30">

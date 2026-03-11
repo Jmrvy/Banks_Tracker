@@ -76,9 +76,9 @@ export const CategoryTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[80vh] sm:max-h-[85vh] overflow-hidden flex flex-col p-3 sm:p-6">
-        <DialogHeader className="pb-2 sm:pb-4">
-          <DialogTitle className="flex items-center justify-between text-sm sm:text-base">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="flex items-center justify-between text-sm sm:text-lg">
             <span className="truncate">{categoryName}</span>
             <Badge variant="secondary" className="text-xs sm:text-sm ml-2 flex-shrink-0">
               {formatCurrency(totalAmount)}
@@ -88,8 +88,8 @@ export const CategoryTransactionsModal = ({
             {transactions.length} transaction{transactions.length > 1 ? 's' : ''}
           </p>
         </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto space-y-2 sm:space-y-3 pr-1 sm:pr-2">
+
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-2 sm:space-y-3">
           {transactions.length === 0 ? (
             <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
               Aucune transaction trouvée

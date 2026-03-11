@@ -189,11 +189,11 @@ const InstallmentPayments = () => {
       >
         {/* Main row */}
         <div
-          className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+          className="flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
           onClick={() => setExpandedId(isExpanded ? null : payment.id)}
         >
           {/* Type indicator */}
-          <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
+          <div className={`flex-shrink-0 w-10 sm:w-12 h-10 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
             !payment.is_active ? 'bg-muted/30' : payment.payment_type === 'reimbursement' ? 'bg-success/10' : 'bg-orange-500/10'
           }`}>
             <CreditCard className={`h-4 w-4 sm:h-5 sm:w-5 ${
@@ -203,122 +203,114 @@ const InstallmentPayments = () => {
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className={`text-sm sm:text-base font-semibold truncate ${!payment.is_active ? 'text-muted-foreground' : ''}`}>
-                {payment.description}
-              </p>
-              <Badge
-                variant="outline"
-                className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
-              >
-                {payment.payment_type === 'reimbursement' ? 'Remb.' : 'Paiem.'}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <p className={`text-sm sm:text-base font-semibold truncate ${!payment.is_active ? 'text-muted-foreground' : ''}`}>
+              {payment.description}
+            </p>
+            <div className="flex items-center gap-1 mt-0.5 truncate">
               {payment.is_active ? (
                 <>
-                  <Clock className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                     {daysUntil < 0 ? 'En retard' :
-                     daysUntil === 0 ? "Aujourd'hui" :
+                     daysUntil === 0 ? "Auj." :
                      daysUntil === 1 ? 'Demain' :
-                     `Dans ${daysUntil} jours`}
+                     `${daysUntil}j`}
                   </span>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                     · {getFrequencyLabel(payment.frequency)}
                   </span>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-3 w-3 text-success" />
+                  <CheckCircle2 className="h-3 w-3 text-success flex-shrink-0" />
                   <span className="text-[10px] sm:text-xs text-muted-foreground">Terminé</span>
                 </>
               )}
             </div>
-            <span className="text-[10px] sm:text-xs text-muted-foreground">
-              {paidCount} sur {totalCount} payé ({formatCurrency(payment.total_amount)})
-            </span>
+            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+              {paidCount}/{totalCount} payé · {formatCurrency(payment.installment_amount)}/éch.
+            </p>
           </div>
 
           {/* Amount + chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <div className="text-right">
-              <span className={`text-sm sm:text-base font-bold ${
+              <span className={`text-xs sm:text-base font-bold whitespace-nowrap ${
                 !payment.is_active ? 'text-muted-foreground' : 'text-orange-500'
               }`}>
                 {formatCurrency(payment.remaining_amount)}
               </span>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">restant</p>
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
           </div>
         </div>
 
         {/* Expanded detail */}
         {isExpanded && (
-          <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
+          <div className="border-t border-border/50 p-3 sm:p-4 space-y-3 sm:space-y-4 bg-muted/10">
             {/* Progress bar */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex justify-between items-end">
                 <div>
-                  <p className="text-sm sm:text-base font-bold">{formatCurrency(paid)}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
+                  <p className="text-xs sm:text-base font-bold">{formatCurrency(paid)}</p>
+                  <p className="text-[9px] sm:text-xs text-muted-foreground">Payé</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm sm:text-base font-bold">{formatCurrency(payment.remaining_amount)}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
+                  <p className="text-xs sm:text-base font-bold">{formatCurrency(payment.remaining_amount)}</p>
+                  <p className="text-[9px] sm:text-xs text-muted-foreground">Restant</p>
                 </div>
               </div>
               <Progress value={progress} className="h-2" />
             </div>
 
             {/* Details */}
-            <div className="space-y-2 text-sm">
+            <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Total</span>
-                <span className="font-bold text-xs sm:text-sm">{formatCurrency(payment.total_amount)}</span>
+                <span className="text-muted-foreground text-[11px] sm:text-xs">Total</span>
+                <span className="font-bold text-[11px] sm:text-sm">{formatCurrency(payment.total_amount)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Mensualité</span>
-                <span className="font-medium text-xs sm:text-sm">{formatCurrency(payment.installment_amount)}</span>
+                <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
+                <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(payment.installment_amount)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Fréquence</span>
-                <span className="font-medium text-xs sm:text-sm">{getFrequencyLabel(payment.frequency)}</span>
+                <span className="text-muted-foreground text-[11px] sm:text-xs">Fréquence</span>
+                <span className="font-medium text-[11px] sm:text-sm">{getFrequencyLabel(payment.frequency)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Prochain paiement</span>
-                <span className={`font-medium text-xs sm:text-sm ${daysUntil < 0 ? 'text-warning' : ''}`}>
+                <span className="text-muted-foreground text-[11px] sm:text-xs">Prochain</span>
+                <span className={`font-medium text-[11px] sm:text-sm whitespace-nowrap ${daysUntil < 0 ? 'text-warning' : ''}`}>
                   {nextDue.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </span>
               </div>
               {account && (
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-xs">Compte</span>
-                  <span className="font-medium text-xs sm:text-sm">{account.name}</span>
+                  <span className="text-muted-foreground text-[11px] sm:text-xs">Compte</span>
+                  <span className="font-medium text-[11px] sm:text-sm truncate ml-2">{account.name}</span>
                 </div>
               )}
               {category && (
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-xs">Catégorie</span>
-                  <Badge variant="outline" className="gap-1.5 text-xs">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color }} />
-                    {category.name}
+                  <span className="text-muted-foreground text-[11px] sm:text-xs">Catégorie</span>
+                  <Badge variant="outline" className="gap-1 text-[10px] sm:text-xs max-w-[50%] truncate">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+                    <span className="truncate">{category.name}</span>
                   </Badge>
                 </div>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Type</span>
+                <span className="text-muted-foreground text-[11px] sm:text-xs">Type</span>
                 <Badge
                   variant="outline"
-                  className={`text-xs ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
+                  className={`text-[10px] sm:text-xs ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
                 >
-                  {payment.payment_type === 'reimbursement' ? 'Remboursement' : 'Paiement'}
+                  {payment.payment_type === 'reimbursement' ? 'Remb.' : 'Paiement'}
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Statut</span>
-                <Badge variant={payment.is_active ? 'default' : 'secondary'} className="text-xs">
+                <span className="text-muted-foreground text-[11px] sm:text-xs">Statut</span>
+                <Badge variant={payment.is_active ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
                   {payment.is_active ? 'Actif' : 'Terminé'}
                 </Badge>
               </div>
@@ -326,29 +318,29 @@ const InstallmentPayments = () => {
 
             {/* Payment timeline */}
             {paymentHistory.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Historique des paiements</p>
+              <div className="space-y-0.5">
+                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1.5">Historique</p>
                 {paymentHistory.map((tx) => (
-                  <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
-                    <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                      <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <div key={tx.id} className="flex items-center gap-2 py-1">
+                    <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
+                      <svg className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <span className="text-xs sm:text-sm flex-1">
-                      {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    <span className="text-[11px] sm:text-sm flex-1">
+                      {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                     </span>
-                    <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
+                    <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">{formatCurrency(tx.amount)}</span>
                   </div>
                 ))}
                 {/* Next pending payment */}
                 {payment.is_active && payment.remaining_amount > 0 && (
-                  <div className="flex items-center gap-2.5 py-1.5">
-                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
-                    <span className="text-xs sm:text-sm flex-1">
-                      {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                  <div className="flex items-center gap-2 py-1">
+                    <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                    <span className="text-[11px] sm:text-sm flex-1">
+                      {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                     </span>
-                    <span className="text-xs sm:text-sm font-medium">
+                    <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">
                       {formatCurrency(payment.installment_amount)}
                     </span>
                   </div>
@@ -360,7 +352,7 @@ const InstallmentPayments = () => {
             {payment.is_active && (
               <Button
                 size="sm"
-                className="w-full h-9 text-xs sm:text-sm gap-1.5"
+                className="w-full h-8 sm:h-9 text-[11px] sm:text-sm gap-1.5"
                 onClick={() => handleRecordPayment(payment)}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -369,34 +361,40 @@ const InstallmentPayments = () => {
             )}
 
             {/* Action buttons */}
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 pt-2 border-t border-border/50">
+              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
                 onClick={() => handleViewDetails(payment)}>
-                <History className="h-3.5 w-3.5" /> Détails
+                <History className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                <span className="hidden sm:inline">Détails</span>
               </Button>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
                 onClick={() => handleViewTransactions(payment)}>
-                <Receipt className="h-3.5 w-3.5" /> Transactions
+                <Receipt className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                <span className="hidden sm:inline">Transactions</span>
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 px-3"
+              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
+                onClick={() => handleEdit(payment)}>
+                <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                <span className="hidden sm:inline">Modifier</span>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
                 onClick={() => handleRecalculate(payment)}>
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                <span className="hidden sm:inline">Recalculer</span>
               </Button>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                onClick={() => handleEdit(payment)}>
-                <Pencil className="h-3.5 w-3.5" /> Modifier
-              </Button>
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
               {payment.is_active && (
-                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
                   onClick={() => handleComplete(payment)}>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Terminer
+                  <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  <span className="truncate">Terminer</span>
                 </Button>
               )}
-              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
+              <Button size="sm" variant="destructive" className={`h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3 ${!payment.is_active ? 'col-span-2' : ''}`}
                 onClick={() => handleDeleteClick(payment.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                <span className="truncate">Supprimer</span>
               </Button>
             </div>
           </div>
@@ -408,7 +406,10 @@ const InstallmentPayments = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Chargement des paiements échelonnés...</p>
+        </div>
       </div>
     );
   }
@@ -445,12 +446,12 @@ const InstallmentPayments = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Total dû</p>
-                  <p className="text-lg sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Total dû</p>
+                  <p className="text-base sm:text-2xl font-bold truncate">
                     {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0">
+                <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0 flex">
                   <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-orange-500" />
                 </div>
               </div>
@@ -461,12 +462,12 @@ const InstallmentPayments = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Actifs</p>
-                  <p className="text-lg sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Actifs</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {installmentPayments.filter(p => p.is_active).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0">
+                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
                   <CreditCard className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
                 </div>
               </div>
@@ -477,12 +478,12 @@ const InstallmentPayments = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Terminés</p>
-                  <p className="text-lg sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Terminés</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {installmentPayments.filter(p => !p.is_active).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0">
+                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 flex">
                   <Clock className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
                 </div>
               </div>
@@ -493,9 +494,9 @@ const InstallmentPayments = () => {
         {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3 h-9 sm:h-10">
-            <TabsTrigger value="active" className="text-xs sm:text-sm">Actifs ({installmentPayments.filter(p => p.is_active).length})</TabsTrigger>
-            <TabsTrigger value="completed" className="text-xs sm:text-sm">Terminés ({installmentPayments.filter(p => !p.is_active).length})</TabsTrigger>
-            <TabsTrigger value="all" className="text-xs sm:text-sm">Tous ({installmentPayments.length})</TabsTrigger>
+            <TabsTrigger value="active" className="text-[11px] sm:text-sm px-1 sm:px-3">Actifs ({installmentPayments.filter(p => p.is_active).length})</TabsTrigger>
+            <TabsTrigger value="completed" className="text-[11px] sm:text-sm px-1 sm:px-3">Terminés ({installmentPayments.filter(p => !p.is_active).length})</TabsTrigger>
+            <TabsTrigger value="all" className="text-[11px] sm:text-sm px-1 sm:px-3">Tous ({installmentPayments.length})</TabsTrigger>
           </TabsList>
         </Tabs>
 

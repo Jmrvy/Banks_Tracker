@@ -183,15 +183,15 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader className="space-y-1 sm:space-y-2">
-          <DialogTitle className="text-base sm:text-lg">Projections Budget</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">Projections Budget</DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
             Projection fin de mois basée sur vos {useSpendingPatterns ? 'dépenses actuelles' : 'transactions récurrentes'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3 sm:space-y-4">
           {budgetData.totalBudget > 0 ? (
             <>
               {budgetData.categoriesWithSpending.length > 0 && (

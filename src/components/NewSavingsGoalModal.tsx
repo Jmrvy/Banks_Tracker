@@ -77,12 +77,13 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('savings.newGoalTitle')}</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg">{t('savings.newGoalTitle')}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">{t('savings.goalName')} *</Label>
             <Input
@@ -172,11 +173,13 @@ export const NewSavingsGoalModal = ({ isOpen, onClose }: NewSavingsGoalModalProp
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          </div>
+
+          <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-9 text-xs sm:text-sm">
               {t('savings.cancel')}
             </Button>
-            <Button type="submit" className="flex-1" disabled={createGoal.isPending}>
+            <Button type="submit" className="flex-1 h-9 text-xs sm:text-sm" disabled={createGoal.isPending}>
               {createGoal.isPending ? t('savings.creating') : t('savings.create')}
             </Button>
           </div>
