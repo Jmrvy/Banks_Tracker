@@ -165,7 +165,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1 min-w-0 mb-0.5 sm:mb-1">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate min-w-0">{card.label}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate min-w-0">{card.label}</p>
                     {card.label === "Disponible" && hasDateDifference && (
                       <button
                         type="button"
@@ -181,12 +181,12 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
                     )}
                   </div>
 
-                  <p className={`text-sm sm:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+                  <p className={`text-base sm:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
                     {card.isCount ? card.value : formatCurrency(card.value)}
                   </p>
                 </div>
-                <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full ${card.bgColor} backdrop-blur-sm items-center justify-center flex-shrink-0 ml-1 hidden sm:flex`}>
-                  <card.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${card.color}`} />
+                <div className={`h-7 w-7 sm:h-10 sm:w-10 rounded-full ${card.bgColor} backdrop-blur-sm items-center justify-center flex-shrink-0 ml-1 flex`}>
+                  <card.icon className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${card.color}`} />
                 </div>
               </div>
             </CardContent>

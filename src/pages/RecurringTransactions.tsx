@@ -352,15 +352,15 @@ const RecurringTransactions = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Active</p>
-                  <p className="text-sm sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Active</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => t.is_active).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 hidden sm:flex">
+                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
                   <Play className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
                 </div>
               </div>
@@ -368,15 +368,15 @@ const RecurringTransactions = () => {
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Inactive</p>
-                  <p className="text-sm sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Inactive</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => !t.is_active).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 hidden sm:flex">
+                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 flex">
                   <Pause className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
                 </div>
               </div>
@@ -384,11 +384,11 @@ const RecurringTransactions = () => {
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">7 jours</p>
-                  <p className="text-sm sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">7 jours</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => {
                       if (!t.is_active) return false;
                       const nextDue = parseLocalDate(t.next_due_date);
@@ -398,7 +398,7 @@ const RecurringTransactions = () => {
                     }).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-warning/10 flex-shrink-0 hidden sm:flex">
+                <div className="icon-badge icon-badge-sm bg-warning/10 flex-shrink-0 flex">
                   <Calendar className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-warning" />
                 </div>
               </div>

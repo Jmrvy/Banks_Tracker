@@ -65,46 +65,46 @@ const Debts = () => {
 
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">Accordés</p>
-                  <p className="text-sm sm:text-2xl font-bold text-success truncate">{formatCurrency(totalLoansGiven)}</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Accordés</p>
+                  <p className="text-base sm:text-2xl font-bold text-success truncate">{formatCurrency(totalLoansGiven)}</p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 hidden sm:flex">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
+                  <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">Contractés</p>
-                  <p className="text-sm sm:text-2xl font-bold text-destructive truncate">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Contractés</p>
+                  <p className="text-base sm:text-2xl font-bold text-destructive truncate">
                     {formatCurrency(totalLoansReceived)}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-destructive/10 flex-shrink-0 hidden sm:flex">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
+                <div className="icon-badge icon-badge-sm bg-destructive/10 flex-shrink-0 flex">
+                  <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-destructive" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">Position nette</p>
-                  <p className={`text-sm sm:text-2xl font-bold truncate ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Position nette</p>
+                  <p className={`text-base sm:text-2xl font-bold truncate ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`}>
                     {formatCurrency(netPosition)}
                   </p>
                 </div>
-                <div className={`icon-badge icon-badge-sm ${netPosition >= 0 ? 'bg-success/10' : 'bg-destructive/10'} flex-shrink-0 hidden sm:flex`}>
-                  <Wallet className={`h-4 w-4 sm:h-5 sm:w-5 ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`} />
+                <div className={`icon-badge icon-badge-sm ${netPosition >= 0 ? 'bg-success/10' : 'bg-destructive/10'} flex-shrink-0 flex`}>
+                  <Wallet className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${netPosition >= 0 ? 'text-success' : 'text-destructive'}`} />
                 </div>
               </div>
             </CardContent>
@@ -122,10 +122,17 @@ const Debts = () => {
             {activeDebts.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
-                  <Wallet className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
-                  <p className="text-xs sm:text-sm text-muted-foreground text-center">
-                    Aucune dette active. Cliquez sur "Nouvelle dette" pour commencer.
+                  <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
+                    <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-medium mb-2">Aucune dette active</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4">
+                    Suivez vos prêts et remboursements en créant votre première dette.
                   </p>
+                  <Button onClick={() => setNewDebtModalOpen(true)} className="h-9 text-sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouvelle dette
+                  </Button>
                 </CardContent>
               </Card>
             ) : (

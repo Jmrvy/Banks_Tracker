@@ -406,7 +406,10 @@ const InstallmentPayments = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Chargement des paiements échelonnés...</p>
+        </div>
       </div>
     );
   }
@@ -440,15 +443,15 @@ const InstallmentPayments = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">Total dû</p>
-                  <p className="text-sm sm:text-2xl font-bold truncate">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Total dû</p>
+                  <p className="text-base sm:text-2xl font-bold truncate">
                     {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0 hidden sm:flex">
+                <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0 flex">
                   <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-orange-500" />
                 </div>
               </div>
@@ -456,15 +459,15 @@ const InstallmentPayments = () => {
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">Actifs</p>
-                  <p className="text-sm sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Actifs</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {installmentPayments.filter(p => p.is_active).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 hidden sm:flex">
+                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
                   <CreditCard className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
                 </div>
               </div>
@@ -472,15 +475,15 @@ const InstallmentPayments = () => {
           </Card>
 
           <Card className="stat-card">
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1 truncate">Terminés</p>
-                  <p className="text-sm sm:text-2xl font-bold">
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Terminés</p>
+                  <p className="text-base sm:text-2xl font-bold">
                     {installmentPayments.filter(p => !p.is_active).length}
                   </p>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 hidden sm:flex">
+                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 flex">
                   <Clock className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
                 </div>
               </div>
