@@ -363,23 +363,32 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                 </div>
                 
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
-                  <span
-                    className={`font-semibold text-xs sm:text-sm ${
-                      transaction.type === 'income' ? 'text-green-600' :
-                      transaction.type === 'transfer' ? 'text-blue-600' :
-                      'text-foreground'
-                    }`}
-                  >
-                    {transaction.type === 'income' ? '+' :
-                     transaction.type === 'transfer' ? '↔' :
-                     '-'}{formatCurrency(Math.abs(transaction.amount))}
+                  <div className="flex flex-col items-end">
+                    <span
+                      className={`font-semibold text-xs sm:text-sm ${
+                        transaction.type === 'income' ? 'text-green-600' :
+                        transaction.type === 'transfer' ? 'text-blue-600' :
+                        'text-foreground'
+                      }`}
+                    >
+                      {transaction.type === 'income' ? '+' :
+                       transaction.type === 'transfer' ? '↔' :
+                       '-'}{formatCurrency(Math.abs(transaction.amount))}
+                    </span>
                     {transaction.type === 'transfer' && transaction.transfer_fee && transaction.transfer_fee > 0 && (
-                      <span className="text-[10px] text-muted-foreground ml-0.5 hidden sm:inline">
-                        (+{formatCurrency(transaction.transfer_fee)} frais)
+                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                        +{formatCurrency(transaction.transfer_fee)} frais
                       </span>
                     )}
-                  </span>
-                  <div className="flex items-center gap-0">
+                    {/* Mobile: show account name under amount */}
+                    {transaction.account && (
+                      <span className="text-[10px] text-muted-foreground sm:hidden truncate max-w-[80px]">
+                        {transaction.account.name}
+                      </span>
+                    )}
+                  </div>
+                  {/* Action buttons hidden on mobile - tap row to see details */}
+                  <div className="hidden sm:flex items-center gap-0">
                     {/* Refund button - only for expenses that can still be refunded */}
                     {transaction.type === 'expense' && (transaction.refunded_amount || 0) < transaction.amount && (
                       <Tooltip>
@@ -387,11 +396,11 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 sm:h-8 sm:w-8"
+                            className="h-8 w-8"
                             aria-label="Créer un remboursement"
                             onClick={(e) => { e.stopPropagation(); setRefundingTransaction(transaction); }}
                           >
-                            <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-green-600" />
+                            <RotateCcw className="h-4 w-4 text-muted-foreground hover:text-green-600" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -402,20 +411,20 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      className="h-8 w-8"
                       aria-label="Modifier la transaction"
                       onClick={(e) => { e.stopPropagation(); setEditingTransaction(transaction); }}
                     >
-                      <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary" />
+                      <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      className="h-8 w-8"
                       aria-label="Supprimer la transaction"
                       onClick={(e) => { e.stopPropagation(); setDeletingTransaction(transaction); }}
                     >
-                      <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-destructive" />
+                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                     </Button>
                   </div>
                 </div>
@@ -459,7 +468,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
             <AlertDialogDescription>
               Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.
               {deletingTransaction && (
-                <div className="mt-2 p-2 bg-muted rounded-md">
+                <div className="mt-2 p-2 bg-white/[0.04] border border-white/[0.08] rounded-xl">
                   <p className="font-medium">{deletingTransaction.description}</p>
                   <p className="text-sm">{formatCurrency(deletingTransaction.amount)}</p>
                 </div>

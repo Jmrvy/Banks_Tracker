@@ -355,7 +355,7 @@ const RecurringTransactions = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Active</p>
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Active</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => t.is_active).length}
                   </p>
@@ -371,7 +371,7 @@ const RecurringTransactions = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Inactive</p>
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Inactive</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => !t.is_active).length}
                   </p>
@@ -387,7 +387,7 @@ const RecurringTransactions = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">7 jours</p>
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">7 jours</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {recurringTransactions.filter(t => {
                       if (!t.is_active) return false;

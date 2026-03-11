@@ -129,7 +129,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           {/* Description and amount */}
-          <div className="text-center py-4 bg-muted/30 rounded-lg">
+          <div className="text-center py-4 bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl">
             <p className="text-lg font-semibold mb-2">{transaction.description}</p>
             <p className={`text-3xl font-bold ${getTypeColor()}`}>
               {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}
@@ -166,7 +166,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
           {/* Original transaction info (if this is a refund) */}
           {transaction.refund_of_transaction_id && originalTransaction && (
             <>
-              <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
+              <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
                   <Receipt className="w-4 h-4 text-green-600" />
                   <p className="text-sm font-medium text-green-600">Transaction originale remboursée</p>
@@ -186,7 +186,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
           {/* Refund summary for expenses */}
           {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
             <>
-              <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+              <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-3">
                   <History className="w-4 h-4 text-amber-600" />
                   <p className="text-sm font-medium text-amber-600">Historique des remboursements</p>
@@ -198,7 +198,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
                     <span>Remboursé : {formatCurrency(transaction.refunded_amount || 0)}</span>
                     <span>Reste : {formatCurrency(remainingToRefund)}</span>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
+                  <div className="w-full bg-white/[0.06] rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all ${
                         transaction.refunded_amount === transaction.amount 
@@ -218,7 +218,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction }: Tran
                     {refunds.map((refund, index) => (
                       <div 
                         key={refund.id} 
-                        className="flex items-center justify-between p-2 bg-background rounded border"
+                        className="glass-row flex items-center justify-between p-2 border border-white/[0.04] rounded-xl"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground w-5">#{index + 1}</span>

@@ -85,10 +85,10 @@ export const AccountTransactionsModal = ({
             transactionsWithBalance.map((transaction) => (
               <div
                 key={transaction.id}
-                className="flex items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                className="glass-row flex items-center justify-between p-3 sm:p-4 border border-white/[0.04] rounded-xl"
               >
                 <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
-                  <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex-shrink-0">
+                  <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/[0.06] flex-shrink-0">
                     {transaction.type === 'income' ? (
                       <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     ) : transaction.type === 'transfer' ? (
