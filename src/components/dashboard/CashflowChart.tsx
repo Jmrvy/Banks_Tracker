@@ -6,6 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { eachDayOfInterval, format, isSameDay, isBefore, addWeeks, addMonths, addQuarters, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
+import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 
 interface CashflowChartProps {
   startDate: Date;
@@ -152,6 +153,14 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     return data;
   }, [transactions, accounts, recurringTransactions, startDate, endDate]);
 
+  // Summary stats for the period
+  const periodStats = useMemo(() => {
+    const totalIncome = chartData.reduce((sum, d) => sum + d.income, 0);
+    const totalExpense = chartData.reduce((sum, d) => sum + d.expense, 0);
+    const net = totalIncome - totalExpense;
+    return { totalIncome, totalExpense, net };
+  }, [chartData]);
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -245,6 +254,33 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
         <div className="mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold">Cashflow</h3>
           <p className="text-xs sm:text-sm text-muted-foreground">Évolution de votre solde</p>
+        </div>
+
+        {/* Period summary stats */}
+        <div className={`grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4 ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+          <div className="p-2 sm:p-3 rounded-xl bg-success/5 border border-success/10">
+            <div className="flex items-center gap-1 mb-0.5">
+              <TrendingUp className="h-3 w-3 text-success" />
+              <span className="text-[10px] sm:text-xs text-success font-medium">Revenus</span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-success">+{formatCurrency(periodStats.totalIncome)}</p>
+          </div>
+          <div className="p-2 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+            <div className="flex items-center gap-1 mb-0.5">
+              <TrendingDown className="h-3 w-3 text-destructive" />
+              <span className="text-[10px] sm:text-xs text-destructive font-medium">Dépenses</span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-destructive">-{formatCurrency(periodStats.totalExpense)}</p>
+          </div>
+          <div className={`p-2 sm:p-3 rounded-xl border ${periodStats.net >= 0 ? 'bg-success/5 border-success/10' : 'bg-destructive/5 border-destructive/10'}`}>
+            <div className="flex items-center gap-1 mb-0.5">
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">Net</span>
+            </div>
+            <p className={`text-xs sm:text-sm font-bold ${periodStats.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {periodStats.net >= 0 ? '+' : ''}{formatCurrency(periodStats.net)}
+            </p>
+          </div>
         </div>
 
         <div className={isPrivacyMode ? "blur-md select-none" : ""}>

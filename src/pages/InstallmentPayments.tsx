@@ -446,7 +446,7 @@ const InstallmentPayments = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Total dû</p>
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Total dû</p>
                   <p className="text-base sm:text-2xl font-bold truncate">
                     {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
                   </p>
@@ -462,7 +462,7 @@ const InstallmentPayments = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Actifs</p>
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Actifs</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {installmentPayments.filter(p => p.is_active).length}
                   </p>
@@ -478,7 +478,7 @@ const InstallmentPayments = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">Terminés</p>
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Terminés</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {installmentPayments.filter(p => !p.is_active).length}
                   </p>

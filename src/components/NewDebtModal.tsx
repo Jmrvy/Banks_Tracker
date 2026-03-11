@@ -10,9 +10,10 @@ import { useDebts } from '@/hooks/useDebts';
 import { LoanCalculator, LoanParams } from '@/components/LoanCalculator';
 import { AmortizationSchedule } from '@/components/AmortizationSchedule';
 import { LoanCalculation } from '@/utils/loanCalculator';
-import { Loader2, Calculator, FileText } from 'lucide-react';
+import { Loader2, Calculator, FileText, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { debtSchema, validateForm } from '@/lib/validations';
+import { PdfLoanImport } from '@/components/PdfLoanImport';
 
 interface NewDebtModalProps {
   open: boolean;
@@ -108,18 +109,25 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="calculator" className="gap-2">
-              <Calculator className="h-4 w-4" />
-              Calculateur
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="calculator" className="gap-1 sm:gap-2 text-[11px] sm:text-sm">
+              <Calculator className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Calculateur</span>
+              <span className="sm:hidden">Calcul</span>
             </TabsTrigger>
-            <TabsTrigger value="details" className="gap-2" disabled={!calculation}>
-              <FileText className="h-4 w-4" />
+            <TabsTrigger value="pdf-import" className="gap-1 sm:gap-2 text-[11px] sm:text-sm">
+              <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Import PDF</span>
+              <span className="sm:hidden">PDF</span>
+            </TabsTrigger>
+            <TabsTrigger value="details" className="gap-1 sm:gap-2 text-[11px] sm:text-sm" disabled={!calculation}>
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Détails
             </TabsTrigger>
-            <TabsTrigger value="schedule" className="gap-2" disabled={!calculation}>
-              <FileText className="h-4 w-4" />
-              Échéancier
+            <TabsTrigger value="schedule" className="gap-1 sm:gap-2 text-[11px] sm:text-sm" disabled={!calculation}>
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Échéancier</span>
+              <span className="sm:hidden">Éch.</span>
             </TabsTrigger>
           </TabsList>
 
@@ -133,6 +141,10 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
                 Continuer vers les détails
               </Button>
             )}
+          </TabsContent>
+
+          <TabsContent value="pdf-import" className="space-y-4 mt-4">
+            <PdfLoanImport onSuccess={() => { resetForm(); onOpenChange(false); }} />
           </TabsContent>
 
           <TabsContent value="details" className="space-y-4 mt-4">

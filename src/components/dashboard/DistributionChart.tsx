@@ -27,6 +27,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
   const [isVisible, setIsVisible] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const activeDateType = preferences.dateType;
 
@@ -158,16 +159,18 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                     animationEasing="ease-out"
                   >
                     {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={entry.color}
+                        opacity={activeCategory && activeCategory !== entry.name ? 0.3 : 1}
+                        style={{ transition: 'opacity 0.3s ease-out' }}
                       />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              
+
               <ResponsiveContainer width="100%" height={260} className="hidden sm:block">
                 <PieChart>
                   <Pie
@@ -183,10 +186,11 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                     animationEasing="ease-out"
                   >
                     {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={entry.color}
-                        className="transition-opacity duration-200 hover:opacity-80"
+                        opacity={activeCategory && activeCategory !== entry.name ? 0.3 : 1}
+                        style={{ transition: 'opacity 0.3s ease-out', cursor: 'pointer' }}
                       />
                     ))}
                   </Pie>
@@ -205,11 +209,15 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
             {/* Legend - compact on mobile */}
             <div className="mt-3 sm:mt-5 w-full space-y-1.5 sm:space-y-2">
               {chartData.slice(0, 4).map((item, index) => (
-                <div 
-                  key={item.name} 
+                <div
+                  key={item.name}
+                  onClick={() => setActiveCategory(activeCategory === item.name ? null : item.name)}
                   className={cn(
-                    "flex items-center justify-between text-[11px] sm:text-sm",
-                    "p-1.5 sm:p-2 rounded-xl bg-white/[0.03] border border-white/[0.04]"
+                    "flex items-center justify-between text-[11px] sm:text-sm cursor-pointer transition-all duration-300",
+                    "p-1.5 sm:p-2 rounded-xl border",
+                    activeCategory === item.name
+                      ? "bg-white/[0.08] border-white/[0.12] shadow-sm"
+                      : "bg-white/[0.03] border-white/[0.04] hover:bg-white/[0.06]"
                   )}
                 >
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
