@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Slider } from "@/components/ui/slider";
 import { Search, X, Filter, SlidersHorizontal, Calendar, CreditCard, Tag, DollarSign } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,8 +29,17 @@ interface TransactionSearchProps {
 }
 
 export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount }: TransactionSearchProps) => {
-  const { categories, accounts } = useFinancialData();
+  const { categories, accounts, transactions } = useFinancialData();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Compute max amount from transactions for slider range
+  const maxAmount = useMemo(() => {
+    if (transactions.length === 0) return 1000;
+    const max = Math.max(...transactions.map(t => Math.abs(t.amount)));
+    // Round up to a nice number
+    const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+    return Math.ceil(max / magnitude) * magnitude || 1000;
+  }, [transactions]);
 
   const updateFilter = (key: keyof TransactionFilters, value: string) => {
     onFiltersChange({ ...filters, [key]: value });
@@ -253,37 +263,37 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               </div>
             </div>
 
-            {/* Amount range */}
-            <div className="space-y-1.5">
+            {/* Amount range slider */}
+            <div className="space-y-3">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <DollarSign className="h-3.5 w-3.5" />
                 Montant
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-muted-foreground">Min (€)</span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={filters.amountMin}
-                    onChange={(e) => updateFilter('amountMin', e.target.value)}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-muted-foreground">Max (€)</span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="∞"
-                    value={filters.amountMax}
-                    onChange={(e) => updateFilter('amountMax', e.target.value)}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
+              <Slider
+                min={0}
+                max={maxAmount}
+                step={maxAmount <= 100 ? 1 : maxAmount <= 1000 ? 5 : maxAmount <= 10000 ? 10 : 50}
+                value={[
+                  filters.amountMin ? Number(filters.amountMin) : 0,
+                  filters.amountMax ? Number(filters.amountMax) : maxAmount,
+                ]}
+                onValueChange={([min, max]) => {
+                  onFiltersChange({
+                    ...filters,
+                    amountMin: min > 0 ? String(min) : '',
+                    amountMax: max < maxAmount ? String(max) : '',
+                  });
+                }}
+                className="py-2"
+              />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {filters.amountMin ? `${filters.amountMin} €` : '0 €'}
+                </span>
+                <span className="text-[10px]">Glisser pour ajuster</span>
+                <span className="font-medium text-foreground">
+                  {filters.amountMax ? `${filters.amountMax} €` : `${maxAmount} €`}
+                </span>
               </div>
             </div>
           </div>
