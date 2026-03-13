@@ -8,6 +8,7 @@ import { CategoryData } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
 import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { TrendingDown, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 import { BudgetEvolutionChart } from "@/components/charts/BudgetEvolutionChart";
@@ -21,6 +22,7 @@ interface CategoriesTabProps {
 
 export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
+  const { preferences } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   
@@ -55,7 +57,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           isFullyRefunded: refundedAmount >= grossAmount,
           hasRefund: refundedAmount > 0,
           bank: t.account?.bank || 'other',
-          date: t.transaction_date,
+          date: preferences.dateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
           valueDate: (t as any).value_date,
           type: t.type
         };

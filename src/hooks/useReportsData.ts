@@ -129,8 +129,10 @@ export const useReportsData = (
     // Calcul du solde initial basé sur les comptes actuels moins les transactions de la période
     const initialBalance = accounts.reduce((sum, account) => {
       const accountTransactionsSincePeriodStart = transactions.filter(t => {
-        const transactionDate = new Date(t.transaction_date);
-        return transactionDate >= period.from && 
+        const transactionDate = activeDateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
+        return transactionDate >= period.from &&
                (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
       });
       
@@ -167,11 +169,15 @@ export const useReportsData = (
   }, [filteredTransactions, accounts, transactions, period]);
 
   // Données pour l'évolution des soldes avec projection
-  // IMPORTANT: Le graphique utilise TOUJOURS transaction_date (date comptable) pour la cohérence
-  // On utilise les transactions déjà filtrées par période (filteredTransactions) pour la cohérence
+  // Uses the selected date type (accounting or value date) for consistency
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
-    // Helper pour obtenir la date comptable (transaction_date) d'une transaction
-    const getAccountingDate = (t: Transaction) => new Date(t.transaction_date);
+    // Helper to get the date based on user preference
+    const getAccountingDate = (t: Transaction) => {
+      if (activeDateType === 'value') {
+        return new Date(t.value_date || t.transaction_date);
+      }
+      return new Date(t.transaction_date);
+    };
     
     // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
     // Puis trier par date comptable pour l'affichage
@@ -183,8 +189,10 @@ export const useReportsData = (
     // Calculer le solde initial basé sur les comptes actuels moins les transactions depuis le début de la période
     const initialBalance = accounts.reduce((sum, account) => {
       const accountTransactionsSincePeriodStart = transactions.filter(t => {
-        const transactionDate = new Date(t.transaction_date);
-        return transactionDate >= period.from && 
+        const transactionDate = activeDateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
+        return transactionDate >= period.from &&
                (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
       });
       
