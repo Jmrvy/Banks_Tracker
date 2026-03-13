@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { format, parseISO } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Search, X, Filter, SlidersHorizontal, Calendar, CreditCard, Tag, DollarSign } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -141,9 +144,9 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
             {(filters.dateFrom || filters.dateTo) && (
               <Badge variant="secondary" className="gap-1 pr-1 text-xs">
                 <Calendar className="h-3 w-3" />
-                {filters.dateFrom && new Date(filters.dateFrom).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                {filters.dateFrom && format(parseISO(filters.dateFrom), 'dd MMM yyyy', { locale: fr })}
                 {filters.dateFrom && filters.dateTo && ' → '}
-                {filters.dateTo && new Date(filters.dateTo).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                {filters.dateTo && format(parseISO(filters.dateTo), 'dd MMM yyyy', { locale: fr })}
                 <button onClick={() => { updateFilter('dateFrom', ''); updateFilter('dateTo', ''); }} className="ml-0.5 p-0.5 rounded-full hover:bg-white/[0.1]">
                   <X className="h-2.5 w-2.5" />
                 </button>
@@ -231,20 +234,20 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 Période
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <div>
+                <div className="space-y-1">
                   <span className="text-[10px] text-muted-foreground">Du</span>
-                  <Input
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) => updateFilter('dateFrom', e.target.value)}
+                  <DatePicker
+                    date={filters.dateFrom ? parseISO(filters.dateFrom) : undefined}
+                    onDateChange={(date) => updateFilter('dateFrom', date ? format(date, 'yyyy-MM-dd') : '')}
+                    placeholder="Date début"
                   />
                 </div>
-                <div>
+                <div className="space-y-1">
                   <span className="text-[10px] text-muted-foreground">Au</span>
-                  <Input
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) => updateFilter('dateTo', e.target.value)}
+                  <DatePicker
+                    date={filters.dateTo ? parseISO(filters.dateTo) : undefined}
+                    onDateChange={(date) => updateFilter('dateTo', date ? format(date, 'yyyy-MM-dd') : '')}
+                    placeholder="Date fin"
                   />
                 </div>
               </div>
