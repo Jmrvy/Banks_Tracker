@@ -22,6 +22,7 @@ import { fr } from "date-fns/locale";
 import { Transaction } from "@/hooks/useFinancialData";
 import { CategoryData } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface BudgetEvolutionChartProps {
   categoryChartData: CategoryData[];
@@ -39,6 +40,15 @@ export function BudgetEvolutionChart({
   formatCurrency,
 }: BudgetEvolutionChartProps) {
   const isMobile = useIsMobile();
+  const { preferences } = useUserPreferences();
+  const activeDateType = preferences.dateType;
+
+  const getTransactionDate = (t: Transaction): string => {
+    if (activeDateType === 'value') {
+      return (t as any).value_date || t.transaction_date;
+    }
+    return t.transaction_date;
+  };
 
   // Only show categories that have a budget set
   const budgetedCategories = useMemo(
@@ -74,8 +84,8 @@ export function BudgetEvolutionChart({
       )
       .sort(
         (a, b) =>
-          new Date(a.transaction_date).getTime() -
-          new Date(b.transaction_date).getTime()
+          new Date(getTransactionDate(a)).getTime() -
+          new Date(getTransactionDate(b)).getTime()
       );
 
     let running = 0;
@@ -83,7 +93,7 @@ export function BudgetEvolutionChart({
     return days.map((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
       const dayTotal = catTxs
-        .filter((t) => t.transaction_date === dayStr)
+        .filter((t) => getTransactionDate(t) === dayStr)
         .reduce((s, t) => s + Number(t.amount), 0);
       running += dayTotal;
 

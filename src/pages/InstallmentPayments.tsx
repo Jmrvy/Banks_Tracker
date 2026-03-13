@@ -444,16 +444,16 @@ const InstallmentPayments = () => {
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card className="stat-card">
             <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Total dû</p>
-                  <p className="text-base sm:text-2xl font-bold truncate">
-                    {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
-                  </p>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground whitespace-nowrap">Total dû</p>
+                  <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0 flex">
+                    <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-orange-500" />
+                  </div>
                 </div>
-                <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0 flex">
-                  <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-orange-500" />
-                </div>
+                <p className="text-sm sm:text-2xl font-bold break-all leading-tight">
+                  {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
+                </p>
               </div>
             </CardContent>
           </Card>
