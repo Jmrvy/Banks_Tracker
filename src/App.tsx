@@ -26,7 +26,7 @@ import Install from "@/pages/Install";
 import Onboarding from "@/pages/Onboarding";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
-import { MobileHeader } from "@/components/MobileHeader";
+
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -66,8 +66,7 @@ function AppRoutes() {
   return (
     <>
       {user && !isOnboardingPage && !isMobile && <AppSidebar />}
-      {user && !isOnboardingPage && isMobile && <MobileHeader />}
-      <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pt-14 pb-20 min-h-screen" : "min-h-screen"}>
+      <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pb-20 min-h-screen" : "min-h-screen"}>
         <Routes>
           <Route 
             path="/auth" 

@@ -237,9 +237,10 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
             <div className="space-y-1">
               {upcomingTransactions.map((transaction) => (
-                <div
+                <button
                   key={transaction.id}
-                  className="glass-row flex items-center justify-between"
+                  onClick={() => navigate('/recurring-transactions')}
+                  className="glass-row flex items-center justify-between w-full text-left"
                 >
                   <div className="flex flex-col min-w-0 flex-1 mr-2">
                     <span className="text-xs sm:text-sm font-medium truncate">
@@ -255,7 +256,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                       transaction.type === 'income' ? 'text-success' : 'text-destructive'
                     }`}
                   />
-                </div>
+                </button>
               ))}
               {upcomingTransactions.length === 0 && (
                 <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
