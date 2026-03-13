@@ -27,11 +27,14 @@ const Index = () => {
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
 
-  // Always show quick preview on login/refresh, user can switch to full dashboard during session
-  const [showQuickPreview, setShowQuickPreview] = useState(true);
+  // Show quick preview only once per session (on first login/refresh)
+  const [showQuickPreview, setShowQuickPreview] = useState(() => {
+    return sessionStorage.getItem('quickPreviewDismissed') !== 'true';
+  });
 
   const handleShowFullDashboard = () => {
     setShowQuickPreview(false);
+    sessionStorage.setItem('quickPreviewDismissed', 'true');
   };
 
   if (loading) {
