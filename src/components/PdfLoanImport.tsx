@@ -11,7 +11,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { parseLoanPDF, type ParsedLoanInfo, type ParsedScheduleRow } from '@/utils/pdfScheduleParser';
-import { Upload, FileText, Loader2, Check, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Upload, FileText, Loader2, Check, AlertCircle, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 
 interface PdfLoanImportProps {
   onSuccess: () => void;
@@ -29,6 +29,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
   const [parsedData, setParsedData] = useState<ParsedLoanInfo | null>(null);
   const [fileName, setFileName] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
+  const [showRawText, setShowRawText] = useState(false);
 
   // Editable fields (populated from parsed data, user can adjust)
   const [formData, setFormData] = useState({
@@ -321,6 +322,27 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Raw text debug view */}
+          {parsedData.rawText && (
+            <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+              <button
+                onClick={() => setShowRawText(!showRawText)}
+                className="w-full flex items-center justify-between p-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+              >
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Eye className="h-3.5 w-3.5" />
+                  Texte extrait du PDF
+                </span>
+                {showRawText ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showRawText && (
+                <pre className="max-h-[200px] overflow-auto p-3 text-[10px] text-muted-foreground whitespace-pre-wrap font-mono bg-black/20">
+                  {parsedData.rawText}
+                </pre>
               )}
             </div>
           )}

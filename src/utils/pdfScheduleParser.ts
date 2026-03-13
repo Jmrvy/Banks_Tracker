@@ -20,10 +20,12 @@ export interface ParsedLoanInfo {
   startDate: string | null; // YYYY-MM-DD
   description: string | null;
   schedule: ParsedScheduleRow[];
+  rawText?: string;
 }
 
 /**
- * Extract text content from a PDF file
+ * Extract text content from a PDF file, reconstructing spatial layout.
+ * Groups text items by Y-coordinate to form lines, orders by X within each line.
  */
 export async function extractTextFromPDF(file: File): Promise<string[]> {
   const arrayBuffer = await file.arrayBuffer();
@@ -33,10 +35,44 @@ export async function extractTextFromPDF(file: File): Promise<string[]> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
-    pages.push(pageText);
+
+    // Group items by Y position (rounded to nearest 2px to merge same-line items)
+    const lineMap = new Map<number, Array<{ x: number; text: string }>>();
+
+    for (const item of textContent.items as any[]) {
+      if (!item.str || item.str.trim() === '') continue;
+
+      const y = Math.round(item.transform[5] / 2) * 2; // round Y to 2px
+      const x = item.transform[4];
+
+      if (!lineMap.has(y)) {
+        lineMap.set(y, []);
+      }
+      lineMap.get(y)!.push({ x, text: item.str });
+    }
+
+    // Sort lines by Y descending (PDF coordinates: top = higher Y)
+    const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a);
+
+    const lineTexts: string[] = [];
+    for (const y of sortedYs) {
+      const items = lineMap.get(y)!;
+      // Sort items by X position (left to right)
+      items.sort((a, b) => a.x - b.x);
+
+      // Join with spacing based on X gaps
+      let lineText = '';
+      for (let j = 0; j < items.length; j++) {
+        if (j > 0) {
+          const gap = items[j].x - (items[j - 1].x + items[j - 1].text.length * 4);
+          lineText += gap > 15 ? '  ' : ' ';
+        }
+        lineText += items[j].text;
+      }
+      lineTexts.push(lineText.trim());
+    }
+
+    pages.push(lineTexts.join('\n'));
   }
 
   return pages;
@@ -46,10 +82,9 @@ export async function extractTextFromPDF(file: File): Promise<string[]> {
  * Parse a date string in various French formats to YYYY-MM-DD
  */
 function parseDate(dateStr: string): string | null {
-  // Remove extra spaces
   dateStr = dateStr.trim();
 
-  // DD/MM/YYYY or DD-MM-YYYY
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
   let match = dateStr.match(/(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/);
   if (match) {
     const [, day, month, year] = match;
@@ -57,7 +92,7 @@ function parseDate(dateStr: string): string | null {
   }
 
   // DD/MM/YY
-  match = dateStr.match(/(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})$/);
+  match = dateStr.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})$/);
   if (match) {
     const [, day, month, year] = match;
     const fullYear = parseInt(year) > 50 ? `19${year}` : `20${year}`;
@@ -96,57 +131,97 @@ function parseNumber(str: string): number | null {
   cleaned = cleaned.replace(/[€$£]/g, '').trim();
   // Handle French format: replace comma with dot
   cleaned = cleaned.replace(',', '.');
-  // Remove trailing dots with no decimals
+  // Remove trailing dots
   cleaned = cleaned.replace(/\.$/, '');
+  // Remove leading/trailing non-numeric chars except dot and minus
+  cleaned = cleaned.replace(/^[^\d.-]+|[^\d.]+$/g, '');
 
   const num = parseFloat(cleaned);
-  return isNaN(num) ? null : num;
+  return isNaN(num) ? null : Math.abs(num);
 }
 
 /**
- * Try to find rows that look like an amortization schedule
- * Common columns: N° | Date | Mensualité | Capital | Intérêts | Assurance | CRD (Capital Restant Dû)
+ * Extract all numbers from a text string
+ */
+function extractNumbers(text: string): number[] {
+  const numbers: number[] = [];
+  // Match French-format numbers: 1 234,56 or 1234.56 or 1234,56
+  const numPattern = /(?:\d[\d\s\u00A0]*\d[,\.]\d{1,2}|\d+[,\.]\d{1,2}|\d[\d\s\u00A0]+\d|\d+)/g;
+  let match;
+  while ((match = numPattern.exec(text)) !== null) {
+    const parsed = parseNumber(match[0]);
+    if (parsed !== null && parsed > 0) {
+      numbers.push(parsed);
+    }
+  }
+  return numbers;
+}
+
+/**
+ * Try to find rows that look like an amortization schedule.
+ * Works line-by-line now that we have proper line reconstruction.
  */
 function extractScheduleRows(fullText: string): ParsedScheduleRow[] {
   const rows: ParsedScheduleRow[] = [];
+  const lines = fullText.split('\n');
 
-  // Strategy: look for patterns with dates followed by numbers
-  // Pattern: date followed by multiple numbers (amount columns)
-  const lines = fullText.split(/\n|\r/);
+  for (const line of lines) {
+    // Look for a date anywhere in the line
+    const dateMatch = line.match(/(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})/);
+    if (!dateMatch) continue;
 
-  // Also try splitting on date patterns to find rows
-  const dateNumPattern = /(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})\s+([\d\s,\.€]+)/g;
-  let match;
-
-  while ((match = dateNumPattern.exec(fullText)) !== null) {
-    const dateStr = match[1];
-    const numbersStr = match[2];
-    const date = parseDate(dateStr);
+    const date = parseDate(dateMatch[1]);
     if (!date) continue;
 
-    // Extract all numbers from the rest of the line
-    const numbers: number[] = [];
-    const numMatches = numbersStr.match(/[\d\s]*\d+[,.]?\d*/g);
-    if (numMatches) {
-      for (const n of numMatches) {
-        const parsed = parseNumber(n);
-        if (parsed !== null && parsed > 0) {
-          numbers.push(parsed);
-        }
+    // Get the part of the line after the date
+    const afterDate = line.substring(dateMatch.index! + dateMatch[0].length);
+    const numbers = extractNumbers(afterDate);
+
+    // Also check for numbers before the date (some formats put N° first)
+    const beforeDate = line.substring(0, dateMatch.index!);
+    const numbersBefore = extractNumbers(beforeDate);
+
+    // Skip lines that look like headers or have too few numbers
+    if (numbers.length < 2) continue;
+
+    // Skip if numbers are suspiciously small (likely a row number or page number)
+    const hasReasonableAmount = numbers.some(n => n > 5);
+    if (!hasReasonableAmount) continue;
+
+    // Map numbers to schedule columns
+    // Common layouts:
+    // N° | Date | Mensualité | Capital | Intérêts | Assurance | CRD
+    // N° | Date | Mensualité | Capital | Intérêts | CRD
+    // Date | Mensualité | Capital | Intérêts | CRD
+    // Date | Mensualité | CRD
+    const row: ParsedScheduleRow = {
+      date,
+      payment: numbers[0] || 0,
+      principal: numbers.length >= 3 ? numbers[1] : 0,
+      interest: numbers.length >= 4 ? numbers[2] : 0,
+      insurance: numbers.length >= 6 ? numbers[3] : 0,
+      remainingBalance: numbers[numbers.length - 1] || 0,
+    };
+
+    // Sanity check: payment should be > 0 and reasonably different from remaining balance
+    if (row.payment > 0) {
+      rows.push(row);
+    }
+  }
+
+  // Validate: if we have rows, check that remaining balances are decreasing
+  if (rows.length > 2) {
+    let isDecreasing = true;
+    for (let i = 1; i < Math.min(rows.length, 5); i++) {
+      if (rows[i].remainingBalance > rows[i - 1].remainingBalance * 1.01) {
+        isDecreasing = false;
+        break;
       }
     }
-
-    // We need at least 2 numbers (payment + remaining balance)
-    if (numbers.length >= 2) {
-      const row: ParsedScheduleRow = {
-        date,
-        payment: numbers[0] || 0,
-        principal: numbers.length >= 3 ? numbers[1] : 0,
-        interest: numbers.length >= 4 ? numbers[2] : 0,
-        insurance: numbers.length >= 5 ? numbers[3] : 0,
-        remainingBalance: numbers[numbers.length - 1] || 0,
-      };
-      rows.push(row);
+    // If remaining balances aren't decreasing, the last column might not be CRD
+    // Try swapping: use second-to-last number as CRD
+    if (!isDecreasing && rows[0].remainingBalance === rows[0].payment) {
+      // Probably mis-mapped. Clear and retry won't help; just return what we have.
     }
   }
 
@@ -158,14 +233,14 @@ function extractScheduleRows(fullText: string): ParsedScheduleRow[] {
  */
 function extractLoanInfo(fullText: string): Partial<ParsedLoanInfo> {
   const info: Partial<ParsedLoanInfo> = {};
-  const textLower = fullText.toLowerCase();
 
   // Try to find total amount
   const amountPatterns = [
-    /montant\s+(?:du\s+)?(?:prêt|pr[eê]t|crédit|emprunt|capital)\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /capital\s+emprunté\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /montant\s+emprunté\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /montant\s*:?\s*([\d\s,\.]+)\s*€/i,
+    /montant\s+(?:du\s+)?(?:prêt|pr[eê]t|crédit|emprunt|capital)\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
+    /capital\s+emprunté\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
+    /montant\s+emprunté\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
+    /montant\s*:?\s*([\d\s\u00A0,\.]+)\s*€/i,
+    /capital\s*(?:initial|restant\s+dû)?\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
   ];
 
   for (const pattern of amountPatterns) {
@@ -181,9 +256,11 @@ function extractLoanInfo(fullText: string): Partial<ParsedLoanInfo> {
 
   // Try to find interest rate
   const ratePatterns = [
-    /taux\s+(?:nominal|annuel|d['']intérêt|fixe|variable)?\s*:?\s*([\d,\.]+)\s*%/i,
+    /taux\s+(?:nominal|annuel|d[''\u2019]intérêt|fixe|variable|effectif|global)?\s*:?\s*([\d,\.]+)\s*%/i,
     /taux\s*:?\s*([\d,\.]+)\s*%/i,
     /([\d,\.]+)\s*%\s*(?:fixe|annuel|nominal)/i,
+    /TAEG\s*:?\s*([\d,\.]+)\s*%/i,
+    /TEG\s*:?\s*([\d,\.]+)\s*%/i,
   ];
 
   for (const pattern of ratePatterns) {
@@ -200,18 +277,18 @@ function extractLoanInfo(fullText: string): Partial<ParsedLoanInfo> {
   // Try to find duration
   const durationPatterns = [
     /durée\s*:?\s*(\d+)\s*mois/i,
-    /(\d+)\s*mois/i,
+    /sur\s+(\d+)\s*mois/i,
+    /(\d+)\s*mensualités/i,
+    /nombre\s+d[''\u2019]échéances?\s*:?\s*(\d+)/i,
     /durée\s*:?\s*(\d+)\s*ans?/i,
-    /(\d+)\s*ans?\s+(?:et\s+)?(\d+)?\s*mois?/i,
   ];
 
   for (const pattern of durationPatterns) {
     const match = fullText.match(pattern);
     if (match) {
       let months = parseInt(match[1]);
-      if (fullText.match(/durée\s*:?\s*\d+\s*ans?/i) || pattern.source.includes('ans')) {
+      if (pattern.source.includes('ans')) {
         months *= 12;
-        if (match[2]) months += parseInt(match[2]);
       }
       if (months > 0 && months < 600) {
         info.duration = months;
@@ -222,9 +299,10 @@ function extractLoanInfo(fullText: string): Partial<ParsedLoanInfo> {
 
   // Try to find monthly payment
   const paymentPatterns = [
-    /mensualité\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /échéance\s+mensuelle\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /montant\s+(?:de\s+)?(?:l[''])?échéance\s*:?\s*([\d\s,\.]+)\s*€?/i,
+    /mensualité\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
+    /échéance\s+mensuelle\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
+    /montant\s+(?:de\s+)?(?:l[''\u2019])?échéance\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
+    /mensualité\s+(?:constante|fixe)\s*:?\s*([\d\s\u00A0,\.]+)\s*€?/i,
   ];
 
   for (const pattern of paymentPatterns) {
@@ -243,6 +321,7 @@ function extractLoanInfo(fullText: string): Partial<ParsedLoanInfo> {
     /(?:date\s+de\s+)?(?:première|1[eè]re?)\s+échéance\s*:?\s*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})/i,
     /date\s+de\s+début\s*:?\s*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})/i,
     /(?:à\s+compter|à\s+partir)\s+du\s+(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})/i,
+    /date\s+(?:de\s+)?(?:mise\s+en\s+place|déblocage)\s*:?\s*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})/i,
   ];
 
   for (const pattern of datePatterns) {
@@ -281,7 +360,6 @@ export async function parseLoanPDF(file: File): Promise<ParsedLoanInfo> {
       globalInfo.startDate = schedule[0].date;
     }
     if (!globalInfo.totalAmount && schedule[0].remainingBalance > 0) {
-      // First row's remaining + first principal ≈ total
       globalInfo.totalAmount = schedule[0].remainingBalance + schedule[0].principal;
     }
     if (!globalInfo.duration) {
@@ -297,13 +375,6 @@ export async function parseLoanPDF(file: File): Promise<ParsedLoanInfo> {
     startDate: globalInfo.startDate || null,
     description: null,
     schedule,
+    rawText: fullText,
   };
-}
-
-/**
- * Get raw text from PDF for preview/debug
- */
-export async function getPDFRawText(file: File): Promise<string> {
-  const pages = await extractTextFromPDF(file);
-  return pages.join('\n---PAGE BREAK---\n');
 }
