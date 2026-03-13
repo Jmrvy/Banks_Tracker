@@ -36,9 +36,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
   const maxAmount = useMemo(() => {
     if (transactions.length === 0) return 1000;
     const max = Math.max(...transactions.map(t => Math.abs(t.amount)));
-    // Round up to a nice number
-    const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
-    return Math.ceil(max / magnitude) * magnitude || 1000;
+    return Math.ceil(max) || 1000;
   }, [transactions]);
 
   const updateFilter = (key: keyof TransactionFilters, value: string) => {
