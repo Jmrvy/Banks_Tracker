@@ -132,9 +132,10 @@ export const RecurringTransactionsWarning = () => {
           <CardContent className="pt-0 px-3 sm:px-6 pb-3 sm:pb-6">
             <div className="space-y-1.5 sm:space-y-2">
               {upcomingTransactions.slice(0, 3).map((transaction) => (
-                <div
+                <button
                   key={transaction.id}
-                  className="p-2 sm:p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50"
+                  onClick={() => navigate('/recurring-transactions')}
+                  className="p-2 sm:p-3 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/50 w-full text-left hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   {/* Mobile view - compact single line */}
                   <div className="flex items-center justify-between gap-2 sm:hidden">
@@ -192,9 +193,9 @@ export const RecurringTransactionsWarning = () => {
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
-              
+
               {upcomingTransactions.length > 3 && (
                 <div className="text-center pt-1 sm:pt-2">
                   <Button
