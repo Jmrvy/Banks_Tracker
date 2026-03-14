@@ -21,16 +21,9 @@ interface CategoriesTabProps {
 
 export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
-  const { preferences } = useUserPreferences();
+  const { preferences, formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  
-  const formatCurrency = (amount: number) => 
-    amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
-  };
 
   const handleCategoryClick = (categoryName: string) => {
     setSelectedCategory(categoryName);
@@ -101,7 +94,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total dépensé</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-destructive">{formatAmount(totalSpent)}</p>
+            <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalSpent)}</p>
           </CardContent>
         </Card>
 
@@ -113,7 +106,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Budget total</span>
             </div>
-            <p className="text-sm sm:text-base font-bold">{formatAmount(totalBudget)}</p>
+            <p className="text-sm sm:text-base font-bold">{formatCurrency(totalBudget)}</p>
           </CardContent>
         </Card>
 
@@ -203,7 +196,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               </ResponsiveContainer>
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-lg sm:text-xl font-bold">{formatAmount(totalSpent)}</span>
+                <span className="text-lg sm:text-xl font-bold">{formatCurrency(totalSpent)}</span>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
               </div>
             </div>

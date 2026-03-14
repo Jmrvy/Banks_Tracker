@@ -55,12 +55,13 @@ const Reports = () => {
   } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos);
 
   // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
+  // Skip heavy computations (balance evolution, recurring, spending patterns) since they're already computed above
   const {
     stats: incomeExpenseStats,
     categoryChartData,
     incomeAnalysis,
     filteredTransactions: incomeExpenseTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, incomeExpenseDateType);
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, incomeExpenseDateType, undefined, { skipHeavyComputations: true });
 
   if (loading) {
     return (

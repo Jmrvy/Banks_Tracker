@@ -6,7 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CategoryData } from "@/hooks/useReportsData";
-import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
+import { type Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import {
   LineChart,
   Line,
@@ -21,7 +21,8 @@ import { eachDayOfInterval, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-interface Transaction {
+/** View-model for transactions displayed in the category modal */
+export interface CategoryTransaction {
   id: string;
   description: string;
   amount: number;
@@ -39,7 +40,7 @@ interface CategoryTransactionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryName: string;
-  transactions: Transaction[];
+  transactions: CategoryTransaction[];
   categoryData?: CategoryData;
   allTransactions?: FinancialTransaction[];
   periodStart?: Date;
@@ -93,7 +94,7 @@ export const CategoryTransactionsModal = ({
   }, 0);
 
   // Vérifier si une transaction a une date valeur différente de la date comptable
-  const hasValueDateDifference = (t: Transaction) => {
+  const hasValueDateDifference = (t: CategoryTransaction) => {
     if (!t.valueDate) return false;
     const accountingDate = new Date(t.date).toDateString();
     const valueDate = new Date(t.valueDate).toDateString();
