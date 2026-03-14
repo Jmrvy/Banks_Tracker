@@ -181,13 +181,13 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
             </div>
             {data.income > 0 && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-success">Revenus:</span>
+                <span className="text-success">Entrants:</span>
                 <span className="font-semibold text-success">+{formatCurrency(data.income)}</span>
               </div>
             )}
             {data.expense > 0 && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-destructive">Dépenses:</span>
+                <span className="text-destructive">Sortants:</span>
                 <span className="font-semibold text-destructive">-{formatCurrency(data.expense)}</span>
               </div>
             )}
@@ -261,14 +261,14 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           <div className="p-2 sm:p-3 rounded-xl bg-success/5 border border-success/10">
             <div className="flex items-center gap-1 mb-0.5">
               <TrendingUp className="h-3 w-3 text-success" />
-              <span className="text-[10px] sm:text-xs text-success font-medium">Revenus</span>
+              <span className="text-[10px] sm:text-xs text-success font-medium">Entrants</span>
             </div>
             <p className="text-xs sm:text-sm font-bold text-success">+{formatCurrency(periodStats.totalIncome)}</p>
           </div>
           <div className="p-2 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
             <div className="flex items-center gap-1 mb-0.5">
               <TrendingDown className="h-3 w-3 text-destructive" />
-              <span className="text-[10px] sm:text-xs text-destructive font-medium">Dépenses</span>
+              <span className="text-[10px] sm:text-xs text-destructive font-medium">Sortants</span>
             </div>
             <p className="text-xs sm:text-sm font-bold text-destructive">-{formatCurrency(periodStats.totalExpense)}</p>
           </div>
