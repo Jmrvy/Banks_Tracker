@@ -227,10 +227,7 @@ export function CategoryCumulativeChart({
   }
 
   return (
-    <Card className={cn(
-      "border-border bg-card/80 backdrop-blur-sm shadow-sm",
-      "transition-all duration-300 hover:shadow-md"
-    )}>
+    <Card className="glass-hover animate-glass-slide-up">
       <CardContent className="p-3 sm:p-5">
         {chartContent}
       </CardContent>

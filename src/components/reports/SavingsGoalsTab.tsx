@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Plus, TrendingUp, Calendar, PiggyBank, TrendingDown, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
@@ -138,81 +139,91 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4">
       {/* Investment Statistics Section */}
-      <Card className="p-6">
-        <div className="space-y-6">
+      <Card className="animate-glass-fade-in">
+        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <PiggyBank className="w-5 h-5 text-primary" />
+              <h3 className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                <div className="icon-badge icon-badge-sm bg-primary/10">
+                  <PiggyBank className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                </div>
                 {t('savings.accumulatedSavings')}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                 {t('savings.totalInvestmentsOn', { period: period.label })}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card className="p-4 bg-primary/5 border-primary/20">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <TrendingUp className="w-4 h-4" />
-                  {t('savings.totalSaved')}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-primary/10">
+                    <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.totalSaved')}</span>
                 </div>
-                <div className="text-2xl font-bold text-primary">
+                <p className="text-sm sm:text-base font-bold text-primary">
                   {formatCurrency(investmentStats.total)}
-                </div>
-              </div>
+                </p>
+              </CardContent>
             </Card>
 
-            <Card className="p-4 bg-accent/5 border-accent/20">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  {t('savings.monthlyAverage')}
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-muted/50">
+                    <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.monthlyAverage')}</span>
                 </div>
-                <div className="text-2xl font-bold text-foreground">
+                <p className="text-sm sm:text-base font-bold">
                   {formatCurrency(investmentStats.monthlyAverage)}
-                </div>
-              </div>
+                </p>
+              </CardContent>
             </Card>
 
-            <Card className="p-4 bg-secondary/5 border-secondary/20">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Activity className="w-4 h-4" />
-                  {t('savings.transactions')}
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-muted/50">
+                    <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.transactions')}</span>
                 </div>
-                <div className="text-2xl font-bold text-foreground">
+                <p className="text-sm sm:text-base font-bold">
                   {investmentStats.count}
-                </div>
-              </div>
+                </p>
+              </CardContent>
             </Card>
 
-            <Card className={`p-4 ${investmentStats.trend >= 0 ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {investmentStats.trend >= 0 ? (
-                    <TrendingUp className="w-4 h-4" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4" />
-                  )}
-                  {t('savings.trend')}
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={cn("icon-badge icon-badge-sm", investmentStats.trend >= 0 ? "bg-success/10" : "bg-destructive/10")}>
+                    {investmentStats.trend >= 0 ? (
+                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
+                    )}
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.trend')}</span>
                 </div>
-                <div className={`text-2xl font-bold ${investmentStats.trend >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                <p className={cn("text-sm sm:text-base font-bold", investmentStats.trend >= 0 ? 'text-success' : 'text-destructive')}>
                   {investmentStats.trend >= 0 ? '+' : ''}{investmentStats.trend.toFixed(1)}%
-                </div>
-              </div>
+                </p>
+              </CardContent>
             </Card>
           </div>
 
           {/* Evolution Chart */}
           {investmentStats.evolutionData.length > 0 && (
-            <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-4">{t('savings.cumulativeEvolution')}</h4>
-              <div className="h-[300px]">
+            <div className="pt-3 border-t border-white/[0.06]">
+              <h4 className="text-xs sm:text-sm font-medium mb-3">{t('savings.cumulativeEvolution')}</h4>
+              <div className="h-[200px] sm:h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={investmentStats.evolutionData}>
                     <defs>
@@ -255,21 +266,21 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
 
           {/* Monthly Breakdown */}
           {investmentStats.monthlyData.length > 0 && (
-            <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">{t('savings.monthlyBreakdown')}</h4>
+            <div className="pt-3 border-t border-white/[0.06]">
+              <h4 className="text-xs sm:text-sm font-medium mb-3">{t('savings.monthlyBreakdown')}</h4>
               <div className="space-y-2">
                 {investmentStats.monthlyData.slice(-6).map(({ month, amount }) => (
-                  <div key={month} className="flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground min-w-[80px]">
+                  <div key={month} className="flex items-center gap-2 sm:gap-3 p-1.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground min-w-[60px] sm:min-w-[80px]">
                       {format(new Date(month + '-01'), 'MMM yyyy', { locale: fr })}
                     </span>
                     <div className="flex-1">
                       <Progress
                         value={(amount / Math.max(...investmentStats.monthlyData.map(d => d.amount))) * 100}
-                        className="h-2"
+                        className="h-1.5"
                       />
                     </div>
-                    <span className="text-sm font-medium min-w-[100px] text-right">
+                    <span className="text-[10px] sm:text-xs font-medium min-w-[70px] sm:min-w-[100px] text-right">
                       {formatCurrency(amount)}
                     </span>
                   </div>
@@ -277,35 +288,37 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
               </div>
             </div>
           )}
-        </div>
+        </CardContent>
       </Card>
 
       {/* Savings Goals Section */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center animate-glass-fade-in">
         <div>
-          <h3 className="text-lg font-semibold">{t('savings.goalsTitle')}</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-sm sm:text-base font-semibold">{t('savings.goalsTitle')}</h3>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
             {t('savings.trackGoals')}
           </p>
         </div>
-        <Button onClick={() => setIsNewModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
+        <Button size="sm" onClick={() => setIsNewModalOpen(true)}>
+          <Plus className="w-3.5 h-3.5 mr-1.5" />
           {t('savings.newGoal')}
         </Button>
       </div>
 
       {goals.length === 0 ? (
-        <Card className="p-8 text-center">
-          <p className="text-muted-foreground mb-4">
-            {t('savings.noGoals')}
-          </p>
-          <Button onClick={() => setIsNewModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            {t('savings.createFirstGoal')}
-          </Button>
+        <Card className="animate-glass-slide-up">
+          <CardContent className="text-center py-8">
+            <p className="text-sm text-muted-foreground mb-4">
+              {t('savings.noGoals')}
+            </p>
+            <Button size="sm" onClick={() => setIsNewModalOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              {t('savings.createFirstGoal')}
+            </Button>
+          </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {goals.map((goal) => {
             const projection = calculateProjection(goal);
             const isComplete = goal.current_amount >= goal.target_amount;
@@ -313,44 +326,44 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
             return (
               <Card
                 key={goal.id}
-                className="p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                className="glass-hover animate-glass-scale-in cursor-pointer"
                 onClick={() => setEditingGoal(goal)}
               >
-                <div className="space-y-4">
+                <CardContent className="p-3 sm:p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-3 h-3 rounded-full"
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: goal.color }}
                         />
-                        <h4 className="font-semibold">{goal.name}</h4>
+                        <h4 className="text-xs sm:text-sm font-semibold">{goal.name}</h4>
                         {isComplete && (
-                          <Badge variant="default" className="text-[10px] bg-success text-white">
+                          <Badge variant="default" className="text-[9px] sm:text-[10px] bg-success text-white px-1.5 py-0 h-4">
                             {t('savings.goalReached')}
                           </Badge>
                         )}
                       </div>
                       {goal.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                           {goal.description}
                         </p>
                       )}
                       {goal.category && (
-                        <span className="inline-block mt-2 text-xs bg-secondary px-2 py-1 rounded">
+                        <Badge variant="secondary" className="mt-1.5 text-[9px] sm:text-[10px]">
                           {goal.category}
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[10px] sm:text-xs">
                       <span className="text-muted-foreground">{t('savings.progress')}</span>
                       <span className="font-medium">{Math.min(projection.progress, 100).toFixed(1)}%</span>
                     </div>
-                    <Progress value={Math.min(projection.progress, 100)} />
-                    <div className="flex justify-between text-sm">
+                    <Progress value={Math.min(projection.progress, 100)} className="h-1.5" />
+                    <div className="flex justify-between text-[10px] sm:text-xs">
                       <span className="font-medium">
                         {formatCurrency(goal.current_amount)}
                       </span>
@@ -361,35 +374,33 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
                   </div>
 
                   {!isComplete && (
-                    <div className="pt-3 border-t space-y-2">
-                      {/* Months to goal estimate */}
+                    <div className="pt-2 border-t border-white/[0.06] space-y-1.5">
                       {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
-                        <div className="flex justify-between items-center text-sm">
+                        <div className="flex justify-between items-center text-[10px] sm:text-xs">
                           <span className="text-muted-foreground">
                             {t('savings.monthsToGoal', { count: projection.monthsToGoal })}
                           </span>
                           {projection.onTrack !== null && (
-                            <Badge variant="outline" className={`text-[10px] ${projection.onTrack ? 'border-success text-success' : 'border-destructive text-destructive'}`}>
+                            <Badge variant="outline" className={cn("text-[9px] sm:text-[10px] px-1.5 py-0 h-4", projection.onTrack ? 'border-success text-success' : 'border-destructive text-destructive')}>
                               {projection.onTrack ? t('savings.onTrack') : t('savings.behind')}
                             </Badge>
                           )}
                         </div>
                       )}
-                      {/* Target date details */}
                       {goal.target_date && (
                         <>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">
                             {t('savings.deadlineOn', { date: format(new Date(goal.target_date), 'dd MMMM yyyy', { locale: fr }) })}
                           </div>
                           {projection.daysRemaining > 0 && (
-                            <div className="text-sm space-y-1">
+                            <div className="text-[10px] sm:text-xs space-y-0.5">
                               <div className="text-muted-foreground">
                                 {t('savings.daysRemaining', { count: projection.daysRemaining })}
                               </div>
                               <div className="font-medium text-primary">
                                 {t('savings.monthlyRequiredLabel', { amount: formatCurrency(projection.monthlyRequired) })}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-[9px] sm:text-[10px] text-muted-foreground">
                                 {t('savings.dailyRequired', { amount: formatCurrency(projection.dailyRequired) })}
                               </div>
                             </div>
@@ -398,7 +409,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
                       )}
                     </div>
                   )}
-                </div>
+                </CardContent>
               </Card>
             );
           })}

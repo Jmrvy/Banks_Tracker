@@ -64,10 +64,12 @@ const Reports = () => {
     <div className="min-h-screen bg-background pb-24 overflow-x-hidden">
       <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 max-w-[1600px] mx-auto w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between mb-1 sm:mb-2">
+        <div className="flex items-center justify-between mb-1 sm:mb-2 animate-glass-fade-in">
           <div>
             <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <div className="icon-badge icon-badge-sm bg-primary/10">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              </div>
               Rapports
             </h1>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
@@ -105,17 +107,17 @@ const Reports = () => {
 
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 w-full">
-          <TabsList className="w-full grid grid-cols-4 bg-muted/30 h-9 sm:h-10 p-0.5 sm:p-1 rounded-lg">
-            <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+          <TabsList className="w-full grid grid-cols-4 h-9 sm:h-10 p-0.5 sm:p-1">
+            <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Évolution
             </TabsTrigger>
-            <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+            <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Revenus
             </TabsTrigger>
-            <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+            <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Dépenses
             </TabsTrigger>
-            <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8 data-[state=active]:bg-background">
+            <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Récurrents
             </TabsTrigger>
           </TabsList>
@@ -133,7 +135,7 @@ const Reports = () => {
 
           <TabsContent value="income" className="mt-3 space-y-3">
             {/* Sélecteur de type de date pour Revenus */}
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 animate-glass-fade-in">
               <span className="text-xs text-muted-foreground">Type de date :</span>
               <ToggleGroup 
                 type="single" 
@@ -159,7 +161,7 @@ const Reports = () => {
 
           <TabsContent value="categories" className="mt-3 space-y-3">
             {/* Sélecteur de type de date pour Dépenses */}
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 animate-glass-fade-in">
               <span className="text-xs text-muted-foreground">Type de date :</span>
               <ToggleGroup
                 type="single"

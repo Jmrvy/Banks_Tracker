@@ -14,9 +14,9 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
   const { formatCurrency } = useUserPreferences();
 
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-3">
+    <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-3 animate-glass-fade-in">
       {/* Income */}
-      <div className="stat-card cursor-pointer" onClick={onIncomeClick}>
+      <div className="stat-card glass-hover cursor-pointer" onClick={onIncomeClick}>
         <div className="p-1.5 sm:p-2 lg:p-4">
           <div className="flex items-center gap-1">
             <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0">
@@ -31,7 +31,7 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </div>
 
       {/* Expenses */}
-      <div className="stat-card cursor-pointer" onClick={onExpensesClick}>
+      <div className="stat-card glass-hover cursor-pointer" onClick={onExpensesClick}>
         <div className="p-1.5 sm:p-2 lg:p-4">
           <div className="flex items-center gap-1">
             <div className="icon-badge icon-badge-sm bg-destructive/10 flex-shrink-0">
@@ -46,7 +46,7 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </div>
 
       {/* Initial Balance */}
-      <div className="stat-card">
+      <div className="stat-card glass-hover">
         <div className="p-1.5 sm:p-2 lg:p-4">
           <div className="flex items-center gap-1">
             <div className="icon-badge icon-badge-sm bg-primary/10 flex-shrink-0">
@@ -61,7 +61,7 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </div>
 
       {/* Final Balance */}
-      <div className="stat-card">
+      <div className="stat-card glass-hover">
         <div className="p-1.5 sm:p-2 lg:p-4">
           <div className="flex items-center gap-1">
             <div className="icon-badge icon-badge-sm bg-accent/50 flex-shrink-0">
@@ -79,7 +79,7 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
       </div>
 
       {/* Accounts count - hidden on mobile */}
-      <div className="stat-card hidden lg:block">
+      <div className="stat-card glass-hover hidden lg:block">
         <div className="p-1.5 sm:p-2 lg:p-4">
           <div className="flex items-center gap-1">
             <div className="icon-badge icon-badge-sm bg-muted flex-shrink-0">

@@ -89,41 +89,49 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-3.5 h-3.5 text-success" />
+              <div className="icon-badge icon-badge-sm bg-success/10">
+                <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total revenus</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success">{formatAmount(totalIncome)}</p>
           </CardContent>
         </Card>
-        
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Hash className="w-3.5 h-3.5 text-primary" />
+              <div className="icon-badge icon-badge-sm bg-primary/10">
+                <Hash className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Catégories</span>
             </div>
             <p className="text-sm sm:text-base font-bold">{incomeAnalysis.length}</p>
           </CardContent>
         </Card>
-        
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="icon-badge icon-badge-sm bg-muted/50">
+                <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Transactions</span>
             </div>
             <p className="text-sm sm:text-base font-bold">{totalTransactions}</p>
           </CardContent>
         </Card>
-        
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <ArrowUpRight className="w-3.5 h-3.5 text-success" />
+              <div className="icon-badge icon-badge-sm bg-success/10">
+                <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
             </div>
             <p className="text-sm sm:text-base font-bold">{formatAmount(avgPerTransaction)}</p>
@@ -132,7 +140,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
       </div>
 
       {/* Main Content: Chart + Legend */}
-      <Card className="border-border overflow-hidden">
+      <Card className="glass-hover animate-glass-slide-up overflow-hidden">
         <CardContent className="p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Donut Chart */}
@@ -205,10 +213,10 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                   <button
                     key={index}
                     onClick={() => handleCategoryClick(item.name)}
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-md hover:bg-muted/50 transition-colors text-left group"
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-xl bg-white/[0.03] border border-white/[0.04] hover:bg-white/[0.06] transition-all duration-300 text-left group"
                   >
-                    <div 
-                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform" 
+                    <div
+                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform"
                       style={{ backgroundColor: item.color }}
                     />
                     <div className="min-w-0 flex-1">
@@ -243,9 +251,9 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
                   key={category.category}
                   onClick={() => handleCategoryClick(category.category)}
                   className={cn(
-                    "w-full p-2.5 sm:p-3 rounded-lg transition-all text-left",
-                    "bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-border/50",
-                    "active:scale-[0.99]"
+                    "w-full p-2.5 sm:p-3 rounded-xl transition-all duration-300 text-left",
+                    "bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.10]",
+                    "active:scale-[0.99] backdrop-blur-sm"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">

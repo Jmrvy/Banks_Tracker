@@ -69,11 +69,13 @@ export const RecurringTab = ({
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Card className="border-border bg-gradient-to-br from-background to-success/5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="w-3.5 h-3.5 text-success" />
+              <div className="icon-badge icon-badge-sm bg-success/10">
+                <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Entrants{periodLabel}</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success">+{formatCurrency(incomeAmount)}</p>
@@ -81,10 +83,12 @@ export const RecurringTab = ({
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-gradient-to-br from-background to-destructive/5">
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <TrendingDown className="w-3.5 h-3.5 text-destructive" />
+              <div className="icon-badge icon-badge-sm bg-destructive/10">
+                <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Sortants{periodLabel}</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive">-{formatCurrency(expenseAmount)}</p>
@@ -92,10 +96,12 @@ export const RecurringTab = ({
           </CardContent>
         </Card>
 
-        <Card className={cn("border-border bg-gradient-to-br from-background", netAmount >= 0 ? "to-success/5" : "to-destructive/5")}>
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="icon-badge icon-badge-sm bg-muted/50">
+                <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Net{periodLabel}</span>
             </div>
             <p className={cn("text-sm sm:text-base font-bold", netAmount >= 0 ? "text-success" : "text-destructive")}>
@@ -104,10 +110,12 @@ export const RecurringTab = ({
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-gradient-to-br from-background to-primary/5">
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <Repeat className="w-3.5 h-3.5 text-primary" />
+              <div className="icon-badge icon-badge-sm bg-primary/10">
+                <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total actives</span>
             </div>
             <p className="text-sm sm:text-base font-bold">{recurringData.activeRecurring.length}</p>
@@ -125,7 +133,7 @@ export const RecurringTab = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Donut chart by category (expenses) */}
         {expenseCategories.length > 0 && (
-          <Card className="border-border overflow-hidden">
+          <Card className="glass-hover animate-glass-slide-up overflow-hidden">
             <CardContent className="p-3 sm:p-4">
               <h3 className="text-xs sm:text-sm font-semibold mb-3 flex items-center gap-1.5">
                 <TrendingDown className="h-3.5 w-3.5 text-destructive" />
@@ -201,7 +209,7 @@ export const RecurringTab = ({
         )}
 
         {/* Spending patterns */}
-        <Card className="border-border">
+        <Card className="glass-hover animate-glass-slide-up">
           <CardContent className="p-3 sm:p-4">
             <h3 className="text-xs sm:text-sm font-semibold mb-3 flex items-center gap-1.5">
               <BarChart3 className="h-3.5 w-3.5 text-primary" />
@@ -210,15 +218,15 @@ export const RecurringTab = ({
             {spendingPatternsData ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="p-2 bg-success/10 rounded-lg text-center">
+                  <div className="p-2 bg-success/5 border border-success/10 rounded-xl text-center">
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Moy. entrants/j</p>
                     <p className="text-xs sm:text-sm font-semibold text-success">+{formatCurrency(spendingPatternsData.dailyAvgIncome)}</p>
                   </div>
-                  <div className="p-2 bg-destructive/10 rounded-lg text-center">
+                  <div className="p-2 bg-destructive/5 border border-destructive/10 rounded-xl text-center">
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Moy. sortants/j</p>
                     <p className="text-xs sm:text-sm font-semibold text-destructive">-{formatCurrency(spendingPatternsData.dailyAvgExpenses)}</p>
                   </div>
-                  <div className={cn("p-2 rounded-lg text-center", spendingPatternsData.dailyNet >= 0 ? "bg-success/10" : "bg-destructive/10")}>
+                  <div className={cn("p-2 rounded-xl text-center border", spendingPatternsData.dailyNet >= 0 ? "bg-success/5 border-success/10" : "bg-destructive/5 border-destructive/10")}>
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net/jour</p>
                     <p className={cn("text-xs sm:text-sm font-semibold", spendingPatternsData.dailyNet >= 0 ? "text-success" : "text-destructive")}>
                       {spendingPatternsData.dailyNet >= 0 ? '+' : ''}{formatCurrency(spendingPatternsData.dailyNet)}
@@ -226,7 +234,7 @@ export const RecurringTab = ({
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-muted/30 rounded-lg space-y-2">
+                <div className="p-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl space-y-2">
                   <h4 className="text-[10px] sm:text-xs font-medium">Projection mensuelle</h4>
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
@@ -247,7 +255,7 @@ export const RecurringTab = ({
                 </div>
 
                 {/* Comparison: recurring vs patterns */}
-                <div className="p-2.5 bg-primary/5 rounded-lg border border-primary/20">
+                <div className="p-2.5 bg-primary/5 rounded-xl border border-primary/10">
                   <h4 className="text-[10px] sm:text-xs font-medium mb-2">Récurrents vs Réalité</h4>
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
@@ -313,10 +321,10 @@ export const RecurringTab = ({
               <div
                 key={recurring.id}
                 className={cn(
-                  "p-2.5 sm:p-3 rounded-lg transition-all border",
-                  "bg-muted/30 border-border/50",
-                  isUpcoming && "border-orange-500/30 bg-orange-500/5",
-                  isPast && "border-destructive/30 bg-destructive/5"
+                  "p-2.5 sm:p-3 rounded-xl transition-all duration-300 border backdrop-blur-sm",
+                  "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]",
+                  isUpcoming && "border-orange-500/20 bg-orange-500/5",
+                  isPast && "border-destructive/20 bg-destructive/5"
                 )}
               >
                 <div className="flex items-center justify-between gap-2">

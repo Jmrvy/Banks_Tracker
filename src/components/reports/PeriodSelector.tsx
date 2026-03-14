@@ -34,7 +34,7 @@ export const PeriodSelector = ({
   );
 
   return (
-    <Card>
+    <Card className="animate-glass-fade-in">
       <CardContent className="p-2 sm:p-4 lg:p-6">
         <div className="flex flex-wrap items-end gap-2 sm:gap-3">
           {/* Type selector */}
