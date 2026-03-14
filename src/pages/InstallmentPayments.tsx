@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,8 +48,11 @@ const InstallmentPayments = () => {
   const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const [adjustmentData, setAdjustmentData] = useState<{
     payment: InstallmentPayment;
     paymentAmount: number;
@@ -64,6 +68,29 @@ const InstallmentPayments = () => {
       }
     }
   }, [installmentPayments]);
+
+  // Deep-link: expand and scroll to highlighted payment from URL param
+  useEffect(() => {
+    const id = searchParams.get('highlight');
+    if (id && installmentPayments.length > 0) {
+      const payment = installmentPayments.find(ip => ip.id === id);
+      if (payment) {
+        // Switch filter to show the payment
+        if (!payment.is_active) setFilter('all');
+        setExpandedId(id);
+        setHighlightId(id);
+        // Clean up URL param
+        searchParams.delete('highlight');
+        setSearchParams(searchParams, { replace: true });
+        // Scroll after a short delay to let DOM render
+        setTimeout(() => {
+          highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+        // Remove highlight after animation
+        setTimeout(() => setHighlightId(null), 3000);
+      }
+    }
+  }, [installmentPayments, searchParams]);
 
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
@@ -182,10 +209,13 @@ const InstallmentPayments = () => {
     const totalCount = payment.installment_amount > 0 ? Math.ceil(payment.total_amount / payment.installment_amount) : 0;
     const paymentHistory = getPaymentHistory(payment.id);
 
+    const isHighlighted = highlightId === payment.id;
+
     return (
       <Card
         key={payment.id}
-        className={`overflow-hidden border-border/50 ${payment.is_active ? 'bg-card/80' : 'bg-card/50 opacity-70'}`}
+        ref={isHighlighted ? highlightRef : undefined}
+        className={`overflow-hidden border-border/50 transition-all duration-500 ${payment.is_active ? 'bg-card/80' : 'bg-card/50 opacity-70'} ${isHighlighted ? 'ring-2 ring-primary/50 shadow-lg shadow-primary/10' : ''}`}
       >
         {/* Main row */}
         <div
