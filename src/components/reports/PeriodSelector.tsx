@@ -47,7 +47,7 @@ export const PeriodSelector = ({
               <SelectContent>
                 <SelectItem value="month">Mois</SelectItem>
                 <SelectItem value="year">Année</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
+                <SelectItem value="custom">Personnalisé</SelectItem>
               </SelectContent>
             </Select>
           </div>

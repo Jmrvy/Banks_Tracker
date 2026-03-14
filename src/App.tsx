@@ -97,7 +97,7 @@ function AppRoutes() {
             } 
           />
           <Route 
-            path="/reports" 
+            path="/analyse"
             element={
               <ProtectedRoute>
                 <Reports />

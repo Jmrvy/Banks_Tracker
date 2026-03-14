@@ -73,13 +73,28 @@ export interface SpendingPatternsData {
   projectedMonthlyNet: number;
 }
 
+export interface InstallmentPaymentInfo {
+  id: string;
+  remaining_amount: number;
+  installment_amount: number;
+  is_active: boolean;
+}
+
+export interface UseReportsDataOptions {
+  /** Skip heavy computations (balance evolution, recurring, spending patterns) when only stats/categories/income are needed */
+  skipHeavyComputations?: boolean;
+}
+
 export const useReportsData = (
   periodType: "month" | "year" | "custom",
   selectedDate: Date,
   dateRange: { from: Date; to: Date },
   useSpendingPatterns: boolean,
-  overrideDateType?: 'accounting' | 'value'
+  overrideDateType?: 'accounting' | 'value',
+  installmentPayments?: InstallmentPaymentInfo[],
+  options?: UseReportsDataOptions
 ) => {
+  const skipHeavy = options?.skipHeavyComputations ?? false;
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
   const { preferences } = useUserPreferences();
   
@@ -121,16 +136,49 @@ export const useReportsData = (
     });
   }, [transactions, period, activeDateType]);
 
+  // Shared initial balance calculation (used by stats and balance evolution)
+  const initialBalance = useMemo(() => {
+    return accounts.reduce((sum, account) => {
+      const accountTransactionsSincePeriodStart = transactions.filter(t => {
+        const transactionDate = activeDateType === 'value'
+          ? new Date(t.value_date || t.transaction_date)
+          : new Date(t.transaction_date);
+        return transactionDate >= period.from &&
+               (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
+      });
+
+      const accountNetChange = accountTransactionsSincePeriodStart.reduce((change, t) => {
+        if (t.account?.name === account.name) {
+          switch (t.type) {
+            case 'income':
+              return change - Number(t.amount);
+            case 'expense':
+              return change + Number(t.amount);
+            case 'transfer':
+              return change + Number(t.amount) + Number(t.transfer_fee || 0);
+          }
+        }
+        if (t.transfer_to_account?.name === account.name) {
+          return change - Number(t.amount);
+        }
+        return change;
+      }, 0);
+
+      const initialAccountBalance = Number(account.balance) + accountNetChange;
+      return sum + initialAccountBalance;
+    }, 0);
+  }, [accounts, transactions, period, activeDateType]);
+
   // Calculs des statistiques avec soldes initiaux
   const stats = useMemo<ReportsStats>(() => {
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
-    
+
     // Income: exclude refund transactions (they're handled via net amount on expenses)
     const income = statsTransactions
       .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     // Expenses: use NET amount (original - refunded) so only unreimbursed portion counts
     // If fully refunded (refunded >= amount), net is 0 (excess becomes separate income)
     const expenses = statsTransactions
@@ -146,52 +194,21 @@ export const useReportsData = (
       .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
 
     const netPeriodBalance = income - expenses - transferFees;
-
-    // Calcul du solde initial basé sur les comptes actuels moins les transactions de la période
-    const initialBalance = accounts.reduce((sum, account) => {
-      const accountTransactionsSincePeriodStart = transactions.filter(t => {
-        const transactionDate = activeDateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
-        return transactionDate >= period.from &&
-               (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
-      });
-      
-      const accountNetChange = accountTransactionsSincePeriodStart.reduce((change, t) => {
-        if (t.account?.name === account.name) {
-          switch (t.type) {
-            case 'income':
-              return change - Number(t.amount);
-            case 'expense':
-              return change + Number(t.amount);
-            case 'transfer':
-              return change + Number(t.amount) + Number(t.transfer_fee || 0);
-          }
-        }
-        if (t.transfer_to_account?.name === account.name) {
-          return change - Number(t.amount);
-        }
-        return change;
-      }, 0);
-
-      const initialAccountBalance = Number(account.balance) + accountNetChange;
-      return sum + initialAccountBalance;
-    }, 0);
-
     const finalBalance = initialBalance + netPeriodBalance;
 
-    return { 
-      income, 
-      expenses, 
-      netPeriodBalance, 
+    return {
+      income,
+      expenses,
+      netPeriodBalance,
       initialBalance,
       finalBalance
     };
-  }, [filteredTransactions, accounts, transactions, period]);
+  }, [filteredTransactions, initialBalance]);
 
   // Données pour l'évolution des soldes avec projection
   // Uses the selected date type (accounting or value date) for consistency
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
+    if (skipHeavy) return [];
     // Helper to get the date based on user preference
     const getAccountingDate = (t: Transaction) => {
       if (activeDateType === 'value') {
@@ -206,38 +223,7 @@ export const useReportsData = (
       .sort((a, b) => getAccountingDate(a).getTime() - getAccountingDate(b).getTime());
     
     const dailyData: BalanceDataPoint[] = [];
-    
-    // Calculer le solde initial basé sur les comptes actuels moins les transactions depuis le début de la période
-    const initialBalance = accounts.reduce((sum, account) => {
-      const accountTransactionsSincePeriodStart = transactions.filter(t => {
-        const transactionDate = activeDateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
-        return transactionDate >= period.from &&
-               (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
-      });
-      
-      const accountNetChange = accountTransactionsSincePeriodStart.reduce((change, t) => {
-        if (t.account?.name === account.name) {
-          switch (t.type) {
-            case 'income':
-              return change - Number(t.amount);
-            case 'expense':
-              return change + Number(t.amount);
-            case 'transfer':
-              return change + Number(t.amount) + Number(t.transfer_fee || 0);
-          }
-        }
-        if (t.transfer_to_account?.name === account.name) {
-          return change - Number(t.amount);
-        }
-        return change;
-      }, 0);
 
-      const initialAccountBalance = Number(account.balance) + accountNetChange;
-      return sum + initialAccountBalance;
-    }, 0);
-    
     let runningBalance = initialBalance;
     
     // Ajouter le point de départ
@@ -429,7 +415,7 @@ export const useReportsData = (
     }
 
     return dailyData;
-  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns]);
+  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns, initialBalance]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
@@ -492,7 +478,16 @@ export const useReportsData = (
   }, [filteredTransactions, categories, periodType, period]);
 
   // Données pour les transactions récurrentes
+  const emptyRecurringData: RecurringData = {
+    activeRecurring: [], monthlyIncome: 0, monthlyExpenses: 0, monthlyNet: 0,
+    yearlyIncome: 0, yearlyExpenses: 0, yearlyNet: 0, byCategory: [],
+    incomeCount: 0, expenseCount: 0, periodItems: [], periodIncome: 0,
+    periodExpenses: 0, periodNet: 0, periodIncomeCount: 0, periodExpenseCount: 0,
+    periodByCategory: [],
+  };
+
   const recurringData = useMemo<RecurringData>(() => {
+    if (skipHeavy) return emptyRecurringData;
     const activeRecurring = recurringTransactions.filter(rt => rt.is_active);
 
     const toMonthly = (amount: number, recurrenceType: string) => {
@@ -534,30 +529,61 @@ export const useReportsData = (
       }
     };
 
+    // Build installment lookup for remaining payment caps
+    const installmentMap = new Map<string, InstallmentPaymentInfo>();
+    if (installmentPayments) {
+      for (const ip of installmentPayments) {
+        installmentMap.set(ip.id, ip);
+      }
+    }
+
     // Count occurrences of a recurring transaction in the period
+    // For installment-linked recurring: cap future occurrences at remaining payments
     const getOccurrencesInPeriod = (rt: RecurringTransaction): number => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
-      let count = 0;
       const maxIterations = 500;
       let iterations = 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // For installment-linked recurring, determine max future occurrences
+      let remainingPayments = Infinity;
+      if (rt.installment_payment_id) {
+        const ip = installmentMap.get(rt.installment_payment_id);
+        if (ip) {
+          if (!ip.is_active) {
+            remainingPayments = 0; // Installment completed, no future occurrences
+          } else {
+            remainingPayments = ip.installment_amount > 0
+              ? Math.ceil(ip.remaining_amount / ip.installment_amount)
+              : 0;
+          }
+        }
+      }
+
+      let pastCount = 0;   // Occurrences in period that are in the past (already happened)
+      let futureCount = 0;  // Occurrences in period that are in the future (not yet happened)
 
       while (current <= period.to && iterations < maxIterations) {
         if (endDate && current > endDate) break;
         if (current >= period.from && current <= period.to) {
-          count++;
+          if (current <= today) {
+            pastCount++;
+          } else {
+            futureCount++;
+          }
         }
-        // Skip forward if still far before period start
-        if (current < period.from) {
-          current = advanceDate(current, rt.recurrence_type);
-        } else {
-          current = advanceDate(current, rt.recurrence_type);
-        }
+        current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      return count;
+      // Cap future occurrences at remaining payments for installment-linked recurring
+      const cappedFuture = Math.min(futureCount, remainingPayments);
+
+      return pastCount + cappedFuture;
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
@@ -648,10 +674,11 @@ export const useReportsData = (
       periodExpenseCount,
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
     };
-  }, [recurringTransactions, period]);
+  }, [recurringTransactions, period, installmentPayments]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {
+    if (skipHeavy) return null;
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
     if (!useSpendingPatterns || statsTransactions.length === 0) return null;

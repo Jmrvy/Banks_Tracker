@@ -33,10 +33,6 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
-  };
-
   const handleCategoryClick = (categoryName: string) => {
     setSelectedCategory(categoryName);
     setModalOpen(true);
@@ -98,7 +94,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total revenus</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-success">{formatAmount(totalIncome)}</p>
+            <p className="text-sm sm:text-base font-bold text-success">{formatCurrency(totalIncome)}</p>
           </CardContent>
         </Card>
 
@@ -134,7 +130,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
             </div>
-            <p className="text-sm sm:text-base font-bold">{formatAmount(avgPerTransaction)}</p>
+            <p className="text-sm sm:text-base font-bold">{formatCurrency(avgPerTransaction)}</p>
           </CardContent>
         </Card>
       </div>
@@ -200,7 +196,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
               </ResponsiveContainer>
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-lg sm:text-xl font-bold text-success">{formatAmount(totalIncome)}</span>
+                <span className="text-lg sm:text-xl font-bold text-success">{formatCurrency(totalIncome)}</span>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import {
   Home,
-  PieChart,
+  BarChart3,
   Wallet,
   CreditCard,
   Receipt,
@@ -26,7 +26,6 @@ export interface NavigationGroup {
 // Main navigation (always visible)
 export const mainNavigation: NavigationItem[] = [
   { nameKey: "navigation.home", path: "/", icon: Home },
-  { nameKey: "navigation.reports", path: "/reports", icon: PieChart },
 ];
 
 // Comptes group - Account-related pages (includes Debts as requested)
@@ -46,6 +45,7 @@ export const toolsGroup: NavigationGroup = {
   labelKey: "navigation.tools",
   icon: Settings,
   items: [
+    { nameKey: "navigation.analyse", path: "/analyse", icon: BarChart3 },
     { nameKey: "navigation.recurringTransactions", path: "/recurring-transactions", icon: Receipt },
     { nameKey: "navigation.installmentPayments", path: "/installment-payments", icon: CreditCard },
   ],
