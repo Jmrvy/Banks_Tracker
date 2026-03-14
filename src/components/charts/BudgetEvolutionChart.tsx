@@ -159,7 +159,7 @@ export function BudgetEvolutionChart({
   };
 
   return (
-    <Card className="border-border bg-card/80 backdrop-blur-sm shadow-sm">
+    <Card className="glass-hover animate-glass-slide-up">
       <CardContent className="p-3 sm:p-5">
         {/* Header with title and selector */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
@@ -197,7 +197,7 @@ export function BudgetEvolutionChart({
         {/* Stats summary for selected category */}
         {selectedCategory && (
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="bg-muted/30 rounded-lg p-2 text-center">
+            <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-2 text-center">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
                 Budget
               </p>
@@ -205,7 +205,7 @@ export function BudgetEvolutionChart({
                 {formatCurrency(selectedCategory.budget)}
               </p>
             </div>
-            <div className={`rounded-lg p-2 text-center ${isOverBudget ? "bg-destructive/10" : "bg-muted/30"}`}>
+            <div className={`rounded-xl p-2 text-center border ${isOverBudget ? "bg-destructive/5 border-destructive/10" : "bg-white/[0.04] border-white/[0.06]"}`}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
                 Dépensé
               </p>
@@ -213,7 +213,7 @@ export function BudgetEvolutionChart({
                 {formatCurrency(selectedCategory.spent)}
               </p>
             </div>
-            <div className={`rounded-lg p-2 text-center ${isOverBudget ? "bg-destructive/10" : "bg-success/10"}`}>
+            <div className={`rounded-xl p-2 text-center border ${isOverBudget ? "bg-destructive/5 border-destructive/10" : "bg-success/5 border-success/10"}`}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
                 {isOverBudget ? "Dépassement" : "Restant"}
               </p>

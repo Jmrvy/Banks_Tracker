@@ -269,7 +269,7 @@ export const MonthlyProjections = () => {
   }
 
   return (
-    <Card className="border-border">
+    <Card className="animate-glass-slide-up">
       <CardHeader className="p-3 sm:p-4 pb-2">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -313,7 +313,7 @@ export const MonthlyProjections = () => {
 
         {/* Financial Overview - Compact grid */}
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          <div className="p-2 sm:p-2.5 rounded-lg bg-success/10">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-success/5 border border-success/10">
             <div className="flex items-center gap-1 mb-0.5">
               <TrendingUp className="w-3 h-3 text-success" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
@@ -326,7 +326,7 @@ export const MonthlyProjections = () => {
             </p>
           </div>
           
-          <div className="p-2 sm:p-2.5 rounded-lg bg-destructive/10">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-destructive/5 border border-destructive/10">
             <div className="flex items-center gap-1 mb-0.5">
               <TrendingDown className="w-3 h-3 text-destructive" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
@@ -341,7 +341,7 @@ export const MonthlyProjections = () => {
         </div>
 
         {/* Projected Balance - Compact */}
-        <div className="p-2.5 sm:p-3 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
+        <div className="p-2.5 sm:p-3 rounded-xl border border-primary/10 bg-primary/5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Solde fin de mois</p>

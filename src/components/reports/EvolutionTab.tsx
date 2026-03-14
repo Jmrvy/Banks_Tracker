@@ -41,11 +41,13 @@ export const EvolutionTab = ({
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Résumé rapide - Cards compactes */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-        <Card className="">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 animate-glass-fade-in">
+        <Card className="glass-hover">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <div className="icon-badge icon-badge-sm bg-muted/50">
+                <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Début</span>
             </div>
             <p className="text-sm sm:text-base font-bold truncate">
@@ -54,10 +56,12 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="">
+        <Card className="glass-hover">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
+              <div className="icon-badge icon-badge-sm bg-success/10">
+                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success truncate">
@@ -66,10 +70,12 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="">
+        <Card className="glass-hover">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
+              <div className="icon-badge icon-badge-sm bg-destructive/10">
+                <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive truncate">
@@ -78,10 +84,12 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="">
+        <Card className="glass-hover">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <Target className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+              <div className="icon-badge icon-badge-sm bg-primary/10">
+                <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Fin</span>
             </div>
             <p className={cn(
@@ -95,7 +103,7 @@ export const EvolutionTab = ({
       </div>
 
       {/* Graphique d'évolution */}
-      <Card>
+      <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
@@ -104,7 +112,7 @@ export const EvolutionTab = ({
                 Projection sur 3 mois
               </CardDescription>
             </div>
-            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-muted/50 rounded-lg px-2 py-1">
+            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] rounded-xl px-2.5 py-1.5">
               <Switch
                 id="spending-patterns"
                 checked={useSpendingPatterns}
@@ -190,7 +198,7 @@ export const EvolutionTab = ({
       <MonthlyProjections />
 
       {/* Projection récurrents vs patterns */}
-      <Card>
+      <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
           <CardTitle className="text-sm sm:text-base">
             Projection mensuelle
@@ -203,19 +211,19 @@ export const EvolutionTab = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {useSpendingPatterns && spendingPatternsData ? (
               <>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2 sm:p-3 rounded-lg bg-success/10">
+                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-success/5 border border-success/10">
                   <span className="text-xs sm:text-sm text-muted-foreground">Revenus projetés</span>
                   <span className="text-sm sm:text-lg font-bold text-success">
                     {formatCurrency(spendingPatternsData.projectedMonthlyIncome)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2 sm:p-3 rounded-lg bg-destructive/10">
+                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
                   <span className="text-xs sm:text-sm text-muted-foreground">Dépenses projetées</span>
                   <span className="text-sm sm:text-lg font-bold text-destructive">
                     {formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2 sm:p-3 rounded-lg bg-primary/10">
+                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-primary/5 border border-primary/10">
                   <span className="text-xs sm:text-sm text-muted-foreground">Net mensuel</span>
                   <span className={cn(
                     "text-sm sm:text-lg font-bold",
@@ -227,19 +235,19 @@ export const EvolutionTab = ({
               </>
             ) : (
               <>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2 sm:p-3 rounded-lg bg-success/10">
+                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-success/5 border border-success/10">
                   <span className="text-xs sm:text-sm text-muted-foreground">Revenus récurrents</span>
                   <span className="text-sm sm:text-lg font-bold text-success">
                     {formatCurrency(recurringData.monthlyIncome)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2 sm:p-3 rounded-lg bg-destructive/10">
+                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
                   <span className="text-xs sm:text-sm text-muted-foreground">Dépenses récurrentes</span>
                   <span className="text-sm sm:text-lg font-bold text-destructive">
                     {formatCurrency(recurringData.monthlyExpenses)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2 sm:p-3 rounded-lg bg-primary/10">
+                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-primary/5 border border-primary/10">
                   <span className="text-xs sm:text-sm text-muted-foreground">Net récurrent</span>
                   <span className={cn(
                     "text-sm sm:text-lg font-bold",

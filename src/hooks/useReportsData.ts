@@ -41,6 +41,12 @@ export interface RecurringData {
   monthlyIncome: number;
   monthlyExpenses: number;
   monthlyNet: number;
+  yearlyIncome: number;
+  yearlyExpenses: number;
+  yearlyNet: number;
+  byCategory: { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }[];
+  incomeCount: number;
+  expenseCount: number;
 }
 
 export interface SpendingPatternsData {
@@ -473,36 +479,55 @@ export const useReportsData = (
   // Données pour les transactions récurrentes
   const recurringData = useMemo<RecurringData>(() => {
     const activeRecurring = recurringTransactions.filter(rt => rt.is_active);
-    
+
+    const toMonthly = (amount: number, recurrenceType: string) => {
+      switch (recurrenceType) {
+        case 'weekly': return amount * 52 / 12;
+        case 'monthly': return amount;
+        case 'quarterly': return amount / 3;
+        case 'yearly': return amount / 12;
+        default: return amount;
+      }
+    };
+
     const monthlyIncome = activeRecurring
       .filter(rt => rt.type === 'income')
-      .reduce((sum, rt) => {
-        const amount = Number(rt.amount);
-        switch (rt.recurrence_type) {
-          case 'weekly': return sum + (amount * 52 / 12);
-          case 'monthly': return sum + amount;
-          case 'yearly': return sum + (amount / 12);
-          default: return sum;
-        }
-      }, 0);
+      .reduce((sum, rt) => sum + toMonthly(Number(rt.amount), rt.recurrence_type), 0);
 
     const monthlyExpenses = activeRecurring
       .filter(rt => rt.type === 'expense')
-      .reduce((sum, rt) => {
-        const amount = Number(rt.amount);
-        switch (rt.recurrence_type) {
-          case 'weekly': return sum + (amount * 52 / 12);
-          case 'monthly': return sum + amount;
-          case 'yearly': return sum + (amount / 12);
-          default: return sum;
-        }
-      }, 0);
+      .reduce((sum, rt) => sum + toMonthly(Number(rt.amount), rt.recurrence_type), 0);
+
+    const incomeCount = activeRecurring.filter(rt => rt.type === 'income').length;
+    const expenseCount = activeRecurring.filter(rt => rt.type === 'expense').length;
+
+    // Group by category for chart data
+    const categoryMap = new Map<string, { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }>();
+    for (const rt of activeRecurring) {
+      const catName = rt.category?.name || 'Sans catégorie';
+      const catColor = rt.category?.color || '#94a3b8';
+      const key = `${catName}-${rt.type}`;
+      const existing = categoryMap.get(key);
+      const monthlyAmount = toMonthly(Number(rt.amount), rt.recurrence_type);
+      if (existing) {
+        existing.amount += monthlyAmount;
+        existing.count += 1;
+      } else {
+        categoryMap.set(key, { name: catName, color: catColor, amount: monthlyAmount, count: 1, type: rt.type });
+      }
+    }
 
     return {
       activeRecurring,
       monthlyIncome,
       monthlyExpenses,
-      monthlyNet: monthlyIncome - monthlyExpenses
+      monthlyNet: monthlyIncome - monthlyExpenses,
+      yearlyIncome: monthlyIncome * 12,
+      yearlyExpenses: monthlyExpenses * 12,
+      yearlyNet: (monthlyIncome - monthlyExpenses) * 12,
+      byCategory: Array.from(categoryMap.values()).sort((a, b) => b.amount - a.amount),
+      incomeCount,
+      expenseCount,
     };
   }, [recurringTransactions]);
 

@@ -93,41 +93,49 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingDown className="w-3.5 h-3.5 text-destructive" />
+              <div className="icon-badge icon-badge-sm bg-destructive/10">
+                <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Total dépensé</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive">{formatAmount(totalSpent)}</p>
           </CardContent>
         </Card>
-        
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Target className="w-3.5 h-3.5 text-primary" />
+              <div className="icon-badge icon-badge-sm bg-primary/10">
+                <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Budget total</span>
             </div>
             <p className="text-sm sm:text-base font-bold">{formatAmount(totalBudget)}</p>
           </CardContent>
         </Card>
-        
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+              <div className="icon-badge icon-badge-sm bg-orange-500/10">
+                <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépassés</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
           </CardContent>
         </Card>
-        
-        <Card className="border-border bg-gradient-to-br from-background to-muted/20">
+
+        <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+              <div className="icon-badge icon-badge-sm bg-success/10">
+                <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+              </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Sous budget</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
@@ -136,7 +144,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       </div>
 
       {/* Main Content: Chart + Legend */}
-      <Card className="border-border overflow-hidden">
+      <Card className="glass-hover animate-glass-slide-up overflow-hidden">
         <CardContent className="p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Donut Chart */}
@@ -209,10 +217,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                   <button
                     key={index}
                     onClick={() => handleCategoryClick(item.name)}
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-md hover:bg-muted/50 transition-colors text-left group"
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-xl bg-white/[0.03] border border-white/[0.04] hover:bg-white/[0.06] transition-all duration-300 text-left group"
                   >
-                    <div 
-                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform" 
+                    <div
+                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform"
                       style={{ backgroundColor: item.color }}
                     />
                     <div className="min-w-0 flex-1">
@@ -270,9 +278,9 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                   key={index}
                   onClick={() => handleCategoryClick(category.name)}
                   className={cn(
-                    "w-full p-2.5 sm:p-3 rounded-lg transition-all text-left",
-                    "bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-border/50",
-                    "active:scale-[0.99]"
+                    "w-full p-2.5 sm:p-3 rounded-xl transition-all duration-300 text-left",
+                    "bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.10]",
+                    "active:scale-[0.99] backdrop-blur-sm"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
