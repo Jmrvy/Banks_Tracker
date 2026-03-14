@@ -83,7 +83,7 @@ const Reports = () => {
               <div className="icon-badge icon-badge-sm bg-primary/10">
                 <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              Rapports
+              Analyse
             </h1>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
               {period.label}
