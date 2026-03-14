@@ -73,12 +73,20 @@ export interface SpendingPatternsData {
   projectedMonthlyNet: number;
 }
 
+export interface InstallmentPaymentInfo {
+  id: string;
+  remaining_amount: number;
+  installment_amount: number;
+  is_active: boolean;
+}
+
 export const useReportsData = (
   periodType: "month" | "year" | "custom",
   selectedDate: Date,
   dateRange: { from: Date; to: Date },
   useSpendingPatterns: boolean,
-  overrideDateType?: 'accounting' | 'value'
+  overrideDateType?: 'accounting' | 'value',
+  installmentPayments?: InstallmentPaymentInfo[]
 ) => {
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
   const { preferences } = useUserPreferences();
@@ -534,30 +542,61 @@ export const useReportsData = (
       }
     };
 
+    // Build installment lookup for remaining payment caps
+    const installmentMap = new Map<string, InstallmentPaymentInfo>();
+    if (installmentPayments) {
+      for (const ip of installmentPayments) {
+        installmentMap.set(ip.id, ip);
+      }
+    }
+
     // Count occurrences of a recurring transaction in the period
+    // For installment-linked recurring: cap future occurrences at remaining payments
     const getOccurrencesInPeriod = (rt: RecurringTransaction): number => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
-      let count = 0;
       const maxIterations = 500;
       let iterations = 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // For installment-linked recurring, determine max future occurrences
+      let remainingPayments = Infinity;
+      if (rt.installment_payment_id) {
+        const ip = installmentMap.get(rt.installment_payment_id);
+        if (ip) {
+          if (!ip.is_active) {
+            remainingPayments = 0; // Installment completed, no future occurrences
+          } else {
+            remainingPayments = ip.installment_amount > 0
+              ? Math.ceil(ip.remaining_amount / ip.installment_amount)
+              : 0;
+          }
+        }
+      }
+
+      let pastCount = 0;   // Occurrences in period that are in the past (already happened)
+      let futureCount = 0;  // Occurrences in period that are in the future (not yet happened)
 
       while (current <= period.to && iterations < maxIterations) {
         if (endDate && current > endDate) break;
         if (current >= period.from && current <= period.to) {
-          count++;
+          if (current <= today) {
+            pastCount++;
+          } else {
+            futureCount++;
+          }
         }
-        // Skip forward if still far before period start
-        if (current < period.from) {
-          current = advanceDate(current, rt.recurrence_type);
-        } else {
-          current = advanceDate(current, rt.recurrence_type);
-        }
+        current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      return count;
+      // Cap future occurrences at remaining payments for installment-linked recurring
+      const cappedFuture = Math.min(futureCount, remainingPayments);
+
+      return pastCount + cappedFuture;
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
@@ -648,7 +687,7 @@ export const useReportsData = (
       periodExpenseCount,
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
     };
-  }, [recurringTransactions, period]);
+  }, [recurringTransactions, period, installmentPayments]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {

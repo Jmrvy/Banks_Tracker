@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { BarChart3, Calendar, CalendarCheck, Download } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
 import { StatsCards } from "@/components/reports/StatsCards";
 import { EvolutionTab } from "@/components/reports/EvolutionTab";
@@ -29,6 +30,18 @@ const Reports = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>('accounting');
 
+  // Installment payments data for capping recurring occurrence projections
+  const { installmentPayments } = useInstallmentPayments();
+  const installmentPaymentInfos = useMemo(() =>
+    installmentPayments.map(ip => ({
+      id: ip.id,
+      remaining_amount: ip.remaining_amount,
+      installment_amount: ip.installment_amount,
+      is_active: ip.is_active,
+    })),
+    [installmentPayments]
+  );
+
   // Données pour Évolution et Récurrents - toujours en date comptable
   const {
     loading,
@@ -39,7 +52,7 @@ const Reports = () => {
     spendingPatternsData,
     accounts,
     filteredTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting');
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos);
 
   // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
   const {
