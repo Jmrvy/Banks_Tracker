@@ -182,8 +182,8 @@ const Reports = () => {
             <CategoriesTab
               categoryChartData={categoryChartData}
               transactions={incomeExpenseTransactions}
-              periodStart={dateRange.from}
-              periodEnd={dateRange.to}
+              periodStart={period.from}
+              periodEnd={period.to}
             />
           </TabsContent>
 

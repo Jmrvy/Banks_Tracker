@@ -11,7 +11,6 @@ import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { TrendingDown, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
-import { BudgetEvolutionChart } from "@/components/charts/BudgetEvolutionChart";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
@@ -240,15 +239,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         </CardContent>
       </Card>
 
-      {/* Budget Evolution Chart (categories with a budget vs daily cumulative spend) */}
-      <BudgetEvolutionChart
-        categoryChartData={categoryChartData}
-        transactions={transactions}
-        periodStart={periodStart}
-        periodEnd={periodEnd}
-        formatCurrency={formatCurrency}
-      />
-
       {/* Cumulative Chart */}
       <CategoryCumulativeChart
         data={chartData.map((item, index) => ({
@@ -349,6 +339,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         onOpenChange={setModalOpen}
         categoryName={selectedCategory || ''}
         transactions={getCategoryTransactions()}
+        categoryData={selectedCategory ? categoryChartData.find(c => c.name === selectedCategory) : undefined}
+        allTransactions={transactions}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
       />
     </div>
   );
