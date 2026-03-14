@@ -7,10 +7,11 @@ import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
-import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { NewSavingsGoalModal } from "@/components/NewSavingsGoalModal";
 import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
+import { ReimbursementDetailModal } from "@/components/ReimbursementDetailModal";
 import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -35,6 +36,7 @@ const Savings = () => {
 
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
+  const [selectedReimbursement, setSelectedReimbursement] = useState<InstallmentPayment | null>(null);
 
   // Get reimbursement installments (these count as savings)
   const reimbursementInstallments = useMemo(() => {
@@ -400,7 +402,11 @@ const Savings = () => {
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (
-                  <Card key={installment.id} className="glass-hover border-l-4 border-l-success">
+                  <Card
+                    key={installment.id}
+                    className="glass-hover border-l-4 border-l-success cursor-pointer"
+                    onClick={() => setSelectedReimbursement(installment)}
+                  >
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="flex-1 min-w-0">
@@ -567,6 +573,14 @@ const Savings = () => {
           isOpen={!!selectedGoal}
           onClose={() => setSelectedGoal(null)}
           goal={selectedGoal}
+        />
+      )}
+
+      {selectedReimbursement && (
+        <ReimbursementDetailModal
+          open={!!selectedReimbursement}
+          onOpenChange={(open) => !open && setSelectedReimbursement(null)}
+          installment={selectedReimbursement}
         />
       )}
     </div>
