@@ -27,15 +27,19 @@ export const RecurringTab = ({
 }: RecurringTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const [showAllItems, setShowAllItems] = useState(false);
-  const [viewMode, setViewMode] = useState<'monthly' | 'yearly'>('monthly');
 
-  const incomeAmount = viewMode === 'monthly' ? recurringData.monthlyIncome : recurringData.yearlyIncome;
-  const expenseAmount = viewMode === 'monthly' ? recurringData.monthlyExpenses : recurringData.yearlyExpenses;
-  const netAmount = viewMode === 'monthly' ? recurringData.monthlyNet : recurringData.yearlyNet;
-  const periodLabel = viewMode === 'monthly' ? '/mois' : '/an';
+  const {
+    periodItems,
+    periodIncome,
+    periodExpenses,
+    periodNet,
+    periodIncomeCount,
+    periodExpenseCount,
+    periodByCategory,
+  } = recurringData;
 
-  // Donut chart data — only expenses by category
-  const expenseCategories = recurringData.byCategory.filter(c => c.type === 'expense');
+  // Donut chart data — only expenses by category for the period
+  const expenseCategories = periodByCategory.filter(c => c.type === 'expense');
   const totalExpenseCat = expenseCategories.reduce((s, c) => s + c.amount, 0);
 
   const recurrenceLabel = (type: string) => {
@@ -48,19 +52,23 @@ export const RecurringTab = ({
     }
   };
 
-  const sortedRecurring = [...recurringData.activeRecurring].sort((a, b) => {
-    // Sort by next_due_date ascending
-    return a.next_due_date.localeCompare(b.next_due_date);
+  // Sort period items: expenses first, then by amount desc
+  const sortedItems = [...periodItems].sort((a, b) => {
+    if (a.effectiveType !== b.effectiveType) {
+      return a.effectiveType === 'expense' ? -1 : 1;
+    }
+    return b.periodAmount - a.periodAmount;
   });
 
-  const displayedItems = showAllItems ? sortedRecurring : sortedRecurring.slice(0, 5);
+  const displayedItems = showAllItems ? sortedItems : sortedItems.slice(0, 5);
 
-  if (recurringData.activeRecurring.length === 0) {
+  if (periodItems.length === 0) {
     return (
       <Card className="border-border">
         <CardContent className="text-center py-12">
           <Repeat className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">Aucune transaction récurrente active</p>
+          <p className="text-sm text-muted-foreground">Aucune récurrence sur cette période</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{period.label}</p>
         </CardContent>
       </Card>
     );
@@ -76,10 +84,10 @@ export const RecurringTab = ({
               <div className="icon-badge icon-badge-sm bg-success/10">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Entrants{periodLabel}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Entrants</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-success">+{formatCurrency(incomeAmount)}</p>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{recurringData.incomeCount} récurrence{recurringData.incomeCount > 1 ? 's' : ''}</p>
+            <p className="text-sm sm:text-base font-bold text-success">+{formatCurrency(periodIncome)}</p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{periodIncomeCount} récurrence{periodIncomeCount > 1 ? 's' : ''}</p>
           </CardContent>
         </Card>
 
@@ -89,10 +97,10 @@ export const RecurringTab = ({
               <div className="icon-badge icon-badge-sm bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Sortants{periodLabel}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Sortants</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-destructive">-{formatCurrency(expenseAmount)}</p>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{recurringData.expenseCount} récurrence{recurringData.expenseCount > 1 ? 's' : ''}</p>
+            <p className="text-sm sm:text-base font-bold text-destructive">-{formatCurrency(periodExpenses)}</p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{periodExpenseCount} récurrence{periodExpenseCount > 1 ? 's' : ''}</p>
           </CardContent>
         </Card>
 
@@ -102,10 +110,10 @@ export const RecurringTab = ({
               <div className="icon-badge icon-badge-sm bg-muted/50">
                 <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Net{periodLabel}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Net</span>
             </div>
-            <p className={cn("text-sm sm:text-base font-bold", netAmount >= 0 ? "text-success" : "text-destructive")}>
-              {netAmount >= 0 ? '+' : ''}{formatCurrency(netAmount)}
+            <p className={cn("text-sm sm:text-base font-bold", periodNet >= 0 ? "text-success" : "text-destructive")}>
+              {periodNet >= 0 ? '+' : ''}{formatCurrency(periodNet)}
             </p>
           </CardContent>
         </Card>
@@ -116,15 +124,10 @@ export const RecurringTab = ({
               <div className="icon-badge icon-badge-sm bg-primary/10">
                 <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Total actives</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Récurrences</span>
             </div>
-            <p className="text-sm sm:text-base font-bold">{recurringData.activeRecurring.length}</p>
-            <button
-              onClick={() => setViewMode(viewMode === 'monthly' ? 'yearly' : 'monthly')}
-              className="text-[9px] sm:text-[10px] text-primary hover:underline mt-0.5"
-            >
-              Voir {viewMode === 'monthly' ? 'annuel' : 'mensuel'}
-            </button>
+            <p className="text-sm sm:text-base font-bold">{periodItems.length}</p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{period.label}</p>
           </CardContent>
         </Card>
       </div>
@@ -170,8 +173,8 @@ export const RecurringTab = ({
                                   <span className="font-medium text-xs">{data.name}</span>
                                 </div>
                                 <div className="text-xs">
-                                  <div className="font-semibold">{formatCurrency(data.amount)}{periodLabel}</div>
-                                  <div className="text-muted-foreground text-[10px]">{pct}% — {data.count} récurrence{data.count > 1 ? 's' : ''}</div>
+                                  <div className="font-semibold">{formatCurrency(data.amount)}</div>
+                                  <div className="text-muted-foreground text-[10px]">{pct}% — {data.count} occurrence{data.count > 1 ? 's' : ''}</div>
                                 </div>
                               </div>
                             );
@@ -182,8 +185,8 @@ export const RecurringTab = ({
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-base sm:text-lg font-bold text-destructive">{formatCurrency(viewMode === 'monthly' ? totalExpenseCat : totalExpenseCat * 12)}</span>
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">{periodLabel}</span>
+                    <span className="text-base sm:text-lg font-bold text-destructive">{formatCurrency(totalExpenseCat)}</span>
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">sur la période</span>
                   </div>
                 </div>
 
@@ -198,7 +201,7 @@ export const RecurringTab = ({
                           <p className="text-[10px] sm:text-xs font-medium truncate">{cat.name}</p>
                         </div>
                         <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0">{pct}%</span>
-                        <span className="text-[10px] sm:text-xs font-semibold text-destructive flex-shrink-0">{formatCurrency(viewMode === 'monthly' ? cat.amount : cat.amount * 12)}</span>
+                        <span className="text-[10px] sm:text-xs font-semibold text-destructive flex-shrink-0">{formatCurrency(cat.amount)}</span>
                       </div>
                     );
                   })}
@@ -305,26 +308,19 @@ export const RecurringTab = ({
       <div className="space-y-2">
         <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1 flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-          Prochaines échéances ({recurringData.activeRecurring.length})
+          Récurrences sur la période ({periodItems.length})
         </h3>
         <div className="space-y-1.5">
-          {displayedItems.map((recurring) => {
-            const [y, m, d] = recurring.next_due_date.split('-').map(Number);
-            const nextDate = new Date(y, m - 1, d);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const daysUntil = differenceInDays(nextDate, today);
-            const isUpcoming = daysUntil >= 0 && daysUntil <= 3;
-            const isPast = daysUntil < 0;
+          {displayedItems.map((item) => {
+            const { recurring, occurrences, periodAmount, effectiveType } = item;
+            const isReimbursement = recurring.installment_payment_id && recurring.type === 'income';
 
             return (
               <div
                 key={recurring.id}
                 className={cn(
                   "p-2.5 sm:p-3 rounded-xl transition-all duration-300 border backdrop-blur-sm",
-                  "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]",
-                  isUpcoming && "border-orange-500/20 bg-orange-500/5",
-                  isPast && "border-destructive/20 bg-destructive/5"
+                  "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]"
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -337,6 +333,14 @@ export const RecurringTab = ({
                       <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                         <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4">
                           {recurrenceLabel(recurring.recurrence_type)}
+                        </Badge>
+                        {isReimbursement && (
+                          <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4 border-orange-500/50 text-orange-500">
+                            Remb.
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[8px] sm:text-[10px] px-1 py-0 h-4">
+                          ×{occurrences}
                         </Badge>
                         {recurring.category && (
                           <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{recurring.category.name}</span>
@@ -353,16 +357,15 @@ export const RecurringTab = ({
                   <div className="text-right flex-shrink-0 ml-2">
                     <p className={cn(
                       "text-xs sm:text-sm font-semibold",
-                      recurring.type === 'income' ? "text-success" : "text-destructive"
+                      effectiveType === 'income' ? "text-success" : "text-destructive"
                     )}>
-                      {recurring.type === 'income' ? '+' : '-'}{formatCurrency(Number(recurring.amount))}
+                      {effectiveType === 'income' ? '+' : '-'}{formatCurrency(periodAmount)}
                     </p>
-                    <p className={cn(
-                      "text-[9px] sm:text-[10px]",
-                      isPast ? "text-destructive font-medium" : isUpcoming ? "text-orange-500 font-medium" : "text-muted-foreground"
-                    )}>
-                      {isPast ? 'En retard' : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? 'Demain' : format(nextDate, 'd MMM', { locale: fr })}
-                    </p>
+                    {occurrences > 1 && (
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                        {formatCurrency(Number(recurring.amount))}/fois
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -370,7 +373,7 @@ export const RecurringTab = ({
           })}
         </div>
 
-        {sortedRecurring.length > 5 && (
+        {sortedItems.length > 5 && (
           <button
             onClick={() => setShowAllItems(!showAllItems)}
             className="w-full flex items-center justify-center gap-1 py-2 text-xs text-primary hover:text-primary/80 transition-colors"
@@ -383,7 +386,7 @@ export const RecurringTab = ({
             ) : (
               <>
                 <ChevronDown className="h-3.5 w-3.5" />
-                Voir les {sortedRecurring.length - 5} autres
+                Voir les {sortedItems.length - 5} autres
               </>
             )}
           </button>

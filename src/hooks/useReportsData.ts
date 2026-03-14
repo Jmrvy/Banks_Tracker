@@ -36,6 +36,13 @@ export interface CategoryData {
   remaining: number;
 }
 
+export interface PeriodRecurringItem {
+  recurring: RecurringTransaction;
+  occurrences: number;
+  periodAmount: number;
+  effectiveType: 'income' | 'expense';
+}
+
 export interface RecurringData {
   activeRecurring: RecurringTransaction[];
   monthlyIncome: number;
@@ -47,6 +54,14 @@ export interface RecurringData {
   byCategory: { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }[];
   incomeCount: number;
   expenseCount: number;
+  // Period-based data
+  periodItems: PeriodRecurringItem[];
+  periodIncome: number;
+  periodExpenses: number;
+  periodNet: number;
+  periodIncomeCount: number;
+  periodExpenseCount: number;
+  periodByCategory: { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }[];
 }
 
 export interface SpendingPatternsData {
@@ -490,30 +505,126 @@ export const useReportsData = (
       }
     };
 
+    // Determine effective type: reimbursement installment-linked recurring are expenses
+    const getEffectiveType = (rt: RecurringTransaction): 'income' | 'expense' => {
+      if (rt.installment_payment_id && rt.type === 'income') return 'expense';
+      return rt.type;
+    };
+
+    // Safe date advancement helper
+    const advanceDate = (date: Date, recurrenceType: string): Date => {
+      const y = date.getFullYear();
+      const m = date.getMonth();
+      const d = date.getDate();
+      switch (recurrenceType) {
+        case 'weekly':
+          return new Date(y, m, d + 7);
+        case 'monthly': {
+          const next = new Date(y, m + 1, d);
+          return next.getMonth() !== (m + 1) % 12 ? new Date(y, m + 2, 0) : next;
+        }
+        case 'quarterly': {
+          const nextQ = new Date(y, m + 3, d);
+          return nextQ.getMonth() !== (m + 3) % 12 ? new Date(y, m + 4, 0) : nextQ;
+        }
+        case 'yearly':
+          return new Date(y + 1, m, d);
+        default:
+          return new Date(y, m + 1, d);
+      }
+    };
+
+    // Count occurrences of a recurring transaction in the period
+    const getOccurrencesInPeriod = (rt: RecurringTransaction): number => {
+      const [sy, sm, sd] = rt.start_date.split('-').map(Number);
+      let current = new Date(sy, sm - 1, sd);
+      const endDate = rt.end_date ? new Date(rt.end_date) : null;
+      let count = 0;
+      const maxIterations = 500;
+      let iterations = 0;
+
+      while (current <= period.to && iterations < maxIterations) {
+        if (endDate && current > endDate) break;
+        if (current >= period.from && current <= period.to) {
+          count++;
+        }
+        // Skip forward if still far before period start
+        if (current < period.from) {
+          current = advanceDate(current, rt.recurrence_type);
+        } else {
+          current = advanceDate(current, rt.recurrence_type);
+        }
+        iterations++;
+      }
+
+      return count;
+    };
+
+    // Monthly/yearly sums (kept for evolution tab projections)
     const monthlyIncome = activeRecurring
-      .filter(rt => rt.type === 'income')
+      .filter(rt => getEffectiveType(rt) === 'income')
       .reduce((sum, rt) => sum + toMonthly(Number(rt.amount), rt.recurrence_type), 0);
 
     const monthlyExpenses = activeRecurring
-      .filter(rt => rt.type === 'expense')
+      .filter(rt => getEffectiveType(rt) === 'expense')
       .reduce((sum, rt) => sum + toMonthly(Number(rt.amount), rt.recurrence_type), 0);
 
-    const incomeCount = activeRecurring.filter(rt => rt.type === 'income').length;
-    const expenseCount = activeRecurring.filter(rt => rt.type === 'expense').length;
+    const incomeCount = activeRecurring.filter(rt => getEffectiveType(rt) === 'income').length;
+    const expenseCount = activeRecurring.filter(rt => getEffectiveType(rt) === 'expense').length;
 
-    // Group by category for chart data
+    // Group by category for chart data (monthly-based, kept for compatibility)
     const categoryMap = new Map<string, { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }>();
     for (const rt of activeRecurring) {
       const catName = rt.category?.name || 'Sans catégorie';
       const catColor = rt.category?.color || '#94a3b8';
-      const key = `${catName}-${rt.type}`;
+      const effectiveType = getEffectiveType(rt);
+      const key = `${catName}-${effectiveType}`;
       const existing = categoryMap.get(key);
       const monthlyAmount = toMonthly(Number(rt.amount), rt.recurrence_type);
       if (existing) {
         existing.amount += monthlyAmount;
         existing.count += 1;
       } else {
-        categoryMap.set(key, { name: catName, color: catColor, amount: monthlyAmount, count: 1, type: rt.type });
+        categoryMap.set(key, { name: catName, color: catColor, amount: monthlyAmount, count: 1, type: effectiveType });
+      }
+    }
+
+    // Period-based computation: only recurring transactions with occurrences in the period
+    const periodItems: PeriodRecurringItem[] = [];
+    for (const rt of activeRecurring) {
+      const occurrences = getOccurrencesInPeriod(rt);
+      if (occurrences > 0) {
+        const effectiveType = getEffectiveType(rt);
+        periodItems.push({
+          recurring: rt,
+          occurrences,
+          periodAmount: Number(rt.amount) * occurrences,
+          effectiveType,
+        });
+      }
+    }
+
+    const periodIncome = periodItems
+      .filter(pi => pi.effectiveType === 'income')
+      .reduce((sum, pi) => sum + pi.periodAmount, 0);
+    const periodExpenses = periodItems
+      .filter(pi => pi.effectiveType === 'expense')
+      .reduce((sum, pi) => sum + pi.periodAmount, 0);
+    const periodIncomeCount = periodItems.filter(pi => pi.effectiveType === 'income').length;
+    const periodExpenseCount = periodItems.filter(pi => pi.effectiveType === 'expense').length;
+
+    // Period-based category grouping
+    const periodCategoryMap = new Map<string, { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }>();
+    for (const pi of periodItems) {
+      const catName = pi.recurring.category?.name || 'Sans catégorie';
+      const catColor = pi.recurring.category?.color || '#94a3b8';
+      const key = `${catName}-${pi.effectiveType}`;
+      const existing = periodCategoryMap.get(key);
+      if (existing) {
+        existing.amount += pi.periodAmount;
+        existing.count += pi.occurrences;
+      } else {
+        periodCategoryMap.set(key, { name: catName, color: catColor, amount: pi.periodAmount, count: pi.occurrences, type: pi.effectiveType });
       }
     }
 
@@ -528,8 +639,16 @@ export const useReportsData = (
       byCategory: Array.from(categoryMap.values()).sort((a, b) => b.amount - a.amount),
       incomeCount,
       expenseCount,
+      // Period-based
+      periodItems,
+      periodIncome,
+      periodExpenses,
+      periodNet: periodIncome - periodExpenses,
+      periodIncomeCount,
+      periodExpenseCount,
+      periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
     };
-  }, [recurringTransactions]);
+  }, [recurringTransactions, period]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {

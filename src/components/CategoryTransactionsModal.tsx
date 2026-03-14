@@ -1,9 +1,25 @@
+import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, CalendarDays } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { CategoryData } from "@/hooks/useReportsData";
+import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  ReferenceLine,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Area,
+} from "recharts";
+import { eachDayOfInterval, format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Transaction {
   id: string;
@@ -24,11 +40,15 @@ interface CategoryTransactionsModalProps {
   onOpenChange: (open: boolean) => void;
   categoryName: string;
   transactions: Transaction[];
+  categoryData?: CategoryData;
+  allTransactions?: FinancialTransaction[];
+  periodStart?: Date;
+  periodEnd?: Date;
 }
 
 const bankColors: Record<string, string> = {
   societe_generale: 'bg-red-500',
-  revolut: 'bg-blue-500', 
+  revolut: 'bg-blue-500',
   boursorama: 'bg-orange-500',
   bnp_paribas: 'bg-green-600',
   credit_agricole: 'bg-green-700',
@@ -52,14 +72,20 @@ const bankNames: Record<string, string> = {
   other: 'Autre'
 };
 
-export const CategoryTransactionsModal = ({ 
-  open, 
-  onOpenChange, 
-  categoryName, 
-  transactions 
+export const CategoryTransactionsModal = ({
+  open,
+  onOpenChange,
+  categoryName,
+  transactions,
+  categoryData,
+  allTransactions,
+  periodStart,
+  periodEnd,
 }: CategoryTransactionsModalProps) => {
   const { formatCurrency, preferences } = useUserPreferences();
-  
+  const isMobile = useIsMobile();
+  const activeDateType = preferences.dateType;
+
   // Calculer le total en utilisant les montants nets si disponibles
   const totalAmount = transactions.reduce((sum, t) => {
     const netAmount = t.netAmount ?? t.amount;
@@ -72,6 +98,96 @@ export const CategoryTransactionsModal = ({
     const accountingDate = new Date(t.date).toDateString();
     const valueDate = new Date(t.valueDate).toDateString();
     return accountingDate !== valueDate;
+  };
+
+  // Budget evolution chart data
+  const hasBudget = categoryData && categoryData.budget > 0;
+
+  const getTransactionDate = (t: FinancialTransaction): string => {
+    if (activeDateType === 'value') {
+      return (t as any).value_date || t.transaction_date;
+    }
+    return t.transaction_date;
+  };
+
+  const days = useMemo(
+    () => periodStart && periodEnd ? eachDayOfInterval({ start: periodStart, end: periodEnd }) : [],
+    [periodStart, periodEnd]
+  );
+
+  const budgetChartData = useMemo(() => {
+    if (!hasBudget || !allTransactions || !periodStart || !periodEnd) return [];
+
+    const catTxs = allTransactions
+      .filter(
+        (t) =>
+          t.type === "expense" &&
+          t.include_in_stats !== false &&
+          t.category?.name === categoryName
+      )
+      .sort(
+        (a, b) =>
+          new Date(getTransactionDate(a)).getTime() -
+          new Date(getTransactionDate(b)).getTime()
+      );
+
+    let running = 0;
+
+    return days.map((day) => {
+      const dayStr = format(day, "yyyy-MM-dd");
+      const dayTotal = catTxs
+        .filter((t) => getTransactionDate(t) === dayStr)
+        .reduce((s, t) => s + Number(t.amount), 0);
+      running += dayTotal;
+
+      return {
+        date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
+        spent: running,
+        budget: Number(categoryData.budget),
+      };
+    });
+  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData]);
+
+  const yMax = hasBudget
+    ? Math.max(Number(categoryData.budget) * 1.15, Number(categoryData.spent) * 1.05, 100)
+    : 100;
+  const isOverBudget = hasBudget && Number(categoryData.spent) > Number(categoryData.budget);
+  const percentUsed = hasBudget
+    ? Math.round((Number(categoryData.spent) / Number(categoryData.budget)) * 100)
+    : 0;
+
+  const BudgetChartTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length || !categoryData) return null;
+    const spentValue = payload.find((p: any) => p.dataKey === "spent")?.value || 0;
+    const isOver = spentValue > categoryData.budget;
+
+    return (
+      <div className="bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl p-2.5 text-xs">
+        <p className="font-semibold text-foreground mb-1.5 pb-1 border-b border-border/30">
+          {label}
+        </p>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Dépensé</span>
+            <span className={isOver ? "text-destructive font-semibold" : "font-medium"}>
+              {formatCurrency(spentValue)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Budget</span>
+            <span className="font-medium">{formatCurrency(categoryData.budget)}</span>
+          </div>
+          {isOver && (
+            <div className="flex items-center justify-between gap-4 pt-1 border-t border-border/30">
+              <span className="text-destructive">Dépassement</span>
+              <span className="text-destructive font-semibold">
+                +{formatCurrency(spentValue - categoryData.budget)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -89,7 +205,109 @@ export const CategoryTransactionsModal = ({
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-2 sm:space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3 sm:space-y-4">
+          {/* Budget Evolution Chart (only if category has a budget) */}
+          {hasBudget && budgetChartData.length > 0 && (
+            <div className="space-y-2.5">
+              <h4 className="text-[11px] sm:text-xs font-semibold text-foreground">
+                Évolution des dépenses vs budget
+              </h4>
+
+              {/* Progress bar */}
+              <div>
+                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                  <span>{percentUsed}% utilisé</span>
+                  <span>{formatCurrency(categoryData.spent)} / {formatCurrency(categoryData.budget)}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      isOverBudget ? "bg-destructive" : "bg-success"
+                    )}
+                    style={{ width: `${Math.min(100, percentUsed)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div style={{ height: isMobile ? 160 : 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={budgetChartData}
+                    margin={{ top: 8, right: 12, left: isMobile ? -8 : 0, bottom: 8 }}
+                  >
+                    <defs>
+                      <linearGradient id={`spentGradient-${categoryName}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor={categoryData.color || "#8884d8"}
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={categoryData.color || "#8884d8"}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: isMobile ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "hsl(var(--border))" }}
+                      interval={isMobile ? 6 : 4}
+                    />
+                    <YAxis
+                      domain={[0, yMax]}
+                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`)}
+                      tick={{ fontSize: isMobile ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={isMobile ? 32 : 44}
+                    />
+                    <RechartsTooltip content={<BudgetChartTooltip />} animationDuration={100} />
+
+                    {/* Budget threshold line */}
+                    <ReferenceLine
+                      y={categoryData.budget}
+                      stroke="hsl(var(--destructive))"
+                      strokeDasharray="5 3"
+                      strokeWidth={1.5}
+                      label={{
+                        value: `Budget: ${formatCurrency(categoryData.budget)}`,
+                        position: "insideTopRight",
+                        fill: "hsl(var(--destructive))",
+                        fontSize: isMobile ? 9 : 11,
+                      }}
+                    />
+
+                    {/* Area fill */}
+                    <Area
+                      type="monotone"
+                      dataKey="spent"
+                      stroke="none"
+                      fill={`url(#spentGradient-${categoryName})`}
+                      animationDuration={500}
+                    />
+
+                    {/* Spending line */}
+                    <Line
+                      type="monotone"
+                      dataKey="spent"
+                      stroke={categoryData.color || "#8884d8"}
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                      animationDuration={500}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Transaction list */}
           {transactions.length === 0 ? (
             <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
               Aucune transaction trouvée
@@ -101,10 +319,10 @@ export const CategoryTransactionsModal = ({
                 const isFullyRefunded = transaction.isFullyRefunded || false;
                 const netAmount = transaction.netAmount ?? transaction.amount;
                 const showValueDate = hasValueDateDifference(transaction) && preferences.dateType === 'value';
-                
+
                 return (
-                  <div 
-                    key={transaction.id} 
+                  <div
+                    key={transaction.id}
                     className="flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2"
                   >
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
@@ -120,14 +338,14 @@ export const CategoryTransactionsModal = ({
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
                           {hasRefund && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Badge 
+                                <Badge
                                   variant={isFullyRefunded ? "secondary" : "outline"}
                                   className={cn(
                                     "text-[9px] px-1 py-0 h-4 flex-shrink-0",
@@ -170,7 +388,7 @@ export const CategoryTransactionsModal = ({
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="text-right flex-shrink-0">
                       {transaction.type === 'expense' && hasRefund ? (
                         <div className="flex flex-col items-end">
@@ -185,7 +403,7 @@ export const CategoryTransactionsModal = ({
                           </span>
                         </div>
                       ) : (
-                        <span 
+                        <span
                           className={`font-semibold text-xs sm:text-sm ${
                             transaction.type === 'income' ? 'text-success' : 'text-foreground'
                           }`}
