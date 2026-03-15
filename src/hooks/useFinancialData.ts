@@ -438,8 +438,8 @@ export function useFinancialDataInternal() {
 
   const deleteTransaction = async (id: string) => {
     if (!user) return { error: { message: 'User not authenticated' } };
-    
-    // Get the transaction before deleting to check if it's linked to an installment payment
+
+    // Get the transaction before deleting to check linked refunds/installments
     const transactionToDelete = transactions.find(t => t.id === id);
 
     const { error } = await supabase
@@ -449,6 +449,27 @@ export function useFinancialDataInternal() {
       .eq('user_id', user.id);
 
     if (!error) {
+      // If this transaction is a refund, decrement refunded_amount on the original transaction
+      if (transactionToDelete?.refund_of_transaction_id) {
+        const { data: originalTransaction } = await supabase
+          .from('transactions')
+          .select('refunded_amount')
+          .eq('id', transactionToDelete.refund_of_transaction_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (originalTransaction) {
+          const currentRefunded = originalTransaction.refunded_amount || 0;
+          const newRefunded = Math.max(0, currentRefunded - Number(transactionToDelete.amount));
+
+          await supabase
+            .from('transactions')
+            .update({ refunded_amount: newRefunded })
+            .eq('id', transactionToDelete.refund_of_transaction_id)
+            .eq('user_id', user.id);
+        }
+      }
+
       // If this transaction was linked to an installment payment, add the amount back to remaining_amount
       if (transactionToDelete?.installment_payment_id) {
         const { data: installmentPayment } = await supabase
