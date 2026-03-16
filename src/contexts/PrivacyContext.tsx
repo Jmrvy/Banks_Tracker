@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 
 interface PrivacyContextType {
   isPrivacyMode: boolean;
@@ -17,12 +17,14 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('privacyMode', String(isPrivacyMode));
   }, [isPrivacyMode]);
 
-  const togglePrivacyMode = () => {
+  const togglePrivacyMode = useCallback(() => {
     setIsPrivacyMode(prev => !prev);
-  };
+  }, []);
+
+  const value = useMemo(() => ({ isPrivacyMode, togglePrivacyMode }), [isPrivacyMode, togglePrivacyMode]);
 
   return (
-    <PrivacyContext.Provider value={{ isPrivacyMode, togglePrivacyMode }}>
+    <PrivacyContext.Provider value={value}>
       {children}
     </PrivacyContext.Provider>
   );

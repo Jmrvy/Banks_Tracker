@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -67,7 +67,7 @@ export function useFinancialDataInternal() {
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('accounts')
@@ -77,9 +77,9 @@ export function useFinancialDataInternal() {
     if (!error && data) {
       setAccounts(data);
     }
-  };
+  }, [user]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -105,9 +105,9 @@ export function useFinancialDataInternal() {
       })) as Transaction[];
       setTransactions(processedTransactions);
     }
-  };
+  }, [user]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('categories')
@@ -118,10 +118,10 @@ export function useFinancialDataInternal() {
     if (!error && data) {
       setCategories(data);
     }
-  };
+  }, [user]);
 
   // FIXED: Added 'id' to category select
-  const fetchRecurringTransactions = async () => {
+  const fetchRecurringTransactions = useCallback(async () => {
     if (!user) return;
     
     const { data, error } = await supabase
@@ -150,7 +150,8 @@ export function useFinancialDataInternal() {
       // Auto-deactivate expired recurring transactions
       await deactivateExpiredRecurringTransactions(processedRecurring);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Deactivate recurring transactions that have passed their end date
   const deactivateExpiredRecurringTransactions = async (transactions: RecurringTransaction[]) => {
@@ -828,14 +829,17 @@ export function useFinancialDataInternal() {
         }
 
         // For installment-linked recurring, fetch correct type from installment
+        // Fetch full installment data once (reused later for remaining_amount update)
         let txType = rt.type;
         let txAmount = rt.amount;
+        let installmentData: any = null;
         if (rt.installment_payment_id) {
           const { data: ipData } = await supabase
             .from('installment_payments')
-            .select('installment_amount, payment_type')
+            .select('*')
             .eq('id', rt.installment_payment_id)
             .single();
+          installmentData = ipData;
           if (ipData) {
             txType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
             txAmount = ipData.installment_amount;
@@ -883,13 +887,9 @@ export function useFinancialDataInternal() {
           })
           .eq('id', rt.id);
 
-        // Update installment payment if linked
+        // Update installment payment if linked (reuse already-fetched installmentData)
         if (rt.installment_payment_id && occurrencesProcessed > 0) {
-          const { data: installment } = await supabase
-            .from('installment_payments')
-            .select('*')
-            .eq('id', rt.installment_payment_id)
-            .single();
+          const installment = installmentData;
 
           if (installment) {
             // Recalculate remaining_amount from actual linked transactions
@@ -1147,7 +1147,14 @@ export function useFinancialDataInternal() {
     return { error: null, linkedAmount: linkedRefundAmount, excessAmount };
   };
 
-  return {
+  const refetch = useCallback(() => {
+    fetchAccounts();
+    fetchTransactions();
+    fetchCategories();
+    fetchRecurringTransactions();
+  }, [fetchAccounts, fetchTransactions, fetchCategories, fetchRecurringTransactions]);
+
+  return useMemo(() => ({
     accounts,
     transactions,
     categories,
@@ -1166,14 +1173,10 @@ export function useFinancialDataInternal() {
     processDueRecurringTransactions,
     executeRecurringTransactionEarly,
     fetchRecurringTransactions,
-    refetch: () => {
-      fetchAccounts();
-      fetchTransactions();
-      fetchCategories();
-      fetchRecurringTransactions();
-    },
+    refetch,
     manualProcessRecurring: processDueRecurringTransactions
-  };
+  }), [accounts, transactions, categories, recurringTransactions, loading,
+    fetchAccounts, fetchTransactions, fetchCategories, fetchRecurringTransactions, refetch]);
 }
 
 export type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;

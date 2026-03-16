@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface QueuedOperation {
@@ -13,15 +13,15 @@ export const useOfflineQueue = () => {
   const processingLockRef = useRef(false);
   const { toast } = useToast();
 
-  const addToQueue = (operation: () => Promise<void>) => {
+  const addToQueue = useCallback((operation: () => Promise<void>) => {
     const queuedOp: QueuedOperation = {
       id: crypto.randomUUID(),
       operation,
       timestamp: Date.now()
     };
-    
+
     setQueue(prev => [...prev, queuedOp]);
-    
+
     // Save to localStorage for persistence
     const saved = localStorage.getItem('offline-queue') || '[]';
     let savedQueue: Array<{ id: string; timestamp: number }> = [];
@@ -35,62 +35,80 @@ export const useOfflineQueue = () => {
       id: queuedOp.id,
       timestamp: queuedOp.timestamp
     }]));
-  };
+  }, []);
 
-  const processQueue = async () => {
-    if (processingLockRef.current || queue.length === 0 || !navigator.onLine) return;
+  const processQueue = useCallback(async () => {
+    if (processingLockRef.current || !navigator.onLine) return;
 
-    processingLockRef.current = true;
-    setIsProcessing(true);
-    toast({
-      title: "Synchronisation",
-      description: `Synchronisation de ${queue.length} opération(s) en attente...`,
+    // Read queue from ref-like approach via setState callback
+    setQueue(currentQueue => {
+      if (currentQueue.length === 0) return currentQueue;
+
+      processingLockRef.current = true;
+      setIsProcessing(true);
+
+      // Process asynchronously
+      (async () => {
+        toast({
+          title: "Synchronisation",
+          description: `Synchronisation de ${currentQueue.length} opération(s) en attente...`,
+        });
+
+        const results = { success: 0, failed: 0 };
+        const failedIds: string[] = [];
+
+        for (const item of currentQueue) {
+          try {
+            await item.operation();
+            results.success++;
+          } catch (error) {
+            console.error('Failed to process queued operation:', error);
+            results.failed++;
+            failedIds.push(item.id);
+          }
+        }
+
+        if (results.success > 0) {
+          toast({
+            title: "Synchronisation terminée",
+            description: `${results.success} opération(s) synchronisée(s)${results.failed > 0 ? `, ${results.failed} échec(s)` : ''}`,
+          });
+        }
+
+        // Keep only failed items in queue
+        setQueue(prev => prev.filter(q => failedIds.includes(q.id)));
+        localStorage.removeItem('offline-queue');
+        setIsProcessing(false);
+        processingLockRef.current = false;
+      })();
+
+      return currentQueue; // Don't modify queue synchronously
     });
+  }, [toast]);
 
-    const results = {
-      success: 0,
-      failed: 0
-    };
-
-    for (const item of queue) {
-      try {
-        await item.operation();
-        results.success++;
-        setQueue(prev => prev.filter(q => q.id !== item.id));
-      } catch (error) {
-        console.error('Failed to process queued operation:', error);
-        results.failed++;
-      }
-    }
-
-    if (results.success > 0) {
-      toast({
-        title: "Synchronisation terminée",
-        description: `${results.success} opération(s) synchronisée(s)${results.failed > 0 ? `, ${results.failed} échec(s)` : ''}`,
-      });
-    }
-
-    localStorage.removeItem('offline-queue');
-    setIsProcessing(false);
-    processingLockRef.current = false;
-  };
-
+  // Listen for sync events and process on mount if online
   useEffect(() => {
     const handleSync = () => {
       processQueue();
     };
 
     window.addEventListener('sync-offline-data', handleSync);
-    
-    // Try to process queue on mount if online
-    if (navigator.onLine && queue.length > 0) {
-      processQueue();
-    }
+    window.addEventListener('online', handleSync);
 
     return () => {
       window.removeEventListener('sync-offline-data', handleSync);
+      window.removeEventListener('online', handleSync);
     };
-  }, [queue, isProcessing]);
+  }, [processQueue]);
+
+  // Process queue once on mount if online and queue has items
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (!mountedRef.current && queue.length > 0 && navigator.onLine) {
+      mountedRef.current = true;
+      processQueue();
+    }
+  }, [queue.length, processQueue]);
 
   return {
     addToQueue,

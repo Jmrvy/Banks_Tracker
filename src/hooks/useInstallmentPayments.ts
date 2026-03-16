@@ -416,12 +416,23 @@ export const useInstallmentPayments = () => {
       return { error: new Error('Installment payment not found') };
     }
 
-    // Fetch all transactions linked to this installment payment
-    const { data: linkedTransactions, error: txError } = await supabase
-      .from('transactions')
-      .select('id, amount, type')
-      .eq('installment_payment_id', id)
-      .eq('user_id', user.id);
+    // Fetch linked transactions and recurring in parallel (avoid waterfall)
+    const [txResult, recurringResult] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('id, amount, type')
+        .eq('installment_payment_id', id)
+        .eq('user_id', user.id),
+      supabase
+        .from('recurring_transactions')
+        .select('*')
+        .eq('installment_payment_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+    ]);
+
+    const { data: linkedTransactions, error: txError } = txResult;
+    const { data: linkedRecurring } = recurringResult;
 
     if (txError) {
       console.error('Error fetching linked transactions:', txError);
@@ -440,14 +451,6 @@ export const useInstallmentPayments = () => {
     if (isComplete) {
       newInstallmentAmount = 0;
     }
-
-    // Fetch linked recurring transaction (full data for date repair)
-    const { data: linkedRecurring } = await supabase
-      .from('recurring_transactions')
-      .select('*')
-      .eq('installment_payment_id', id)
-      .eq('user_id', user.id)
-      .maybeSingle();
 
     // Repair corrupted next_due_date if needed
     let correctedNextDueDate: string | null = null;

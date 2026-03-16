@@ -27,7 +27,7 @@ export const useSavingsGoals = () => {
     queryKey: ['savings-goals', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
+
       const { data, error } = await supabase
         .from('savings_goals')
         .select('*')
@@ -38,6 +38,8 @@ export const useSavingsGoals = () => {
       return data as SavingsGoal[];
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 minutes before data is considered stale
+    refetchOnWindowFocus: false,
   });
 
   const createGoal = useMutation({
@@ -54,7 +56,7 @@ export const useSavingsGoals = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
+      queryClient.invalidateQueries({ queryKey: ['savings-goals', user?.id] });
       toast.success(t('savings.goalCreated'));
     },
     onError: (error) => {
@@ -76,7 +78,7 @@ export const useSavingsGoals = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
+      queryClient.invalidateQueries({ queryKey: ['savings-goals', user?.id] });
       toast.success(t('savings.goalUpdated'));
     },
     onError: (error) => {
@@ -95,7 +97,7 @@ export const useSavingsGoals = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
+      queryClient.invalidateQueries({ queryKey: ['savings-goals', user?.id] });
       toast.success(t('savings.goalDeleted'));
     },
     onError: (error) => {
