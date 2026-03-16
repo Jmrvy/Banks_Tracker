@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,23 +9,27 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
-import Index from "@/pages/Index";
 import { FinancialDataProvider } from "@/hooks/useFinancialData";
-import Auth from "@/pages/Auth";
-import NotFound from "@/pages/NotFound";
-import Reports from "@/pages/Reports";
-import Settings from "@/pages/Settings";
-import RecurringTransactions from "@/pages/RecurringTransactions";
-import NewTransaction from "@/pages/NewTransaction";
-import Debts from "@/pages/Debts";
-import Accounts from "@/pages/Accounts";
-import Transactions from "@/pages/Transactions";
-import InstallmentPayments from "@/pages/InstallmentPayments";
-import Savings from "@/pages/Savings";
-import Install from "@/pages/Install";
-import Onboarding from "@/pages/Onboarding";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
+
+// Eagerly loaded (critical path)
+import Index from "@/pages/Index";
+import Auth from "@/pages/Auth";
+
+// Lazy-loaded pages (loaded on navigation)
+const Reports = lazy(() => import("@/pages/Reports"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const RecurringTransactions = lazy(() => import("@/pages/RecurringTransactions"));
+const NewTransaction = lazy(() => import("@/pages/NewTransaction"));
+const Debts = lazy(() => import("@/pages/Debts"));
+const Accounts = lazy(() => import("@/pages/Accounts"));
+const Transactions = lazy(() => import("@/pages/Transactions"));
+const InstallmentPayments = lazy(() => import("@/pages/InstallmentPayments"));
+const Savings = lazy(() => import("@/pages/Savings"));
+const Install = lazy(() => import("@/pages/Install"));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -67,6 +71,7 @@ function AppRoutes() {
     <>
       {user && !isOnboardingPage && !isMobile && <AppSidebar />}
       <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pb-20 min-h-screen" : "min-h-screen"}>
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" /></div>}>
         <Routes>
           <Route 
             path="/auth" 
@@ -163,6 +168,7 @@ function AppRoutes() {
           <Route path="/install" element={<Install />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </div>
       {user && !isOnboardingPage && isMobile && <MobileNavigation />}
     </>

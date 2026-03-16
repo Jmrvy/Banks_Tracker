@@ -137,35 +137,45 @@ export const useReportsData = (
   }, [transactions, period, activeDateType]);
 
   // Shared initial balance calculation (used by stats and balance evolution)
+  // O(n) approach: single pass through transactions, accumulate per-account net changes
   const initialBalance = useMemo(() => {
+    // Build a set of account names for fast lookup
+    const accountNames = new Set(accounts.map(a => a.name));
+
+    // Single pass: accumulate net change per account name
+    const netChangeByAccount = new Map<string, number>();
+    for (const t of transactions) {
+      const transactionDate = activeDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
+      if (transactionDate < period.from) continue;
+
+      const srcName = t.account?.name;
+      const dstName = t.transfer_to_account?.name;
+
+      if (srcName && accountNames.has(srcName)) {
+        const prev = netChangeByAccount.get(srcName) || 0;
+        switch (t.type) {
+          case 'income':
+            netChangeByAccount.set(srcName, prev - Number(t.amount));
+            break;
+          case 'expense':
+            netChangeByAccount.set(srcName, prev + Number(t.amount));
+            break;
+          case 'transfer':
+            netChangeByAccount.set(srcName, prev + Number(t.amount) + Number(t.transfer_fee || 0));
+            break;
+        }
+      }
+      if (dstName && accountNames.has(dstName)) {
+        const prev = netChangeByAccount.get(dstName) || 0;
+        netChangeByAccount.set(dstName, prev - Number(t.amount));
+      }
+    }
+
     return accounts.reduce((sum, account) => {
-      const accountTransactionsSincePeriodStart = transactions.filter(t => {
-        const transactionDate = activeDateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
-        return transactionDate >= period.from &&
-               (t.account?.name === account.name || t.transfer_to_account?.name === account.name);
-      });
-
-      const accountNetChange = accountTransactionsSincePeriodStart.reduce((change, t) => {
-        if (t.account?.name === account.name) {
-          switch (t.type) {
-            case 'income':
-              return change - Number(t.amount);
-            case 'expense':
-              return change + Number(t.amount);
-            case 'transfer':
-              return change + Number(t.amount) + Number(t.transfer_fee || 0);
-          }
-        }
-        if (t.transfer_to_account?.name === account.name) {
-          return change - Number(t.amount);
-        }
-        return change;
-      }, 0);
-
-      const initialAccountBalance = Number(account.balance) + accountNetChange;
-      return sum + initialAccountBalance;
+      const netChange = netChangeByAccount.get(account.name) || 0;
+      return sum + Number(account.balance) + netChange;
     }, 0);
   }, [accounts, transactions, period, activeDateType]);
 
@@ -432,12 +442,15 @@ export const useReportsData = (
     
     // Filtrer uniquement les transactions qui doivent être incluses dans les stats
     // Utiliser le montant NET (original - remboursé) pour les dépenses
+    // Pre-build category budget lookup (O(1) instead of O(n) per transaction)
+    const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
+
     const expensesByCategory = filteredTransactions
       .filter(t => t.type === 'expense' && t.include_in_stats !== false)
       .reduce((acc, t) => {
         const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';
-        const category = categories.find(c => c.id === categoryId);
+        const categoryBudget = categoryBudgetMap.get(categoryId) || 0;
         const categoryColor = t.category?.color || '#6b7280';
         
         // Calculer le montant net (après remboursement)
@@ -448,7 +461,7 @@ export const useReportsData = (
           acc[categoryId] = {
             name: categoryName,
             spent: 0,
-            budget: Number(category?.budget || 0) * budgetMultiplier,
+            budget: Number(categoryBudget) * budgetMultiplier,
             color: categoryColor
           };
         }

@@ -73,15 +73,17 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
     return { dateRange: { start, end }, periodLabel: label };
   }, [selectedPeriod, customDateRange]);
 
+  const value = useMemo(() => ({
+    selectedPeriod,
+    setSelectedPeriod,
+    dateRange,
+    periodLabel,
+    customDateRange,
+    setCustomDateRange
+  }), [selectedPeriod, dateRange, periodLabel, customDateRange]);
+
   return (
-    <PeriodContext.Provider value={{ 
-      selectedPeriod, 
-      setSelectedPeriod, 
-      dateRange, 
-      periodLabel,
-      customDateRange,
-      setCustomDateRange
-    }}>
+    <PeriodContext.Provider value={value}>
       {children}
     </PeriodContext.Provider>
   );
