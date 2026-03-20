@@ -699,6 +699,51 @@ export const useInstallmentPayments = () => {
     }
   };
 
+  // Detect orphaned transactions whose installment_payment_id points to
+  // an installment that no longer exists (e.g. deleted before the cascade fix)
+  const detectOrphanedTransactions = async () => {
+    if (!user) return [];
+
+    // Fetch all transactions that reference an installment payment
+    const { data: txWithInstallment } = await supabase
+      .from('transactions')
+      .select('id, installment_payment_id, description, amount, type, transaction_date, account_id')
+      .eq('user_id', user.id)
+      .not('installment_payment_id', 'is', null);
+
+    if (!txWithInstallment || txWithInstallment.length === 0) return [];
+
+    // Fetch all existing installment payment IDs
+    const { data: existingInstallments } = await supabase
+      .from('installment_payments')
+      .select('id')
+      .eq('user_id', user.id);
+
+    const existingIds = new Set((existingInstallments || []).map(ip => ip.id));
+
+    // Find orphaned transactions
+    return txWithInstallment.filter(
+      tx => tx.installment_payment_id && !existingIds.has(tx.installment_payment_id)
+    );
+  };
+
+  const deleteOrphanedTransactions = async (ids: string[]) => {
+    if (!user || ids.length === 0) return { error: null };
+
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .in('id', ids)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('[installment-cleanup] Error deleting orphaned transactions:', error);
+      return { error };
+    }
+
+    return { error: null };
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -813,5 +858,7 @@ export const useInstallmentPayments = () => {
     fetchPaymentHistory,
     deleteHistoryEntry,
     fetchLinkedTransactions,
+    detectOrphanedTransactions,
+    deleteOrphanedTransactions,
   };
 };

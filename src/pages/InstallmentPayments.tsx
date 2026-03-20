@@ -35,7 +35,7 @@ const parseLocalDate = (dateStr: string): Date => {
 };
 
 const InstallmentPayments = () => {
-  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions } = useInstallmentPayments();
+  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions, detectOrphanedTransactions, deleteOrphanedTransactions } = useInstallmentPayments();
   const { accounts, categories, transactions, refetch } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
@@ -60,6 +60,21 @@ const InstallmentPayments = () => {
     paymentAmount: number;
     newRemainingAmount: number;
   } | null>(null);
+  const [orphanedTransactions, setOrphanedTransactions] = useState<Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; account_id: string }>>([]);
+  const [orphanDialogOpen, setOrphanDialogOpen] = useState(false);
+
+  // Detect orphaned transactions on load
+  useEffect(() => {
+    if (loading) return;
+    const checkOrphans = async () => {
+      const orphans = await detectOrphanedTransactions();
+      if (orphans.length > 0) {
+        setOrphanedTransactions(orphans);
+        setOrphanDialogOpen(true);
+      }
+    };
+    checkOrphans();
+  }, [loading]);
 
   // Keep selectedPayment in sync with refreshed installmentPayments
   useEffect(() => {
@@ -665,6 +680,67 @@ const InstallmentPayments = () => {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Supprimer{linkedTransactionsToDelete.length > 0 ? ` (${linkedTransactionsToDelete.length + 1} éléments)` : ''}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={orphanDialogOpen} onOpenChange={setOrphanDialogOpen}>
+        <AlertDialogContent className="max-h-[85vh] flex flex-col">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Transactions orphelines détectées</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  {orphanedTransactions.length} transaction(s) sont liées à des paiements échelonnés qui n'existent plus. Souhaitez-vous les supprimer ?
+                </p>
+                <div className="max-h-[250px] overflow-y-auto rounded-md border bg-muted/50 divide-y">
+                  {orphanedTransactions.map((tx) => {
+                    const accountName = accounts.find(a => a.id === tx.account_id)?.name;
+                    return (
+                      <div key={tx.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <div className="flex flex-col min-w-0 flex-1 mr-2">
+                          <span className="truncate font-medium text-foreground">{tx.description}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(tx.transaction_date + 'T00:00:00').toLocaleDateString('fr-FR')}
+                            {accountName && ` · ${accountName}`}
+                          </span>
+                        </div>
+                        <span className={`font-medium whitespace-nowrap ${tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'}`}>
+                          {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrphanedTransactions([])}>Conserver</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                const ids = orphanedTransactions.map(tx => tx.id);
+                const { error } = await deleteOrphanedTransactions(ids);
+                if (error) {
+                  toast({
+                    title: "Erreur",
+                    description: "Impossible de supprimer les transactions orphelines.",
+                    variant: "destructive",
+                  });
+                } else {
+                  await refetch();
+                  toast({
+                    title: "Transactions supprimées",
+                    description: `${ids.length} transaction(s) orpheline(s) supprimée(s).`,
+                  });
+                }
+                setOrphanedTransactions([]);
+                setOrphanDialogOpen(false);
+              }}
+            >
+              Supprimer ({orphanedTransactions.length})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
