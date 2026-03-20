@@ -582,6 +582,24 @@ export const useInstallmentPayments = () => {
     };
   };
 
+  const fetchLinkedTransactions = async (id: string) => {
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, description, amount, type, transaction_date, account_id')
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id)
+      .order('transaction_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching linked transactions:', error);
+      return [];
+    }
+
+    return data || [];
+  };
+
   const deleteInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
@@ -602,6 +620,14 @@ export const useInstallmentPayments = () => {
       );
     }
 
+    // Delete linked transactions first
+    await supabase
+      .from('transactions')
+      .delete()
+      .eq('installment_payment_id', id)
+      .eq('user_id', user.id);
+
+    // Delete linked recurring transaction
     await supabase
       .from('recurring_transactions')
       .delete()
@@ -786,5 +812,6 @@ export const useInstallmentPayments = () => {
     recalculateInstallmentPayment,
     fetchPaymentHistory,
     deleteHistoryEntry,
+    fetchLinkedTransactions,
   };
 };

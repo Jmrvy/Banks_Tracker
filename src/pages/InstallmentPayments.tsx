@@ -35,8 +35,8 @@ const parseLocalDate = (dateStr: string): Date => {
 };
 
 const InstallmentPayments = () => {
-  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment } = useInstallmentPayments();
-  const { accounts, categories, transactions } = useFinancialData();
+  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions } = useInstallmentPayments();
+  const { accounts, categories, transactions, refetch } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
   const [showNewModal, setShowNewModal] = useState(false);
@@ -48,6 +48,8 @@ const InstallmentPayments = () => {
   const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+  const [linkedTransactionsToDelete, setLinkedTransactionsToDelete] = useState<Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; account_id: string }>>([]);
+  const [loadingLinkedTransactions, setLoadingLinkedTransactions] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -138,9 +140,15 @@ const InstallmentPayments = () => {
     }
   };
 
-  const handleDeleteClick = (paymentId: string) => {
+  const handleDeleteClick = async (paymentId: string) => {
     setPaymentToDelete(paymentId);
+    setLinkedTransactionsToDelete([]);
+    setLoadingLinkedTransactions(true);
     setDeleteDialogOpen(true);
+
+    const linked = await fetchLinkedTransactions(paymentId);
+    setLinkedTransactionsToDelete(linked);
+    setLoadingLinkedTransactions(false);
   };
 
   const handleDeleteConfirm = async () => {
@@ -155,14 +163,22 @@ const InstallmentPayments = () => {
         variant: "destructive",
       });
     } else {
+      const txCount = linkedTransactionsToDelete.length;
+      // Refetch accounts & transactions since linked transactions were deleted
+      if (txCount > 0) {
+        await refetch();
+      }
       toast({
         title: "Paiement supprimé",
-        description: "Le paiement échelonné et sa transaction récurrente associée ont été supprimés.",
+        description: txCount > 0
+          ? `Le paiement échelonné, sa transaction récurrente et ${txCount} transaction(s) associée(s) ont été supprimés.`
+          : "Le paiement échelonné et sa transaction récurrente associée ont été supprimés.",
       });
     }
 
     setDeleteDialogOpen(false);
     setPaymentToDelete(null);
+    setLinkedTransactionsToDelete([]);
   };
 
   const handleComplete = async (payment: InstallmentPayment) => {
@@ -597,18 +613,58 @@ const InstallmentPayments = () => {
         />
       )}
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        setDeleteDialogOpen(open);
+        if (!open) {
+          setPaymentToDelete(null);
+          setLinkedTransactionsToDelete([]);
+        }
+      }}>
+        <AlertDialogContent className="max-h-[85vh] flex flex-col">
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer le paiement échelonné ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible. Le paiement échelonné et sa transaction récurrente associée seront définitivement supprimés.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Cette action est irréversible. Le paiement échelonné et sa transaction récurrente associée seront définitivement supprimés.</p>
+                {loadingLinkedTransactions && (
+                  <p className="text-muted-foreground text-sm">Chargement des transactions liées...</p>
+                )}
+                {!loadingLinkedTransactions && linkedTransactionsToDelete.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="font-medium text-destructive">
+                      {linkedTransactionsToDelete.length} transaction(s) associée(s) seront également supprimée(s) :
+                    </p>
+                    <div className="max-h-[200px] overflow-y-auto rounded-md border bg-muted/50 divide-y">
+                      {linkedTransactionsToDelete.map((tx) => {
+                        const accountName = accounts.find(a => a.id === tx.account_id)?.name;
+                        return (
+                          <div key={tx.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                            <div className="flex flex-col min-w-0 flex-1 mr-2">
+                              <span className="truncate font-medium text-foreground">{tx.description}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(tx.transaction_date + 'T00:00:00').toLocaleDateString('fr-FR')}
+                                {accountName && ` · ${accountName}`}
+                              </span>
+                            </div>
+                            <span className={`font-medium whitespace-nowrap ${tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'}`}>
+                              {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {!loadingLinkedTransactions && linkedTransactionsToDelete.length === 0 && (
+                  <p className="text-muted-foreground text-sm">Aucune transaction liée à supprimer.</p>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Supprimer
+              Supprimer{linkedTransactionsToDelete.length > 0 ? ` (${linkedTransactionsToDelete.length + 1} éléments)` : ''}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
