@@ -79,12 +79,14 @@ export const useDebts = () => {
     setPayments(data || []);
   };
 
-  const createDebt = async (debtData: Omit<Debt, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  const createDebt = async (debtData: Omit<Debt, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<string | undefined> => {
     if (!user) return;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('debts')
-      .insert([{ ...debtData, user_id: user.id }]);
+      .insert([{ ...debtData, user_id: user.id }])
+      .select('id')
+      .single();
 
     if (error) {
       toast({
@@ -101,6 +103,7 @@ export const useDebts = () => {
     });
 
     await fetchDebts();
+    return data?.id;
   };
 
   const updateDebt = async (id: string, updates: Partial<Debt>) => {

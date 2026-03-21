@@ -117,8 +117,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
             </TabsTrigger>
             <TabsTrigger value="pdf-import" className="gap-1 sm:gap-2 text-[11px] sm:text-sm">
               <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Import PDF</span>
-              <span className="sm:hidden">PDF</span>
+              <span className="hidden sm:inline">Importer</span>
+              <span className="sm:hidden">Import</span>
             </TabsTrigger>
             <TabsTrigger value="details" className="gap-1 sm:gap-2 text-[11px] sm:text-sm" disabled={!calculation}>
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

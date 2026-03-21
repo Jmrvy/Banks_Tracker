@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,8 +10,36 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { parseLoanPDF, type ParsedLoanInfo, type ParsedScheduleRow } from '@/utils/pdfScheduleParser';
-import { Upload, FileText, Loader2, Check, AlertCircle, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import type { ParsedLoanInfo } from '@/utils/pdfScheduleParser';
+import { Upload, FileText, Loader2, Check, AlertCircle, ChevronDown, ChevronUp, Eye, FileSpreadsheet } from 'lucide-react';
+
+const ACCEPTED_EXTENSIONS = '.pdf,.csv,.xlsx,.xls,.ods';
+const ACCEPTED_MIME_TYPES = [
+  'application/pdf',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/vnd.oasis.opendocument.spreadsheet',
+];
+
+type FileFormat = 'pdf' | 'csv' | 'excel';
+
+function detectFormat(file: File): FileFormat | null {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf' || file.type === 'application/pdf') return 'pdf';
+  if (ext === 'csv' || file.type === 'text/csv') return 'csv';
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'ods' ||
+      file.type.includes('spreadsheet') || file.type.includes('excel')) return 'excel';
+  return null;
+}
+
+function getFormatLabel(format: FileFormat): string {
+  switch (format) {
+    case 'pdf': return 'PDF';
+    case 'csv': return 'CSV';
+    case 'excel': return 'Excel';
+  }
+}
 
 interface PdfLoanImportProps {
   onSuccess: () => void;
@@ -23,15 +51,17 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedLoanInfo | null>(null);
   const [fileName, setFileName] = useState('');
+  const [fileFormat, setFileFormat] = useState<FileFormat | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
   const [showRawText, setShowRawText] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  // Editable fields (populated from parsed data, user can adjust)
   const [formData, setFormData] = useState({
     description: '',
     type: 'loan_received' as 'loan_given' | 'loan_received',
@@ -44,31 +74,46 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
     notes: '',
   });
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
+  const parseFile = useCallback(async (file: File) => {
+    const format = detectFormat(file);
+    if (!format) {
       toast({
-        title: 'Format invalide',
-        description: 'Veuillez sélectionner un fichier PDF',
+        title: 'Format non supporté',
+        description: 'Formats acceptés : PDF, CSV, Excel (.xlsx, .xls)',
         variant: 'destructive',
       });
       return;
     }
 
     setFileName(file.name);
+    setFileFormat(format);
     setParsing(true);
     setParsedData(null);
 
     try {
-      const data = await parseLoanPDF(file);
+      let data: ParsedLoanInfo;
+
+      if (format === 'pdf') {
+        const { parseLoanPDF } = await import('@/utils/pdfScheduleParser');
+        data = await parseLoanPDF(file);
+      } else if (format === 'csv') {
+        const { parseCSVSchedule } = await import('@/utils/spreadsheetScheduleParser');
+        data = await parseCSVSchedule(file);
+      } else {
+        const { parseExcelSchedule } = await import('@/utils/spreadsheetScheduleParser');
+        data = await parseExcelSchedule(file);
+      }
+
       setParsedData(data);
 
       // Pre-fill the form with parsed data
+      const cleanName = file.name
+        .replace(/\.(pdf|csv|xlsx|xls|ods)$/i, '')
+        .replace(/[_-]/g, ' ');
+
       setFormData(prev => ({
         ...prev,
-        description: file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '),
+        description: cleanName,
         totalAmount: data.totalAmount?.toString() || '',
         interestRate: data.interestRate?.toString() || '',
         monthlyPayment: data.monthlyPayment?.toString() || '',
@@ -79,26 +124,52 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
       if (data.schedule.length === 0 && !data.totalAmount) {
         toast({
           title: 'Extraction partielle',
-          description: 'Le PDF a été lu mais peu de données ont été détectées. Veuillez compléter les champs manuellement.',
+          description: `Le fichier ${getFormatLabel(format)} a été lu mais peu de données ont été détectées. Veuillez compléter les champs manuellement.`,
           variant: 'destructive',
         });
       } else {
         toast({
-          title: 'PDF analysé',
+          title: `${getFormatLabel(format)} analysé`,
           description: `${data.schedule.length} échéances détectées`,
         });
       }
     } catch (error) {
-      console.error('PDF parsing error:', error);
+      console.error(`${format} parsing error:`, error);
       toast({
         title: 'Erreur de lecture',
-        description: 'Impossible de lire le fichier PDF. Vérifiez que le fichier n\'est pas protégé.',
+        description: `Impossible de lire le fichier. Vérifiez que le format est correct et que le fichier n'est pas protégé.`,
         variant: 'destructive',
       });
     } finally {
       setParsing(false);
     }
+  }, [toast]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await parseFile(file);
   };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) await parseFile(file);
+  }, [parseFile]);
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -139,8 +210,8 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
         endDate = parsedData.schedule[parsedData.schedule.length - 1].date;
       }
 
-      // Create the debt
-      await createDebt({
+      // Create the debt and get its ID directly
+      const debtId = await createDebt({
         description: formData.description,
         type: formData.type,
         total_amount: totalAmount,
@@ -156,17 +227,6 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
         payment_amount: monthlyPayment,
         loan_type: 'amortizable',
       });
-
-      // Get the newly created debt to link scheduled payments
-      const { data: debts } = await supabase
-        .from('debts')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('description', formData.description)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      const debtId = debts?.[0]?.id;
 
       // Create scheduled payments from the parsed schedule
       if (debtId && parsedData?.schedule && parsedData.schedule.length > 0) {
@@ -198,7 +258,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
 
       onSuccess();
     } catch (error) {
-      console.error('Error creating debt from PDF:', error);
+      console.error('Error creating debt from import:', error);
       toast({
         title: 'Erreur',
         description: 'Impossible de créer la dette',
@@ -213,24 +273,36 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
     <div className="space-y-4">
       {/* File upload area */}
       <div
+        ref={dropZoneRef}
         onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-white/[0.12] rounded-2xl p-6 sm:p-8 text-center cursor-pointer hover:border-primary/40 hover:bg-white/[0.02] transition-all duration-300"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-300 ${
+          isDragOver
+            ? 'border-primary/60 bg-primary/5'
+            : 'border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.02]'
+        }`}
       >
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf"
+          accept={ACCEPTED_EXTENSIONS}
           onChange={handleFileChange}
           className="hidden"
         />
         {parsing ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Analyse du PDF en cours...</p>
+            <p className="text-sm text-muted-foreground">Analyse du fichier en cours...</p>
           </div>
         ) : fileName ? (
           <div className="flex flex-col items-center gap-2">
-            <FileText className="h-8 w-8 text-primary" />
+            {fileFormat === 'pdf' ? (
+              <FileText className="h-8 w-8 text-primary" />
+            ) : (
+              <FileSpreadsheet className="h-8 w-8 text-primary" />
+            )}
             <p className="text-sm font-medium">{fileName}</p>
             <p className="text-xs text-muted-foreground">Cliquez pour changer de fichier</p>
           </div>
@@ -238,10 +310,15 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
           <div className="flex flex-col items-center gap-3">
             <Upload className="h-8 w-8 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Importer un échéancier PDF</p>
+              <p className="text-sm font-medium">Importer un échéancier</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Glissez ou cliquez pour sélectionner votre fichier
               </p>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <Badge variant="outline" className="text-[10px]">PDF</Badge>
+                <Badge variant="outline" className="text-[10px]">CSV</Badge>
+                <Badge variant="outline" className="text-[10px]">Excel</Badge>
+              </div>
             </div>
           </div>
         )}
@@ -305,7 +382,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
                     <tbody>
                       {parsedData.schedule.slice(0, 12).map((row, i) => (
                         <tr key={i} className="border-t border-white/[0.04]">
-                          <td className="p-2">{new Date(row.date).toLocaleDateString('fr-FR')}</td>
+                          <td className="p-2">{new Date(row.date + 'T00:00:00').toLocaleDateString('fr-FR')}</td>
                           <td className="p-2 text-right">{formatCurrency(row.payment)}</td>
                           <td className="p-2 text-right hidden sm:table-cell">{formatCurrency(row.principal)}</td>
                           <td className="p-2 text-right hidden sm:table-cell">{formatCurrency(row.interest)}</td>
@@ -326,7 +403,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
             </div>
           )}
 
-          {/* Raw text debug view */}
+          {/* Raw text debug view (PDF only) */}
           {parsedData.rawText && (
             <div className="rounded-xl border border-white/[0.08] overflow-hidden">
               <button
@@ -352,9 +429,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
             <h4 className="text-sm font-medium text-muted-foreground">Vérifiez et complétez les informations</h4>
 
             <div>
-              <Label htmlFor="pdf-description">Description *</Label>
+              <Label htmlFor="import-description">Description *</Label>
               <Input
-                id="pdf-description"
+                id="import-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Ex: Prêt immobilier"
@@ -363,7 +440,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="pdf-type">Type</Label>
+                <Label htmlFor="import-type">Type</Label>
                 <Select value={formData.type} onValueChange={(v: any) => setFormData({ ...formData, type: v })}>
                   <SelectTrigger>
                     <SelectValue />
@@ -375,9 +452,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="pdf-contact">Contact</Label>
+                <Label htmlFor="import-contact">Contact</Label>
                 <Input
-                  id="pdf-contact"
+                  id="import-contact"
                   value={formData.contact_name}
                   onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
                   placeholder="Nom du prêteur"
@@ -387,9 +464,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="pdf-amount">Montant total *</Label>
+                <Label htmlFor="import-amount">Montant total *</Label>
                 <Input
-                  id="pdf-amount"
+                  id="import-amount"
                   type="number"
                   step="0.01"
                   value={formData.totalAmount}
@@ -398,9 +475,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
                 />
               </div>
               <div>
-                <Label htmlFor="pdf-rate">Taux d'intérêt (%)</Label>
+                <Label htmlFor="import-rate">Taux d'intérêt (%)</Label>
                 <Input
-                  id="pdf-rate"
+                  id="import-rate"
                   type="number"
                   step="0.01"
                   value={formData.interestRate}
@@ -412,9 +489,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="pdf-payment">Mensualité</Label>
+                <Label htmlFor="import-payment">Mensualité</Label>
                 <Input
-                  id="pdf-payment"
+                  id="import-payment"
                   type="number"
                   step="0.01"
                   value={formData.monthlyPayment}
@@ -423,9 +500,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
                 />
               </div>
               <div>
-                <Label htmlFor="pdf-duration">Durée (mois)</Label>
+                <Label htmlFor="import-duration">Durée (mois)</Label>
                 <Input
-                  id="pdf-duration"
+                  id="import-duration"
                   type="number"
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
@@ -435,9 +512,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
             </div>
 
             <div>
-              <Label htmlFor="pdf-start">Date de début</Label>
+              <Label htmlFor="import-start">Date de début</Label>
               <Input
-                id="pdf-start"
+                id="import-start"
                 type="date"
                 value={formData.startDate}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
@@ -445,9 +522,9 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
             </div>
 
             <div>
-              <Label htmlFor="pdf-notes">Notes</Label>
+              <Label htmlFor="import-notes">Notes</Label>
               <Textarea
-                id="pdf-notes"
+                id="import-notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Notes supplémentaires..."
