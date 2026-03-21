@@ -24,7 +24,9 @@ import {
   CheckCircle2,
   Clock,
   Plus,
+  Link,
 } from 'lucide-react';
+import { LinkDebtPaymentModal } from '@/components/LinkDebtPaymentModal';
 
 interface ScheduledPayment {
   id: string;
@@ -56,6 +58,8 @@ export const DebtDetailsModal = ({
   const { payments: allPayments, deletePayment } = useDebts();
   const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [selectedScheduledPayment, setSelectedScheduledPayment] = useState<ScheduledPayment | null>(null);
 
   const debtPayments = allPayments.filter(p => debt && p.debt_id === debt.id);
 
@@ -76,6 +80,15 @@ export const DebtDetailsModal = ({
       .order('scheduled_date', { ascending: true });
     setScheduledPayments(data || []);
     setLoadingSchedule(false);
+  };
+
+  const handleLinkPayment = (sp: ScheduledPayment) => {
+    setSelectedScheduledPayment(sp);
+    setLinkModalOpen(true);
+  };
+
+  const handlePaymentRecorded = () => {
+    fetchScheduledPayments();
   };
 
   if (!debt) return null;
@@ -422,9 +435,22 @@ export const DebtDetailsModal = ({
                             <p className="text-[9px] sm:text-[10px] text-destructive font-medium">En retard</p>
                           )}
                         </div>
-                        <span className={`text-[11px] sm:text-xs font-semibold whitespace-nowrap ${isPaid ? 'text-green-600' : ''}`}>
-                          {formatCurrency(sp.actual_amount || sp.scheduled_amount)}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-[11px] sm:text-xs font-semibold whitespace-nowrap ${isPaid ? 'text-green-600' : ''}`}>
+                            {formatCurrency(sp.actual_amount || sp.scheduled_amount)}
+                          </span>
+                          {!isPaid && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleLinkPayment(sp)}
+                              className="h-6 w-6 sm:h-7 sm:w-7"
+                              title="Lier une transaction"
+                            >
+                              <Link className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -434,6 +460,16 @@ export const DebtDetailsModal = ({
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {selectedScheduledPayment && (
+        <LinkDebtPaymentModal
+          open={linkModalOpen}
+          onOpenChange={setLinkModalOpen}
+          debt={debt}
+          scheduledPayment={selectedScheduledPayment}
+          onPaymentRecorded={handlePaymentRecorded}
+        />
+      )}
     </Dialog>
   );
 };
