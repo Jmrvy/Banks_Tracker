@@ -4,6 +4,7 @@ import { Plus, Wallet } from 'lucide-react';
 import { NewDebtModal } from '@/components/NewDebtModal';
 import { EditDebtModal } from '@/components/EditDebtModal';
 import { AddPaymentModal } from '@/components/AddPaymentModal';
+import { DebtDetailsModal } from '@/components/DebtDetailsModal';
 import { DebtCard } from '@/components/DebtCard';
 import { useDebts, Debt } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -16,6 +17,7 @@ const Debts = () => {
   const [newDebtModalOpen, setNewDebtModalOpen] = useState(false);
   const [editDebtModalOpen, setEditDebtModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
 
   const handleAddPayment = (debt: Debt) => {
@@ -26,6 +28,11 @@ const Debts = () => {
   const handleEditDebt = (debt: Debt) => {
     setSelectedDebt(debt);
     setEditDebtModalOpen(true);
+  };
+
+  const handleViewDetails = (debt: Debt) => {
+    setSelectedDebt(debt);
+    setDetailsModalOpen(true);
   };
 
   const activeDebts = debts.filter(d => d.status === 'active');
@@ -138,12 +145,13 @@ const Debts = () => {
             ) : (
               <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
                 {activeDebts.map(debt => (
-                  <DebtCard 
-                    key={debt.id} 
-                    debt={debt} 
+                  <DebtCard
+                    key={debt.id}
+                    debt={debt}
                     onAddPayment={handleAddPayment}
                     onEdit={handleEditDebt}
                     onDelete={deleteDebt}
+                    onClick={handleViewDetails}
                   />
                 ))}
               </div>
@@ -186,10 +194,17 @@ const Debts = () => {
         onOpenChange={setEditDebtModalOpen}
         debt={selectedDebt}
       />
-      <AddPaymentModal 
-        open={paymentModalOpen} 
+      <AddPaymentModal
+        open={paymentModalOpen}
         onOpenChange={setPaymentModalOpen}
         debt={selectedDebt}
+      />
+      <DebtDetailsModal
+        open={detailsModalOpen}
+        onOpenChange={setDetailsModalOpen}
+        debt={selectedDebt}
+        onAddPayment={handleAddPayment}
+        onEdit={handleEditDebt}
       />
     </div>
   );
