@@ -13,9 +13,10 @@ interface DebtCardProps {
   onAddPayment: (debt: Debt) => void;
   onEdit: (debt: Debt) => void;
   onDelete: (id: string) => void;
+  onClick?: (debt: Debt) => void;
 }
 
-export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps) => {
+export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete, onClick }: DebtCardProps) => {
   const { formatCurrency } = useUserPreferences();
 
   const getTypeLabel = (type: string) => {
@@ -58,7 +59,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
   };
 
   return (
-    <Card className="glass-hover animate-glass-scale-in">
+    <Card className="glass-hover animate-glass-scale-in cursor-pointer" onClick={() => onClick?.(debt)}>
       <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 flex-1 min-w-0">
@@ -74,7 +75,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onEdit(debt)}
+              onClick={(e) => { e.stopPropagation(); onEdit(debt); }}
               className="h-9 w-9 sm:h-8 sm:w-8"
             >
               <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -82,7 +83,7 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onDelete(debt.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete(debt.id); }}
               className="text-destructive hover:text-destructive h-7 w-7 sm:h-8 sm:w-8"
             >
               <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -160,8 +161,8 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete }: DebtCardProps
         )}
 
         {debt.status === 'active' && (
-          <Button 
-            onClick={() => onAddPayment(debt)} 
+          <Button
+            onClick={(e) => { e.stopPropagation(); onAddPayment(debt); }}
             className="w-full h-8 sm:h-10 text-xs sm:text-sm"
           >
             Ajouter un paiement
