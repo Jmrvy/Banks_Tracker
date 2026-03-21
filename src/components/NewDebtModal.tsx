@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebts } from '@/hooks/useDebts';
+import { useFinancialData } from '@/hooks/useFinancialData';
+import { useAuth } from '@/contexts/AuthContext';
 import { LoanCalculator, LoanParams } from '@/components/LoanCalculator';
 import { AmortizationSchedule } from '@/components/AmortizationSchedule';
 import { LoanCalculation } from '@/utils/loanCalculator';
@@ -14,6 +16,7 @@ import { Loader2, Calculator, FileText, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { debtSchema, validateForm } from '@/lib/validations';
 import { PdfLoanImport } from '@/components/PdfLoanImport';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewDebtModalProps {
   open: boolean;
@@ -22,6 +25,8 @@ interface NewDebtModalProps {
 
 export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
   const { createDebt } = useDebts();
+  const { accounts } = useFinancialData();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('calculator');
@@ -32,7 +37,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
     type: 'loan_received' as 'loan_given' | 'loan_received',
     contact_name: '',
     contact_info: '',
-    notes: ''
+    notes: '',
+    account_id: '',
   });
 
   const resetForm = () => {
@@ -41,7 +47,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
       type: 'loan_received',
       contact_name: '',
       contact_info: '',
-      notes: ''
+      notes: '',
+      account_id: '',
     });
     setCalculation(null);
     setLoanParams(null);
@@ -53,17 +60,64 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
     setLoanParams(params);
   };
 
+  const createRecurringTransaction = async (debtId: string, description: string, amount: number, type: 'loan_given' | 'loan_received', frequency: string, startDate: string, endDate: string | null, accountId: string, categoryId?: string | null) => {
+    if (!user) return;
+
+    // loan_received = expense (we pay), loan_given = income (we receive)
+    const transactionType = type === 'loan_received' ? 'expense' : 'income';
+    const suffix = type === 'loan_received' ? 'Remboursement dette' : 'Remboursement prêt';
+
+    const frequencyMap: Record<string, string> = {
+      'monthly': 'monthly',
+      'quarterly': 'quarterly',
+      'semi_annual': 'monthly', // No semi_annual in recurrence_type, fallback to monthly
+      'annual': 'yearly',
+      'weekly': 'weekly',
+    };
+
+    const recurrenceType = frequencyMap[frequency] || 'monthly';
+
+    const { error } = await supabase
+      .from('recurring_transactions')
+      .insert({
+        user_id: user.id,
+        description: `${description} (${suffix})`,
+        amount,
+        type: transactionType,
+        recurrence_type: recurrenceType,
+        start_date: startDate,
+        next_due_date: startDate,
+        end_date: endDate,
+        account_id: accountId,
+        category_id: categoryId || null,
+        is_active: true,
+      });
+
+    if (error) {
+      console.error('Error creating recurring transaction for debt:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loanParams || !calculation) return;
 
     // Validate form data with zod schema
     const validation = validateForm(debtSchema, formData);
-    
+
     if (!validation.success) {
       toast({
         title: "Erreur de validation",
         description: (validation as { success: false; error: string }).error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.account_id) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner un compte de prélèvement",
         variant: "destructive",
       });
       return;
@@ -74,15 +128,17 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
     try {
       const endDate = new Date(loanParams.startDate);
       endDate.setMonth(endDate.getMonth() + loanParams.duration);
+      const endDateStr = endDate.toISOString().split('T')[0];
+      const startDateStr = loanParams.startDate.toISOString().split('T')[0];
 
-      await createDebt({
+      const debtId = await createDebt({
         description: formData.description,
         type: formData.type,
         total_amount: loanParams.amount,
         remaining_amount: loanParams.amount,
         interest_rate: loanParams.rate,
-        start_date: loanParams.startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         status: 'active',
         contact_name: formData.contact_name || null,
         contact_info: formData.contact_info || null,
@@ -91,6 +147,21 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
         payment_amount: calculation.monthlyPayment,
         loan_type: loanParams.loanType
       });
+
+      // Create recurring transaction for the debt
+      if (debtId) {
+        await createRecurringTransaction(
+          debtId,
+          formData.description,
+          calculation.monthlyPayment,
+          formData.type,
+          loanParams.frequency,
+          startDateStr,
+          endDateStr,
+          formData.account_id,
+        );
+      }
+
       resetForm();
       onOpenChange(false);
     } catch (error) {
@@ -134,8 +205,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
           <TabsContent value="calculator" className="space-y-4 mt-4">
             <LoanCalculator onCalculationChange={handleCalculationChange} />
             {calculation && (
-              <Button 
-                onClick={() => setActiveTab('details')} 
+              <Button
+                onClick={() => setActiveTab('details')}
                 className="w-full"
               >
                 Continuer vers les détails
@@ -170,6 +241,22 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
                 <SelectItem value="loan_received">Prêt contracté</SelectItem>
                 <SelectItem value="loan_given">Prêt accordé</SelectItem>
               </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="account_id">Compte de prélèvement *</Label>
+                <Select value={formData.account_id} onValueChange={(value) => setFormData({ ...formData, account_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un compte" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map(account => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} {account.bank ? `(${account.bank})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
 
@@ -212,7 +299,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
                 <Button type="button" variant="outline" onClick={() => setActiveTab('schedule')} className="h-9 text-xs sm:text-sm">
                   Voir l'échéancier
                 </Button>
-                <Button type="submit" disabled={loading} className="h-9 text-xs sm:text-sm">
+                <Button type="submit" disabled={loading || !formData.account_id} className="h-9 text-xs sm:text-sm">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Créer
                 </Button>

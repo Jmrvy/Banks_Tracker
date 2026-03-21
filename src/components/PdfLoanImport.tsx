@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { ParsedLoanInfo } from '@/utils/pdfScheduleParser';
 import { Upload, FileText, Loader2, Check, AlertCircle, ChevronDown, ChevronUp, Eye, FileSpreadsheet } from 'lucide-react';
+import { useFinancialData } from '@/hooks/useFinancialData';
 
 const ACCEPTED_EXTENSIONS = '.pdf,.csv,.xlsx,.xls,.ods';
 const ACCEPTED_MIME_TYPES = [
@@ -50,6 +51,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
   const { user } = useAuth();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
+  const { accounts } = useFinancialData();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +74,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
     duration: '',
     contact_name: '',
     notes: '',
+    account_id: '',
   });
 
   const parseFile = useCallback(async (file: File) => {
@@ -197,6 +200,15 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
       return;
     }
 
+    if (!formData.account_id) {
+      toast({
+        title: 'Erreur',
+        description: 'Veuillez sélectionner un compte de prélèvement',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -254,6 +266,27 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
           title: 'Import réussi',
           description: `Dette créée avec ${parsedData.schedule.length} échéances programmées`,
         });
+      }
+
+      // Create recurring transaction for the debt
+      if (debtId && monthlyPayment > 0) {
+        const transactionType = formData.type === 'loan_received' ? 'expense' : 'income';
+        const suffix = formData.type === 'loan_received' ? 'Remboursement dette' : 'Remboursement prêt';
+
+        await supabase
+          .from('recurring_transactions')
+          .insert({
+            user_id: user.id,
+            description: `${formData.description} (${suffix})`,
+            amount: monthlyPayment,
+            type: transactionType,
+            recurrence_type: 'monthly',
+            start_date: formData.startDate || new Date().toISOString().split('T')[0],
+            next_due_date: formData.startDate || new Date().toISOString().split('T')[0],
+            end_date: endDate,
+            account_id: formData.account_id,
+            is_active: true,
+          });
       }
 
       onSuccess();
@@ -462,6 +495,22 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
               </div>
             </div>
 
+            <div>
+              <Label htmlFor="import-account">Compte de prélèvement *</Label>
+              <Select value={formData.account_id} onValueChange={(value) => setFormData({ ...formData, account_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un compte" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name} {account.bank ? `(${account.bank})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="import-amount">Montant total *</Label>
@@ -536,7 +585,7 @@ export const PdfLoanImport = ({ onSuccess }: PdfLoanImportProps) => {
           {/* Submit */}
           <Button
             onClick={handleSubmit}
-            disabled={saving || !formData.totalAmount || !formData.description}
+            disabled={saving || !formData.totalAmount || !formData.description || !formData.account_id}
             className="w-full"
           >
             {saving ? (
