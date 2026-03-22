@@ -65,8 +65,7 @@ export const LinkDebtPaymentModal = ({
         if (t.installment_payment_id) return false;
         return true;
       })
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-      .slice(0, 50);
+      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
   }, [transactions, expectedType]);
 
   const filteredTransactions = useMemo(() => {
