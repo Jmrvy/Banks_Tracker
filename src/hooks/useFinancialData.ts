@@ -849,6 +849,34 @@ function useFinancialDataInternal() {
           }
         }
 
+        // For debt-linked recurring, fetch scheduled payments to check which are already paid
+        let debtScheduledPayments: any[] = [];
+        if (rt.debt_id) {
+          const { data: spData } = await supabase
+            .from('scheduled_debt_payments')
+            .select('*')
+            .eq('debt_id', rt.debt_id)
+            .eq('user_id', user.id)
+            .order('scheduled_date', { ascending: true });
+          debtScheduledPayments = spData || [];
+
+          // Use next unpaid scheduled amount if available
+          const nextUnpaid = debtScheduledPayments.find(sp => !sp.is_paid);
+          if (nextUnpaid) {
+            txAmount = nextUnpaid.scheduled_amount;
+          } else {
+            // Fallback to debt payment_amount
+            const { data: debtData } = await supabase
+              .from('debts')
+              .select('payment_amount')
+              .eq('id', rt.debt_id)
+              .single();
+            if (debtData?.payment_amount) {
+              txAmount = debtData.payment_amount;
+            }
+          }
+        }
+
         let currentDueDateString = rt.next_due_date;
         let occurrencesProcessed = 0;
         const maxOccurrences = 12;
@@ -856,25 +884,69 @@ function useFinancialDataInternal() {
         while (currentDueDateString <= todayString && occurrencesProcessed < maxOccurrences) {
           if (rt.end_date && currentDueDateString > rt.end_date) break;
 
-          // Insert transaction directly to avoid per-insert refetches
-          const { error: txError } = await supabase
-            .from('transactions')
-            .insert([{
-              account_id: rt.account_id,
-              category_id: rt.category_id,
-              description: `${rt.description} (Récurrence automatique)`,
-              amount: txAmount,
-              type: txType,
-              transaction_date: currentDueDateString,
-              value_date: currentDueDateString,
-              include_in_stats: true,
-              installment_payment_id: rt.installment_payment_id,
-              user_id: user.id
-            }]);
+          // For debt-linked recurring, check if this occurrence was already paid
+          // via the debt schedule (confirm button or link modal)
+          let skipTransaction = false;
+          let occurrenceAmount = txAmount;
+          if (rt.debt_id && debtScheduledPayments.length > 0) {
+            const monthKey = currentDueDateString.substring(0, 7);
+            const matchingScheduled = debtScheduledPayments.find(sp => sp.scheduled_date.substring(0, 7) === monthKey);
+            if (matchingScheduled) {
+              if (matchingScheduled.is_paid) {
+                // Already paid - skip creating transaction, just advance
+                skipTransaction = true;
+              } else {
+                occurrenceAmount = matchingScheduled.scheduled_amount;
+              }
+            }
+          }
 
-          if (txError) {
-            console.error(`Error creating transaction for ${rt.id}:`, txError);
-            break;
+          if (!skipTransaction) {
+            // Insert transaction directly to avoid per-insert refetches
+            const { error: txError } = await supabase
+              .from('transactions')
+              .insert([{
+                account_id: rt.account_id,
+                category_id: rt.category_id,
+                description: `${rt.description} (Récurrence automatique)`,
+                amount: occurrenceAmount,
+                type: txType,
+                transaction_date: currentDueDateString,
+                value_date: currentDueDateString,
+                include_in_stats: true,
+                installment_payment_id: rt.installment_payment_id,
+                user_id: user.id
+              }]);
+
+            if (txError) {
+              console.error(`Error creating transaction for ${rt.id}:`, txError);
+              break;
+            }
+
+            // For debt-linked: mark scheduled payment as paid + record debt payment
+            if (rt.debt_id) {
+              const monthKey = currentDueDateString.substring(0, 7);
+              const matchingScheduled = debtScheduledPayments.find(sp => sp.scheduled_date.substring(0, 7) === monthKey && !sp.is_paid);
+              if (matchingScheduled) {
+                await supabase
+                  .from('scheduled_debt_payments')
+                  .update({ is_paid: true, paid_date: currentDueDateString, actual_amount: occurrenceAmount })
+                  .eq('id', matchingScheduled.id)
+                  .eq('user_id', user.id);
+                // Mark it locally so we don't match it again
+                matchingScheduled.is_paid = true;
+              }
+
+              await supabase
+                .from('debt_payments')
+                .insert({
+                  debt_id: rt.debt_id,
+                  user_id: user.id,
+                  amount: occurrenceAmount,
+                  payment_date: currentDueDateString,
+                  notes: `Récurrence automatique: ${rt.description}`,
+                });
+            }
           }
 
           occurrencesProcessed++;
@@ -923,6 +995,43 @@ function useFinancialDataInternal() {
               .from('installment_payments')
               .update(installmentUpdate)
               .eq('id', rt.installment_payment_id);
+          }
+        }
+
+        // Update debt remaining_amount if linked
+        if (rt.debt_id && occurrencesProcessed > 0) {
+          // Recalculate from all debt_payments
+          const { data: allDebtPayments } = await supabase
+            .from('debt_payments')
+            .select('amount')
+            .eq('debt_id', rt.debt_id)
+            .eq('user_id', user.id);
+
+          const { data: debtData } = await supabase
+            .from('debts')
+            .select('total_amount')
+            .eq('id', rt.debt_id)
+            .single();
+
+          if (debtData) {
+            const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
+            const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
+            const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
+
+            if (newRemaining <= 0) {
+              debtUpdate.status = 'completed';
+              await supabase
+                .from('recurring_transactions')
+                .update({ is_active: false, updated_at: new Date().toISOString() })
+                .eq('id', rt.id)
+                .eq('user_id', user.id);
+            }
+
+            await supabase
+              .from('debts')
+              .update(debtUpdate)
+              .eq('id', rt.debt_id)
+              .eq('user_id', user.id);
           }
         }
 
