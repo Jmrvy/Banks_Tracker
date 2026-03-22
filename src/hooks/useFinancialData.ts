@@ -1,7 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
+import React, { useEffect, useCallback, useMemo, createContext, useContext } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+
+
+// Query keys for React Query cache
+const QUERY_KEYS = {
+  accounts: (userId: string) => ['accounts', userId] as const,
+  transactions: (userId: string) => ['transactions', userId] as const,
+  categories: (userId: string) => ['categories', userId] as const,
+  recurringTransactions: (userId: string) => ['recurringTransactions', userId] as const,
+};
 
 export interface Account {
   id: string;
@@ -59,117 +68,129 @@ export interface RecurringTransaction {
   updated_at: string;
 }
 
-export function useFinancialDataInternal() {
+function useFinancialDataInternal() {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchAccounts = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error && data) {
-      setAccounts(data);
-    }
-  }, [user]);
+  // React Query: accounts
+  const accountsQuery = useQuery({
+    queryKey: QUERY_KEYS.accounts(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Account[];
+    },
+    enabled: !!user,
+  });
 
-  const fetchTransactions = useCallback(async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        account:accounts!transactions_account_id_fkey(name, bank),
-        category:categories(id, name, color),
-        transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
-      `)
-      .eq('user_id', user.id)
-      .order('transaction_date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching transactions:', error);
-      return;
-    }
-
-    if (data) {
-      const processedTransactions = data.map(t => ({
+  // React Query: transactions
+  const transactionsQuery = useQuery({
+    queryKey: QUERY_KEYS.transactions(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          account:accounts!transactions_account_id_fkey(name, bank),
+          category:categories(id, name, color),
+          transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
+        `)
+        .eq('user_id', user!.id)
+        .order('transaction_date', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(t => ({
         ...t,
-        transfer_to_account: t.transfer_to_account || undefined
+        transfer_to_account: t.transfer_to_account || undefined,
       })) as Transaction[];
-      setTransactions(processedTransactions);
-    }
-  }, [user]);
+    },
+    enabled: !!user,
+  });
 
-  const fetchCategories = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('name');
+  // React Query: categories
+  const categoriesQuery = useQuery({
+    queryKey: QUERY_KEYS.categories(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('name');
+      if (error) throw error;
+      return (data ?? []) as Category[];
+    },
+    enabled: !!user,
+  });
 
-    if (!error && data) {
-      setCategories(data);
-    }
-  }, [user]);
+  const accounts = accountsQuery.data ?? [];
+  const transactions = transactionsQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
 
-  // FIXED: Added 'id' to category select
-  const fetchRecurringTransactions = useCallback(async () => {
-    if (!user) return;
-    
-    const { data, error } = await supabase
-      .from('recurring_transactions')
-      .select(`
-        *,
-        account:accounts(name, bank),
-        category:categories(id, name, color)
-      `)
-      .eq('user_id', user.id)
-      .order('next_due_date', { ascending: true });
+  // Convenience invalidation helpers (replace old fetch* callbacks)
+  const fetchAccounts = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: QUERY_KEYS.accounts(user.id) });
+  }, [user, queryClient]);
 
-    if (error) {
-      console.error('Error fetching recurring transactions:', error);
-      return;
-    }
+  const fetchTransactions = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions(user.id) });
+  }, [user, queryClient]);
 
-    if (data) {
-      const processedRecurring = data.map(rt => ({
+  const fetchCategories = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: QUERY_KEYS.categories(user.id) });
+  }, [user, queryClient]);
+
+  // React Query: recurring transactions
+  const recurringQuery = useQuery({
+    queryKey: QUERY_KEYS.recurringTransactions(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('recurring_transactions')
+        .select(`
+          *,
+          account:accounts(name, bank),
+          category:categories(id, name, color)
+        `)
+        .eq('user_id', user!.id)
+        .order('next_due_date', { ascending: true });
+      if (error) throw error;
+      const processed = (data ?? []).map(rt => ({
         ...rt,
         account: rt.account || null,
-        category: rt.category || null
+        category: rt.category || null,
       })) as RecurringTransaction[];
-      setRecurringTransactions(processedRecurring);
-      
-      // Auto-deactivate expired recurring transactions
-      await deactivateExpiredRecurringTransactions(processedRecurring);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+      // Auto-deactivate expired recurring transactions in background
+      deactivateExpiredRecurringTransactions(processed);
+      return processed;
+    },
+    enabled: !!user,
+  });
+
+  const recurringTransactions = recurringQuery.data ?? [];
+  const loading = !user ? false : (accountsQuery.isLoading || transactionsQuery.isLoading || categoriesQuery.isLoading || recurringQuery.isLoading);
+
+  const fetchRecurringTransactions = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: QUERY_KEYS.recurringTransactions(user.id) });
+  }, [user, queryClient]);
 
   // Deactivate recurring transactions that have passed their end date
-  const deactivateExpiredRecurringTransactions = async (transactions: RecurringTransaction[]) => {
+  const deactivateExpiredRecurringTransactions = async (txns: RecurringTransaction[]) => {
     if (!user) return;
-    
+
     const todayString = new Date().toISOString().split('T')[0];
-    
-    const expiredTransactions = transactions.filter(rt => 
+
+    const expiredTransactions = txns.filter(rt =>
       rt.is_active && rt.end_date && rt.end_date < todayString
     );
 
     if (expiredTransactions.length === 0) return;
 
     for (const rt of expiredTransactions) {
-      
       const { error } = await supabase
         .from('recurring_transactions')
-        .update({ 
+        .update({
           is_active: false,
           updated_at: new Date().toISOString()
         })
@@ -181,26 +202,9 @@ export function useFinancialDataInternal() {
       }
     }
 
-    // Refetch to update UI with deactivated transactions
+    // Refetch via React Query invalidation
     if (expiredTransactions.length > 0) {
-      const { data: updatedData } = await supabase
-        .from('recurring_transactions')
-        .select(`
-          *,
-          account:accounts(name, bank),
-          category:categories(id, name, color)
-        `)
-        .eq('user_id', user.id)
-        .order('next_due_date', { ascending: true });
-
-      if (updatedData) {
-        const processedRecurring = updatedData.map(rt => ({
-          ...rt,
-          account: rt.account || null,
-          category: rt.category || null
-        })) as RecurringTransaction[];
-        setRecurringTransactions(processedRecurring);
-      }
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.recurringTransactions(user.id) });
     }
   };
 
@@ -235,7 +239,7 @@ export function useFinancialDataInternal() {
     if (error) {
       console.error('Error creating transaction:', error);
     } else {
-      await Promise.all([fetchTransactions(), fetchAccounts()]);
+      fetchTransactions(); fetchAccounts();
     }
     return { error };
   };
@@ -268,7 +272,7 @@ export function useFinancialDataInternal() {
     if (error) {
       console.error('Error creating transfer:', error);
     } else {
-      await Promise.all([fetchTransactions(), fetchAccounts()]);
+      fetchTransactions(); fetchAccounts();
     }
     return { error };
   };
@@ -432,7 +436,7 @@ export function useFinancialDataInternal() {
         }
       }
 
-      await Promise.all([fetchTransactions(), fetchAccounts()]);
+      fetchTransactions(); fetchAccounts();
     }
     return { error };
   };
@@ -499,7 +503,7 @@ export function useFinancialDataInternal() {
         }
       }
 
-      await Promise.all([fetchTransactions(), fetchAccounts()]);
+      fetchTransactions(); fetchAccounts();
     }
     return { error };
   };
@@ -645,7 +649,7 @@ export function useFinancialDataInternal() {
     }
 
     // 5. Refresh all data
-    await Promise.all([fetchTransactions(), fetchAccounts(), fetchRecurringTransactions()]);
+    fetchTransactions(); fetchAccounts(); fetchRecurringTransactions();
 
     return { error: null, nextDueDate: nextDueStr };
   };
@@ -675,121 +679,27 @@ export function useFinancialDataInternal() {
     return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
   };
 
-  // Repair corrupted next_due_date values caused by the old setMonth() bug.
-  // Fetches data directly from DB to avoid stale React state.
-  // Also recalculates installment payment remaining_amount and installment_amount.
+  // Session guard: only run repair once per browser session
+  const repairRanRef = React.useRef(false);
+
+  // Repair corrupted data via Supabase Edge Function (server-side).
+  // Falls back to no-op if the function is unavailable.
   const repairCorruptedNextDueDates = async () => {
     if (!user) return;
+    if (repairRanRef.current) return;
+    repairRanRef.current = true;
 
-    // Fetch directly from DB to avoid stale React state
-    const { data: activeRecurring, error: fetchErr } = await supabase
-      .from('recurring_transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true);
-
-    if (fetchErr || !activeRecurring || activeRecurring.length === 0) return;
-
-    const fmtDate = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-    let repaired = 0;
-
-    for (const rt of activeRecurring) {
-      const [sy, sm, sd] = rt.start_date.split('-').map(Number);
-      const startDate = new Date(sy, sm - 1, sd);
-
-      const addInterval = (d: Date): Date => {
-        const cy = d.getFullYear(), cm = d.getMonth(), cd = d.getDate();
-        switch (rt.recurrence_type) {
-          case 'weekly': return new Date(cy, cm, cd + 7);
-          case 'monthly': {
-            const n = new Date(cy, cm + 1, cd);
-            return n.getMonth() !== (cm + 1) % 12 ? new Date(cy, cm + 2, 0) : n;
-          }
-          case 'quarterly': {
-            const n = new Date(cy, cm + 3, cd);
-            return n.getMonth() !== (cm + 3) % 12 ? new Date(cy, cm + 4, 0) : n;
-          }
-          case 'yearly': return new Date(cy + 1, cm, cd);
-          default: return new Date(cy, cm + 1, cd);
-        }
-      };
-
-      // Walk from start_date through the series until we pass the stored next_due_date
-      const [ny, nm, nd] = rt.next_due_date.split('-').map(Number);
-      const storedNextDue = new Date(ny, nm - 1, nd);
-
-      let occurrence = new Date(startDate);
-      let prevOccurrence = occurrence;
-      let iterations = 0;
-      while (occurrence < storedNextDue && iterations < 500) {
-        prevOccurrence = occurrence;
-        occurrence = addInterval(occurrence);
-        iterations++;
+    try {
+      const { data, error } = await supabase.functions.invoke('repair-recurring');
+      if (error) {
+        console.warn('[repair] Edge function error, skipping:', error.message);
+        return;
       }
-
-      // If exact match → already correct; otherwise use the previous valid occurrence
-      const correctDate = occurrence.getTime() === storedNextDue.getTime()
-        ? occurrence
-        : prevOccurrence;
-      const correctDateStr = fmtDate(correctDate);
-
-      // Fix next_due_date if corrupted
-      if (correctDateStr !== rt.next_due_date) {
-        await supabase
-          .from('recurring_transactions')
-          .update({ next_due_date: correctDateStr, updated_at: new Date().toISOString() })
-          .eq('id', rt.id)
-          .eq('user_id', user.id);
-        repaired++;
+      if (data?.repaired > 0) {
+        fetchRecurringTransactions();
       }
-
-      // Sync installment payment: next_payment_date + remaining_amount + installment_amount
-      if (rt.installment_payment_id) {
-        const { data: installment } = await supabase
-          .from('installment_payments')
-          .select('*')
-          .eq('id', rt.installment_payment_id)
-          .single();
-
-        if (installment) {
-          // Recalculate remaining_amount from actual linked transactions
-          const { data: linkedTxs } = await supabase
-            .from('transactions')
-            .select('amount')
-            .eq('installment_payment_id', rt.installment_payment_id)
-            .eq('user_id', user.id);
-
-          const totalPaid = (linkedTxs || []).reduce((sum: number, tx: { amount: number }) => sum + Number(tx.amount), 0);
-          const correctRemaining = Math.max(0, installment.total_amount - totalPaid);
-
-          const installmentUpdate: Record<string, unknown> = {
-            next_payment_date: correctDateStr,
-            remaining_amount: correctRemaining,
-          };
-
-          if (correctRemaining <= 0) {
-            installmentUpdate.is_active = false;
-            await supabase
-              .from('recurring_transactions')
-              .update({ is_active: false, updated_at: new Date().toISOString() })
-              .eq('id', rt.id)
-              .eq('user_id', user.id);
-          }
-
-          await supabase
-            .from('installment_payments')
-            .update(installmentUpdate)
-            .eq('id', rt.installment_payment_id);
-
-          repaired++;
-        }
-      }
-    }
-
-    if (repaired > 0) {
-      await fetchRecurringTransactions();
+    } catch (err) {
+      console.warn('[repair] Edge function unavailable, skipping');
     }
   };
 
@@ -931,119 +841,62 @@ export function useFinancialDataInternal() {
     }
 
     if (processedCount > 0) {
-      // Refresh all data after processing
-      await Promise.all([
-        fetchRecurringTransactions(),
-        fetchTransactions(),
-        fetchAccounts()
-      ]);
+      // Invalidate all relevant caches
+      fetchRecurringTransactions();
+      fetchTransactions();
+      fetchAccounts();
     }
   };
 
+  // Kick off background repairs once queries have loaded
+  const initialRepairDone = React.useRef(false);
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    if (!user || loading || initialRepairDone.current) return;
+    initialRepairDone.current = true;
+    repairCorruptedNextDueDates().then(() => processDueRecurringTransactions());
+  }, [user, loading]);
 
-    setLoading(true);
-
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          fetchAccounts(),
-          fetchTransactions(),
-          fetchCategories(),
-          fetchRecurringTransactions()
-        ]);
-        
-        // Repair corrupted next_due_date values (from old setMonth bug), then process due ones
-        await repairCorruptedNextDueDates();
-        await processDueRecurringTransactions();
-      } catch (error) {
-        console.error('Error loading financial data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
+  // Realtime subscriptions + periodic recurring check
+  useEffect(() => {
+    if (!user) return;
 
     // Set up periodic check for due recurring transactions (every 6 hours)
     const recurringCheckInterval = setInterval(async () => {
       if (user) {
         await processDueRecurringTransactions();
       }
-    }, 6 * 60 * 60 * 1000); // Check every 6 hours
+    }, 6 * 60 * 60 * 1000);
 
-    // Set up real-time subscriptions
+    // Set up real-time subscriptions — invalidate React Query cache
     const channel = supabase
       .channel('financial-data-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'accounts',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          
-          fetchAccounts();
-        }
+        { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` },
+        () => fetchAccounts()
       )
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'transactions', 
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          
-          setTimeout(() => {
-            fetchTransactions();
-            fetchAccounts();
-          }, 200);
-        }
+        { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
+        () => setTimeout(() => { fetchTransactions(); fetchAccounts(); }, 200)
       )
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'categories',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          
-          fetchCategories();
-        }
+        { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${user.id}` },
+        () => fetchCategories()
       )
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'recurring_transactions',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          
-          fetchRecurringTransactions();
-        }
+        { event: '*', schema: 'public', table: 'recurring_transactions', filter: `user_id=eq.${user.id}` },
+        () => fetchRecurringTransactions()
       )
       .subscribe();
 
     // Listen for cross-hook installment→recurring sync events
-    const handleInstallmentSync = () => {
-      fetchRecurringTransactions();
-    };
+    const handleInstallmentSync = () => fetchRecurringTransactions();
     window.addEventListener('installment-recurring-updated', handleInstallmentSync);
 
     return () => {
-
       clearInterval(recurringCheckInterval);
       supabase.removeChannel(channel);
       window.removeEventListener('installment-recurring-updated', handleInstallmentSync);
@@ -1142,7 +995,7 @@ export function useFinancialDataInternal() {
       }
     }
     
-    await Promise.all([fetchTransactions(), fetchAccounts()]);
+    fetchTransactions(); fetchAccounts();
 
     return { error: null, linkedAmount: linkedRefundAmount, excessAmount };
   };
@@ -1179,7 +1032,7 @@ export function useFinancialDataInternal() {
     fetchAccounts, fetchTransactions, fetchCategories, fetchRecurringTransactions, refetch]);
 }
 
-export type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;
+type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;
 
 const FinancialDataContext = createContext<FinancialDataType | null>(null);
 

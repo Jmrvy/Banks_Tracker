@@ -1,3 +1,4 @@
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ interface DebtCardProps {
   onClick?: (debt: Debt) => void;
 }
 
-export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete, onClick }: DebtCardProps) => {
+export const DebtCard = React.memo(({ debt, onAddPayment, onEdit, onDelete, onClick }: DebtCardProps) => {
   const { formatCurrency } = useUserPreferences();
 
   const getTypeLabel = (type: string) => {
@@ -171,4 +172,4 @@ export const DebtCard = ({ debt, onAddPayment, onEdit, onDelete, onClick }: Debt
       </CardContent>
     </Card>
   );
-};
+});

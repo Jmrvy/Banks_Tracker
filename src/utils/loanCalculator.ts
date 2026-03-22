@@ -18,7 +18,7 @@ export interface PaymentScheduleItem {
  * Calculate amortizable loan (prêt amortissable)
  * Fixed payments with decreasing interest and increasing principal
  */
-export const calculateAmortizableLoan = (
+const calculateAmortizableLoan = (
   principal: number,
   annualRate: number,
   durationMonths: number,
@@ -67,7 +67,7 @@ export const calculateAmortizableLoan = (
  * Calculate bullet loan (prêt in fine)
  * Interest-only payments with principal repaid at the end
  */
-export const calculateBulletLoan = (
+const calculateBulletLoan = (
   principal: number,
   annualRate: number,
   durationMonths: number,
@@ -108,7 +108,7 @@ export const calculateBulletLoan = (
 /**
  * Get payment frequency in months
  */
-export const getFrequencyMonths = (frequency: string): number => {
+const getFrequencyMonths = (frequency: string): number => {
   switch (frequency) {
     case 'monthly': return 1;
     case 'quarterly': return 3;
