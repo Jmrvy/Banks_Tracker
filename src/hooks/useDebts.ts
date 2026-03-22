@@ -20,6 +20,7 @@ export interface Debt {
   payment_frequency: string | null;
   payment_amount: number;
   loan_type: string | null;
+  category_id: string | null;
   created_at: string;
   updated_at: string;
 }

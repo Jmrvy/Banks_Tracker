@@ -25,7 +25,7 @@ interface NewDebtModalProps {
 
 export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
   const { createDebt } = useDebts();
-  const { accounts } = useFinancialData();
+  const { accounts, categories } = useFinancialData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -39,6 +39,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
     contact_info: '',
     notes: '',
     account_id: '',
+    category_id: '',
   });
 
   const resetForm = () => {
@@ -49,6 +50,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
       contact_info: '',
       notes: '',
       account_id: '',
+      category_id: '',
     });
     setCalculation(null);
     setLoanParams(null);
@@ -145,7 +147,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
         notes: formData.notes || null,
         payment_frequency: loanParams.frequency,
         payment_amount: calculation.monthlyPayment,
-        loan_type: loanParams.loanType
+        loan_type: loanParams.loanType,
+        category_id: formData.category_id || null
       });
 
       // Create recurring transaction for the debt
@@ -159,6 +162,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
           startDateStr,
           endDateStr,
           formData.account_id,
+          formData.category_id || null,
         );
       }
 
@@ -254,6 +258,28 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
                     {accounts.map(account => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.name} {account.bank ? `(${account.bank})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="category_id">Catégorie des paiements</Label>
+                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optionnel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: category.color }}
+                          />
+                          {category.name}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

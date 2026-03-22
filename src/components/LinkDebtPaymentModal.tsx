@@ -122,6 +122,7 @@ export const LinkDebtPaymentModal = ({
             transaction_date: paymentDate,
             value_date: paymentDate,
             include_in_stats: true,
+            category_id: debt.category_id || null,
           }]);
 
         if (txError) {

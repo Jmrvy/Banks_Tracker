@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useDebts, Debt } from '@/hooks/useDebts';
+import { useFinancialData } from '@/hooks/useFinancialData';
 import { Loader2 } from 'lucide-react';
 
 interface EditDebtModalProps {
@@ -17,6 +18,7 @@ interface EditDebtModalProps {
 
 export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) => {
   const { updateDebt } = useDebts();
+  const { categories } = useFinancialData();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
@@ -28,7 +30,8 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
     contact_name: '',
     contact_info: '',
     notes: '',
-    status: 'active' as 'active' | 'completed' | 'defaulted'
+    status: 'active' as 'active' | 'completed' | 'defaulted',
+    category_id: ''
   });
 
   useEffect(() => {
@@ -43,7 +46,8 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
         contact_name: debt.contact_name || '',
         contact_info: debt.contact_info || '',
         notes: debt.notes || '',
-        status: debt.status
+        status: debt.status,
+        category_id: debt.category_id || ''
       });
     }
   }, [debt]);
@@ -65,7 +69,8 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
         contact_name: formData.contact_name || null,
         contact_info: formData.contact_info || null,
         notes: formData.notes || null,
-        status: formData.status
+        status: formData.status,
+        category_id: formData.category_id || null
       });
       onOpenChange(false);
     } catch (error) {
@@ -185,6 +190,28 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
                 <SelectItem value="active">Actif</SelectItem>
                 <SelectItem value="completed">Terminé</SelectItem>
                 <SelectItem value="defaulted">Défaut</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="category_id">Catégorie des paiements</Label>
+            <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Optionnel" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      {category.name}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
