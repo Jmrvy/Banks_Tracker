@@ -415,9 +415,29 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
               {parsedData.interestRate && (
                 <Badge variant="secondary">Taux: {parsedData.interestRate}%</Badge>
               )}
-              {parsedData.monthlyPayment && (
-                <Badge variant="secondary">Mensualité: {formatCurrency(parsedData.monthlyPayment)}</Badge>
-              )}
+              {(() => {
+                const amounts = parsedData.schedule.map(r => r.payment);
+                const distinctAmounts = [...new Set(amounts)].sort((a, b) => a - b);
+                if (distinctAmounts.length === 1) {
+                  return <Badge variant="secondary">Mensualité: {formatCurrency(distinctAmounts[0])}</Badge>;
+                }
+                if (distinctAmounts.length <= 4) {
+                  return distinctAmounts.map((amount, i) => {
+                    const count = amounts.filter(a => a === amount).length;
+                    return (
+                      <Badge key={i} variant="secondary">
+                        {formatCurrency(amount)} × {count} éch.
+                      </Badge>
+                    );
+                  });
+                }
+                // Too many distinct values — show range
+                return (
+                  <Badge variant="secondary">
+                    Mensualité: {formatCurrency(distinctAmounts[0])} → {formatCurrency(distinctAmounts[distinctAmounts.length - 1])}
+                  </Badge>
+                );
+              })()}
               {parsedData.duration && (
                 <Badge variant="secondary">Durée: {parsedData.duration} mois</Badge>
               )}
