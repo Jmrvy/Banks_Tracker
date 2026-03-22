@@ -55,7 +55,7 @@ export const DebtDetailsModal = ({
 }: DebtDetailsModalProps) => {
   const { formatCurrency } = useUserPreferences();
   const { user } = useAuth();
-  const { payments: allPayments, deletePayment } = useDebts();
+  const { payments: allPayments, deletePayment, addPayment } = useDebts();
   const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
@@ -82,9 +82,59 @@ export const DebtDetailsModal = ({
     setLoadingSchedule(false);
   };
 
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   const handleLinkPayment = (sp: ScheduledPayment) => {
     setSelectedScheduledPayment(sp);
     setLinkModalOpen(true);
+  };
+
+  const handleConfirmPayment = async (sp: ScheduledPayment) => {
+    if (!user || !debt) return;
+    setConfirmingId(sp.id);
+
+    try {
+      const paymentDate = sp.scheduled_date;
+      const paymentAmount = sp.scheduled_amount;
+
+      // Mark scheduled payment as paid
+      await supabase
+        .from('scheduled_debt_payments')
+        .update({
+          is_paid: true,
+          paid_date: paymentDate,
+          actual_amount: paymentAmount,
+        })
+        .eq('id', sp.id)
+        .eq('user_id', user.id);
+
+      // Record the debt payment
+      await addPayment({
+        debt_id: debt.id,
+        amount: paymentAmount,
+        payment_date: paymentDate,
+        notes: `Échéance confirmée: ${format(new Date(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
+      });
+
+      // Update debt remaining amount
+      const newRemaining = Math.max(0, debt.remaining_amount - paymentAmount);
+      const updates: Record<string, any> = { remaining_amount: newRemaining };
+      if (newRemaining <= 0) {
+        updates.status = 'completed';
+      }
+
+      await supabase
+        .from('debts')
+        .update(updates)
+        .eq('id', debt.id)
+        .eq('user_id', user.id);
+
+      await fetchScheduledPayments();
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+    } finally {
+      setConfirmingId(null);
+    }
   };
 
   const handlePaymentRecorded = () => {
@@ -440,15 +490,31 @@ export const DebtDetailsModal = ({
                             {formatCurrency(sp.actual_amount || sp.scheduled_amount)}
                           </span>
                           {!isPaid && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleLinkPayment(sp)}
-                              className="h-6 w-6 sm:h-7 sm:w-7"
-                              title="Lier une transaction"
-                            >
-                              <Link className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleConfirmPayment(sp)}
+                                disabled={confirmingId === sp.id}
+                                className="h-6 w-6 sm:h-7 sm:w-7"
+                                title="Confirmer le paiement"
+                              >
+                                {confirmingId === sp.id ? (
+                                  <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-600" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleLinkPayment(sp)}
+                                className="h-6 w-6 sm:h-7 sm:w-7"
+                                title="Lier une transaction"
+                              >
+                                <Link className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
