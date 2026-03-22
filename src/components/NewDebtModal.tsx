@@ -93,6 +93,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
         account_id: accountId,
         category_id: categoryId || null,
         is_active: true,
+        debt_id: debtId,
       });
 
     if (error) {

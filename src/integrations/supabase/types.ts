@@ -489,6 +489,7 @@ export type Database = {
           description: string
           end_date: string | null
           id: string
+          debt_id: string | null
           installment_payment_id: string | null
           is_active: boolean | null
           next_due_date: string
@@ -503,6 +504,7 @@ export type Database = {
           amount: number
           category_id?: string | null
           created_at?: string | null
+          debt_id?: string | null
           description: string
           end_date?: string | null
           id?: string
@@ -520,6 +522,7 @@ export type Database = {
           amount?: number
           category_id?: string | null
           created_at?: string | null
+          debt_id?: string | null
           description?: string
           end_date?: string | null
           id?: string
@@ -533,6 +536,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "recurring_transactions_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_recurring_transactions_installment_payment"
             columns: ["installment_payment_id"]

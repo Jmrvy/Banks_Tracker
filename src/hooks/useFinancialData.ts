@@ -64,6 +64,7 @@ export interface RecurringTransaction {
   account: { name: string; bank: string } | null;
   category: { id: string; name: string; color: string } | null;
   installment_payment_id: string | null; // Lien vers le paiement échelonné source
+  debt_id: string | null; // Lien vers la dette source
   created_at: string;
   updated_at: string;
 }
@@ -532,6 +533,32 @@ function useFinancialDataInternal() {
       }
     }
 
+    // For debt-linked recurring transactions, use the scheduled amount for this date
+    if (rt.debt_id) {
+      const { data: scheduledPayment } = await supabase
+        .from('scheduled_debt_payments')
+        .select('scheduled_amount')
+        .eq('debt_id', rt.debt_id)
+        .eq('user_id', user.id)
+        .eq('is_paid', false)
+        .order('scheduled_date', { ascending: true })
+        .limit(1)
+        .single();
+      if (scheduledPayment) {
+        transactionAmount = scheduledPayment.scheduled_amount;
+      } else {
+        // Fallback to debt's payment_amount
+        const { data: debtData } = await supabase
+          .from('debts')
+          .select('payment_amount')
+          .eq('id', rt.debt_id)
+          .single();
+        if (debtData?.payment_amount) {
+          transactionAmount = debtData.payment_amount;
+        }
+      }
+    }
+
     // 1. Create the actual transaction
     const { error: txError } = await supabase
       .from('transactions')
@@ -638,6 +665,72 @@ function useFinancialDataInternal() {
           .eq('id', rt.installment_payment_id);
 
         // Deactivate recurring if installment is fully paid
+        if (newRemaining <= 0) {
+          await supabase
+            .from('recurring_transactions')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', recurringId)
+            .eq('user_id', user.id);
+        }
+      }
+    }
+
+    // 4b. Handle debt payment if linked
+    if (rt.debt_id) {
+      // Mark the next unpaid scheduled payment as paid
+      const { data: nextScheduled } = await supabase
+        .from('scheduled_debt_payments')
+        .select('id')
+        .eq('debt_id', rt.debt_id)
+        .eq('user_id', user.id)
+        .eq('is_paid', false)
+        .order('scheduled_date', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (nextScheduled) {
+        await supabase
+          .from('scheduled_debt_payments')
+          .update({
+            is_paid: true,
+            paid_date: executionDate,
+            actual_amount: transactionAmount,
+          })
+          .eq('id', nextScheduled.id)
+          .eq('user_id', user.id);
+      }
+
+      // Record debt payment
+      await supabase
+        .from('debt_payments')
+        .insert({
+          debt_id: rt.debt_id,
+          user_id: user.id,
+          amount: transactionAmount,
+          payment_date: executionDate,
+          notes: `Échéance récurrente: ${rt.description}`,
+        });
+
+      // Update debt remaining amount
+      const { data: debtData } = await supabase
+        .from('debts')
+        .select('remaining_amount, total_amount')
+        .eq('id', rt.debt_id)
+        .single();
+
+      if (debtData) {
+        const newRemaining = Math.max(0, debtData.remaining_amount - transactionAmount);
+        const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
+        if (newRemaining <= 0) {
+          debtUpdate.status = 'completed';
+        }
+        await supabase
+          .from('debts')
+          .update(debtUpdate)
+          .eq('id', rt.debt_id)
+          .eq('user_id', user.id);
+
+        // Deactivate recurring if debt is fully paid
         if (newRemaining <= 0) {
           await supabase
             .from('recurring_transactions')

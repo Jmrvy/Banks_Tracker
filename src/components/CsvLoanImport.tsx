@@ -231,6 +231,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
             account_id: formData.account_id,
             category_id: formData.category_id || null,
             is_active: true,
+            debt_id: debtId,
           });
       }
 
