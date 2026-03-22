@@ -59,7 +59,7 @@ export interface RecurringTransaction {
   updated_at: string;
 }
 
-export function useFinancialDataInternal() {
+function useFinancialDataInternal() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1179,7 +1179,7 @@ export function useFinancialDataInternal() {
     fetchAccounts, fetchTransactions, fetchCategories, fetchRecurringTransactions, refetch]);
 }
 
-export type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;
+type FinancialDataType = ReturnType<typeof useFinancialDataInternal>;
 
 const FinancialDataContext = createContext<FinancialDataType | null>(null);
 

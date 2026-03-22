@@ -27,14 +27,21 @@ const Accounts = lazy(() => import("@/pages/Accounts"));
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const InstallmentPayments = lazy(() => import("@/pages/InstallmentPayments"));
 const Savings = lazy(() => import("@/pages/Savings"));
-const Install = lazy(() => import("@/pages/Install"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -165,7 +172,6 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
-          <Route path="/install" element={<Install />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
