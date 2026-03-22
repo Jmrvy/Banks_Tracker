@@ -145,8 +145,17 @@ export const useDebts = () => {
     if (debt) {
       const suffixReceived = `${debt.description} (Remboursement dette)`;
       const suffixGiven = `${debt.description} (Remboursement prêt)`;
+
+      // Delete auto-created transactions
       await supabase
         .from('transactions')
+        .delete()
+        .eq('user_id', user.id)
+        .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
+
+      // Delete the recurring transaction created for this debt
+      await supabase
+        .from('recurring_transactions')
         .delete()
         .eq('user_id', user.id)
         .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
