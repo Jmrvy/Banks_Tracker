@@ -8,7 +8,10 @@ import { Repeat, Calendar, Trash2, Pause, Play, Plus, Pencil, List, CalendarDays
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useDebts } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
 import RecurringCalendar from "@/components/RecurringCalendar";
@@ -21,6 +24,9 @@ const RecurringTransactions = () => {
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
+  const { debts, payments: debtPayments } = useDebts();
+  const { user } = useAuth();
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<any[]>([]);
   const {
     recurringTransactions,
     transactions,
@@ -34,6 +40,20 @@ const RecurringTransactions = () => {
   useEffect(() => {
     fetchRecurringTransactions();
   }, [fetchRecurringTransactions]);
+
+  // Fetch all scheduled debt payments for calendar display
+  useEffect(() => {
+    const fetchScheduledDebtPayments = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('scheduled_debt_payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('scheduled_date', { ascending: true });
+      setScheduledDebtPayments(data || []);
+    };
+    fetchScheduledDebtPayments();
+  }, [user]);
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     const result = await updateRecurringTransaction(id, { is_active: !currentStatus });
@@ -126,6 +146,25 @@ const RecurringTransactions = () => {
       .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
   };
 
+  // Debt helpers for the list view
+  const getDebtInfo = (transaction: RecurringTransaction) => {
+    if (!transaction.debt_id) return null;
+    const debt = debts.find(d => d.id === transaction.debt_id);
+    if (!debt) return null;
+    const paid = debt.total_amount - debt.remaining_amount;
+    const totalScheduled = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id).length;
+    const paidCount = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id && sp.is_paid).length;
+    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 0);
+    const pct = debt.total_amount > 0 ? Math.min(100, Math.round((paid / debt.total_amount) * 1000) / 10) : 0;
+    return { debt, paid, paidCount, totalCount, pct };
+  };
+
+  const getDebtPaymentHistory = (debtId: string) => {
+    return debtPayments
+      .filter(dp => dp.debt_id === debtId)
+      .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
+  };
+
   // Split transactions into active and inactive for the list view
   const activeTransactions = recurringTransactions.filter(t => t.is_active);
   const inactiveTransactions = recurringTransactions.filter(t => !t.is_active);
@@ -136,6 +175,21 @@ const RecurringTransactions = () => {
     const today = startOfDay(new Date());
     const daysUntil = differenceInDays(nextDue, today);
     const installmentInfo = getInstallmentInfo(recurring);
+    const debtInfo = getDebtInfo(recurring);
+
+    // Determine the display amount: use next scheduled debt payment or debt payment_amount
+    let listDisplayAmount = recurring.amount;
+    if (debtInfo) {
+      // Find next unpaid scheduled payment for this debt
+      const nextScheduled = scheduledDebtPayments.find(sp => sp.debt_id === recurring.debt_id && !sp.is_paid);
+      if (nextScheduled) {
+        listDisplayAmount = nextScheduled.scheduled_amount;
+      } else if (debtInfo.debt.payment_amount > 0) {
+        listDisplayAmount = debtInfo.debt.payment_amount;
+      }
+    } else if (installmentInfo) {
+      listDisplayAmount = installmentInfo.ip.installment_amount;
+    }
 
     return (
       <Card
@@ -187,6 +241,11 @@ const RecurringTransactions = () => {
                 {installmentInfo.paidCount} sur {installmentInfo.totalCount} payé · {installmentInfo.ip.payment_type === 'reimbursement' ? 'Remboursement' : 'Échelonné'}
               </span>
             )}
+            {debtInfo && (
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                {debtInfo.paidCount} sur {debtInfo.totalCount} payé · {debtInfo.debt.type === 'loan_received' ? 'Remboursement dette' : 'Remboursement prêt'}
+              </span>
+            )}
           </div>
 
           {/* Amount + chevron */}
@@ -194,7 +253,7 @@ const RecurringTransactions = () => {
             <span className={`text-sm sm:text-base font-bold ${
               !recurring.is_active ? 'text-muted-foreground' : recurring.type === 'income' ? 'text-success' : 'text-destructive'
             }`}>
-              {formatCurrency(recurring.amount)}
+              {formatCurrency(listDisplayAmount)}
             </span>
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </div>
@@ -292,6 +351,54 @@ const RecurringTransactions = () => {
                       </span>
                       <span className="text-xs sm:text-sm font-medium">
                         {formatCurrency(installmentInfo.ip.installment_amount)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Debt progress */}
+            {debtInfo && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-sm sm:text-base font-bold">{formatCurrency(debtInfo.paid)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm sm:text-base font-bold">{formatCurrency(debtInfo.debt.remaining_amount)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
+                    </div>
+                  </div>
+                  <Progress value={debtInfo.pct} className="h-2" />
+                </div>
+
+                {/* Debt payment timeline */}
+                <div className="space-y-1">
+                  {getDebtPaymentHistory(recurring.debt_id!).map((dp) => (
+                    <div key={dp.id} className="flex items-center gap-2.5 py-1.5">
+                      <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
+                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="text-xs sm:text-sm flex-1">
+                        {parseLocalDate(dp.payment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-medium">{formatCurrency(dp.amount)}</span>
+                    </div>
+                  ))}
+                  {/* Next pending */}
+                  {recurring.is_active && debtInfo.debt.remaining_amount > 0 && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                      <span className="text-xs sm:text-sm flex-1">
+                        {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-medium">
+                        {formatCurrency(listDisplayAmount)}
                       </span>
                     </div>
                   )}
@@ -457,6 +564,9 @@ const RecurringTransactions = () => {
                 transactions={recurringTransactions}
                 actualTransactions={transactions}
                 installmentPayments={installmentPayments}
+                debts={debts}
+                debtPayments={debtPayments}
+                scheduledDebtPayments={scheduledDebtPayments}
                 onEdit={setEditingTransaction}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}

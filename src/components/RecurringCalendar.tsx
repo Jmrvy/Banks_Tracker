@@ -6,7 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { RecurringTransaction, Transaction } from "@/hooks/useFinancialData";
 import { InstallmentPayment } from "@/hooks/useInstallmentPayments";
+import { Debt, DebtPayment } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+
+interface ScheduledDebtPayment {
+  id: string;
+  debt_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  actual_amount: number | null;
+  is_paid: boolean | null;
+  paid_date: string | null;
+}
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -14,6 +25,9 @@ interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
   actualTransactions?: Transaction[];
   installmentPayments?: InstallmentPayment[];
+  debts?: Debt[];
+  debtPayments?: DebtPayment[];
+  scheduledDebtPayments?: ScheduledDebtPayment[];
   onEdit: (transaction: RecurringTransaction) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
@@ -44,7 +58,7 @@ function advanceDate(date: Date, recurrenceType: string): Date {
   }
 }
 
-const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -97,6 +111,46 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [actualTransactions]);
 
+  // Build debt lookups
+  const debtsById = useMemo(() => {
+    const map = new Map<string, Debt>();
+    debts.forEach((d) => map.set(d.id, d));
+    return map;
+  }, [debts]);
+
+  // Build scheduled debt payments lookup by debt_id, keyed by month
+  const scheduledDebtPaymentsByDebtMonth = useMemo(() => {
+    const map = new Map<string, ScheduledDebtPayment>();
+    scheduledDebtPayments.forEach((sp) => {
+      const monthKey = sp.scheduled_date.substring(0, 7);
+      const key = `${sp.debt_id}:${monthKey}`;
+      map.set(key, sp);
+    });
+    return map;
+  }, [scheduledDebtPayments]);
+
+  // Build debt payments lookup by debt_id + month (actual amounts paid)
+  const debtActualAmounts = useMemo(() => {
+    const map = new Map<string, number>();
+    debtPayments.forEach((dp) => {
+      const monthKey = dp.payment_date.substring(0, 7);
+      const key = `${dp.debt_id}:${monthKey}`;
+      map.set(key, (map.get(key) || 0) + dp.amount);
+    });
+    return map;
+  }, [debtPayments]);
+
+  // Count paid scheduled debt payments per debt
+  const debtPaidCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    scheduledDebtPayments.forEach((sp) => {
+      if (sp.is_paid) {
+        map.set(sp.debt_id, (map.get(sp.debt_id) || 0) + 1);
+      }
+    });
+    return map;
+  }, [scheduledDebtPayments]);
+
   // Map transactions to their due dates within the current month
   const transactionsByDay = useMemo(() => {
     const map = new Map<string, CalendarOccurrence[]>();
@@ -134,6 +188,25 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             // No remaining payments - don't show any future occurrences
             if (!endDateLimit || lastOccurrence < endDateLimit) {
               effectiveEndDate = nextDueDate; // Set to before next_due_date effectively
+            }
+          } else if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
+            effectiveEndDate = lastOccurrence;
+          }
+        }
+      }
+
+      // For debt-linked transactions, limit future occurrences based on remaining amount
+      if (transaction.debt_id) {
+        const debt = debtsById.get(transaction.debt_id);
+        if (debt && debt.payment_amount > 0) {
+          const maxFutureOccurrences = Math.ceil(debt.remaining_amount / debt.payment_amount);
+          let lastOccurrence = new Date(nextDueDate);
+          for (let i = 1; i < maxFutureOccurrences; i++) {
+            lastOccurrence = advanceDate(lastOccurrence, transaction.recurrence_type);
+          }
+          if (maxFutureOccurrences <= 0) {
+            if (!endDateLimit || lastOccurrence < endDateLimit) {
+              effectiveEndDate = nextDueDate;
             }
           } else if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
             effectiveEndDate = lastOccurrence;
@@ -189,6 +262,32 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
+          // Debt-linked: use actual paid amount for past, scheduled amount for future
+          if (transaction.debt_id) {
+            const monthKey = format(currentOccurrence, 'yyyy-MM');
+            const debtKey = `${transaction.debt_id}:${monthKey}`;
+            if (isPast) {
+              const actualAmount = debtActualAmounts.get(debtKey);
+              if (actualAmount !== undefined) {
+                displayAmount = actualAmount;
+              } else {
+                skipOccurrence = true;
+              }
+            } else {
+              // Use scheduled amount for this month if available
+              const scheduled = scheduledDebtPaymentsByDebtMonth.get(debtKey);
+              if (scheduled) {
+                displayAmount = scheduled.scheduled_amount;
+              } else {
+                // Fallback to debt's payment_amount
+                const debt = debtsById.get(transaction.debt_id);
+                if (debt) {
+                  displayAmount = debt.payment_amount;
+                }
+              }
+            }
+          }
+
           if (!skipOccurrence) {
             const existing = map.get(key) || [];
             map.set(key, [...existing, { transaction, isPast, displayAmount, occurrenceDate: key }]);
@@ -200,7 +299,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById, debtsById, debtActualAmounts, scheduledDebtPaymentsByDebtMonth]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
@@ -290,6 +389,24 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
   };
 
+  const getDebtInfo = (transaction: RecurringTransaction) => {
+    if (!transaction.debt_id) return null;
+    const debt = debtsById.get(transaction.debt_id);
+    if (!debt) return null;
+    const paid = debt.total_amount - debt.remaining_amount;
+    const paidCount = debtPaidCounts.get(debt.id) || 0;
+    const totalScheduled = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id).length;
+    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 0);
+    const pct = debt.total_amount > 0 ? Math.min(100, Math.round((paid / debt.total_amount) * 1000) / 10) : 0;
+    return { debt, paid, paidCount, totalCount, pct };
+  };
+
+  const getDebtPaymentHistory = (debtId: string) => {
+    return debtPayments
+      .filter(dp => dp.debt_id === debtId)
+      .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
+  };
+
   // Handle calendar day click: scroll to the first transaction of that day
   const handleDayClick = useCallback((dateKey: string, dayTransactions: CalendarOccurrence[]) => {
     if (dayTransactions.length === 0) return;
@@ -328,6 +445,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     const cardId = keyPrefix === 'past' ? `past:${transaction.id}:${occurrenceDate}` : `${transaction.id}:${occurrenceDate}`;
     const isExpanded = expandedTransactionId === cardId;
     const installmentInfo = getInstallmentInfo(transaction);
+    const debtInfo = getDebtInfo(transaction);
 
     return (
       <Card
@@ -377,6 +495,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             {installmentInfo && (
               <span className="text-[10px] sm:text-xs text-muted-foreground">
                 {isPast ? installmentInfo.paidCount : installmentInfo.paidCount + 1} sur {installmentInfo.totalCount} ({formatCurrency(installmentInfo.ip.total_amount)})
+              </span>
+            )}
+            {debtInfo && (
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                {isPast ? debtInfo.paidCount : debtInfo.paidCount + 1} sur {debtInfo.totalCount} ({formatCurrency(debtInfo.debt.total_amount)})
               </span>
             )}
           </div>
@@ -453,6 +576,50 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                         {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
                       </span>
                       <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
+                    </div>
+                  ))}
+                  {/* Show next pending payment for upcoming */}
+                  {!isPast && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                      <span className="text-xs sm:text-sm flex-1">
+                        {occDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-medium">
+                        {formatCurrency(displayAmount ?? transaction.amount)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Debt progress */}
+            {debtInfo && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-sm sm:text-base font-bold">{formatCurrency(debtInfo.paid)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm sm:text-base font-bold">{formatCurrency(debtInfo.debt.remaining_amount)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
+                    </div>
+                  </div>
+                  <Progress value={debtInfo.pct} className="h-2" />
+                </div>
+
+                {/* Debt payment timeline */}
+                <div className="space-y-1">
+                  {getDebtPaymentHistory(transaction.debt_id!).map((dp) => (
+                    <div key={dp.id} className="flex items-center gap-2.5 py-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                      <span className="text-xs sm:text-sm flex-1">
+                        {parseLocalDate(dp.payment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-medium">{formatCurrency(dp.amount)}</span>
                     </div>
                   ))}
                   {/* Show next pending payment for upcoming */}
