@@ -13,7 +13,8 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Check, Plus, Link, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Check, Plus, Link, Loader2, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ScheduledPayment {
@@ -51,6 +52,7 @@ export const LinkDebtPaymentModal = ({
   const [mode, setMode] = useState<'new' | 'link'>('link');
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // For loan_received we pay (expense), for loan_given we receive (income)
   const expectedType = debt.type === 'loan_received' ? 'expense' : 'income';
@@ -66,6 +68,18 @@ export const LinkDebtPaymentModal = ({
       .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
       .slice(0, 50);
   }, [transactions, expectedType]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery.trim()) return linkableTransactions;
+    const query = searchQuery.toLowerCase().trim();
+    return linkableTransactions.filter(t => {
+      const description = (t.description || '').toLowerCase();
+      const amount = t.amount.toString();
+      const date = format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr });
+      const accountName = (t.account?.name || '').toLowerCase();
+      return description.includes(query) || amount.includes(query) || date.includes(query) || accountName.includes(query);
+    });
+  }, [linkableTransactions, searchQuery]);
 
   const selectedTransaction = linkableTransactions.find(t => t.id === selectedTransactionId);
 
@@ -224,10 +238,31 @@ export const LinkDebtPaymentModal = ({
               <TabsContent value="link" className="space-y-3 pt-3">
                 <div className="space-y-2">
                   <Label className="text-xs sm:text-sm">Sélectionner une transaction existante</Label>
+                  {linkableTransactions.length > 0 && (
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher par description, montant, date, compte..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="h-8 pl-8 pr-8 text-xs sm:text-sm"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {linkableTransactions.length > 0 ? (
                     <ScrollArea className="h-[220px] border rounded-md p-2">
+                      {filteredTransactions.length > 0 ? (
                       <div className="space-y-1">
-                        {linkableTransactions.map((t) => (
+                        {filteredTransactions.map((t) => (
                           <button
                             key={t.id}
                             type="button"
@@ -263,6 +298,13 @@ export const LinkDebtPaymentModal = ({
                           </button>
                         ))}
                       </div>
+                      ) : (
+                        <div className="h-full flex items-center justify-center py-8">
+                          <p className="text-xs text-muted-foreground text-center">
+                            Aucun résultat pour "{searchQuery}"
+                          </p>
+                        </div>
+                      )}
                     </ScrollArea>
                   ) : (
                     <div className="h-[120px] flex items-center justify-center border rounded-md">
