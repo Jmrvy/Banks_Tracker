@@ -11,8 +11,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { supabase } from '@/integrations/supabase/client';
-import type { ParsedLoanInfo } from '@/utils/pdfScheduleParser';
-import type { CsvValidationResult } from '@/utils/csvScheduleParser';
+import type { ParsedLoanInfo, CsvValidationResult } from '@/utils/csvScheduleParser';
 import {
   Upload,
   FileSpreadsheet,

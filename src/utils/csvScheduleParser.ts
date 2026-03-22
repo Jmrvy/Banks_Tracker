@@ -1,4 +1,22 @@
-import type { ParsedScheduleRow, ParsedLoanInfo } from './pdfScheduleParser';
+export interface ParsedScheduleRow {
+  date: string; // YYYY-MM-DD
+  payment: number;
+  principal: number;
+  interest: number;
+  insurance: number;
+  remainingBalance: number;
+}
+
+export interface ParsedLoanInfo {
+  totalAmount: number | null;
+  interestRate: number | null;
+  duration: number | null; // in months
+  monthlyPayment: number | null;
+  startDate: string | null; // YYYY-MM-DD
+  description: string | null;
+  schedule: ParsedScheduleRow[];
+  rawText?: string;
+}
 
 /**
  * Expected CSV format (French bank amortization schedule):
