@@ -15,7 +15,7 @@ import { LoanCalculation } from '@/utils/loanCalculator';
 import { Loader2, Calculator, FileText, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { debtSchema, validateForm } from '@/lib/validations';
-import { PdfLoanImport } from '@/components/PdfLoanImport';
+import { CsvLoanImport } from '@/components/CsvLoanImport';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NewDebtModalProps {
@@ -186,10 +186,10 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
               <span className="hidden sm:inline">Calculateur</span>
               <span className="sm:hidden">Calcul</span>
             </TabsTrigger>
-            <TabsTrigger value="pdf-import" className="gap-1 sm:gap-2 text-[11px] sm:text-sm">
+            <TabsTrigger value="csv-import" className="gap-1 sm:gap-2 text-[11px] sm:text-sm">
               <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Importer</span>
-              <span className="sm:hidden">Import</span>
+              <span className="hidden sm:inline">Importer CSV</span>
+              <span className="sm:hidden">CSV</span>
             </TabsTrigger>
             <TabsTrigger value="details" className="gap-1 sm:gap-2 text-[11px] sm:text-sm" disabled={!calculation}>
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -214,8 +214,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
             )}
           </TabsContent>
 
-          <TabsContent value="pdf-import" className="space-y-4 mt-4">
-            <PdfLoanImport onSuccess={() => { resetForm(); onOpenChange(false); }} />
+          <TabsContent value="csv-import" className="space-y-4 mt-4">
+            <CsvLoanImport onSuccess={() => { resetForm(); onOpenChange(false); }} />
           </TabsContent>
 
           <TabsContent value="details" className="space-y-4 mt-4">
