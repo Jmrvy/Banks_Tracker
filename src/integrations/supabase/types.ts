@@ -137,6 +137,7 @@ export type Database = {
       }
       debts: {
         Row: {
+          category_id: string | null
           contact_info: string | null
           contact_name: string | null
           created_at: string | null
@@ -157,6 +158,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category_id?: string | null
           contact_info?: string | null
           contact_name?: string | null
           created_at?: string | null
@@ -177,6 +179,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category_id?: string | null
           contact_info?: string | null
           contact_name?: string | null
           created_at?: string | null
@@ -197,6 +200,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "debts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "debts_user_id_fkey"
             columns: ["user_id"]

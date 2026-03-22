@@ -34,7 +34,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
   const { user } = useAuth();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
-  const { accounts } = useFinancialData();
+  const { accounts, categories } = useFinancialData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [parsing, setParsing] = useState(false);
@@ -52,6 +52,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
     contact_name: '',
     notes: '',
     account_id: '',
+    category_id: '',
   });
 
   const parseFile = useCallback(async (file: File) => {
@@ -181,6 +182,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
         payment_frequency: 'monthly',
         payment_amount: monthlyPayment,
         loan_type: 'amortizable',
+        category_id: formData.category_id || null,
       });
 
       // Create scheduled payments
@@ -227,6 +229,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
             next_due_date: parsedData.startDate || new Date().toISOString().split('T')[0],
             end_date: endDate,
             account_id: formData.account_id,
+            category_id: formData.category_id || null,
             is_active: true,
           });
       }
@@ -511,6 +514,28 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
                     {accounts.map(account => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.name} {account.bank ? `(${account.bank})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="csv-category">Catégorie des paiements</Label>
+                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optionnel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: category.color }}
+                          />
+                          {category.name}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
