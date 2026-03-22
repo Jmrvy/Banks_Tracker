@@ -207,8 +207,11 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
         });
       }
 
-      // Create recurring transaction
-      if (debtId && monthlyPayment > 0) {
+      // Create recurring transaction using the first schedule payment amount (actual CSV amount)
+      const firstScheduleAmount = parsedData.schedule.length > 0 ? parsedData.schedule[0].payment : monthlyPayment;
+      const recurringAmount = firstScheduleAmount > 0 ? firstScheduleAmount : monthlyPayment;
+
+      if (debtId && recurringAmount > 0) {
         const transactionType = formData.type === 'loan_received' ? 'expense' : 'income';
         const suffix = formData.type === 'loan_received' ? 'Remboursement dette' : 'Remboursement prêt';
 
@@ -217,7 +220,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
           .insert({
             user_id: user.id,
             description: `${formData.description} (${suffix})`,
-            amount: monthlyPayment,
+            amount: recurringAmount,
             type: transactionType,
             recurrence_type: 'monthly',
             start_date: parsedData.startDate || new Date().toISOString().split('T')[0],

@@ -314,9 +314,26 @@ export const LinkDebtPaymentModal = ({
                     </div>
                   )}
                   {selectedTransaction && (
-                    <p className="text-xs text-muted-foreground">
-                      Montant à enregistrer: <strong>{formatCurrency(selectedTransaction.amount)}</strong>
-                    </p>
+                    <div className="p-2.5 bg-muted/50 rounded-md space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Montant de la transaction</span>
+                        <span className="font-semibold">{formatCurrency(selectedTransaction.amount)}</span>
+                      </div>
+                      {selectedTransaction.amount !== scheduledPayment.scheduled_amount && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Écart avec l'échéance</span>
+                          <span className={cn(
+                            "font-medium",
+                            selectedTransaction.amount > scheduledPayment.scheduled_amount
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-orange-600 dark:text-orange-400"
+                          )}>
+                            {selectedTransaction.amount > scheduledPayment.scheduled_amount ? '+' : ''}
+                            {formatCurrency(selectedTransaction.amount - scheduledPayment.scheduled_amount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </TabsContent>

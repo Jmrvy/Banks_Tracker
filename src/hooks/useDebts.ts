@@ -130,10 +130,43 @@ export const useDebts = () => {
   };
 
   const deleteDebt = async (id: string) => {
+    if (!user) return;
+
+    // Delete linked transactions (debt payment transactions created via LinkDebtPaymentModal)
+    // Find debt_payments with notes starting with "Lié à:" to identify linked transaction descriptions
+    const { data: debtPayments } = await supabase
+      .from('debt_payments')
+      .select('notes')
+      .eq('debt_id', id)
+      .eq('user_id', user.id);
+
+    // Delete transactions that were auto-created for this debt (description contains the debt suffix)
+    const debt = debts.find(d => d.id === id);
+    if (debt) {
+      const suffixReceived = `${debt.description} (Remboursement dette)`;
+      const suffixGiven = `${debt.description} (Remboursement prêt)`;
+
+      // Delete auto-created transactions
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_id', user.id)
+        .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
+
+      // Delete the recurring transaction created for this debt
+      await supabase
+        .from('recurring_transactions')
+        .delete()
+        .eq('user_id', user.id)
+        .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
+    }
+
+    // debt_payments and scheduled_debt_payments are CASCADE-deleted by the DB
     const { error } = await supabase
       .from('debts')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
       toast({
@@ -150,6 +183,7 @@ export const useDebts = () => {
     });
 
     await fetchDebts();
+    await fetchPayments();
   };
 
   const addPayment = async (paymentData: Omit<DebtPayment, 'id' | 'user_id' | 'created_at'>) => {
