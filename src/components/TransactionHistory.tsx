@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,195 @@ const bankColors = {
   credit_mutuel: 'bg-blue-800',
   other: 'bg-gray-500'
 };
+
+interface TransactionRowProps {
+  transaction: Transaction;
+  dateType: string;
+  formatCurrency: (amount: number) => string;
+  onView: (t: Transaction) => void;
+  onEdit: (t: Transaction) => void;
+  onDelete: (t: Transaction) => void;
+  onRefund: (t: Transaction) => void;
+}
+
+const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onView, onEdit, onDelete, onRefund }: TransactionRowProps) => {
+  const displayDate = dateType === 'value'
+    ? new Date(transaction.value_date || transaction.transaction_date)
+    : new Date(transaction.transaction_date);
+
+  const refundedAmount = transaction.refunded_amount || 0;
+  const isFullyRefunded = transaction.type === 'expense' && refundedAmount >= transaction.amount;
+  const isPartiallyRefunded = transaction.type === 'expense' && refundedAmount > 0 && refundedAmount < transaction.amount;
+  const netExpenseAmount = transaction.type === 'expense' ? Math.max(0, transaction.amount - refundedAmount) : transaction.amount;
+  const transferFee = (transaction.type === 'transfer' && transaction.transfer_fee) ? transaction.transfer_fee : 0;
+  const displayAmount = transaction.type === 'expense' ? netExpenseAmount : transaction.amount;
+
+  return (
+    <div
+      onClick={() => onView(transaction)}
+      className="glass-row flex items-center justify-between p-3 cursor-pointer"
+    >
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+          <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
+            bankColors[transaction.account?.bank || 'other'] || 'bg-gray-500'
+          }`} />
+          <div className={`icon-badge icon-badge-sm ${
+            transaction.type === 'income' ? 'bg-green-500/10' :
+            transaction.type === 'transfer' ? 'bg-blue-500/10' :
+            'bg-red-500/10'
+          }`}>
+            {transaction.type === 'income' ? (
+              <ArrowDownRight className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+            ) : transaction.type === 'transfer' ? (
+              <ArrowRightLeft className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+            ) : (
+              <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
+            )}
+          </div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+            {transaction.refund_of_transaction_id && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="outline" className="text-[10px] px-1 py-0 bg-green-500/10 text-green-600 border-green-500/30">
+                    <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
+                    Remb.
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Ce revenu est un remboursement</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] px-1 py-0 ${
+                      transaction.refunded_amount === transaction.amount
+                        ? 'bg-green-500/10 text-green-600 border-green-500/30'
+                        : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                    }`}
+                  >
+                    <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
+                    {transaction.refunded_amount === transaction.amount ? 'Remboursé' : 'Partiel'}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {transaction.refunded_amount === transaction.amount
+                      ? 'Entièrement remboursé'
+                      : `Remboursé: ${formatCurrency(transaction.refunded_amount || 0)} / ${formatCurrency(transaction.amount)}`
+                    }
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          <div className="flex items-center space-x-1 sm:space-x-2 mt-0.5 sm:mt-1">
+            {transaction.category && (
+              <Badge
+                variant="secondary"
+                className="text-[10px] sm:text-xs px-1 sm:px-2 py-0"
+                style={{ backgroundColor: transaction.category.color, color: 'white' }}
+              >
+                {transaction.category.name}
+              </Badge>
+            )}
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
+              {displayDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </span>
+            {transaction.account && (
+              <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline truncate">
+                • {transaction.account.name}
+              </span>
+            )}
+            {transaction.type === 'transfer' && transaction.transfer_to_account && (
+              <span className="text-[10px] sm:text-xs text-muted-foreground hidden md:inline truncate">
+                → {transaction.transfer_to_account.name}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
+        <div className="flex flex-col items-end">
+          <span
+            className={`font-semibold text-xs sm:text-sm ${
+              isFullyRefunded ? 'text-muted-foreground line-through' :
+              transaction.type === 'income' ? 'text-green-600' :
+              transaction.type === 'transfer' ? 'text-blue-600' :
+              'text-foreground'
+            }`}
+          >
+            {transaction.type === 'income' ? '+' :
+             transaction.type === 'transfer' ? '↔' :
+             '-'}{formatCurrency(Math.abs(displayAmount))}
+          </span>
+          {isPartiallyRefunded && (
+            <span className="text-[10px] text-muted-foreground line-through">
+              -{formatCurrency(transaction.amount)}
+            </span>
+          )}
+          {transferFee > 0 && (
+            <span className="text-[10px] text-amber-500">
+              +{formatCurrency(transferFee)} frais
+            </span>
+          )}
+          {transaction.account && (
+            <span className="text-[10px] text-muted-foreground sm:hidden truncate max-w-[80px]">
+              {transaction.account.name}
+            </span>
+          )}
+        </div>
+        <div className="hidden sm:flex items-center gap-0">
+          {transaction.type === 'expense' && (transaction.refunded_amount || 0) < transaction.amount && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Créer un remboursement"
+                  onClick={(e) => { e.stopPropagation(); onRefund(transaction); }}
+                >
+                  <RotateCcw className="h-4 w-4 text-muted-foreground hover:text-green-600" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Créer un remboursement</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Modifier la transaction"
+            onClick={(e) => { e.stopPropagation(); onEdit(transaction); }}
+          >
+            <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Supprimer la transaction"
+            onClick={(e) => { e.stopPropagation(); onDelete(transaction); }}
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 interface TransactionHistoryProps {
   filters?: TransactionFilters;
@@ -263,194 +452,18 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {displayedTransactions.map((transaction) => {
-            const displayDate = preferences.dateType === 'value'
-              ? new Date(transaction.value_date || transaction.transaction_date)
-              : new Date(transaction.transaction_date);
-
-            // Calculate net amount (after refunds for expenses, with fees for transfers)
-            const refundedAmount = transaction.refunded_amount || 0;
-            const isFullyRefunded = transaction.type === 'expense' && refundedAmount >= transaction.amount;
-            const isPartiallyRefunded = transaction.type === 'expense' && refundedAmount > 0 && refundedAmount < transaction.amount;
-            const netExpenseAmount = transaction.type === 'expense' ? Math.max(0, transaction.amount - refundedAmount) : transaction.amount;
-            const transferFee = (transaction.type === 'transfer' && transaction.transfer_fee) ? transaction.transfer_fee : 0;
-            const displayAmount = transaction.type === 'expense' ? netExpenseAmount : transaction.amount;
-
-            return (
-              <div 
-                key={transaction.id} 
-                onClick={() => setViewingTransaction(transaction)}
-                className="glass-row flex items-center justify-between p-3 cursor-pointer"
-              >
-                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                  <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-                    <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
-                      bankColors[transaction.account?.bank || 'other'] || 'bg-gray-500'
-                    }`} />
-                    <div className={`icon-badge icon-badge-sm ${
-                      transaction.type === 'income' ? 'bg-green-500/10' :
-                      transaction.type === 'transfer' ? 'bg-blue-500/10' :
-                      'bg-red-500/10'
-                    }`}>
-                      {transaction.type === 'income' ? (
-                        <ArrowDownRight className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-                      ) : transaction.type === 'transfer' ? (
-                        <ArrowRightLeft className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                      ) : (
-                        <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
-                      {/* Refund indicator */}
-                      {transaction.refund_of_transaction_id && (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-green-500/10 text-green-600 border-green-500/30">
-                              <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
-                              Remb.
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Ce revenu est un remboursement</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {/* Refunded indicator for expenses */}
-                      {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-[10px] px-1 py-0 ${
-                                transaction.refunded_amount === transaction.amount 
-                                  ? 'bg-green-500/10 text-green-600 border-green-500/30' 
-                                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                              }`}
-                            >
-                              <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
-                              {transaction.refunded_amount === transaction.amount ? 'Remboursé' : 'Partiel'}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>
-                              {transaction.refunded_amount === transaction.amount 
-                                ? 'Entièrement remboursé'
-                                : `Remboursé: ${formatCurrency(transaction.refunded_amount || 0)} / ${formatCurrency(transaction.amount)}`
-                              }
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-1 sm:space-x-2 mt-0.5 sm:mt-1">
-                      {transaction.category && (
-                        <Badge 
-                          variant="secondary" 
-                          className="text-[10px] sm:text-xs px-1 sm:px-2 py-0"
-                          style={{ backgroundColor: transaction.category.color, color: 'white' }}
-                        >
-                          {transaction.category.name}
-                        </Badge>
-                      )}
-                      <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                        {displayDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </span>
-                      {transaction.account && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline truncate">
-                          • {transaction.account.name}
-                        </span>
-                      )}
-                      {transaction.type === 'transfer' && transaction.transfer_to_account && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground hidden md:inline truncate">
-                          → {transaction.transfer_to_account.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
-                  <div className="flex flex-col items-end">
-                    {/* Net amount display */}
-                    <span
-                      className={`font-semibold text-xs sm:text-sm ${
-                        isFullyRefunded ? 'text-muted-foreground line-through' :
-                        transaction.type === 'income' ? 'text-green-600' :
-                        transaction.type === 'transfer' ? 'text-blue-600' :
-                        'text-foreground'
-                      }`}
-                    >
-                      {transaction.type === 'income' ? '+' :
-                       transaction.type === 'transfer' ? '↔' :
-                       '-'}{formatCurrency(Math.abs(displayAmount))}
-                    </span>
-                    {/* Show original amount if partially refunded */}
-                    {isPartiallyRefunded && (
-                      <span className="text-[10px] text-muted-foreground line-through">
-                        -{formatCurrency(transaction.amount)}
-                      </span>
-                    )}
-                    {/* Transfer fee */}
-                    {transferFee > 0 && (
-                      <span className="text-[10px] text-amber-500">
-                        +{formatCurrency(transferFee)} frais
-                      </span>
-                    )}
-                    {/* Mobile: show account name under amount */}
-                    {transaction.account && (
-                      <span className="text-[10px] text-muted-foreground sm:hidden truncate max-w-[80px]">
-                        {transaction.account.name}
-                      </span>
-                    )}
-                  </div>
-                  {/* Action buttons hidden on mobile - tap row to see details */}
-                  <div className="hidden sm:flex items-center gap-0">
-                    {/* Refund button - only for expenses that can still be refunded */}
-                    {transaction.type === 'expense' && (transaction.refunded_amount || 0) < transaction.amount && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label="Créer un remboursement"
-                            onClick={(e) => { e.stopPropagation(); setRefundingTransaction(transaction); }}
-                          >
-                            <RotateCcw className="h-4 w-4 text-muted-foreground hover:text-green-600" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Créer un remboursement</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      aria-label="Modifier la transaction"
-                      onClick={(e) => { e.stopPropagation(); setEditingTransaction(transaction); }}
-                    >
-                      <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      aria-label="Supprimer la transaction"
-                      onClick={(e) => { e.stopPropagation(); setDeletingTransaction(transaction); }}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {displayedTransactions.map((transaction) => (
+            <TransactionRow
+              key={transaction.id}
+              transaction={transaction}
+              dateType={preferences.dateType}
+              formatCurrency={formatCurrency}
+              onView={setViewingTransaction}
+              onEdit={setEditingTransaction}
+              onDelete={setDeletingTransaction}
+              onRefund={setRefundingTransaction}
+            />
+          ))}
         </div>
         
         {displayedTransactions.length < filteredAndSortedTransactions.length && (

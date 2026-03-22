@@ -4,7 +4,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { ThemeProvider } from "./components/ThemeProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
@@ -36,7 +35,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 30_000, // 30 seconds
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -192,8 +191,7 @@ const I18nLoadingFallback = () => (
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
+      <TooltipProvider>
           <Suspense fallback={<I18nLoadingFallback />}>
             <Toaster />
             <Sonner />
@@ -210,8 +208,7 @@ const App = () => (
               </AuthProvider>
             </BrowserRouter>
           </Suspense>
-        </TooltipProvider>
-      </ThemeProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

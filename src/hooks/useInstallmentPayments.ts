@@ -186,6 +186,7 @@ export const useInstallmentPayments = () => {
     }
 
     await fetchInstallmentPayments();
+    repairStaleLinks(); // fire-and-forget after mutation
     return { error: null };
   };
 
@@ -401,6 +402,7 @@ export const useInstallmentPayments = () => {
     }
 
     await fetchInstallmentPayments();
+    repairStaleLinks(); // fire-and-forget after mutation
     return { error: null };
   };
 
@@ -569,6 +571,7 @@ export const useInstallmentPayments = () => {
       .eq('user_id', user.id);
 
     await fetchInstallmentPayments();
+    repairStaleLinks(); // fire-and-forget after mutation
 
     return {
       error: null,
@@ -646,6 +649,7 @@ export const useInstallmentPayments = () => {
     }
 
     await fetchInstallmentPayments();
+    repairStaleLinks(); // fire-and-forget after mutation
     return { error: null };
   };
 
@@ -748,8 +752,6 @@ export const useInstallmentPayments = () => {
     const loadData = async () => {
       setLoading(true);
       await fetchInstallmentPayments();
-      // Repair stale links after initial load
-      await repairStaleLinks();
       setLoading(false);
     };
 
