@@ -599,7 +599,8 @@ export const useReportsData = (
     }
 
     // Count occurrences of a recurring transaction in the period
-    // For installment-linked recurring: cap future occurrences at remaining payments
+    // Mirrors the calendar logic: past occurrences before next_due_date are counted,
+    // future occurrences start from next_due_date and are capped by installment/debt limits
     const getOccurrencesInPeriod = (rt: RecurringTransaction): number => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
@@ -610,52 +611,86 @@ export const useReportsData = (
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // For installment-linked recurring, determine max future occurrences
-      let remainingPayments = Infinity;
+      const [ny, nm, nd] = rt.next_due_date.split('-').map(Number);
+      const nextDueDate = new Date(ny, nm - 1, nd);
+
+      // Compute effective end date based on installment/debt remaining payments
+      // (same approach as RecurringCalendar)
+      let effectiveEndDate: Date | null = endDate;
+
       if (rt.installment_payment_id) {
         const ip = installmentMap.get(rt.installment_payment_id);
         if (ip) {
-          if (!ip.is_active) {
-            remainingPayments = 0; // Installment completed, no future occurrences
+          if (!ip.is_active || ip.installment_amount <= 0) {
+            // Installment completed or zero amount — no future occurrences
+            if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
+              effectiveEndDate = new Date(nextDueDate.getTime() - 86400000); // day before next_due
+            }
           } else {
-            remainingPayments = ip.installment_amount > 0
-              ? Math.ceil(ip.remaining_amount / ip.installment_amount)
-              : 0;
+            const maxFuture = Math.ceil(ip.remaining_amount / ip.installment_amount);
+            if (maxFuture <= 0) {
+              if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
+                effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+              }
+            } else {
+              let lastOccurrence = new Date(nextDueDate);
+              for (let i = 1; i < maxFuture; i++) {
+                lastOccurrence = advanceDate(lastOccurrence, rt.recurrence_type);
+              }
+              if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
+                effectiveEndDate = lastOccurrence;
+              }
+            }
           }
         }
       }
 
-      // For debt-linked recurring, cap by remaining debt amount
       const linkedDebt = resolveDebt(rt);
       if (linkedDebt) {
         if (linkedDebt.status === 'completed') {
-          remainingPayments = 0;
+          if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
+            effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+          }
         } else if (linkedDebt.payment_amount > 0) {
-          const debtRemaining = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
-          remainingPayments = Math.min(remainingPayments, debtRemaining);
+          const maxFuture = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
+          if (maxFuture <= 0) {
+            if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
+              effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+            }
+          } else {
+            let lastOccurrence = new Date(nextDueDate);
+            for (let i = 1; i < maxFuture; i++) {
+              lastOccurrence = advanceDate(lastOccurrence, rt.recurrence_type);
+            }
+            if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
+              effectiveEndDate = lastOccurrence;
+            }
+          }
         }
       }
 
-      let pastCount = 0;   // Occurrences in period that are in the past (already happened)
-      let futureCount = 0;  // Occurrences in period that are in the future (not yet happened)
+      let count = 0;
 
       while (current <= period.to && iterations < maxIterations) {
-        if (endDate && current > endDate) break;
+        if (effectiveEndDate && current > effectiveEndDate) break;
         if (current >= period.from && current <= period.to) {
-          if (current <= today) {
-            pastCount++;
-          } else {
-            futureCount++;
+          const isPast = current < today;
+          const isFuture = !isPast;
+
+          // Mirror calendar: future occurrences before next_due_date are skipped
+          // (they've already been executed and recorded as actual transactions)
+          if (isFuture && current < nextDueDate) {
+            current = advanceDate(current, rt.recurrence_type);
+            iterations++;
+            continue;
           }
+          count++;
         }
         current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      // Cap future occurrences at remaining payments for installment-linked recurring
-      const cappedFuture = Math.min(futureCount, remainingPayments);
-
-      return pastCount + cappedFuture;
+      return count;
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
