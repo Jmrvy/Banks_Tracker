@@ -141,7 +141,14 @@ export const useDebts = () => {
       .eq('debt_id', id)
       .eq('user_id', user.id);
 
-    // Delete transactions that were auto-created for this debt (description contains the debt suffix)
+    // Delete recurring transactions linked to this debt via debt_id (reliable)
+    await supabase
+      .from('recurring_transactions')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('debt_id', id);
+
+    // Also delete by description as fallback for older records without debt_id
     const debt = debts.find(d => d.id === id);
     if (debt) {
       const suffixReceived = `${debt.description} (Remboursement dette)`;
@@ -154,7 +161,7 @@ export const useDebts = () => {
         .eq('user_id', user.id)
         .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
 
-      // Delete the recurring transaction created for this debt
+      // Delete any remaining recurring transactions matched by description
       await supabase
         .from('recurring_transactions')
         .delete()
