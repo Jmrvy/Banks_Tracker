@@ -80,6 +80,22 @@ export interface InstallmentPaymentInfo {
   is_active: boolean;
 }
 
+export interface DebtInfo {
+  id: string;
+  description: string;
+  total_amount: number;
+  remaining_amount: number;
+  payment_amount: number;
+  status: string;
+}
+
+export interface ScheduledDebtPaymentInfo {
+  debt_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean | null;
+}
+
 export interface UseReportsDataOptions {
   /** Skip heavy computations (balance evolution, recurring, spending patterns) when only stats/categories/income are needed */
   skipHeavyComputations?: boolean;
@@ -92,7 +108,9 @@ export const useReportsData = (
   useSpendingPatterns: boolean,
   overrideDateType?: 'accounting' | 'value',
   installmentPayments?: InstallmentPaymentInfo[],
-  options?: UseReportsDataOptions
+  options?: UseReportsDataOptions,
+  debtInfos?: DebtInfo[],
+  scheduledDebtPaymentInfos?: ScheduledDebtPaymentInfo[],
 ) => {
   const skipHeavy = options?.skipHeavyComputations ?? false;
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
@@ -503,6 +521,36 @@ export const useReportsData = (
     if (skipHeavy) return emptyRecurringData;
     const activeRecurring = recurringTransactions.filter(rt => rt.is_active);
 
+    // Build debt lookup maps
+    const debtMap = new Map<string, DebtInfo>();
+    if (debtInfos) {
+      for (const d of debtInfos) debtMap.set(d.id, d);
+    }
+
+    // Resolve the linked debt for a recurring transaction (by debt_id or description fallback)
+    const resolveDebt = (rt: RecurringTransaction): DebtInfo | null => {
+      if (rt.debt_id) return debtMap.get(rt.debt_id) || null;
+      // Fallback: match by description pattern for old recurring transactions
+      if (rt.description.includes('(Remboursement dette)') || rt.description.includes('(Remboursement prêt)')) {
+        for (const d of debtMap.values()) {
+          const suffixReceived = `${d.description} (Remboursement dette)`;
+          const suffixGiven = `${d.description} (Remboursement prêt)`;
+          if (rt.description === suffixReceived || rt.description === suffixGiven) return d;
+        }
+      }
+      return null;
+    };
+
+    // Get the effective amount for a debt-linked recurring transaction
+    const getDebtAmount = (rt: RecurringTransaction, debt: DebtInfo): number => {
+      if (scheduledDebtPaymentInfos) {
+        // Find next unpaid scheduled payment
+        const nextUnpaid = scheduledDebtPaymentInfos.find(sp => sp.debt_id === debt.id && !sp.is_paid);
+        if (nextUnpaid) return nextUnpaid.scheduled_amount;
+      }
+      return debt.payment_amount > 0 ? debt.payment_amount : rt.amount;
+    };
+
     const toMonthly = (amount: number, recurrenceType: string) => {
       switch (recurrenceType) {
         case 'weekly': return amount * 52 / 12;
@@ -577,6 +625,17 @@ export const useReportsData = (
         }
       }
 
+      // For debt-linked recurring, cap by remaining debt amount
+      const linkedDebt = resolveDebt(rt);
+      if (linkedDebt) {
+        if (linkedDebt.status === 'completed') {
+          remainingPayments = 0;
+        } else if (linkedDebt.payment_amount > 0) {
+          const debtRemaining = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
+          remainingPayments = Math.min(remainingPayments, debtRemaining);
+        }
+      }
+
       let pastCount = 0;   // Occurrences in period that are in the past (already happened)
       let futureCount = 0;  // Occurrences in period that are in the future (not yet happened)
 
@@ -600,13 +659,24 @@ export const useReportsData = (
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
+    // Helper to get effective display amount for a recurring transaction
+    const getEffectiveAmount = (rt: RecurringTransaction): number => {
+      const debt = resolveDebt(rt);
+      if (debt) return getDebtAmount(rt, debt);
+      if (rt.installment_payment_id) {
+        const ip = installmentMap.get(rt.installment_payment_id);
+        if (ip) return ip.installment_amount;
+      }
+      return Number(rt.amount);
+    };
+
     const monthlyIncome = activeRecurring
       .filter(rt => getEffectiveType(rt) === 'income')
-      .reduce((sum, rt) => sum + toMonthly(Number(rt.amount), rt.recurrence_type), 0);
+      .reduce((sum, rt) => sum + toMonthly(getEffectiveAmount(rt), rt.recurrence_type), 0);
 
     const monthlyExpenses = activeRecurring
       .filter(rt => getEffectiveType(rt) === 'expense')
-      .reduce((sum, rt) => sum + toMonthly(Number(rt.amount), rt.recurrence_type), 0);
+      .reduce((sum, rt) => sum + toMonthly(getEffectiveAmount(rt), rt.recurrence_type), 0);
 
     const incomeCount = activeRecurring.filter(rt => getEffectiveType(rt) === 'income').length;
     const expenseCount = activeRecurring.filter(rt => getEffectiveType(rt) === 'expense').length;
@@ -619,7 +689,7 @@ export const useReportsData = (
       const effectiveType = getEffectiveType(rt);
       const key = `${catName}-${effectiveType}`;
       const existing = categoryMap.get(key);
-      const monthlyAmount = toMonthly(Number(rt.amount), rt.recurrence_type);
+      const monthlyAmount = toMonthly(getEffectiveAmount(rt), rt.recurrence_type);
       if (existing) {
         existing.amount += monthlyAmount;
         existing.count += 1;
@@ -634,10 +704,11 @@ export const useReportsData = (
       const occurrences = getOccurrencesInPeriod(rt);
       if (occurrences > 0) {
         const effectiveType = getEffectiveType(rt);
+        const amount = getEffectiveAmount(rt);
         periodItems.push({
           recurring: rt,
           occurrences,
-          periodAmount: Number(rt.amount) * occurrences,
+          periodAmount: amount * occurrences,
           effectiveType,
         });
       }
@@ -687,7 +758,7 @@ export const useReportsData = (
       periodExpenseCount,
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
     };
-  }, [recurringTransactions, period, installmentPayments]);
+  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {

@@ -1058,16 +1058,9 @@ function useFinancialDataInternal() {
     repairCorruptedNextDueDates().then(() => processDueRecurringTransactions());
   }, [user, loading]);
 
-  // Realtime subscriptions + periodic recurring check
+  // Realtime subscriptions (recurring processing only runs at launch via initialRepairDone above)
   useEffect(() => {
     if (!user) return;
-
-    // Set up periodic check for due recurring transactions (every 6 hours)
-    const recurringCheckInterval = setInterval(async () => {
-      if (user) {
-        await processDueRecurringTransactions();
-      }
-    }, 6 * 60 * 60 * 1000);
 
     // Set up real-time subscriptions — invalidate React Query cache
     const channel = supabase
@@ -1099,7 +1092,6 @@ function useFinancialDataInternal() {
     window.addEventListener('installment-recurring-updated', handleInstallmentSync);
 
     return () => {
-      clearInterval(recurringCheckInterval);
       supabase.removeChannel(channel);
       window.removeEventListener('installment-recurring-updated', handleInstallmentSync);
     };

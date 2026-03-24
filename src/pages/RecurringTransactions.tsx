@@ -146,10 +146,22 @@ const RecurringTransactions = () => {
       .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
   };
 
+  // Resolve debt for a transaction: by debt_id or description fallback
+  const resolveDebt = (transaction: RecurringTransaction) => {
+    if (transaction.debt_id) return debts.find(d => d.id === transaction.debt_id) || null;
+    if (transaction.description.includes('(Remboursement dette)') || transaction.description.includes('(Remboursement prêt)')) {
+      for (const d of debts) {
+        const suffixReceived = `${d.description} (Remboursement dette)`;
+        const suffixGiven = `${d.description} (Remboursement prêt)`;
+        if (transaction.description === suffixReceived || transaction.description === suffixGiven) return d;
+      }
+    }
+    return null;
+  };
+
   // Debt helpers for the list view
   const getDebtInfo = (transaction: RecurringTransaction) => {
-    if (!transaction.debt_id) return null;
-    const debt = debts.find(d => d.id === transaction.debt_id);
+    const debt = resolveDebt(transaction);
     if (!debt) return null;
     const paid = debt.total_amount - debt.remaining_amount;
     const totalScheduled = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id).length;
@@ -159,9 +171,11 @@ const RecurringTransactions = () => {
     return { debt, paid, paidCount, totalCount, pct };
   };
 
-  const getDebtPaymentHistory = (debtId: string) => {
+  const getDebtPaymentHistoryForTransaction = (transaction: RecurringTransaction) => {
+    const debt = resolveDebt(transaction);
+    if (!debt) return [];
     return debtPayments
-      .filter(dp => dp.debt_id === debtId)
+      .filter(dp => dp.debt_id === debt.id)
       .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
   };
 
@@ -181,7 +195,7 @@ const RecurringTransactions = () => {
     let listDisplayAmount = recurring.amount;
     if (debtInfo) {
       // Find next unpaid scheduled payment for this debt
-      const nextScheduled = scheduledDebtPayments.find(sp => sp.debt_id === recurring.debt_id && !sp.is_paid);
+      const nextScheduled = scheduledDebtPayments.find(sp => sp.debt_id === debtInfo.debt.id && !sp.is_paid);
       if (nextScheduled) {
         listDisplayAmount = nextScheduled.scheduled_amount;
       } else if (debtInfo.debt.payment_amount > 0) {
@@ -377,7 +391,7 @@ const RecurringTransactions = () => {
 
                 {/* Debt payment timeline */}
                 <div className="space-y-1">
-                  {getDebtPaymentHistory(recurring.debt_id!).map((dp) => (
+                  {getDebtPaymentHistoryForTransaction(recurring).map((dp) => (
                     <div key={dp.id} className="flex items-center gap-2.5 py-1.5">
                       <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
                         <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

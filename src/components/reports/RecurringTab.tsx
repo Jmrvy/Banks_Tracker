@@ -363,7 +363,7 @@ export const RecurringTab = ({
                     </p>
                     {occurrences > 1 && (
                       <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        {formatCurrency(Number(recurring.amount))}/fois
+                        {formatCurrency(periodAmount / occurrences)}/fois
                       </p>
                     )}
                   </div>
