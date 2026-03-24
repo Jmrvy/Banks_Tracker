@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,6 +6,9 @@ import { startOfMonth, endOfMonth } from "date-fns";
 import { BarChart3, Calendar, CalendarCheck, Download } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useDebts } from "@/hooks/useDebts";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
 import { StatsCards } from "@/components/reports/StatsCards";
 import { EvolutionTab } from "@/components/reports/EvolutionTab";
@@ -42,6 +45,33 @@ const Reports = () => {
     [installmentPayments]
   );
 
+  // Debt data for recurring transaction amount resolution
+  const { debts } = useDebts();
+  const debtInfos = useMemo(() =>
+    debts.map(d => ({
+      id: d.id,
+      description: d.description,
+      total_amount: d.total_amount,
+      remaining_amount: d.remaining_amount,
+      payment_amount: d.payment_amount,
+      status: d.status,
+    })),
+    [debts]
+  );
+  const [scheduledDebtPaymentInfos, setScheduledDebtPaymentInfos] = useState<any[]>([]);
+  useEffect(() => {
+    const fetch = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('scheduled_debt_payments')
+        .select('debt_id, scheduled_date, scheduled_amount, is_paid')
+        .eq('user_id', user.id)
+        .order('scheduled_date', { ascending: true });
+      setScheduledDebtPaymentInfos(data || []);
+    };
+    fetch();
+  }, [user]);
+
   // Données pour Évolution et Récurrents - toujours en date comptable
   const {
     loading,
@@ -52,7 +82,7 @@ const Reports = () => {
     spendingPatternsData,
     accounts,
     filteredTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos);
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos, undefined, debtInfos, scheduledDebtPaymentInfos);
 
   // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
   // Skip heavy computations (balance evolution, recurring, spending patterns) since they're already computed above

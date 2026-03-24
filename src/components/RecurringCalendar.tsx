@@ -151,6 +151,22 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [scheduledDebtPayments]);
 
+  // Resolve debt for a transaction: by debt_id or description fallback
+  const resolveDebt = useMemo(() => {
+    return (transaction: RecurringTransaction): Debt | null => {
+      if (transaction.debt_id) return debtsById.get(transaction.debt_id) || null;
+      // Fallback: match by description pattern for old recurring transactions without debt_id
+      if (transaction.description.includes('(Remboursement dette)') || transaction.description.includes('(Remboursement prêt)')) {
+        for (const d of debts) {
+          const suffixReceived = `${d.description} (Remboursement dette)`;
+          const suffixGiven = `${d.description} (Remboursement prêt)`;
+          if (transaction.description === suffixReceived || transaction.description === suffixGiven) return d;
+        }
+      }
+      return null;
+    };
+  }, [debtsById, debts]);
+
   // Map transactions to their due dates within the current month
   const transactionsByDay = useMemo(() => {
     const map = new Map<string, CalendarOccurrence[]>();
@@ -196,9 +212,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       }
 
       // For debt-linked transactions, limit future occurrences based on remaining amount
-      if (transaction.debt_id) {
-        const debt = debtsById.get(transaction.debt_id);
-        if (debt && debt.payment_amount > 0) {
+      const resolvedDebt = resolveDebt(transaction);
+      const resolvedDebtId = resolvedDebt?.id || null;
+      if (resolvedDebt) {
+        const debt = resolvedDebt;
+        if (debt.payment_amount > 0) {
           const maxFutureOccurrences = Math.ceil(debt.remaining_amount / debt.payment_amount);
           let lastOccurrence = new Date(nextDueDate);
           for (let i = 1; i < maxFutureOccurrences; i++) {
@@ -263,9 +281,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           }
 
           // Debt-linked: use actual paid amount for past, scheduled amount for future
-          if (transaction.debt_id) {
+          if (resolvedDebtId) {
             const monthKey = format(currentOccurrence, 'yyyy-MM');
-            const debtKey = `${transaction.debt_id}:${monthKey}`;
+            const debtKey = `${resolvedDebtId}:${monthKey}`;
             if (isPast) {
               const actualAmount = debtActualAmounts.get(debtKey);
               if (actualAmount !== undefined) {
@@ -278,12 +296,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               const scheduled = scheduledDebtPaymentsByDebtMonth.get(debtKey);
               if (scheduled) {
                 displayAmount = scheduled.scheduled_amount;
-              } else {
-                // Fallback to debt's payment_amount
-                const debt = debtsById.get(transaction.debt_id);
-                if (debt) {
-                  displayAmount = debt.payment_amount;
-                }
+              } else if (resolvedDebt) {
+                displayAmount = resolvedDebt.payment_amount;
               }
             }
           }
@@ -299,7 +313,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById, debtsById, debtActualAmounts, scheduledDebtPaymentsByDebtMonth]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
@@ -390,8 +404,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   };
 
   const getDebtInfo = (transaction: RecurringTransaction) => {
-    if (!transaction.debt_id) return null;
-    const debt = debtsById.get(transaction.debt_id);
+    const debt = resolveDebt(transaction);
     if (!debt) return null;
     const paid = debt.total_amount - debt.remaining_amount;
     const paidCount = debtPaidCounts.get(debt.id) || 0;
@@ -401,9 +414,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return { debt, paid, paidCount, totalCount, pct };
   };
 
-  const getDebtPaymentHistory = (debtId: string) => {
+  const getDebtPaymentHistoryForTransaction = (transaction: RecurringTransaction) => {
+    const debt = resolveDebt(transaction);
+    if (!debt) return [];
     return debtPayments
-      .filter(dp => dp.debt_id === debtId)
+      .filter(dp => dp.debt_id === debt.id)
       .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
   };
 
@@ -613,7 +628,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
                 {/* Debt payment timeline */}
                 <div className="space-y-1">
-                  {getDebtPaymentHistory(transaction.debt_id!).map((dp) => (
+                  {getDebtPaymentHistoryForTransaction(transaction).map((dp) => (
                     <div key={dp.id} className="flex items-center gap-2.5 py-1.5">
                       <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                       <span className="text-xs sm:text-sm flex-1">
