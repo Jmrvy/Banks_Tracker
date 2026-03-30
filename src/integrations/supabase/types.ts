@@ -21,6 +21,7 @@ export type Database = {
           bank: Database["public"]["Enums"]["bank_type"]
           created_at: string | null
           id: string
+          initial_balance: number
           name: string
           updated_at: string | null
           user_id: string
@@ -31,6 +32,7 @@ export type Database = {
           bank?: Database["public"]["Enums"]["bank_type"]
           created_at?: string | null
           id?: string
+          initial_balance?: number
           name: string
           updated_at?: string | null
           user_id: string
@@ -41,6 +43,7 @@ export type Database = {
           bank?: Database["public"]["Enums"]["bank_type"]
           created_at?: string | null
           id?: string
+          initial_balance?: number
           name?: string
           updated_at?: string | null
           user_id?: string
@@ -51,6 +54,47 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      balance_recalculation_history: {
+        Row: {
+          account_id: string | null
+          account_name: string
+          created_at: string
+          difference: number
+          id: string
+          new_balance: number
+          old_balance: number
+          run_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_name: string
+          created_at?: string
+          difference: number
+          id?: string
+          new_balance: number
+          old_balance: number
+          run_id: string
+        }
+        Update: {
+          account_id?: string | null
+          account_name?: string
+          created_at?: string
+          difference?: number
+          id?: string
+          new_balance?: number
+          old_balance?: number
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_recalculation_history_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -486,10 +530,10 @@ export type Database = {
           amount: number
           category_id: string | null
           created_at: string | null
+          debt_id: string | null
           description: string
           end_date: string | null
           id: string
-          debt_id: string | null
           installment_payment_id: string | null
           is_active: boolean | null
           next_due_date: string
@@ -537,13 +581,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "recurring_transactions_debt_id_fkey"
-            columns: ["debt_id"]
-            isOneToOne: false
-            referencedRelation: "debts"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fk_recurring_transactions_installment_payment"
             columns: ["installment_payment_id"]
             isOneToOne: false
@@ -562,6 +599,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_transactions_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
             referencedColumns: ["id"]
           },
           {
@@ -813,7 +857,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_account_balance_at_date: {
+        Args: { p_account_id: string; p_date: string }
+        Returns: number
+      }
+      recalculate_account_balances: {
+        Args: never
+        Returns: {
+          account_id: string
+          account_name: string
+          difference: number
+          new_balance: number
+          old_balance: number
+        }[]
+      }
     }
     Enums: {
       account_type: "checking" | "savings" | "credit" | "investment"
