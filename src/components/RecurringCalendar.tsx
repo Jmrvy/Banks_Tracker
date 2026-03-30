@@ -96,6 +96,28 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [actualTransactions, dateField]);
 
+  // Build a day-level lookup of actual installment transactions using the preferred date
+  // This is used to inject transactions on their actual date when it differs from the scheduled date
+  const installmentActualByDay = useMemo(() => {
+    const map = new Map<string, { installmentPaymentId: string; amount: number; recurringId: string | null }[]>();
+    actualTransactions.forEach((tx) => {
+      if (tx.installment_payment_id) {
+        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const dayKey = txDate.substring(0, 10);
+        const existing = map.get(dayKey) || [];
+        // Find the recurring transaction linked to this installment
+        const recurringTx = transactions.find(rt => rt.installment_payment_id === tx.installment_payment_id);
+        existing.push({
+          installmentPaymentId: tx.installment_payment_id,
+          amount: tx.amount,
+          recurringId: recurringTx?.id || null,
+        });
+        map.set(dayKey, existing);
+      }
+    });
+    return map;
+  }, [actualTransactions, dateField, transactions]);
+
   // Build a lookup of installment payments by ID
   const installmentPaymentsById = useMemo(() => {
     const map = new Map<string, InstallmentPayment>();
