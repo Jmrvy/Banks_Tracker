@@ -62,7 +62,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
+  const dateField = preferences.dateType === 'value' ? 'value_date' : 'transaction_date';
   const transactionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -81,17 +82,41 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   }, [currentMonth]);
 
   // Build a lookup of actual transactions linked to installment payments
+  // Uses the user's preferred date type (accounting or value date) for month matching
   const installmentActualAmounts = useMemo(() => {
     const map = new Map<string, number>();
     actualTransactions.forEach((tx) => {
       if (tx.installment_payment_id) {
-        const monthKey = tx.transaction_date.substring(0, 7);
+        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const monthKey = txDate.substring(0, 7);
         const key = `${tx.installment_payment_id}:${monthKey}`;
         map.set(key, (map.get(key) || 0) + tx.amount);
       }
     });
     return map;
-  }, [actualTransactions]);
+  }, [actualTransactions, dateField]);
+
+  // Build a day-level lookup of actual installment transactions using the preferred date
+  // This is used to inject transactions on their actual date when it differs from the scheduled date
+  const installmentActualByDay = useMemo(() => {
+    const map = new Map<string, { installmentPaymentId: string; amount: number; recurringId: string | null }[]>();
+    actualTransactions.forEach((tx) => {
+      if (tx.installment_payment_id) {
+        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const dayKey = txDate.substring(0, 10);
+        const existing = map.get(dayKey) || [];
+        // Find the recurring transaction linked to this installment
+        const recurringTx = transactions.find(rt => rt.installment_payment_id === tx.installment_payment_id);
+        existing.push({
+          installmentPaymentId: tx.installment_payment_id,
+          amount: tx.amount,
+          recurringId: recurringTx?.id || null,
+        });
+        map.set(dayKey, existing);
+      }
+    });
+    return map;
+  }, [actualTransactions, dateField, transactions]);
 
   // Build a lookup of installment payments by ID
   const installmentPaymentsById = useMemo(() => {
@@ -312,8 +337,50 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       }
     });
 
+    // Post-processing: inject actual installment transactions that exist in this month
+    // but weren't matched to any scheduled occurrence (e.g., user changed the transaction date)
+    const currentMonthKey = format(currentMonth, 'yyyy-MM');
+    const matchedInstallmentMonths = new Set<string>();
+    // Collect which installment+month combos were already matched
+    map.forEach((entries) => {
+      entries.forEach((entry) => {
+        if (entry.transaction.installment_payment_id) {
+          matchedInstallmentMonths.add(`${entry.transaction.installment_payment_id}:${currentMonthKey}`);
+        }
+      });
+    });
+
+    // For each day in the current month, check if there are unmatched installment transactions
+    installmentActualByDay.forEach((dayEntries, dayKey) => {
+      if (!dayKey.startsWith(currentMonthKey)) return;
+      
+      dayEntries.forEach(({ installmentPaymentId, amount, recurringId }) => {
+        const matchKey = `${installmentPaymentId}:${currentMonthKey}`;
+        if (matchedInstallmentMonths.has(matchKey)) return; // Already shown via scheduled occurrence
+        
+        // Find the recurring transaction for this installment
+        const recurringTx = transactions.find(rt => rt.installment_payment_id === installmentPaymentId);
+        if (!recurringTx) return;
+        
+        // Get the total for this installment in this month
+        const monthAmount = installmentActualAmounts.get(matchKey);
+        if (monthAmount === undefined) return;
+        
+        // Only add once per installment per month (use the first day we encounter)
+        matchedInstallmentMonths.add(matchKey);
+        
+        const existing = map.get(dayKey) || [];
+        map.set(dayKey, [...existing, {
+          transaction: recurringTx,
+          isPast: true,
+          displayAmount: monthAmount,
+          occurrenceDate: dayKey,
+        }]);
+      });
+    });
+
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
@@ -392,7 +459,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     if (!ip) return null;
     const paid = ip.total_amount - ip.remaining_amount;
     const paidCount = installmentPaidCounts.get(ip.id) || 0;
-    const totalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
+    const rawTotalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
+    // When payment is completed (remaining_amount <= 0), totalCount should equal paidCount
+    const totalCount = ip.remaining_amount <= 0 ? paidCount : rawTotalCount;
     const pct = ip.total_amount > 0 ? Math.min(100, Math.round((paid / ip.total_amount) * 1000) / 10) : 0;
     return { ip, paid, paidCount, totalCount, pct };
   };
