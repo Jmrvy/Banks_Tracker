@@ -237,7 +237,9 @@ const InstallmentPayments = () => {
     const today = startOfDay(new Date());
     const daysUntil = differenceInDays(nextDue, today);
     const paidCount = getPaymentHistory(payment.id).length;
-    const totalCount = payment.installment_amount > 0 ? Math.ceil(payment.total_amount / payment.installment_amount) : 0;
+    const rawTotalCount = payment.installment_amount > 0 ? Math.ceil(payment.total_amount / payment.installment_amount) : 0;
+    // When payment is completed (remaining_amount <= 0), totalCount should equal paidCount
+    const totalCount = payment.remaining_amount <= 0 ? paidCount : rawTotalCount;
     const paymentHistory = getPaymentHistory(payment.id);
 
     const isHighlighted = highlightId === payment.id;
