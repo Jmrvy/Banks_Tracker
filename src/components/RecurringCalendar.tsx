@@ -337,8 +337,50 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       }
     });
 
+    // Post-processing: inject actual installment transactions that exist in this month
+    // but weren't matched to any scheduled occurrence (e.g., user changed the transaction date)
+    const currentMonthKey = format(currentMonth, 'yyyy-MM');
+    const matchedInstallmentMonths = new Set<string>();
+    // Collect which installment+month combos were already matched
+    map.forEach((entries) => {
+      entries.forEach((entry) => {
+        if (entry.transaction.installment_payment_id) {
+          matchedInstallmentMonths.add(`${entry.transaction.installment_payment_id}:${currentMonthKey}`);
+        }
+      });
+    });
+
+    // For each day in the current month, check if there are unmatched installment transactions
+    installmentActualByDay.forEach((dayEntries, dayKey) => {
+      if (!dayKey.startsWith(currentMonthKey)) return;
+      
+      dayEntries.forEach(({ installmentPaymentId, amount, recurringId }) => {
+        const matchKey = `${installmentPaymentId}:${currentMonthKey}`;
+        if (matchedInstallmentMonths.has(matchKey)) return; // Already shown via scheduled occurrence
+        
+        // Find the recurring transaction for this installment
+        const recurringTx = transactions.find(rt => rt.installment_payment_id === installmentPaymentId);
+        if (!recurringTx) return;
+        
+        // Get the total for this installment in this month
+        const monthAmount = installmentActualAmounts.get(matchKey);
+        if (monthAmount === undefined) return;
+        
+        // Only add once per installment per month (use the first day we encounter)
+        matchedInstallmentMonths.add(matchKey);
+        
+        const existing = map.get(dayKey) || [];
+        map.set(dayKey, [...existing, {
+          transaction: recurringTx,
+          isPast: true,
+          displayAmount: monthAmount,
+          occurrenceDate: dayKey,
+        }]);
+      });
+    });
+
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
