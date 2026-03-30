@@ -77,7 +77,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
       'weekly': 'weekly',
     };
 
-    const recurrenceType = frequencyMap[frequency] || 'monthly';
+    const recurrenceType = (frequencyMap[frequency] || 'monthly') as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
     const { error } = await supabase
       .from('recurring_transactions')
