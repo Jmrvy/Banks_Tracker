@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
 import RecurringCalendar from "@/components/RecurringCalendar";
+import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { differenceInDays, startOfDay } from "date-fns";
 
 const RecurringTransactions = () => {
@@ -22,6 +23,7 @@ const RecurringTransactions = () => {
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
+  const [recordPaymentForId, setRecordPaymentForId] = useState<string | null>(null);
   const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, payments: debtPayments } = useDebts();
@@ -600,6 +602,7 @@ const RecurringTransactions = () => {
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
                 onExecuteEarly={handleExecuteEarly}
+                onRecordPayment={(id) => setRecordPaymentForId(id)}
               />
             )}
           </TabsContent>
@@ -683,6 +686,14 @@ const RecurringTransactions = () => {
         onOpenChange={(open) => !open && setEditingTransaction(null)}
         transaction={editingTransaction}
       />
+
+      {recordPaymentForId && (
+        <RecordRecurringPaymentModal
+          open={!!recordPaymentForId}
+          onOpenChange={(open) => !open && setRecordPaymentForId(null)}
+          recurringTransactionId={recordPaymentForId}
+        />
+      )}
     </div>
   );
 };

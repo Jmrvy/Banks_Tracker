@@ -39,6 +39,7 @@ export interface Transaction {
   refunded_amount?: number; // Montant déjà remboursé
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
   installment_payment_id?: string | null; // Lien vers le paiement échelonné source
+  recurring_transaction_id?: string | null; // Lien vers la transaction récurrente source
 }
 
 export interface Category {
@@ -572,6 +573,7 @@ function useFinancialDataInternal() {
         value_date: executionDate,
         include_in_stats: true,
         installment_payment_id: rt.installment_payment_id,
+        recurring_transaction_id: recurringId,
         user_id: user.id
       }]);
 
@@ -915,6 +917,7 @@ function useFinancialDataInternal() {
                 value_date: currentDueDateString,
                 include_in_stats: true,
                 installment_payment_id: rt.installment_payment_id,
+                recurring_transaction_id: rt.id,
                 user_id: user.id
               }]);
 
