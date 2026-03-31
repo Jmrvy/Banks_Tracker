@@ -135,9 +135,12 @@ const RecurringTransactions = () => {
     if (!ip) return null;
     const paid = ip.total_amount - ip.remaining_amount;
     const paidCount = transactions.filter(tx => tx.installment_payment_id === ip.id).length;
-    const totalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
+    const rawTotalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
+    // When completed (remaining_amount <= 0), clamp totalCount to paidCount
+    const isCompleted = ip.remaining_amount <= 0;
+    const totalCount = isCompleted ? paidCount : rawTotalCount;
     const pct = ip.total_amount > 0 ? Math.min(100, Math.round((paid / ip.total_amount) * 1000) / 10) : 0;
-    return { ip, paid, paidCount, totalCount, pct };
+    return { ip, paid, paidCount, totalCount, pct, isCompleted };
   };
 
   const getPaymentHistory = (installmentPaymentId: string) => {
@@ -230,9 +233,15 @@ const RecurringTransactions = () => {
               <p className={`text-sm sm:text-base font-semibold truncate ${!recurring.is_active ? 'text-muted-foreground' : ''}`}>
                 {recurring.description}
               </p>
-              {!recurring.is_active && (
-                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 flex-shrink-0">Inactif</Badge>
-              )}
+            {!recurring.is_active && (() => {
+              const instInfo = getInstallmentInfo(recurring);
+              const isCompleted = instInfo?.isCompleted;
+              return (
+                <Badge variant={isCompleted ? "default" : "secondary"} className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${isCompleted ? 'bg-success text-white' : ''}`}>
+                  {isCompleted ? 'Terminé' : 'Inactif'}
+                </Badge>
+              );
+            })()}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Clock className="h-3 w-3 text-muted-foreground" />
@@ -318,9 +327,15 @@ const RecurringTransactions = () => {
               )}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground text-xs">Statut</span>
-                <Badge variant={recurring.is_active ? 'default' : 'secondary'} className="text-xs">
-                  {recurring.is_active ? 'Actif' : 'Inactif'}
-                </Badge>
+                {(() => {
+                  const instInfo = getInstallmentInfo(recurring);
+                  const isCompleted = instInfo?.isCompleted;
+                  return (
+                    <Badge variant={recurring.is_active ? 'default' : isCompleted ? 'default' : 'secondary'} className={`text-xs ${isCompleted ? 'bg-success text-white' : ''}`}>
+                      {recurring.is_active ? 'Actif' : isCompleted ? 'Terminé' : 'Inactif'}
+                    </Badge>
+                  );
+                })()}
               </div>
             </div>
 
