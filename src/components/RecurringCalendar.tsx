@@ -404,8 +404,48 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       });
     });
 
+    // Post-processing: inject non-installment recurring transactions whose actual date
+    // (per user preference) falls in this month but doesn't match a scheduled occurrence
+    const matchedRecurringDays = new Set<string>();
+    // Collect which recurring+day combos are already shown
+    map.forEach((entries, dayKey) => {
+      entries.forEach((entry) => {
+        if (!entry.transaction.installment_payment_id) {
+          matchedRecurringDays.add(`${entry.transaction.id}:${dayKey}`);
+        }
+      });
+    });
+
+    recurringActualByDay.forEach((dayEntries, dayKey) => {
+      if (!dayKey.startsWith(currentMonthKey)) return;
+      
+      dayEntries.forEach(({ recurringTx, amount }) => {
+        const matchKey = `${recurringTx.id}:${dayKey}`;
+        if (matchedRecurringDays.has(matchKey)) return; // Already shown
+        
+        // Check if this recurring transaction already has an occurrence this month
+        // (on its scheduled date) - if so, don't add a duplicate
+        let alreadyInMonth = false;
+        map.forEach((entries) => {
+          entries.forEach((entry) => {
+            if (entry.transaction.id === recurringTx.id) alreadyInMonth = true;
+          });
+        });
+        if (alreadyInMonth) return;
+
+        matchedRecurringDays.add(matchKey);
+        const existing = map.get(dayKey) || [];
+        map.set(dayKey, [...existing, {
+          transaction: recurringTx,
+          isPast: true,
+          displayAmount: amount,
+          occurrenceDate: dayKey,
+        }]);
+      });
+    });
+
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
