@@ -233,9 +233,15 @@ const RecurringTransactions = () => {
               <p className={`text-sm sm:text-base font-semibold truncate ${!recurring.is_active ? 'text-muted-foreground' : ''}`}>
                 {recurring.description}
               </p>
-              {!recurring.is_active && (
-                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 flex-shrink-0">Inactif</Badge>
-              )}
+            {!recurring.is_active && (() => {
+              const instInfo = getInstallmentInfo(recurring);
+              const isCompleted = instInfo?.isCompleted;
+              return (
+                <Badge variant={isCompleted ? "default" : "secondary"} className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${isCompleted ? 'bg-success text-white' : ''}`}>
+                  {isCompleted ? 'Terminé' : 'Inactif'}
+                </Badge>
+              );
+            })()}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Clock className="h-3 w-3 text-muted-foreground" />
