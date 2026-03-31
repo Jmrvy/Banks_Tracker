@@ -759,6 +759,7 @@ export type Database = {
           id: string
           include_in_stats: boolean
           installment_payment_id: string | null
+          recurring_transaction_id: string | null
           refund_of_transaction_id: string | null
           refunded_amount: number | null
           transaction_date: string
@@ -778,6 +779,7 @@ export type Database = {
           id?: string
           include_in_stats?: boolean
           installment_payment_id?: string | null
+          recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
           refunded_amount?: number | null
           transaction_date?: string
@@ -797,6 +799,7 @@ export type Database = {
           id?: string
           include_in_stats?: boolean
           installment_payment_id?: string | null
+          recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
           refunded_amount?: number | null
           transaction_date?: string
@@ -827,6 +830,13 @@ export type Database = {
             columns: ["installment_payment_id"]
             isOneToOne: false
             referencedRelation: "installment_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_recurring_transaction_id_fkey"
+            columns: ["recurring_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_transactions"
             referencedColumns: ["id"]
           },
           {

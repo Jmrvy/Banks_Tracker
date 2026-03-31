@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ interface RecurringCalendarProps {
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
   onExecuteEarly?: (transactionId: string, executionDate: string) => Promise<{ error: any } | undefined>;
+  onRecordPayment?: (recurringTransactionId: string) => void;
 }
 
 interface CalendarOccurrence {
@@ -58,7 +59,7 @@ function advanceDate(date: Date, recurrenceType: string): Date {
   }
 }
 
-const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -118,21 +119,44 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [actualTransactions, dateField, transactions]);
 
-  // Build a day-level lookup of ALL actual recurring transactions (by description match)
-  // so we can inject moved non-installment transactions too
+  // Build a month-level lookup of actual amounts for recurring transactions (by recurring_transaction_id)
+  // Same pattern as installmentActualAmounts — used to show past occurrences with real amounts
+  const recurringActualAmounts = useMemo(() => {
+    const map = new Map<string, number>();
+    actualTransactions.forEach((tx) => {
+      const rtId = tx.recurring_transaction_id;
+      if (!rtId || tx.installment_payment_id) return; // installments handled separately
+      const txDate = (tx as any)[dateField] || tx.transaction_date;
+      const monthKey = txDate.substring(0, 7);
+      const key = `${rtId}:${monthKey}`;
+      map.set(key, (map.get(key) || 0) + tx.amount);
+    });
+    return map;
+  }, [actualTransactions, dateField]);
+
+  // Build a day-level lookup of actual recurring transactions (by recurring_transaction_id)
+  // so we can inject moved transactions on their real date
   const recurringActualByDay = useMemo(() => {
     const map = new Map<string, { recurringTx: RecurringTransaction; amount: number }[]>();
     actualTransactions.forEach((tx) => {
-      // Match recurring transactions by exact description + account
-      // (covers both auto-processed and manually executed transactions)
-      const recurringTx = transactions.find(rt => rt.description === tx.description && rt.account_id === tx.account_id);
+      const rtId = tx.recurring_transaction_id;
       // Skip installment-linked ones (handled separately)
       if (tx.installment_payment_id) return;
+      if (!rtId) {
+        // Fallback: match by description + account for older transactions without recurring_transaction_id
+        const recurringTx = transactions.find(rt => rt.description === tx.description && rt.account_id === tx.account_id);
+        if (!recurringTx) return;
+        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const dayKey = txDate.substring(0, 10);
+        const existing = map.get(dayKey) || [];
+        existing.push({ recurringTx, amount: tx.amount });
+        map.set(dayKey, existing);
+        return;
+      }
+      const recurringTx = transactions.find(rt => rt.id === rtId);
       if (!recurringTx) return;
-
       const txDate = (tx as any)[dateField] || tx.transaction_date;
       const dayKey = txDate.substring(0, 10);
-
       const existing = map.get(dayKey) || [];
       existing.push({ recurringTx, amount: tx.amount });
       map.set(dayKey, existing);
@@ -327,6 +351,20 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
+          // Regular recurring (non-installment, non-debt): use actual amount for past
+          if (!transaction.installment_payment_id && !resolvedDebtId) {
+            if (isPast) {
+              const monthKey = format(currentOccurrence, 'yyyy-MM');
+              const rtKey = `${transaction.id}:${monthKey}`;
+              const actualAmount = recurringActualAmounts.get(rtKey);
+              if (actualAmount !== undefined) {
+                displayAmount = actualAmount;
+              } else {
+                skipOccurrence = true;
+              }
+            }
+          }
+
           // Debt-linked: use actual paid amount for past, scheduled amount for future
           if (resolvedDebtId) {
             const monthKey = format(currentOccurrence, 'yyyy-MM');
@@ -442,7 +480,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualAmounts, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
@@ -531,6 +569,17 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const getPaymentHistory = (installmentPaymentId: string) => {
     return actualTransactions
       .filter(tx => tx.installment_payment_id === installmentPaymentId)
+      .sort((a, b) => {
+        const dateA = (a as any)[dateField] || a.transaction_date;
+        const dateB = (b as any)[dateField] || b.transaction_date;
+        return dateA.localeCompare(dateB);
+      });
+  };
+
+  // Get payment history for a regular recurring transaction (via recurring_transaction_id)
+  const getRecurringPaymentHistory = (recurringTransactionId: string) => {
+    return actualTransactions
+      .filter(tx => tx.recurring_transaction_id === recurringTransactionId && !tx.installment_payment_id)
       .sort((a, b) => {
         const dateA = (a as any)[dateField] || a.transaction_date;
         const dateB = (b as any)[dateField] || b.transaction_date;
@@ -786,6 +835,41 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Regular recurring payment history (non-installment, non-debt) */}
+            {!installmentInfo && !debtInfo && (() => {
+              const history = getRecurringPaymentHistory(transaction.id);
+              if (history.length === 0) return null;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Historique des paiements ({history.length})</p>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {history.map((tx) => (
+                      <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                        <span className="text-xs sm:text-sm flex-1">
+                          {parseLocalDate((tx as any)[dateField] || tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </span>
+                        <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Link transaction button — for all recurring (non-installment, non-debt) */}
+            {!installmentInfo && !debtInfo && onRecordPayment && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-9 text-xs sm:text-sm gap-1.5"
+                onClick={() => onRecordPayment(transaction.id)}
+              >
+                <Link className="h-3.5 w-3.5" />
+                Lier / Enregistrer un paiement
+              </Button>
             )}
 
             {/* Execute early button - only for upcoming */}
