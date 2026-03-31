@@ -327,9 +327,15 @@ const RecurringTransactions = () => {
               )}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground text-xs">Statut</span>
-                <Badge variant={recurring.is_active ? 'default' : 'secondary'} className="text-xs">
-                  {recurring.is_active ? 'Actif' : 'Inactif'}
-                </Badge>
+                {(() => {
+                  const instInfo = getInstallmentInfo(recurring);
+                  const isCompleted = instInfo?.isCompleted;
+                  return (
+                    <Badge variant={recurring.is_active ? 'default' : isCompleted ? 'default' : 'secondary'} className={`text-xs ${isCompleted ? 'bg-success text-white' : ''}`}>
+                      {recurring.is_active ? 'Actif' : isCompleted ? 'Terminé' : 'Inactif'}
+                    </Badge>
+                  );
+                })()}
               </div>
             </div>
 
