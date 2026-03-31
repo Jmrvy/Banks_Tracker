@@ -123,18 +123,15 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const recurringActualByDay = useMemo(() => {
     const map = new Map<string, { recurringTx: RecurringTransaction; amount: number }[]>();
     actualTransactions.forEach((tx) => {
-      // Match auto-generated recurring transactions by description suffix
-      if (!tx.description.endsWith('(Récurrence automatique)')) return;
+      // Match recurring transactions by exact description + account
+      // (covers both auto-processed and manually executed transactions)
+      const recurringTx = transactions.find(rt => rt.description === tx.description && rt.account_id === tx.account_id);
       // Skip installment-linked ones (handled separately)
       if (tx.installment_payment_id) return;
+      if (!recurringTx) return;
 
       const txDate = (tx as any)[dateField] || tx.transaction_date;
       const dayKey = txDate.substring(0, 10);
-      
-      // Find matching recurring transaction by description
-      const baseName = tx.description.replace(' (Récurrence automatique)', '');
-      const recurringTx = transactions.find(rt => rt.description === baseName && rt.account_id === tx.account_id);
-      if (!recurringTx) return;
 
       const existing = map.get(dayKey) || [];
       existing.push({ recurringTx, amount: tx.amount });
@@ -534,7 +531,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const getPaymentHistory = (installmentPaymentId: string) => {
     return actualTransactions
       .filter(tx => tx.installment_payment_id === installmentPaymentId)
-      .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
+      .sort((a, b) => {
+        const dateA = (a as any)[dateField] || a.transaction_date;
+        const dateB = (b as any)[dateField] || b.transaction_date;
+        return dateA.localeCompare(dateB);
+      });
   };
 
   const getDebtInfo = (transaction: RecurringTransaction) => {
@@ -722,7 +723,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                     <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
                       <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                       <span className="text-xs sm:text-sm flex-1">
-                        {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                        {parseLocalDate((tx as any)[dateField] || tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
                       </span>
                       <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
                     </div>
