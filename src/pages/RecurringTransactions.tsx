@@ -135,9 +135,12 @@ const RecurringTransactions = () => {
     if (!ip) return null;
     const paid = ip.total_amount - ip.remaining_amount;
     const paidCount = transactions.filter(tx => tx.installment_payment_id === ip.id).length;
-    const totalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
+    const rawTotalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
+    // When completed (remaining_amount <= 0), clamp totalCount to paidCount
+    const isCompleted = ip.remaining_amount <= 0;
+    const totalCount = isCompleted ? paidCount : rawTotalCount;
     const pct = ip.total_amount > 0 ? Math.min(100, Math.round((paid / ip.total_amount) * 1000) / 10) : 0;
-    return { ip, paid, paidCount, totalCount, pct };
+    return { ip, paid, paidCount, totalCount, pct, isCompleted };
   };
 
   const getPaymentHistory = (installmentPaymentId: string) => {
