@@ -351,7 +351,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
-          // Regular recurring (non-installment, non-debt): use actual amount for past
+          // Regular recurring (non-installment, non-debt): use actual linked amount for past if available
           if (!transaction.installment_payment_id && !resolvedDebtId) {
             if (isPast) {
               const monthKey = format(currentOccurrence, 'yyyy-MM');
@@ -359,9 +359,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               const actualAmount = recurringActualAmounts.get(rtKey);
               if (actualAmount !== undefined) {
                 displayAmount = actualAmount;
-              } else {
-                skipOccurrence = true;
               }
+              // If no linked transaction exists, still show the occurrence with the default amount
+              // (user can link it later via the "Lier / Enregistrer un paiement" button)
             }
           }
 
@@ -503,6 +503,16 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return { upcomingOccurrences: upcoming, pastOccurrences: past };
   }, [transactionsByDay]);
 
+  // Helper to get effective type: installment reimbursements are income in the DB
+  // but represent an expense (money going into savings/repayment)
+  const getEffectiveType = useCallback((transaction: RecurringTransaction): 'income' | 'expense' => {
+    if (transaction.installment_payment_id) {
+      const ip = installmentPaymentsById.get(transaction.installment_payment_id);
+      if (ip?.payment_type === 'reimbursement') return 'expense';
+    }
+    return transaction.type;
+  }, [installmentPaymentsById]);
+
   // Monthly summary
   const monthlySummary = useMemo(() => {
     let totalIncome = 0, totalExpense = 0, pastIncome = 0, pastExpense = 0;
@@ -510,11 +520,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     transactionsByDay.forEach((entries) => {
       entries.forEach(({ transaction, isPast, displayAmount }) => {
         const amount = displayAmount ?? transaction.amount;
-        let effectiveType = transaction.type;
-        if (transaction.installment_payment_id) {
-          const ip = installmentPaymentsById.get(transaction.installment_payment_id);
-          if (ip?.payment_type === 'reimbursement') effectiveType = 'expense';
-        }
+        const effectiveType = getEffectiveType(transaction);
         if (effectiveType === 'income') {
           totalIncome += amount;
           if (isPast) pastIncome += amount;
@@ -659,7 +665,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         >
           {/* Date badge */}
           <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
-            isPast ? 'bg-muted/30' : transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'
+            isPast ? 'bg-muted/30' : getEffectiveType(transaction) === 'income' ? 'bg-success/10' : 'bg-destructive/10'
           }`}>
             <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
               {format(occDate, 'MMM', { locale: fr })}
@@ -706,7 +712,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           {/* Amount + chevron */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`text-sm sm:text-base font-bold ${
-              isPast ? 'text-muted-foreground' : transaction.type === 'income' ? 'text-success' : 'text-destructive'
+              isPast ? 'text-muted-foreground' : getEffectiveType(transaction) === 'income' ? 'text-success' : 'text-destructive'
             }`}>
               {formatCurrency(displayAmount ?? transaction.amount)}
             </span>
@@ -958,7 +964,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
               const dayTotal = dayTransactions.reduce((sum, { transaction, displayAmount }) => {
                 const amount = displayAmount ?? transaction.amount;
-                return sum + (transaction.type === 'income' ? amount : -amount);
+                return sum + (getEffectiveType(transaction) === 'income' ? amount : -amount);
               }, 0);
 
               return (
