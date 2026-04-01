@@ -119,17 +119,19 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [actualTransactions, dateField, transactions]);
 
-  // Build a month-level lookup of actual amounts for recurring transactions (by recurring_transaction_id)
-  // Same pattern as installmentActualAmounts — used to show past occurrences with real amounts
-  const recurringActualAmounts = useMemo(() => {
-    const map = new Map<string, number>();
+  // Build a month-level lookup of actual linked transactions for recurring transactions (by recurring_transaction_id)
+  // Key: "rtId:YYYY-MM" → array of { date: string, amount: number }
+  const recurringActualByMonth = useMemo(() => {
+    const map = new Map<string, { date: string; amount: number }[]>();
     actualTransactions.forEach((tx) => {
       const rtId = tx.recurring_transaction_id;
       if (!rtId || tx.installment_payment_id) return; // installments handled separately
       const txDate = (tx as any)[dateField] || tx.transaction_date;
       const monthKey = txDate.substring(0, 7);
       const key = `${rtId}:${monthKey}`;
-      map.set(key, (map.get(key) || 0) + tx.amount);
+      const existing = map.get(key) || [];
+      existing.push({ date: txDate, amount: tx.amount });
+      map.set(key, existing);
     });
     return map;
   }, [actualTransactions, dateField]);
@@ -142,17 +144,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       const rtId = tx.recurring_transaction_id;
       // Skip installment-linked ones (handled separately)
       if (tx.installment_payment_id) return;
-      if (!rtId) {
-        // Fallback: match by description + account for older transactions without recurring_transaction_id
-        const recurringTx = transactions.find(rt => rt.description === tx.description && rt.account_id === tx.account_id);
-        if (!recurringTx) return;
-        const txDate = (tx as any)[dateField] || tx.transaction_date;
-        const dayKey = txDate.substring(0, 10);
-        const existing = map.get(dayKey) || [];
-        existing.push({ recurringTx, amount: tx.amount });
-        map.set(dayKey, existing);
-        return;
-      }
+      // Only use the FK link — no description fallback to avoid false matches
+      if (!rtId) return;
       const recurringTx = transactions.find(rt => rt.id === rtId);
       if (!recurringTx) return;
       const txDate = (tx as any)[dateField] || tx.transaction_date;
@@ -351,15 +344,17 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
-          // Regular recurring (non-installment, non-debt): use actual amount for past
+          // Regular recurring (non-installment, non-debt): for past occurrences,
+          // if linked transactions exist for this month, skip the computed occurrence
+          // — the actual transactions will be injected at their real dates in post-processing.
+          // If no linked transactions, show at the computed date as fallback.
           if (!transaction.installment_payment_id && !resolvedDebtId) {
             if (isPast) {
               const monthKey = format(currentOccurrence, 'yyyy-MM');
               const rtKey = `${transaction.id}:${monthKey}`;
-              const actualAmount = recurringActualAmounts.get(rtKey);
-              if (actualAmount !== undefined) {
-                displayAmount = actualAmount;
-              } else {
+              const linkedTxs = recurringActualByMonth.get(rtKey);
+              if (linkedTxs && linkedTxs.length > 0) {
+                // Linked transactions exist — skip computed occurrence, real dates used in post-processing
                 skipOccurrence = true;
               }
             }
@@ -453,20 +448,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
     recurringActualByDay.forEach((dayEntries, dayKey) => {
       if (!dayKey.startsWith(currentMonthKey)) return;
-      
+
       dayEntries.forEach(({ recurringTx, amount }) => {
         const matchKey = `${recurringTx.id}:${dayKey}`;
-        if (matchedRecurringDays.has(matchKey)) return; // Already shown
-        
-        // Check if this recurring transaction already has an occurrence this month
-        // (on its scheduled date) - if so, don't add a duplicate
-        let alreadyInMonth = false;
-        map.forEach((entries) => {
-          entries.forEach((entry) => {
-            if (entry.transaction.id === recurringTx.id) alreadyInMonth = true;
-          });
-        });
-        if (alreadyInMonth) return;
+        if (matchedRecurringDays.has(matchKey)) return; // Already shown on this exact day
 
         matchedRecurringDays.add(matchKey);
         const existing = map.get(dayKey) || [];
@@ -480,7 +465,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualAmounts, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
@@ -503,6 +488,16 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return { upcomingOccurrences: upcoming, pastOccurrences: past };
   }, [transactionsByDay]);
 
+  // Helper to get effective type: installment reimbursements are income in the DB
+  // but represent an expense (money going into savings/repayment)
+  const getEffectiveType = useCallback((transaction: RecurringTransaction): 'income' | 'expense' => {
+    if (transaction.installment_payment_id) {
+      const ip = installmentPaymentsById.get(transaction.installment_payment_id);
+      if (ip?.payment_type === 'reimbursement') return 'expense';
+    }
+    return transaction.type;
+  }, [installmentPaymentsById]);
+
   // Monthly summary
   const monthlySummary = useMemo(() => {
     let totalIncome = 0, totalExpense = 0, pastIncome = 0, pastExpense = 0;
@@ -510,11 +505,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     transactionsByDay.forEach((entries) => {
       entries.forEach(({ transaction, isPast, displayAmount }) => {
         const amount = displayAmount ?? transaction.amount;
-        let effectiveType = transaction.type;
-        if (transaction.installment_payment_id) {
-          const ip = installmentPaymentsById.get(transaction.installment_payment_id);
-          if (ip?.payment_type === 'reimbursement') effectiveType = 'expense';
-        }
+        const effectiveType = getEffectiveType(transaction);
         if (effectiveType === 'income') {
           totalIncome += amount;
           if (isPast) pastIncome += amount;
@@ -659,7 +650,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         >
           {/* Date badge */}
           <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
-            isPast ? 'bg-muted/30' : transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'
+            isPast ? 'bg-muted/30' : getEffectiveType(transaction) === 'income' ? 'bg-success/10' : 'bg-destructive/10'
           }`}>
             <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
               {format(occDate, 'MMM', { locale: fr })}
@@ -706,7 +697,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           {/* Amount + chevron */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`text-sm sm:text-base font-bold ${
-              isPast ? 'text-muted-foreground' : transaction.type === 'income' ? 'text-success' : 'text-destructive'
+              isPast ? 'text-muted-foreground' : getEffectiveType(transaction) === 'income' ? 'text-success' : 'text-destructive'
             }`}>
               {formatCurrency(displayAmount ?? transaction.amount)}
             </span>
@@ -958,7 +949,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
               const dayTotal = dayTransactions.reduce((sum, { transaction, displayAmount }) => {
                 const amount = displayAmount ?? transaction.amount;
-                return sum + (transaction.type === 'income' ? amount : -amount);
+                return sum + (getEffectiveType(transaction) === 'income' ? amount : -amount);
               }, 0);
 
               return (
