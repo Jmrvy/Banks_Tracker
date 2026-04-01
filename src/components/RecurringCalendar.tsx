@@ -142,17 +142,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       const rtId = tx.recurring_transaction_id;
       // Skip installment-linked ones (handled separately)
       if (tx.installment_payment_id) return;
-      if (!rtId) {
-        // Fallback: match by description + account for older transactions without recurring_transaction_id
-        const recurringTx = transactions.find(rt => rt.description === tx.description && rt.account_id === tx.account_id);
-        if (!recurringTx) return;
-        const txDate = (tx as any)[dateField] || tx.transaction_date;
-        const dayKey = txDate.substring(0, 10);
-        const existing = map.get(dayKey) || [];
-        existing.push({ recurringTx, amount: tx.amount });
-        map.set(dayKey, existing);
-        return;
-      }
+      // Only use the FK link — no description fallback to avoid false matches
+      if (!rtId) return;
       const recurringTx = transactions.find(rt => rt.id === rtId);
       if (!recurringTx) return;
       const txDate = (tx as any)[dateField] || tx.transaction_date;
