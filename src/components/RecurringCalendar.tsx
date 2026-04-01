@@ -119,17 +119,19 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [actualTransactions, dateField, transactions]);
 
-  // Build a month-level lookup of actual amounts for recurring transactions (by recurring_transaction_id)
-  // Same pattern as installmentActualAmounts — used to show past occurrences with real amounts
-  const recurringActualAmounts = useMemo(() => {
-    const map = new Map<string, number>();
+  // Build a month-level lookup of actual linked transactions for recurring transactions (by recurring_transaction_id)
+  // Key: "rtId:YYYY-MM" → array of { date: string, amount: number }
+  const recurringActualByMonth = useMemo(() => {
+    const map = new Map<string, { date: string; amount: number }[]>();
     actualTransactions.forEach((tx) => {
       const rtId = tx.recurring_transaction_id;
       if (!rtId || tx.installment_payment_id) return; // installments handled separately
       const txDate = (tx as any)[dateField] || tx.transaction_date;
       const monthKey = txDate.substring(0, 7);
       const key = `${rtId}:${monthKey}`;
-      map.set(key, (map.get(key) || 0) + tx.amount);
+      const existing = map.get(key) || [];
+      existing.push({ date: txDate, amount: tx.amount });
+      map.set(key, existing);
     });
     return map;
   }, [actualTransactions, dateField]);
@@ -342,17 +344,19 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
-          // Regular recurring (non-installment, non-debt): use actual linked amount for past if available
+          // Regular recurring (non-installment, non-debt): for past occurrences,
+          // if linked transactions exist for this month, skip the computed occurrence
+          // — the actual transactions will be injected at their real dates in post-processing.
+          // If no linked transactions, show at the computed date as fallback.
           if (!transaction.installment_payment_id && !resolvedDebtId) {
             if (isPast) {
               const monthKey = format(currentOccurrence, 'yyyy-MM');
               const rtKey = `${transaction.id}:${monthKey}`;
-              const actualAmount = recurringActualAmounts.get(rtKey);
-              if (actualAmount !== undefined) {
-                displayAmount = actualAmount;
+              const linkedTxs = recurringActualByMonth.get(rtKey);
+              if (linkedTxs && linkedTxs.length > 0) {
+                // Linked transactions exist — skip computed occurrence, real dates used in post-processing
+                skipOccurrence = true;
               }
-              // If no linked transaction exists, still show the occurrence with the default amount
-              // (user can link it later via the "Lier / Enregistrer un paiement" button)
             }
           }
 
@@ -444,20 +448,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
     recurringActualByDay.forEach((dayEntries, dayKey) => {
       if (!dayKey.startsWith(currentMonthKey)) return;
-      
+
       dayEntries.forEach(({ recurringTx, amount }) => {
         const matchKey = `${recurringTx.id}:${dayKey}`;
-        if (matchedRecurringDays.has(matchKey)) return; // Already shown
-        
-        // Check if this recurring transaction already has an occurrence this month
-        // (on its scheduled date) - if so, don't add a duplicate
-        let alreadyInMonth = false;
-        map.forEach((entries) => {
-          entries.forEach((entry) => {
-            if (entry.transaction.id === recurringTx.id) alreadyInMonth = true;
-          });
-        });
-        if (alreadyInMonth) return;
+        if (matchedRecurringDays.has(matchKey)) return; // Already shown on this exact day
 
         matchedRecurringDays.add(matchKey);
         const existing = map.get(dayKey) || [];
@@ -471,7 +465,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualAmounts, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
