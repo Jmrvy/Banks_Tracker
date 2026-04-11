@@ -30,7 +30,16 @@ const Reports = () => {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>('accounting');
+  const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>(() => {
+    try {
+      const saved = localStorage.getItem('userPreferences');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.dateType === 'value') return 'value';
+      }
+    } catch {}
+    return 'accounting';
+  });
 
   // Installment payments data for capping recurring occurrence projections
   const { installmentPayments } = useInstallmentPayments();
