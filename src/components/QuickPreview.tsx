@@ -188,7 +188,8 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               {accounts.slice(0, 4).map((account) => (
                 <div
                   key={account.id}
-                  className="glass-row flex items-center justify-between"
+                  className="glass-row flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate('/accounts')}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <div className={`h-2 w-2 rounded-full flex-shrink-0 ${account.balance >= 0 ? 'bg-success' : 'bg-destructive'}`} />
