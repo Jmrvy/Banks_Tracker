@@ -9,13 +9,17 @@ import { NewAccountModal } from "@/components/NewAccountModal";
 import { AccountDetails } from "@/components/AccountDetails";
 import { getBankLabel, getAccountTypeLabel } from "@/lib/constants";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { dateRange, periodLabel } = usePeriod();
   const { t } = useTranslation();
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const location = useLocation();
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+    (location.state as any)?.selectedAccountId || null
+  );
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
