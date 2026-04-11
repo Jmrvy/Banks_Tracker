@@ -330,10 +330,10 @@ Deno.serve(async (req) => {
 
     // Get unique categories and accounts from results
     const uniqueCategories = Array.from(
-      new Set(transactions?.map(tx => tx.categories?.name).filter(Boolean))
+      new Set(transactions?.map((tx: any) => tx.categories?.name).filter(Boolean))
     );
     const uniqueAccounts = Array.from(
-      new Set(transactions?.map(tx => tx.accounts?.name).filter(Boolean))
+      new Set(transactions?.map((tx: any) => tx.accounts?.name).filter(Boolean))
     );
     
     const summary = {
@@ -351,7 +351,7 @@ Deno.serve(async (req) => {
       accounts: uniqueAccounts,
       // Category breakdown
       by_category: Object.entries(
-        transactions?.reduce((acc, tx) => {
+        transactions?.reduce((acc: any, tx: any) => {
           const catName = tx.categories?.name || 'Sans catégorie';
           if (!acc[catName]) {
             acc[catName] = { count: 0, total: 0, expenses: 0, income: 0 };
@@ -371,7 +371,7 @@ Deno.serve(async (req) => {
       })),
       // Account breakdown
       by_account: Object.entries(
-        transactions?.reduce((acc, tx) => {
+        transactions?.reduce((acc: any, tx: any) => {
           const accName = tx.accounts?.name || 'Inconnu';
           if (!acc[accName]) {
             acc[accName] = { count: 0, expenses: 0, income: 0, transfers: 0 };
@@ -425,7 +425,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: (error as Error).message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
