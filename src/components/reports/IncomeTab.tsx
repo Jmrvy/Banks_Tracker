@@ -4,14 +4,18 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { ChartTooltip } from "@/components/ui/chart";
-import { TrendingUp, Hash, Wallet, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Hash, Wallet, ArrowUpRight, Clock } from "lucide-react";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { PeriodRecurringItem } from "@/hooks/useReportsData";
 
 interface IncomeTabProps {
   incomeAnalysis: IncomeCategory[];
   totalIncome: number;
+  includeUpcoming?: boolean;
+  upcomingItems?: PeriodRecurringItem[];
+  projectedIncome?: number;
 }
 
 // Couleurs harmonieuses pour les catégories
@@ -28,7 +32,7 @@ const COLORS = [
   'hsl(84, 85%, 45%)',  // lime
 ];
 
-export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
+export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomingItems, projectedIncome }: IncomeTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -82,21 +86,55 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
       color: COLORS[index % COLORS.length]
     }));
 
+  // Compute projected upcoming income by category
+  const upcomingByCategory = includeUpcoming && upcomingItems ? (() => {
+    const map = new Map<string, { amount: number; count: number }>();
+    for (const pi of upcomingItems) {
+      const catName = pi.recurring.category?.name || 'Sans catégorie';
+      const existing = map.get(catName);
+      if (existing) {
+        existing.amount += pi.periodAmount;
+        existing.count += pi.occurrences;
+      } else {
+        map.set(catName, { amount: pi.periodAmount, count: pi.occurrences });
+      }
+    }
+    return map;
+  })() : null;
+
+  const totalProjected = includeUpcoming ? (projectedIncome || 0) : 0;
+  const grandTotal = totalIncome + totalProjected;
+
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
+      <div className={cn("grid gap-2 animate-glass-fade-in", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
         <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <div className="icon-badge icon-badge-sm bg-success/10">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Total revenus</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus réels</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success">{formatCurrency(totalIncome)}</p>
           </CardContent>
         </Card>
+
+        {includeUpcoming && (
+          <Card className="glass-hover border-dashed border-primary/30">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="icon-badge icon-badge-sm bg-primary/10">
+                  <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+                </div>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Projeté</span>
+              </div>
+              <p className="text-sm sm:text-base font-bold text-primary">{formatCurrency(totalProjected)}</p>
+              <p className="text-[9px] text-muted-foreground">Total prévu: {formatCurrency(grandTotal)}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="glass-hover">
           <CardContent className="p-3">
@@ -110,29 +148,33 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome }: IncomeTabProps) => {
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-muted/50">
-                <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Transactions</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold">{totalTransactions}</p>
-          </CardContent>
-        </Card>
+        {!includeUpcoming && (
+          <>
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-muted/50">
+                    <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Transactions</span>
+                </div>
+                <p className="text-sm sm:text-base font-bold">{totalTransactions}</p>
+              </CardContent>
+            </Card>
 
-        <Card className="glass-hover">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-success/10">
-                <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold">{formatCurrency(avgPerTransaction)}</p>
-          </CardContent>
-        </Card>
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-success/10">
+                    <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
+                </div>
+                <p className="text-sm sm:text-base font-bold">{formatCurrency(avgPerTransaction)}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Main Content: Chart + Legend */}
