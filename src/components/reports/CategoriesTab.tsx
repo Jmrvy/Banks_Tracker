@@ -4,12 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
-import { CategoryData } from "@/hooks/useReportsData";
+import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
 import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { TrendingDown, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { TrendingDown, Target, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 
 interface CategoriesTabProps {
@@ -17,9 +17,12 @@ interface CategoriesTabProps {
   transactions: FinancialTransaction[];
   periodStart: Date;
   periodEnd: Date;
+  includeUpcoming?: boolean;
+  upcomingItems?: PeriodRecurringItem[];
+  projectedExpenses?: number;
 }
 
-export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd }: CategoriesTabProps) => {
+export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
