@@ -195,7 +195,7 @@ export const CategoryTransactionsModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="flex items-center justify-between text-sm sm:text-lg">
+          <DialogTitle className="flex items-center justify-between text-sm sm:text-lg pr-8">
             <span className="truncate">{categoryName}</span>
             <Badge variant="secondary" className="text-xs sm:text-sm ml-2 flex-shrink-0">
               {formatCurrency(totalAmount)}
