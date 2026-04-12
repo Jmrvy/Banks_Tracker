@@ -245,6 +245,108 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         showCard={true}
       />
 
+      {/* Budget Analysis */}
+      {categoriesWithBudget.length > 0 && (
+        <Card className="glass-hover animate-glass-slide-up">
+          <CardContent className="p-3 sm:p-4 space-y-3">
+            <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
+              <Target className="w-3.5 h-3.5 text-primary" />
+              Analyse des budgets
+            </h3>
+
+            {/* Always over budget */}
+            {overBudgetCategories.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] sm:text-xs text-destructive font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Budgets dépassés
+                </p>
+                <div className="space-y-1">
+                  {overBudgetCategories
+                    .sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget))
+                    .map((cat, i) => {
+                      const pct = Math.round((cat.spent / cat.budget) * 100);
+                      const overAmount = cat.spent - cat.budget;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => handleCategoryClick(cat.name)}
+                          className="w-full flex items-center justify-between gap-2 p-2 rounded-lg bg-destructive/5 border border-destructive/10 hover:bg-destructive/10 transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                            <span className="text-xs font-medium truncate">{cat.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4">
+                              {pct}%
+                            </Badge>
+                            <span className="text-[10px] sm:text-xs text-destructive font-semibold">
+                              +{formatCurrency(overAmount)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Under budget / well managed */}
+            {underBudgetCategories.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] sm:text-xs text-success font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Budgets respectés
+                </p>
+                <div className="space-y-1">
+                  {underBudgetCategories
+                    .sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget))
+                    .map((cat, i) => {
+                      const pct = cat.budget > 0 ? Math.round((cat.spent / cat.budget) * 100) : 0;
+                      const remaining = cat.budget - cat.spent;
+                      const isUnderUsed = pct < 30;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => handleCategoryClick(cat.name)}
+                          className="w-full flex items-center justify-between gap-2 p-2 rounded-lg bg-success/5 border border-success/10 hover:bg-success/10 transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                            <span className="text-xs font-medium truncate">{cat.name}</span>
+                            {isUnderUsed && (
+                              <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 text-muted-foreground border-muted-foreground/30">
+                                Peu utilisé
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+                              {pct}%
+                            </Badge>
+                            <span className="text-[10px] sm:text-xs text-success font-medium">
+                              {formatCurrency(remaining)} restant
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* No budget categories info */}
+            {categoryChartData.filter(c => c.spent > 0 && !c.budget).length > 0 && (
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Target className="w-3 h-3" />
+                {categoryChartData.filter(c => c.spent > 0 && !c.budget).length} catégorie(s) sans budget défini
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Categories List */}
       <div className="space-y-2">
         <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">Détail par catégorie</h3>
