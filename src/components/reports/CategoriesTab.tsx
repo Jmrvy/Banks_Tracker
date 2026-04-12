@@ -4,12 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
-import { CategoryData } from "@/hooks/useReportsData";
+import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
 import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { TrendingDown, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { TrendingDown, Target, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 
 interface CategoriesTabProps {
@@ -17,9 +17,12 @@ interface CategoriesTabProps {
   transactions: FinancialTransaction[];
   periodStart: Date;
   periodEnd: Date;
+  includeUpcoming?: boolean;
+  upcomingItems?: PeriodRecurringItem[];
+  projectedExpenses?: number;
 }
 
-export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd }: CategoriesTabProps) => {
+export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -66,6 +69,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     }));
 
   const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalProjected = includeUpcoming ? (projectedExpenses || 0) : 0;
+  const grandTotal = totalSpent + totalProjected;
   const totalBudget = categoryChartData.reduce((sum, c) => sum + (c.budget || 0), 0);
   const categoriesWithBudget = categoryChartData.filter(c => c.budget > 0);
   const overBudgetCategories = categoriesWithBudget.filter(c => c.spent > c.budget);
@@ -85,18 +90,33 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
+      <div className={cn("grid gap-2 animate-glass-fade-in", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
         <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <div className="icon-badge icon-badge-sm bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Total dépensé</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses réelles</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalSpent)}</p>
           </CardContent>
         </Card>
+
+        {includeUpcoming && (
+          <Card className="glass-hover border-dashed border-primary/30">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="icon-badge icon-badge-sm bg-primary/10">
+                  <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+                </div>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Projeté</span>
+              </div>
+              <p className="text-sm sm:text-base font-bold text-primary">{formatCurrency(totalProjected)}</p>
+              <p className="text-[9px] text-muted-foreground">Total prévu: {formatCurrency(grandTotal)}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="glass-hover">
           <CardContent className="p-3">
@@ -110,29 +130,33 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-orange-500/10">
-                <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépassés</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
-          </CardContent>
-        </Card>
+        {!includeUpcoming && (
+          <>
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-orange-500/10">
+                    <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Dépassés</span>
+                </div>
+                <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
+              </CardContent>
+            </Card>
 
-        <Card className="glass-hover">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-success/10">
-                <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Sous budget</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
-          </CardContent>
-        </Card>
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-success/10">
+                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Sous budget</span>
+                </div>
+                <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Main Content: Chart + Legend */}
@@ -428,6 +452,44 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             })}
         </div>
       </div>
+
+      {/* Upcoming Recurring Items */}
+      {includeUpcoming && upcomingItems && upcomingItems.length > 0 && (
+        <Card className="glass-hover animate-glass-slide-up border-dashed border-primary/30">
+          <CardContent className="p-3 sm:p-4 space-y-2">
+            <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-primary" />
+              Dépenses récurrentes à venir
+            </h3>
+            <div className="space-y-1">
+              {upcomingItems
+                .sort((a, b) => b.periodAmount - a.periodAmount)
+                .map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
+                      />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
+                        <span className="text-[9px] text-muted-foreground">
+                          {item.occurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-primary flex-shrink-0">
+                      {formatCurrency(item.periodAmount)}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <CategoryTransactionsModal
         open={modalOpen}
