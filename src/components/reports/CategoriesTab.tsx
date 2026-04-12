@@ -69,6 +69,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     }));
 
   const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalProjected = includeUpcoming ? (projectedExpenses || 0) : 0;
+  const grandTotal = totalSpent + totalProjected;
   const totalBudget = categoryChartData.reduce((sum, c) => sum + (c.budget || 0), 0);
   const categoriesWithBudget = categoryChartData.filter(c => c.budget > 0);
   const overBudgetCategories = categoriesWithBudget.filter(c => c.spent > c.budget);
@@ -88,18 +90,33 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
+      <div className={cn("grid gap-2 animate-glass-fade-in", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
         <Card className="glass-hover">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <div className="icon-badge icon-badge-sm bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Total dépensé</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses réelles</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalSpent)}</p>
           </CardContent>
         </Card>
+
+        {includeUpcoming && (
+          <Card className="glass-hover border-dashed border-primary/30">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="icon-badge icon-badge-sm bg-primary/10">
+                  <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+                </div>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Projeté</span>
+              </div>
+              <p className="text-sm sm:text-base font-bold text-primary">{formatCurrency(totalProjected)}</p>
+              <p className="text-[9px] text-muted-foreground">Total prévu: {formatCurrency(grandTotal)}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="glass-hover">
           <CardContent className="p-3">
@@ -113,29 +130,33 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-orange-500/10">
-                <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépassés</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
-          </CardContent>
-        </Card>
+        {!includeUpcoming && (
+          <>
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-orange-500/10">
+                    <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Dépassés</span>
+                </div>
+                <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
+              </CardContent>
+            </Card>
 
-        <Card className="glass-hover">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-success/10">
-                <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Sous budget</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
-          </CardContent>
-        </Card>
+            <Card className="glass-hover">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="icon-badge icon-badge-sm bg-success/10">
+                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Sous budget</span>
+                </div>
+                <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Main Content: Chart + Legend */}
