@@ -453,6 +453,44 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         </div>
       </div>
 
+      {/* Upcoming Recurring Items */}
+      {includeUpcoming && upcomingItems && upcomingItems.length > 0 && (
+        <Card className="glass-hover animate-glass-slide-up border-dashed border-primary/30">
+          <CardContent className="p-3 sm:p-4 space-y-2">
+            <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-primary" />
+              Dépenses récurrentes à venir
+            </h3>
+            <div className="space-y-1">
+              {upcomingItems
+                .sort((a, b) => b.periodAmount - a.periodAmount)
+                .map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
+                      />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
+                        <span className="text-[9px] text-muted-foreground">
+                          {item.occurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-primary flex-shrink-0">
+                      {formatCurrency(item.periodAmount)}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <CategoryTransactionsModal
         open={modalOpen}
         onOpenChange={setModalOpen}
