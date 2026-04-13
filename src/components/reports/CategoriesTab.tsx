@@ -70,12 +70,29 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     }));
 
   const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
-  const totalProjected = includeUpcoming ? (projectedExpenses || 0) : 0;
+  
+  // Compute per-category projected amounts from future upcoming items only
+  const projectedByCategory = new Map<string, number>();
+  if (includeUpcoming && upcomingItems) {
+    for (const item of upcomingItems) {
+      const catName = item.recurring.category?.name || 'Sans catégorie';
+      projectedByCategory.set(catName, (projectedByCategory.get(catName) || 0) + item.futurePeriodAmount);
+    }
+  }
+  const totalProjectedFromItems = includeUpcoming ? Array.from(projectedByCategory.values()).reduce((s, v) => s + v, 0) : 0;
+  const totalProjected = totalProjectedFromItems;
   const grandTotal = totalSpent + totalProjected;
   const totalBudget = categoryChartData.reduce((sum, c) => sum + (c.budget || 0), 0);
   const categoriesWithBudget = categoryChartData.filter(c => c.budget > 0);
-  const overBudgetCategories = categoriesWithBudget.filter(c => c.spent > c.budget);
-  const underBudgetCategories = categoriesWithBudget.filter(c => c.spent <= c.budget);
+  
+  // When includeUpcoming, use spent + projected for budget comparison
+  const getEffectiveSpent = (cat: CategoryData) => cat.spent + (projectedByCategory.get(cat.name) || 0);
+  const overBudgetCategories = categoriesWithBudget.filter(c => 
+    includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget
+  );
+  const underBudgetCategories = categoriesWithBudget.filter(c => 
+    includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget
+  );
 
   if (chartData.length === 0) {
     return (
