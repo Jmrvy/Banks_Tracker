@@ -480,6 +480,7 @@ export type Database = {
         Row: {
           budget_alerts: boolean
           created_at: string
+          date_type: string
           id: string
           monthly_reports: boolean
           updated_at: string
@@ -488,6 +489,7 @@ export type Database = {
         Insert: {
           budget_alerts?: boolean
           created_at?: string
+          date_type?: string
           id?: string
           monthly_reports?: boolean
           updated_at?: string
@@ -496,6 +498,7 @@ export type Database = {
         Update: {
           budget_alerts?: boolean
           created_at?: string
+          date_type?: string
           id?: string
           monthly_reports?: boolean
           updated_at?: string
