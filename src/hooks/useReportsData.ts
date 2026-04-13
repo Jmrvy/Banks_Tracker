@@ -41,6 +41,8 @@ export interface PeriodRecurringItem {
   occurrences: number;
   periodAmount: number;
   effectiveType: 'income' | 'expense';
+  futureOccurrences: number;
+  futurePeriodAmount: number;
 }
 
 export interface RecurringData {
