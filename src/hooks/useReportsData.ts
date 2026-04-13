@@ -737,15 +737,17 @@ export const useReportsData = (
     // Period-based computation: only recurring transactions with occurrences in the period
     const periodItems: PeriodRecurringItem[] = [];
     for (const rt of activeRecurring) {
-      const occurrences = getOccurrencesInPeriod(rt);
-      if (occurrences > 0) {
+      const { total, future } = getOccurrencesInPeriod(rt);
+      if (total > 0) {
         const effectiveType = getEffectiveType(rt);
         const amount = getEffectiveAmount(rt);
         periodItems.push({
           recurring: rt,
-          occurrences,
-          periodAmount: amount * occurrences,
+          occurrences: total,
+          periodAmount: amount * total,
           effectiveType,
+          futureOccurrences: future,
+          futurePeriodAmount: amount * future,
         });
       }
     }
