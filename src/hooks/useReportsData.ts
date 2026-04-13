@@ -603,7 +603,7 @@ export const useReportsData = (
     // Count occurrences of a recurring transaction in the period
     // Mirrors the calendar logic: past occurrences before next_due_date are counted,
     // future occurrences start from next_due_date and are capped by installment/debt limits
-    const getOccurrencesInPeriod = (rt: RecurringTransaction): number => {
+    const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; future: number } => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
@@ -617,16 +617,14 @@ export const useReportsData = (
       const nextDueDate = new Date(ny, nm - 1, nd);
 
       // Compute effective end date based on installment/debt remaining payments
-      // (same approach as RecurringCalendar)
       let effectiveEndDate: Date | null = endDate;
 
       if (rt.installment_payment_id) {
         const ip = installmentMap.get(rt.installment_payment_id);
         if (ip) {
           if (!ip.is_active || ip.installment_amount <= 0) {
-            // Installment completed or zero amount — no future occurrences
             if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
-              effectiveEndDate = new Date(nextDueDate.getTime() - 86400000); // day before next_due
+              effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
             }
           } else {
             const maxFuture = Math.ceil(ip.remaining_amount / ip.installment_amount);
@@ -672,6 +670,7 @@ export const useReportsData = (
       }
 
       let count = 0;
+      let futureCount = 0;
 
       while (current <= period.to && iterations < maxIterations) {
         if (effectiveEndDate && current > effectiveEndDate) break;
@@ -680,19 +679,19 @@ export const useReportsData = (
           const isFuture = !isPast;
 
           // Mirror calendar: future occurrences before next_due_date are skipped
-          // (they've already been executed and recorded as actual transactions)
           if (isFuture && current < nextDueDate) {
             current = advanceDate(current, rt.recurrence_type);
             iterations++;
             continue;
           }
           count++;
+          if (isFuture) futureCount++;
         }
         current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      return count;
+      return { total: count, future: futureCount };
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
