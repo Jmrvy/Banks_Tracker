@@ -134,11 +134,12 @@ const handler = async (req: Request): Promise<Response> => {
           let cumulative = 0;
           for (const t of (transactions || [])) {
             cumulative += Number(t.amount);
-            const existing = dailyData.find(d => d.date === t.transaction_date);
+            const txDate = dateType === 'value' ? (t.value_date || t.transaction_date) : t.transaction_date;
+            const existing = dailyData.find(d => d.date === txDate);
             if (existing) {
               existing.cumulative = cumulative;
             } else {
-              dailyData.push({ date: t.transaction_date, cumulative });
+              dailyData.push({ date: txDate, cumulative });
             }
           }
 
