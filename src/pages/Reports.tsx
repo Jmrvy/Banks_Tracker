@@ -274,6 +274,7 @@ const Reports = () => {
               includeUpcoming={includeUpcoming}
               upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'expense')}
               projectedExpenses={recurringData.periodExpenses}
+              dateType={incomeExpenseDateType}
             />
           </TabsContent>
 

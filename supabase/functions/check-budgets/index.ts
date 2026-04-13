@@ -69,6 +69,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const userPref of validUsers) {
       try {
+        // Get user's date type preference
+        const { data: notifPref } = await supabaseAdmin
+          .from('notification_preferences')
+          .select('date_type')
+          .eq('user_id', userPref.user_id)
+          .single();
+        
+        const dateType = notifPref?.date_type || 'accounting';
+        const dateColumn = dateType === 'value' ? 'value_date' : 'transaction_date';
+
         // Get user's categories with budgets
         const { data: categories, error: categoriesError } = await supabaseAdmin
           .from('categories')
@@ -102,14 +112,14 @@ const handler = async (req: Request): Promise<Response> => {
           // Get daily transactions for this category this month (for chart + total)
           const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
-            .select('amount, transaction_date, description')
+            .select('amount, transaction_date, value_date, description')
             .eq('user_id', userPref.user_id)
             .eq('category_id', category.id)
             .eq('type', 'expense')
             .eq('include_in_stats', true)
-            .gte('transaction_date', monthStart.toISOString().split('T')[0])
-            .lte('transaction_date', monthEnd.toISOString().split('T')[0])
-            .order('transaction_date', { ascending: true });
+            .gte(dateColumn, monthStart.toISOString().split('T')[0])
+            .lte(dateColumn, monthEnd.toISOString().split('T')[0])
+            .order(dateColumn, { ascending: true });
 
           if (transactionsError) {
             console.error(`Error fetching transactions for category ${category.id}:`, transactionsError);
@@ -124,11 +134,12 @@ const handler = async (req: Request): Promise<Response> => {
           let cumulative = 0;
           for (const t of (transactions || [])) {
             cumulative += Number(t.amount);
-            const existing = dailyData.find(d => d.date === t.transaction_date);
+            const txDate = dateType === 'value' ? (t.value_date || t.transaction_date) : t.transaction_date;
+            const existing = dailyData.find(d => d.date === txDate);
             if (existing) {
               existing.cumulative = cumulative;
             } else {
-              dailyData.push({ date: t.transaction_date, cumulative });
+              dailyData.push({ date: txDate, cumulative });
             }
           }
 

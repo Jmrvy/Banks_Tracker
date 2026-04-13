@@ -20,9 +20,10 @@ interface CategoriesTabProps {
   includeUpcoming?: boolean;
   upcomingItems?: PeriodRecurringItem[];
   projectedExpenses?: number;
+  dateType?: 'accounting' | 'value';
 }
 
-export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses }: CategoriesTabProps) => {
+export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses, dateType }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           isFullyRefunded: refundedAmount >= grossAmount,
           hasRefund: refundedAmount > 0,
           bank: t.account?.bank || 'other',
-          date: preferences.dateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
+          date: (dateType || preferences.dateType) === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
           valueDate: (t as any).value_date,
           type: t.type
         };
@@ -69,12 +70,29 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     }));
 
   const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
-  const totalProjected = includeUpcoming ? (projectedExpenses || 0) : 0;
+  
+  // Compute per-category projected amounts from future upcoming items only
+  const projectedByCategory = new Map<string, number>();
+  if (includeUpcoming && upcomingItems) {
+    for (const item of upcomingItems) {
+      const catName = item.recurring.category?.name || 'Sans catégorie';
+      projectedByCategory.set(catName, (projectedByCategory.get(catName) || 0) + item.futurePeriodAmount);
+    }
+  }
+  const totalProjectedFromItems = includeUpcoming ? Array.from(projectedByCategory.values()).reduce((s, v) => s + v, 0) : 0;
+  const totalProjected = totalProjectedFromItems;
   const grandTotal = totalSpent + totalProjected;
   const totalBudget = categoryChartData.reduce((sum, c) => sum + (c.budget || 0), 0);
   const categoriesWithBudget = categoryChartData.filter(c => c.budget > 0);
-  const overBudgetCategories = categoriesWithBudget.filter(c => c.spent > c.budget);
-  const underBudgetCategories = categoriesWithBudget.filter(c => c.spent <= c.budget);
+  
+  // When includeUpcoming, use spent + projected for budget comparison
+  const getEffectiveSpent = (cat: CategoryData) => cat.spent + (projectedByCategory.get(cat.name) || 0);
+  const overBudgetCategories = categoriesWithBudget.filter(c => 
+    includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget
+  );
+  const underBudgetCategories = categoriesWithBudget.filter(c => 
+    includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget
+  );
 
   if (chartData.length === 0) {
     return (
@@ -287,10 +305,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {overBudgetCategories
-                    .sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget))
+                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
-                      const pct = Math.round((cat.spent / cat.budget) * 100);
-                      const overAmount = cat.spent - cat.budget;
+                      const effectiveSpent = getEffectiveSpent(cat);
+                      const pct = Math.round((effectiveSpent / cat.budget) * 100);
+                      const overAmount = effectiveSpent - cat.budget;
+                      const projected = projectedByCategory.get(cat.name) || 0;
                       return (
                         <button
                           key={i}
@@ -325,10 +345,11 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {underBudgetCategories
-                    .sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget))
+                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
-                      const pct = cat.budget > 0 ? Math.round((cat.spent / cat.budget) * 100) : 0;
-                      const remaining = cat.budget - cat.spent;
+                      const effectiveSpent = getEffectiveSpent(cat);
+                      const pct = cat.budget > 0 ? Math.round((effectiveSpent / cat.budget) * 100) : 0;
+                      const remaining = cat.budget - effectiveSpent;
                       const isUnderUsed = pct < 30;
                       return (
                         <button
@@ -463,7 +484,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             </h3>
             <div className="space-y-1">
               {upcomingItems
-                .sort((a, b) => b.periodAmount - a.periodAmount)
+                .filter(item => item.futureOccurrences > 0)
+                .sort((a, b) => b.futurePeriodAmount - a.futurePeriodAmount)
                 .map((item, i) => (
                   <div
                     key={i}
@@ -477,12 +499,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                       <div className="min-w-0">
                         <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
                         <span className="text-[9px] text-muted-foreground">
-                          {item.occurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
+                          {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
                         </span>
                       </div>
                     </div>
                     <span className="text-xs font-semibold text-primary flex-shrink-0">
-                      {formatCurrency(item.periodAmount)}
+                      {formatCurrency(item.futurePeriodAmount)}
                     </span>
                   </div>
                 ))}
@@ -500,6 +522,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         allTransactions={transactions}
         periodStart={periodStart}
         periodEnd={periodEnd}
+        dateType={dateType}
       />
     </div>
   );

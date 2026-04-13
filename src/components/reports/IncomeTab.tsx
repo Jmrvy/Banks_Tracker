@@ -90,19 +90,22 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
   const upcomingByCategory = includeUpcoming && upcomingItems ? (() => {
     const map = new Map<string, { amount: number; count: number }>();
     for (const pi of upcomingItems) {
+      if (pi.futureOccurrences <= 0) continue;
       const catName = pi.recurring.category?.name || 'Sans catégorie';
       const existing = map.get(catName);
       if (existing) {
-        existing.amount += pi.periodAmount;
-        existing.count += pi.occurrences;
+        existing.amount += pi.futurePeriodAmount;
+        existing.count += pi.futureOccurrences;
       } else {
-        map.set(catName, { amount: pi.periodAmount, count: pi.occurrences });
+        map.set(catName, { amount: pi.futurePeriodAmount, count: pi.futureOccurrences });
       }
     }
     return map;
   })() : null;
 
-  const totalProjected = includeUpcoming ? (projectedIncome || 0) : 0;
+  const totalProjected = includeUpcoming && upcomingItems
+    ? upcomingItems.reduce((sum, pi) => sum + pi.futurePeriodAmount, 0)
+    : 0;
   const grandTotal = totalIncome + totalProjected;
 
   return (
@@ -343,7 +346,8 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
             </h3>
             <div className="space-y-1">
               {upcomingItems
-                .sort((a, b) => b.periodAmount - a.periodAmount)
+                .filter(item => item.futureOccurrences > 0)
+                .sort((a, b) => b.futurePeriodAmount - a.futurePeriodAmount)
                 .map((item, i) => (
                   <div
                     key={i}
@@ -357,12 +361,12 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                       <div className="min-w-0">
                         <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
                         <span className="text-[9px] text-muted-foreground">
-                          {item.occurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
+                          {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
                         </span>
                       </div>
                     </div>
                     <span className="text-xs font-semibold text-success flex-shrink-0">
-                      {formatCurrency(item.periodAmount)}
+                      {formatCurrency(item.futurePeriodAmount)}
                     </span>
                   </div>
                 ))}
