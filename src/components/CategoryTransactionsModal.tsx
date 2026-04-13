@@ -45,6 +45,7 @@ interface CategoryTransactionsModalProps {
   allTransactions?: FinancialTransaction[];
   periodStart?: Date;
   periodEnd?: Date;
+  dateType?: 'accounting' | 'value';
 }
 
 const bankColors: Record<string, string> = {
@@ -82,10 +83,11 @@ export const CategoryTransactionsModal = ({
   allTransactions,
   periodStart,
   periodEnd,
+  dateType,
 }: CategoryTransactionsModalProps) => {
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
-  const activeDateType = preferences.dateType;
+  const activeDateType = dateType || preferences.dateType;
 
   // Calculer le total en utilisant les montants nets si disponibles
   const totalAmount = transactions.reduce((sum, t) => {
