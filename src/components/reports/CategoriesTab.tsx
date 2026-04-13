@@ -20,9 +20,10 @@ interface CategoriesTabProps {
   includeUpcoming?: boolean;
   upcomingItems?: PeriodRecurringItem[];
   projectedExpenses?: number;
+  dateType?: 'accounting' | 'value';
 }
 
-export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses }: CategoriesTabProps) => {
+export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses, dateType }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           isFullyRefunded: refundedAmount >= grossAmount,
           hasRefund: refundedAmount > 0,
           bank: t.account?.bank || 'other',
-          date: preferences.dateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
+          date: (dateType || preferences.dateType) === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
           valueDate: (t as any).value_date,
           type: t.type
         };
