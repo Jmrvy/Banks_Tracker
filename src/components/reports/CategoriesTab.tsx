@@ -484,7 +484,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             </h3>
             <div className="space-y-1">
               {upcomingItems
-                .sort((a, b) => b.periodAmount - a.periodAmount)
+                .filter(item => item.futureOccurrences > 0)
+                .sort((a, b) => b.futurePeriodAmount - a.futurePeriodAmount)
                 .map((item, i) => (
                   <div
                     key={i}
@@ -498,12 +499,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                       <div className="min-w-0">
                         <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
                         <span className="text-[9px] text-muted-foreground">
-                          {item.occurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
+                          {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
                         </span>
                       </div>
                     </div>
                     <span className="text-xs font-semibold text-primary flex-shrink-0">
-                      {formatCurrency(item.periodAmount)}
+                      {formatCurrency(item.futurePeriodAmount)}
                     </span>
                   </div>
                 ))}
@@ -521,6 +522,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         allTransactions={transactions}
         periodStart={periodStart}
         periodEnd={periodEnd}
+        dateType={dateType}
       />
     </div>
   );
