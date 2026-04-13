@@ -305,10 +305,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {overBudgetCategories
-                    .sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget))
+                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
-                      const pct = Math.round((cat.spent / cat.budget) * 100);
-                      const overAmount = cat.spent - cat.budget;
+                      const effectiveSpent = getEffectiveSpent(cat);
+                      const pct = Math.round((effectiveSpent / cat.budget) * 100);
+                      const overAmount = effectiveSpent - cat.budget;
+                      const projected = projectedByCategory.get(cat.name) || 0;
                       return (
                         <button
                           key={i}
