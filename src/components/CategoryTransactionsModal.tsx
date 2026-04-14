@@ -94,11 +94,15 @@ export const CategoryTransactionsModal = ({
   const isMobile = useIsMobile();
   const activeDateType = dateType || preferences.dateType;
 
+  const projectedCount = transactions.filter(t => t.isProjected).length;
+  const realCount = transactions.length - projectedCount;
+  
   // Calculer le total en utilisant les montants nets si disponibles
   const totalAmount = transactions.reduce((sum, t) => {
     const netAmount = t.netAmount ?? t.amount;
     return sum + Math.abs(netAmount);
   }, 0);
+  const projectedTotal = transactions.filter(t => t.isProjected).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Vérifier si une transaction a une date valeur différente de la date comptable
   const hasValueDateDifference = (t: CategoryTransaction) => {
