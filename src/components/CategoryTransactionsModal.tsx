@@ -139,21 +139,59 @@ export const CategoryTransactionsModal = ({
       );
 
     let running = 0;
+    const today = format(new Date(), "yyyy-MM-dd");
 
-    return days.map((day) => {
+    const chartPoints = days.map((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
+      // Use NET amounts (amount - refunded_amount) for each transaction
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
-        .reduce((s, t) => s + Number(t.amount), 0);
+        .reduce((s, t) => {
+          const gross = Number(t.amount);
+          const refunded = Number((t as any).refunded_amount || 0);
+          return s + Math.max(0, gross - refunded);
+        }, 0);
       running += dayTotal;
 
       return {
         date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
         spent: running,
         budget: Number(categoryData.budget),
+        isFuture: dayStr > today,
       };
     });
-  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData]);
+
+    // If includeUpcoming, add projected recurring amounts to future days
+    if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
+      // Collect all future occurrence dates and amounts
+      const futureAdditions = new Map<string, number>();
+      for (const item of upcomingItems) {
+        if (item.futureOccurrences > 0 && item.occurrenceDates) {
+          for (const dateStr of item.occurrenceDates) {
+            if (dateStr > today) {
+              futureAdditions.set(dateStr, (futureAdditions.get(dateStr) || 0) + Number(item.recurring.amount));
+            }
+          }
+        }
+      }
+      
+      // Re-accumulate with projections
+      if (futureAdditions.size > 0) {
+        let projRunning = 0;
+        for (const point of chartPoints) {
+          const dayStr = format(days[chartPoints.indexOf(point)], "yyyy-MM-dd");
+          const projected = futureAdditions.get(dayStr) || 0;
+          // The 'spent' already has real txs accumulated; add projections cumulatively
+          projRunning += projected;
+          if (projRunning > 0) {
+            point.spent += projRunning;
+          }
+        }
+      }
+    }
+
+    return chartPoints;
+  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData, includeUpcoming, upcomingItems]);
 
   const yMax = hasBudget
     ? Math.max(Number(categoryData.budget) * 1.15, Number(categoryData.spent) * 1.05, 100)
