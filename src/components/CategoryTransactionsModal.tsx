@@ -272,7 +272,10 @@ export const CategoryTransactionsModal = ({
             </Badge>
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            {transactions.length} transaction{transactions.length > 1 ? 's' : ''}
+            {realCount} transaction{realCount > 1 ? 's' : ''}
+            {projectedCount > 0 && (
+              <span className="text-primary"> + {projectedCount} projetée{projectedCount > 1 ? 's' : ''}</span>
+            )}
           </p>
         </DialogHeader>
 
