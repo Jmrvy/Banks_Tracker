@@ -283,7 +283,7 @@ export const CategoryTransactionsModal = ({
               <div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                   <span>{percentUsed}% utilisé</span>
-                  <span>{formatCurrency(categoryData.spent)} / {formatCurrency(categoryData.budget)}</span>
+                  <span>{formatCurrency(effectiveSpent)} / {formatCurrency(categoryData.budget)}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                   <div
