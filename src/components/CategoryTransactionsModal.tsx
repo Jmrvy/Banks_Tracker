@@ -46,6 +46,8 @@ interface CategoryTransactionsModalProps {
   periodStart?: Date;
   periodEnd?: Date;
   dateType?: 'accounting' | 'value';
+  includeUpcoming?: boolean;
+  upcomingItems?: PeriodRecurringItem[];
 }
 
 const bankColors: Record<string, string> = {
