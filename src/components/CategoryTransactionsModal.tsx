@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,7 @@ export interface CategoryTransaction {
   date: string;
   valueDate?: string;
   type: 'expense' | 'income' | 'transfer';
+  isProjected?: boolean;
 }
 
 interface CategoryTransactionsModalProps {
