@@ -45,7 +45,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   const getCategoryTransactions = () => {
     if (!selectedCategory) return [];
     
-    return transactions
+    const activeDateType = dateType || preferences.dateType;
+    
+    // Real transactions
+    const realTxs = transactions
       .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false)
       .map(t => {
         const refundedAmount = (t as any).refunded_amount || 0;
@@ -61,11 +64,63 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           isFullyRefunded: refundedAmount >= grossAmount,
           hasRefund: refundedAmount > 0,
           bank: t.account?.bank || 'other',
-          date: (dateType || preferences.dateType) === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
+          date: activeDateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
           valueDate: (t as any).value_date,
-          type: t.type
+          type: t.type as 'expense' | 'income' | 'transfer',
+          isProjected: false,
         };
       });
+
+    // Projected upcoming recurring transactions
+    if (includeUpcoming && upcomingItems && selectedCategory) {
+      const catUpcoming = getUpcomingForCategory(selectedCategory, upcomingItems);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (const item of catUpcoming) {
+        if (item.futureOccurrences <= 0) continue;
+        const rt = item.recurring;
+        let current = new Date(rt.next_due_date + 'T00:00:00');
+        let count = 0;
+
+        const advanceDate = (d: Date, type: string): Date => {
+          const { addDays, addWeeks, addMonths, addYears } = require('date-fns');
+          switch (type) {
+            case 'daily': return addDays(d, 1);
+            case 'weekly': return addWeeks(d, 1);
+            case 'monthly': return addMonths(d, 1);
+            case 'quarterly': return addMonths(d, 3);
+            case 'yearly': return addYears(d, 1);
+            default: return addMonths(d, 1);
+          }
+        };
+
+        while (current <= periodEnd && count < item.futureOccurrences) {
+          if (current >= today && current >= periodStart) {
+            const dateStr = current.toISOString().split('T')[0];
+            realTxs.push({
+              id: `projected-${rt.id}-${count}`,
+              description: rt.description,
+              amount: Number(rt.amount),
+              netAmount: Number(rt.amount),
+              refundedAmount: 0,
+              isFullyRefunded: false,
+              hasRefund: false,
+              bank: (rt as any).account?.bank || 'other',
+              date: dateStr,
+              valueDate: dateStr,
+              type: 'expense',
+              isProjected: true,
+            });
+            count++;
+          }
+          current = advanceDate(current, rt.recurrence_type);
+        }
+      }
+    }
+
+    // Sort by date
+    return realTxs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const chartData = categoryChartData
