@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
   Area,
 } from "recharts";
-import { eachDayOfInterval, format } from "date-fns";
+import { eachDayOfInterval, format, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
