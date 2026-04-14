@@ -429,6 +429,7 @@ export const CategoryTransactionsModal = ({
                             </Tooltip>
                           )}
                           {hasRefund && (
+                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <Badge
                                   variant={isFullyRefunded ? "secondary" : "outline"}
