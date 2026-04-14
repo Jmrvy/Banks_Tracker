@@ -541,6 +541,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         periodStart={periodStart}
         periodEnd={periodEnd}
         dateType={dateType}
+        includeUpcoming={includeUpcoming}
+        upcomingItems={selectedCategory ? getUpcomingForCategory(selectedCategory, upcomingItems) : undefined}
       />
     </div>
   );
