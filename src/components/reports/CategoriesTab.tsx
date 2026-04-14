@@ -85,7 +85,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         let count = 0;
 
         const advanceDate = (d: Date, type: string): Date => {
-        const advanceDate = (d: Date, type: string): Date => {
+          switch (type) {
             case 'daily': return addDays(d, 1);
             case 'weekly': return addWeeks(d, 1);
             case 'monthly': return addMonths(d, 1);
