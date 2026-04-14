@@ -390,7 +390,10 @@ export const CategoryTransactionsModal = ({
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2"
+                    className={cn(
+                      "flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2",
+                      transaction.isProjected && "border-dashed border-primary/30 bg-primary/5"
+                    )}
                   >
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
