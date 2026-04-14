@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight, CalendarDays } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { CategoryData } from "@/hooks/useReportsData";
+import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { type Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import {
   LineChart,
