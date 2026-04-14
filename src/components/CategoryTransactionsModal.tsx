@@ -86,6 +86,8 @@ export const CategoryTransactionsModal = ({
   periodStart,
   periodEnd,
   dateType,
+  includeUpcoming,
+  upcomingItems,
 }: CategoryTransactionsModalProps) => {
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
