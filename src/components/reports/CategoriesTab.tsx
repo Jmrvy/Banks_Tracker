@@ -23,6 +23,14 @@ interface CategoriesTabProps {
   dateType?: 'accounting' | 'value';
 }
 
+// Helper to get upcoming items for a specific category
+const getUpcomingForCategory = (catName: string, upcomingItems?: PeriodRecurringItem[]) => {
+  if (!upcomingItems) return [];
+  return upcomingItems.filter(item => 
+    (item.recurring.category?.name || 'Sans catégorie') === catName && item.futureOccurrences > 0
+  );
+};
+
 export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses, dateType }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
@@ -400,8 +408,11 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             .filter(c => c.spent > 0)
             .sort((a, b) => b.spent - a.spent)
             .map((category, index) => {
-              const percentage = category.budget > 0 ? (category.spent / category.budget) * 100 : 0;
-              const isOverBudget = category.budget > 0 && category.spent > category.budget;
+              const projected = projectedByCategory.get(category.name) || 0;
+              const effectiveSpent = includeUpcoming ? category.spent + projected : category.spent;
+              const percentage = category.budget > 0 ? (effectiveSpent / category.budget) * 100 : 0;
+              const isOverBudget = category.budget > 0 && effectiveSpent > category.budget;
+              const remaining = category.budget > 0 ? category.budget - effectiveSpent : 0;
               
               return (
                 <button
@@ -430,12 +441,19 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                           {percentage.toFixed(0)}%
                         </Badge>
                       )}
-                      <span className={cn(
-                        "font-bold text-xs sm:text-sm",
-                        isOverBudget ? "text-destructive" : "text-foreground"
-                      )}>
-                        {formatCurrency(category.spent)}
-                      </span>
+                      <div className="text-right">
+                        <span className={cn(
+                          "font-bold text-xs sm:text-sm",
+                          isOverBudget ? "text-destructive" : "text-foreground"
+                        )}>
+                          {formatCurrency(effectiveSpent)}
+                        </span>
+                        {includeUpcoming && projected > 0 && (
+                          <span className="text-[9px] text-primary block">
+                            dont {formatCurrency(projected)} projeté
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -454,9 +472,9 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         <span>Budget: {formatCurrency(category.budget)}</span>
                         <span className={cn(
                           "font-medium",
-                          category.remaining > 0 ? "text-success" : "text-destructive"
+                          remaining > 0 ? "text-success" : "text-destructive"
                         )}>
-                          {category.remaining >= 0 ? 'Reste' : 'Dépassement'}: {formatCurrency(Math.abs(category.remaining))}
+                          {remaining >= 0 ? 'Reste' : 'Dépassement'}: {formatCurrency(Math.abs(remaining))}
                         </span>
                       </div>
                     </div>
@@ -523,6 +541,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         periodStart={periodStart}
         periodEnd={periodEnd}
         dateType={dateType}
+        includeUpcoming={includeUpcoming}
+        upcomingItems={selectedCategory ? getUpcomingForCategory(selectedCategory, upcomingItems) : undefined}
       />
     </div>
   );

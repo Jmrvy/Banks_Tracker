@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight, CalendarDays } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { CategoryData } from "@/hooks/useReportsData";
+import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { type Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import {
   LineChart,
@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
   Area,
 } from "recharts";
-import { eachDayOfInterval, format } from "date-fns";
+import { eachDayOfInterval, format, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -46,6 +46,8 @@ interface CategoryTransactionsModalProps {
   periodStart?: Date;
   periodEnd?: Date;
   dateType?: 'accounting' | 'value';
+  includeUpcoming?: boolean;
+  upcomingItems?: PeriodRecurringItem[];
 }
 
 const bankColors: Record<string, string> = {
@@ -84,6 +86,8 @@ export const CategoryTransactionsModal = ({
   periodStart,
   periodEnd,
   dateType,
+  includeUpcoming,
+  upcomingItems,
 }: CategoryTransactionsModalProps) => {
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
@@ -135,28 +139,87 @@ export const CategoryTransactionsModal = ({
       );
 
     let running = 0;
+    const today = format(new Date(), "yyyy-MM-dd");
 
-    return days.map((day) => {
+    const chartPoints = days.map((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
+      // Use NET amounts (amount - refunded_amount) for each transaction
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
-        .reduce((s, t) => s + Number(t.amount), 0);
+        .reduce((s, t) => {
+          const gross = Number(t.amount);
+          const refunded = Number((t as any).refunded_amount || 0);
+          return s + Math.max(0, gross - refunded);
+        }, 0);
       running += dayTotal;
 
       return {
         date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
         spent: running,
         budget: Number(categoryData.budget),
+        isFuture: dayStr > today,
       };
     });
-  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData]);
 
+    // If includeUpcoming, add projected recurring amounts to future days
+    if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
+      const advanceDate = (d: Date, type: string): Date => {
+        switch (type) {
+          case 'daily': return addDays(d, 1);
+          case 'weekly': return addWeeks(d, 1);
+          case 'monthly': return addMonths(d, 1);
+          case 'quarterly': return addMonths(d, 3);
+          case 'yearly': return addYears(d, 1);
+          default: return addMonths(d, 1);
+        }
+      };
+
+      // Compute future occurrence dates for each upcoming item
+      const futureAdditions = new Map<string, number>();
+      for (const item of upcomingItems) {
+        if (item.futureOccurrences <= 0) continue;
+        const rt = item.recurring;
+        const amount = Number(rt.amount);
+        // Walk from next_due_date forward within the period
+        let current = new Date(rt.next_due_date + 'T00:00:00');
+        let count = 0;
+        while (current <= periodEnd! && count < item.futureOccurrences) {
+          const dateStr = format(current, 'yyyy-MM-dd');
+          if (dateStr > today && current >= periodStart!) {
+            futureAdditions.set(dateStr, (futureAdditions.get(dateStr) || 0) + amount);
+            count++;
+          }
+          current = advanceDate(current, rt.recurrence_type);
+        }
+      }
+      
+      // Re-accumulate with projections
+      if (futureAdditions.size > 0) {
+        let projRunning = 0;
+        for (let i = 0; i < chartPoints.length; i++) {
+          const dayStr = format(days[i], "yyyy-MM-dd");
+          const projected = futureAdditions.get(dayStr) || 0;
+          projRunning += projected;
+          if (projRunning > 0) {
+            chartPoints[i].spent += projRunning;
+          }
+        }
+      }
+    }
+
+    return chartPoints;
+  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData, includeUpcoming, upcomingItems]);
+
+  // Use the final chart value (which includes net amounts + projections) for display
+  const chartFinalSpent = budgetChartData.length > 0 ? budgetChartData[budgetChartData.length - 1].spent : 0;
+  const effectiveSpent = hasBudget && budgetChartData.length > 0 ? chartFinalSpent : Number(categoryData?.spent || 0);
+  
   const yMax = hasBudget
-    ? Math.max(Number(categoryData.budget) * 1.15, Number(categoryData.spent) * 1.05, 100)
+    ? Math.max(Number(categoryData.budget) * 1.15, effectiveSpent * 1.05, 100)
     : 100;
-  const isOverBudget = hasBudget && Number(categoryData.spent) > Number(categoryData.budget);
+  const isOverBudget = hasBudget && effectiveSpent > Number(categoryData.budget);
   const percentUsed = hasBudget
-    ? Math.round((Number(categoryData.spent) / Number(categoryData.budget)) * 100)
+    ? Math.round((effectiveSpent / Number(categoryData.budget)) * 100)
     : 0;
 
   const BudgetChartTooltip = ({ active, payload, label }: any) => {
@@ -220,7 +283,7 @@ export const CategoryTransactionsModal = ({
               <div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                   <span>{percentUsed}% utilisé</span>
-                  <span>{formatCurrency(categoryData.spent)} / {formatCurrency(categoryData.budget)}</span>
+                  <span>{formatCurrency(effectiveSpent)} / {formatCurrency(categoryData.budget)}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                   <div
