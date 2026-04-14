@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,7 @@ export interface CategoryTransaction {
   date: string;
   valueDate?: string;
   type: 'expense' | 'income' | 'transfer';
+  isProjected?: boolean;
 }
 
 interface CategoryTransactionsModalProps {
@@ -93,11 +94,15 @@ export const CategoryTransactionsModal = ({
   const isMobile = useIsMobile();
   const activeDateType = dateType || preferences.dateType;
 
+  const projectedCount = transactions.filter(t => t.isProjected).length;
+  const realCount = transactions.length - projectedCount;
+  
   // Calculer le total en utilisant les montants nets si disponibles
   const totalAmount = transactions.reduce((sum, t) => {
     const netAmount = t.netAmount ?? t.amount;
     return sum + Math.abs(netAmount);
   }, 0);
+  const projectedTotal = transactions.filter(t => t.isProjected).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Vérifier si une transaction a une date valeur différente de la date comptable
   const hasValueDateDifference = (t: CategoryTransaction) => {
@@ -267,7 +272,10 @@ export const CategoryTransactionsModal = ({
             </Badge>
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            {transactions.length} transaction{transactions.length > 1 ? 's' : ''}
+            {realCount} transaction{realCount > 1 ? 's' : ''}
+            {projectedCount > 0 && (
+              <span className="text-primary"> + {projectedCount} projetée{projectedCount > 1 ? 's' : ''}</span>
+            )}
           </p>
         </DialogHeader>
 
@@ -389,7 +397,10 @@ export const CategoryTransactionsModal = ({
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2"
+                    className={cn(
+                      "flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2",
+                      transaction.isProjected && "border-dashed border-primary/30 bg-primary/5"
+                    )}
                   >
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
@@ -407,7 +418,23 @@ export const CategoryTransactionsModal = ({
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                          <p className={cn("font-medium text-xs sm:text-sm truncate", transaction.isProjected && "italic text-muted-foreground")}>{transaction.description}</p>
+                          {transaction.isProjected && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] px-1 py-0 h-4 flex-shrink-0 border-primary/40 text-primary bg-primary/10"
+                                >
+                                  <CalendarClock className="w-2.5 h-2.5 mr-0.5" />
+                                  Projeté
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                Transaction récurrente projetée
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                           {hasRefund && (
                             <Tooltip>
                               <TooltipTrigger asChild>
