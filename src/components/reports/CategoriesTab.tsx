@@ -23,6 +23,14 @@ interface CategoriesTabProps {
   dateType?: 'accounting' | 'value';
 }
 
+// Helper to get upcoming items for a specific category
+const getUpcomingForCategory = (catName: string, upcomingItems?: PeriodRecurringItem[]) => {
+  if (!upcomingItems) return [];
+  return upcomingItems.filter(item => 
+    (item.recurring.category?.name || 'Sans catégorie') === catName && item.futureOccurrences > 0
+  );
+};
+
 export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses, dateType }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
