@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/ui/chart";
@@ -84,8 +85,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         let count = 0;
 
         const advanceDate = (d: Date, type: string): Date => {
-          const { addDays, addWeeks, addMonths, addYears } = require('date-fns');
-          switch (type) {
+        const advanceDate = (d: Date, type: string): Date => {
             case 'daily': return addDays(d, 1);
             case 'weekly': return addWeeks(d, 1);
             case 'monthly': return addMonths(d, 1);
