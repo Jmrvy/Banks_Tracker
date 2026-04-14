@@ -210,12 +210,16 @@ export const CategoryTransactionsModal = ({
     return chartPoints;
   }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData, includeUpcoming, upcomingItems]);
 
+  // Use the final chart value (which includes net amounts + projections) for display
+  const chartFinalSpent = budgetChartData.length > 0 ? budgetChartData[budgetChartData.length - 1].spent : 0;
+  const effectiveSpent = hasBudget && budgetChartData.length > 0 ? chartFinalSpent : Number(categoryData?.spent || 0);
+  
   const yMax = hasBudget
-    ? Math.max(Number(categoryData.budget) * 1.15, Number(categoryData.spent) * 1.05, 100)
+    ? Math.max(Number(categoryData.budget) * 1.15, effectiveSpent * 1.05, 100)
     : 100;
-  const isOverBudget = hasBudget && Number(categoryData.spent) > Number(categoryData.budget);
+  const isOverBudget = hasBudget && effectiveSpent > Number(categoryData.budget);
   const percentUsed = hasBudget
-    ? Math.round((Number(categoryData.spent) / Number(categoryData.budget)) * 100)
+    ? Math.round((effectiveSpent / Number(categoryData.budget)) * 100)
     : 0;
 
   const BudgetChartTooltip = ({ active, payload, label }: any) => {
