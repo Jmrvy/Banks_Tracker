@@ -2,11 +2,13 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Wallet, Calendar, ArrowRight, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useDebts } from "@/hooks/useDebts";
 
 interface QuickPreviewProps {
   onShowFullDashboard: () => void;
@@ -16,7 +18,22 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   const [isRevealed, setIsRevealed] = useState(true);
   const { accounts, recurringTransactions, transactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
+  const { installmentPayments } = useInstallmentPayments();
+  const { debts } = useDebts();
   const navigate = useNavigate();
+
+  // Resolve effective amount: use installment_amount or debt payment_amount when linked
+  const getEffectiveAmount = (rt: RecurringTransaction): number => {
+    if (rt.installment_payment_id) {
+      const ip = installmentPayments.find(p => p.id === rt.installment_payment_id);
+      if (ip) return ip.installment_amount;
+    }
+    if (rt.debt_id) {
+      const debt = debts.find(d => d.id === rt.debt_id);
+      if (debt?.payment_amount) return debt.payment_amount;
+    }
+    return rt.amount;
+  };
 
   const totalBalance = useMemo(() => {
     return accounts.reduce((sum, acc) => sum + acc.balance, 0);
@@ -252,7 +269,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                     </span>
                   </div>
                   <BlurredAmount
-                    amount={`${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(transaction.amount)}`}
+                    amount={`${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(getEffectiveAmount(transaction))}`}
                     className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
                       transaction.type === 'income' ? 'text-success' : 'text-destructive'
                     }`}
