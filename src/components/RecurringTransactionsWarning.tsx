@@ -4,14 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar, AlertTriangle, Repeat, ArrowRight } from 'lucide-react';
-import { useFinancialData } from '@/hooks/useFinancialData';
+import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useNavigate } from 'react-router-dom';
 import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
+import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
+import { useDebts } from '@/hooks/useDebts';
 
 export const RecurringTransactionsWarning = () => {
   const { recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
+  const { installmentPayments } = useInstallmentPayments();
+  const { debts } = useDebts();
+
+  // Resolve effective amount: use installment_amount or debt payment_amount when linked
+  const getEffectiveAmount = (rt: RecurringTransaction): number => {
+    if (rt.installment_payment_id) {
+      const ip = installmentPayments.find(p => p.id === rt.installment_payment_id);
+      if (ip) return ip.installment_amount;
+    }
+    if (rt.debt_id) {
+      const debt = debts.find(d => d.id === rt.debt_id);
+      if (debt?.payment_amount) return debt.payment_amount;
+    }
+    return rt.amount;
+  };
   const navigate = useNavigate();
   const [showRegularizeModal, setShowRegularizeModal] = useState(false);
 
@@ -149,7 +166,7 @@ export const RecurringTransactionsWarning = () => {
                       </div>
                     </div>
                     <p className={`text-xs font-semibold flex-shrink-0 ${getTypeColor(transaction.type)}`}>
-                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(getEffectiveAmount(transaction))}
                     </p>
                   </div>
 
@@ -178,7 +195,7 @@ export const RecurringTransactionsWarning = () => {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-sm font-semibold ${getTypeColor(transaction.type)}`}>
-                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(getEffectiveAmount(transaction))}
                       </p>
                       <div className="flex items-center justify-end gap-1.5 mt-0.5">
                         <p className="text-xs text-muted-foreground">
