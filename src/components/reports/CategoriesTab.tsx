@@ -81,6 +81,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       for (const item of catUpcoming) {
         if (item.futureOccurrences <= 0) continue;
         const rt = item.recurring;
+        const effectiveAmount = item.futureOccurrences > 0 ? item.futurePeriodAmount / item.futureOccurrences : Number(rt.amount);
         let current = new Date(rt.next_due_date + 'T00:00:00');
         let count = 0;
 
@@ -101,8 +102,8 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             realTxs.push({
               id: `projected-${rt.id}-${count}`,
               description: rt.description,
-              amount: Number(rt.amount),
-              netAmount: Number(rt.amount),
+              amount: effectiveAmount,
+              netAmount: effectiveAmount,
               refundedAmount: 0,
               isFullyRefunded: false,
               hasRefund: false,
