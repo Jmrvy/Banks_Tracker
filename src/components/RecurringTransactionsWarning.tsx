@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,20 +10,50 @@ import { useNavigate } from 'react-router-dom';
 import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
 import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useDebts } from '@/hooks/useDebts';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface ScheduledDebtPayment {
+  debt_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean | null;
+}
 
 export const RecurringTransactionsWarning = () => {
   const { recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
   const { debts } = useDebts();
+  const { user } = useAuth();
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
 
-  // Resolve effective amount: use installment_amount or debt payment_amount when linked
+  useEffect(() => {
+    const fetchScheduled = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('scheduled_debt_payments')
+        .select('debt_id, scheduled_date, scheduled_amount, is_paid')
+        .eq('user_id', user.id)
+        .eq('is_paid', false);
+      if (data) setScheduledDebtPayments(data);
+    };
+    fetchScheduled();
+  }, [user]);
+
+  // Resolve effective amount: use installment_amount, scheduled debt amount, or debt payment_amount
   const getEffectiveAmount = (rt: RecurringTransaction): number => {
     if (rt.installment_payment_id) {
       const ip = installmentPayments.find(p => p.id === rt.installment_payment_id);
       if (ip) return ip.installment_amount;
     }
     if (rt.debt_id) {
+      // Check scheduled debt payment for the specific month of next_due_date
+      const monthKey = rt.next_due_date.substring(0, 7);
+      const scheduled = scheduledDebtPayments.find(
+        sp => sp.debt_id === rt.debt_id && sp.scheduled_date.substring(0, 7) === monthKey
+      );
+      if (scheduled) return scheduled.scheduled_amount;
       const debt = debts.find(d => d.id === rt.debt_id);
       if (debt?.payment_amount) return debt.payment_amount;
     }
