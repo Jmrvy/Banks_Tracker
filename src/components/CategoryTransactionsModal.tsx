@@ -184,7 +184,7 @@ export const CategoryTransactionsModal = ({
       for (const item of upcomingItems) {
         if (item.futureOccurrences <= 0) continue;
         const rt = item.recurring;
-        const amount = Number(rt.amount);
+        const amount = item.futureOccurrences > 0 ? item.futurePeriodAmount / item.futureOccurrences : Number(rt.amount);
         // Walk from next_due_date forward within the period
         let current = new Date(rt.next_due_date + 'T00:00:00');
         let count = 0;
