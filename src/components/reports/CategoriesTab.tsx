@@ -371,7 +371,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {overBudgetCategories
-                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
                       const effectiveSpent = getEffectiveSpent(cat);
                       const pct = Math.round((effectiveSpent / cat.budget) * 100);
@@ -411,7 +410,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {underBudgetCategories
-                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
                       const effectiveSpent = getEffectiveSpent(cat);
                       const pct = cat.budget > 0 ? Math.round((effectiveSpent / cat.budget) * 100) : 0;
@@ -463,8 +461,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">Détail par catégorie</h3>
         <div className="space-y-1.5">
           {categoryChartData
-            .filter(c => c.spent > 0)
-            .sort((a, b) => b.spent - a.spent)
+            .filter(c => c.spent > 0 || (includeUpcoming && (projectedByCategory.get(c.name) || 0) > 0))
+            .sort((a, b) => {
+              const effectiveA = includeUpcoming ? a.spent + (projectedByCategory.get(a.name) || 0) : a.spent;
+              const effectiveB = includeUpcoming ? b.spent + (projectedByCategory.get(b.name) || 0) : b.spent;
+              return effectiveB - effectiveA;
+            })
             .map((category, index) => {
               const projected = projectedByCategory.get(category.name) || 0;
               const effectiveSpent = includeUpcoming ? category.spent + projected : category.spent;
