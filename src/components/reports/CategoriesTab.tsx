@@ -159,7 +159,9 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       .sort((a, b) => b.value - a.value);
   })();
 
-  const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalChartValue = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalRealSpent = chartData.reduce((sum, item) => sum + item.realValue, 0);
+  const totalSpent = totalChartValue;
   
   // Compute per-category projected amounts from future upcoming items only
   const projectedByCategory = new Map<string, number>();
@@ -171,7 +173,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   }
   const totalProjectedFromItems = includeUpcoming ? Array.from(projectedByCategory.values()).reduce((s, v) => s + v, 0) : 0;
   const totalProjected = totalProjectedFromItems;
-  const grandTotal = totalSpent + totalProjected;
+  const grandTotal = totalRealSpent + totalProjected;
   const totalBudget = categoryChartData.reduce((sum, c) => sum + (c.budget || 0), 0);
   const categoriesWithBudget = categoryChartData.filter(c => c.budget > 0);
   
