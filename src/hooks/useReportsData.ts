@@ -694,6 +694,109 @@ export const useReportsData = (
       return { total: count, future: futureCount };
     };
 
+    // Compute per-occurrence amounts for a recurring transaction in the period
+    // This mirrors the calendar logic: each occurrence resolves its own amount
+    const getOccurrenceAmounts = (rt: RecurringTransaction): { totalAmount: number; futureAmount: number; total: number; future: number } => {
+      const [sy, sm, sd] = rt.start_date.split('-').map(Number);
+      let current = new Date(sy, sm - 1, sd);
+      const endDate = rt.end_date ? new Date(rt.end_date) : null;
+      const maxIterations = 500;
+      let iterations = 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const [ny, nm, nd] = rt.next_due_date.split('-').map(Number);
+      const nextDueDate = new Date(ny, nm - 1, nd);
+
+      // Recompute effective end date (same logic as getOccurrencesInPeriod)
+      let effectiveEndDate: Date | null = endDate;
+      if (rt.installment_payment_id) {
+        const ip = installmentMap.get(rt.installment_payment_id);
+        if (ip) {
+          if (!ip.is_active || ip.installment_amount <= 0) {
+            if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+          } else {
+            const maxFuture = Math.ceil(ip.remaining_amount / ip.installment_amount);
+            if (maxFuture <= 0) {
+              if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+            } else {
+              let lastOcc = new Date(nextDueDate);
+              for (let i = 1; i < maxFuture; i++) lastOcc = advanceDate(lastOcc, rt.recurrence_type);
+              if (!effectiveEndDate || lastOcc < effectiveEndDate) effectiveEndDate = lastOcc;
+            }
+          }
+        }
+      }
+      const linkedDebt = resolveDebt(rt);
+      if (linkedDebt) {
+        if (linkedDebt.status === 'completed') {
+          if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+        } else if (linkedDebt.payment_amount > 0) {
+          const maxFuture = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
+          if (maxFuture <= 0) {
+            if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+          } else {
+            let lastOcc = new Date(nextDueDate);
+            for (let i = 1; i < maxFuture; i++) lastOcc = advanceDate(lastOcc, rt.recurrence_type);
+            if (!effectiveEndDate || lastOcc < effectiveEndDate) effectiveEndDate = lastOcc;
+          }
+        }
+      }
+
+      // Build scheduled debt payments lookup by month for this debt
+      const debtScheduleByMonth = new Map<string, number>();
+      if (linkedDebt && scheduledDebtPaymentInfos) {
+        for (const sp of scheduledDebtPaymentInfos) {
+          if (sp.debt_id === linkedDebt.id) {
+            debtScheduleByMonth.set(sp.scheduled_date.substring(0, 7), sp.scheduled_amount);
+          }
+        }
+      }
+
+      let totalAmount = 0;
+      let futureAmount = 0;
+      let count = 0;
+      let futureCount = 0;
+
+      while (current <= period.to && iterations < maxIterations) {
+        if (effectiveEndDate && current > effectiveEndDate) break;
+        if (current >= period.from && current <= period.to) {
+          const isPast = current < today;
+          const isFuture = !isPast;
+          if (isFuture && current < nextDueDate) {
+            current = advanceDate(current, rt.recurrence_type);
+            iterations++;
+            continue;
+          }
+
+          // Resolve amount for this specific occurrence
+          let occAmount: number;
+          if (linkedDebt) {
+            const monthKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+            const scheduled = debtScheduleByMonth.get(monthKey);
+            occAmount = scheduled !== undefined ? scheduled : (linkedDebt.payment_amount > 0 ? linkedDebt.payment_amount : Number(rt.amount));
+          } else if (rt.installment_payment_id) {
+            const ip = installmentMap.get(rt.installment_payment_id);
+            occAmount = ip ? ip.installment_amount : Number(rt.amount);
+          } else {
+            occAmount = Number(rt.amount);
+          }
+
+          totalAmount += occAmount;
+          count++;
+          if (isFuture) {
+            futureAmount += occAmount;
+            futureCount++;
+          }
+        }
+        current = advanceDate(current, rt.recurrence_type);
+        iterations++;
+      }
+
+      return { totalAmount, futureAmount, total: count, future: futureCount };
+    };
+
     // Monthly/yearly sums (kept for evolution tab projections)
     // Helper to get effective display amount for a recurring transaction
     const getEffectiveAmount = (rt: RecurringTransaction): number => {
@@ -737,17 +840,16 @@ export const useReportsData = (
     // Period-based computation: only recurring transactions with occurrences in the period
     const periodItems: PeriodRecurringItem[] = [];
     for (const rt of activeRecurring) {
-      const { total, future } = getOccurrencesInPeriod(rt);
+      const { totalAmount, futureAmount, total, future } = getOccurrenceAmounts(rt);
       if (total > 0) {
         const effectiveType = getEffectiveType(rt);
-        const amount = getEffectiveAmount(rt);
         periodItems.push({
           recurring: rt,
           occurrences: total,
-          periodAmount: amount * total,
+          periodAmount: totalAmount,
           effectiveType,
           futureOccurrences: future,
-          futurePeriodAmount: amount * future,
+          futurePeriodAmount: futureAmount,
         });
       }
     }
