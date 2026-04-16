@@ -151,14 +151,16 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   
   // When includeUpcoming, use spent + projected for budget comparison
   const getEffectiveSpent = (cat: CategoryData) => cat.spent + (projectedByCategory.get(cat.name) || 0);
-  const overBudgetCategories = categoriesWithBudget.filter(c => 
-    includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget
-  );
-  const underBudgetCategories = categoriesWithBudget.filter(c => 
-    includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget
-  );
+  const overBudgetCategories = categoriesWithBudget
+    .filter(c => includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget)
+    .sort((a, b) => (a.budget - getEffectiveSpent(a)) - (b.budget - getEffectiveSpent(b)));
+  const underBudgetCategories = categoriesWithBudget
+    .filter(c => includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget)
+    .sort((a, b) => (a.budget - getEffectiveSpent(a)) - (b.budget - getEffectiveSpent(b)));
 
-  if (chartData.length === 0) {
+  const hasAnyData = chartData.length > 0 || (includeUpcoming && totalProjected > 0);
+
+  if (!hasAnyData) {
     return (
       <Card className="border-border">
         <CardContent className="text-center py-12">
