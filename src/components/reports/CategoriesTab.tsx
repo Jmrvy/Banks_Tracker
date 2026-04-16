@@ -354,7 +354,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       />
 
       {/* Budget Analysis */}
-      {categoriesWithBudget.length > 0 && (
+      {categoriesWithBudget.length > 0 && (overBudgetCategories.length > 0 || underBudgetCategories.length > 0) && (
         <Card className="glass-hover animate-glass-slide-up">
           <CardContent className="p-3 sm:p-4 space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
