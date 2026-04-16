@@ -331,7 +331,9 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-lg sm:text-xl font-bold">{formatCurrency(totalSpent)}</span>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">
+                  {includeUpcoming ? "Total prévu" : "Total"}
+                </span>
               </div>
             </div>
 
