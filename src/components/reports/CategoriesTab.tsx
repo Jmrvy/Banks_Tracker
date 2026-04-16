@@ -151,14 +151,16 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   
   // When includeUpcoming, use spent + projected for budget comparison
   const getEffectiveSpent = (cat: CategoryData) => cat.spent + (projectedByCategory.get(cat.name) || 0);
-  const overBudgetCategories = categoriesWithBudget.filter(c => 
-    includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget
-  );
-  const underBudgetCategories = categoriesWithBudget.filter(c => 
-    includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget
-  );
+  const overBudgetCategories = categoriesWithBudget
+    .filter(c => includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget)
+    .sort((a, b) => (a.budget - getEffectiveSpent(a)) - (b.budget - getEffectiveSpent(b)));
+  const underBudgetCategories = categoriesWithBudget
+    .filter(c => includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget)
+    .sort((a, b) => (a.budget - getEffectiveSpent(a)) - (b.budget - getEffectiveSpent(b)));
 
-  if (chartData.length === 0) {
+  const hasAnyData = chartData.length > 0 || (includeUpcoming && totalProjected > 0);
+
+  if (!hasAnyData) {
     return (
       <Card className="border-border">
         <CardContent className="text-center py-12">
@@ -352,7 +354,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       />
 
       {/* Budget Analysis */}
-      {categoriesWithBudget.length > 0 && (
+      {categoriesWithBudget.length > 0 && (overBudgetCategories.length > 0 || underBudgetCategories.length > 0) && (
         <Card className="glass-hover animate-glass-slide-up">
           <CardContent className="p-3 sm:p-4 space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
@@ -369,7 +371,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {overBudgetCategories
-                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
                       const effectiveSpent = getEffectiveSpent(cat);
                       const pct = Math.round((effectiveSpent / cat.budget) * 100);
@@ -409,7 +410,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 </p>
                 <div className="space-y-1">
                   {underBudgetCategories
-                    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget))
                     .map((cat, i) => {
                       const effectiveSpent = getEffectiveSpent(cat);
                       const pct = cat.budget > 0 ? Math.round((effectiveSpent / cat.budget) * 100) : 0;
@@ -446,10 +446,16 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             )}
 
             {/* No budget categories info */}
-            {categoryChartData.filter(c => c.spent > 0 && !c.budget).length > 0 && (
+            {categoryChartData.filter(c => {
+              const effective = includeUpcoming ? getEffectiveSpent(c) : c.spent;
+              return effective > 0 && !c.budget;
+            }).length > 0 && (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Target className="w-3 h-3" />
-                {categoryChartData.filter(c => c.spent > 0 && !c.budget).length} catégorie(s) sans budget défini
+                {categoryChartData.filter(c => {
+                  const effective = includeUpcoming ? getEffectiveSpent(c) : c.spent;
+                  return effective > 0 && !c.budget;
+                }).length} catégorie(s) sans budget défini
               </p>
             )}
           </CardContent>
@@ -461,8 +467,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">Détail par catégorie</h3>
         <div className="space-y-1.5">
           {categoryChartData
-            .filter(c => c.spent > 0)
-            .sort((a, b) => b.spent - a.spent)
+            .filter(c => c.spent > 0 || (includeUpcoming && (projectedByCategory.get(c.name) || 0) > 0))
+            .sort((a, b) => {
+              const effectiveA = includeUpcoming ? a.spent + (projectedByCategory.get(a.name) || 0) : a.spent;
+              const effectiveB = includeUpcoming ? b.spent + (projectedByCategory.get(b.name) || 0) : b.spent;
+              return effectiveB - effectiveA;
+            })
             .map((category, index) => {
               const projected = projectedByCategory.get(category.name) || 0;
               const effectiveSpent = includeUpcoming ? category.spent + projected : category.spent;
