@@ -211,7 +211,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses réelles</span>
             </div>
-            <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalSpent)}</p>
+            <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalRealSpent)}</p>
           </CardContent>
         </Card>
 
