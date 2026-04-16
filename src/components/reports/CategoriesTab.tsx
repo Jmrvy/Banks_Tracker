@@ -446,10 +446,16 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             )}
 
             {/* No budget categories info */}
-            {categoryChartData.filter(c => c.spent > 0 && !c.budget).length > 0 && (
+            {categoryChartData.filter(c => {
+              const effective = includeUpcoming ? getEffectiveSpent(c) : c.spent;
+              return effective > 0 && !c.budget;
+            }).length > 0 && (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Target className="w-3 h-3" />
-                {categoryChartData.filter(c => c.spent > 0 && !c.budget).length} catégorie(s) sans budget défini
+                {categoryChartData.filter(c => {
+                  const effective = includeUpcoming ? getEffectiveSpent(c) : c.spent;
+                  return effective > 0 && !c.budget;
+                }).length} catégorie(s) sans budget défini
               </p>
             )}
           </CardContent>
