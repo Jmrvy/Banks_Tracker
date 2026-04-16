@@ -124,14 +124,40 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     return realTxs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
-  const chartData = categoryChartData
-    .filter(c => c.spent > 0)
-    .sort((a, b) => b.spent - a.spent)
-    .map((c) => ({
-      name: c.name,
-      value: Math.abs(c.spent),
-      color: c.color,
-    }));
+  // Build chart data: include projected amounts when upcoming is active
+  const chartData = (() => {
+    // Start with real spending
+    const merged = new Map<string, { value: number; projected: number; color: string }>();
+    for (const c of categoryChartData) {
+      if (c.spent > 0) {
+        merged.set(c.name, { value: Math.abs(c.spent), projected: 0, color: c.color });
+      }
+    }
+    // Add projected amounts
+    if (includeUpcoming && upcomingItems) {
+      for (const item of upcomingItems) {
+        if (item.futureOccurrences <= 0) continue;
+        const catName = item.recurring.category?.name || 'Sans catégorie';
+        const catColor = item.recurring.category?.color || '#6b7280';
+        const existing = merged.get(catName);
+        if (existing) {
+          existing.projected += item.futurePeriodAmount;
+        } else {
+          merged.set(catName, { value: 0, projected: item.futurePeriodAmount, color: catColor });
+        }
+      }
+    }
+    return Array.from(merged.entries())
+      .map(([name, { value, projected, color }]) => ({
+        name,
+        value: includeUpcoming ? value + projected : value,
+        realValue: value,
+        projected,
+        color,
+      }))
+      .filter(c => c.value > 0)
+      .sort((a, b) => b.value - a.value);
+  })();
 
   const totalSpent = chartData.reduce((sum, item) => sum + item.value, 0);
   
