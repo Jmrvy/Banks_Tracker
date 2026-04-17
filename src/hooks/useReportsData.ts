@@ -965,7 +965,7 @@ export const useReportsData = (
       periodExpenseCount,
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
     };
-  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
+  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos, transactions, activeDateType]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {
