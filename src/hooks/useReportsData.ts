@@ -710,12 +710,13 @@ export const useReportsData = (
 
     // Compute per-occurrence amounts for a recurring transaction in the period
     // This mirrors the calendar logic: each occurrence resolves its own amount
-    const getOccurrenceAmounts = (rt: RecurringTransaction): { totalAmount: number; futureAmount: number; total: number; future: number } => {
+    const getOccurrenceAmounts = (rt: RecurringTransaction): { totalAmount: number; futureAmount: number; total: number; future: number; details: PeriodOccurrenceDetail[] } => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
       const maxIterations = 500;
       let iterations = 0;
+      const details: PeriodOccurrenceDetail[] = [];
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
