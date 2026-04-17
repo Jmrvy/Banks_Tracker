@@ -98,6 +98,12 @@ export interface ScheduledDebtPaymentInfo {
   is_paid: boolean | null;
 }
 
+export interface DebtPaymentInfo {
+  debt_id: string;
+  payment_date: string;
+  amount: number;
+}
+
 export interface UseReportsDataOptions {
   /** Skip heavy computations (balance evolution, recurring, spending patterns) when only stats/categories/income are needed */
   skipHeavyComputations?: boolean;
@@ -113,6 +119,7 @@ export const useReportsData = (
   options?: UseReportsDataOptions,
   debtInfos?: DebtInfo[],
   scheduledDebtPaymentInfos?: ScheduledDebtPaymentInfo[],
+  debtPaymentInfos?: DebtPaymentInfo[],
 ) => {
   const skipHeavy = options?.skipHeavyComputations ?? false;
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
