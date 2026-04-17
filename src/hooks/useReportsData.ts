@@ -858,6 +858,8 @@ export const useReportsData = (
             continue;
           }
 
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          details.push({ date: dateStr, amount: occAmount, isFuture });
           totalAmount += occAmount;
           count++;
           if (isFuture) {
@@ -869,7 +871,7 @@ export const useReportsData = (
         iterations++;
       }
 
-      return { totalAmount, futureAmount, total: count, future: futureCount };
+      return { totalAmount, futureAmount, total: count, future: futureCount, details };
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
