@@ -168,33 +168,14 @@ export const CategoryTransactionsModal = ({
 
     // If includeUpcoming, add projected recurring amounts to future days
     if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
-      const advanceDate = (d: Date, type: string): Date => {
-        switch (type) {
-          case 'daily': return addDays(d, 1);
-          case 'weekly': return addWeeks(d, 1);
-          case 'monthly': return addMonths(d, 1);
-          case 'quarterly': return addMonths(d, 3);
-          case 'yearly': return addYears(d, 1);
-          default: return addMonths(d, 1);
-        }
-      };
-
-      // Compute future occurrence dates for each upcoming item
+      // Compute future occurrence dates for each upcoming item using per-occurrence calendar amounts
       const futureAdditions = new Map<string, number>();
       for (const item of upcomingItems) {
-        if (item.futureOccurrences <= 0) continue;
-        const rt = item.recurring;
-        const amount = item.futureOccurrences > 0 ? item.futurePeriodAmount / item.futureOccurrences : Number(rt.amount);
-        // Walk from next_due_date forward within the period
-        let current = new Date(rt.next_due_date + 'T00:00:00');
-        let count = 0;
-        while (current <= periodEnd! && count < item.futureOccurrences) {
-          const dateStr = format(current, 'yyyy-MM-dd');
-          if (dateStr > today && current >= periodStart!) {
-            futureAdditions.set(dateStr, (futureAdditions.get(dateStr) || 0) + amount);
-            count++;
+        const futureDetails = (item.occurrenceDetails || []).filter(d => d.isFuture);
+        for (const occ of futureDetails) {
+          if (occ.date > today) {
+            futureAdditions.set(occ.date, (futureAdditions.get(occ.date) || 0) + occ.amount);
           }
-          current = advanceDate(current, rt.recurrence_type);
         }
       }
       
