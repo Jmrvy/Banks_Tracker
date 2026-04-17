@@ -58,7 +58,7 @@ const Reports = () => {
   );
 
   // Debt data for recurring transaction amount resolution
-  const { debts } = useDebts();
+  const { debts, payments: debtPayments } = useDebts();
   const debtInfos = useMemo(() =>
     debts.map(d => ({
       id: d.id,
@@ -69,6 +69,14 @@ const Reports = () => {
       status: d.status,
     })),
     [debts]
+  );
+  const debtPaymentInfos = useMemo(() =>
+    debtPayments.map(dp => ({
+      debt_id: dp.debt_id,
+      payment_date: dp.payment_date,
+      amount: dp.amount,
+    })),
+    [debtPayments]
   );
   const [scheduledDebtPaymentInfos, setScheduledDebtPaymentInfos] = useState<any[]>([]);
   useEffect(() => {
@@ -94,7 +102,7 @@ const Reports = () => {
     spendingPatternsData,
     accounts,
     filteredTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos, undefined, debtInfos, scheduledDebtPaymentInfos);
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos, undefined, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos);
 
   // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
   // Skip heavy computations (balance evolution, recurring, spending patterns) since they're already computed above
