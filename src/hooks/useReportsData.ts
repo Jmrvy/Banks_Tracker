@@ -36,6 +36,12 @@ export interface CategoryData {
   remaining: number;
 }
 
+export interface PeriodOccurrenceDetail {
+  date: string; // YYYY-MM-DD
+  amount: number;
+  isFuture: boolean;
+}
+
 export interface PeriodRecurringItem {
   recurring: RecurringTransaction;
   occurrences: number;
@@ -43,6 +49,7 @@ export interface PeriodRecurringItem {
   effectiveType: 'income' | 'expense';
   futureOccurrences: number;
   futurePeriodAmount: number;
+  occurrenceDetails: PeriodOccurrenceDetail[];
 }
 
 export interface RecurringData {
