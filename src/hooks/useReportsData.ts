@@ -36,6 +36,12 @@ export interface CategoryData {
   remaining: number;
 }
 
+export interface PeriodOccurrenceDetail {
+  date: string; // YYYY-MM-DD
+  amount: number;
+  isFuture: boolean;
+}
+
 export interface PeriodRecurringItem {
   recurring: RecurringTransaction;
   occurrences: number;
@@ -43,6 +49,7 @@ export interface PeriodRecurringItem {
   effectiveType: 'income' | 'expense';
   futureOccurrences: number;
   futurePeriodAmount: number;
+  occurrenceDetails: PeriodOccurrenceDetail[];
 }
 
 export interface RecurringData {
@@ -703,12 +710,13 @@ export const useReportsData = (
 
     // Compute per-occurrence amounts for a recurring transaction in the period
     // This mirrors the calendar logic: each occurrence resolves its own amount
-    const getOccurrenceAmounts = (rt: RecurringTransaction): { totalAmount: number; futureAmount: number; total: number; future: number } => {
+    const getOccurrenceAmounts = (rt: RecurringTransaction): { totalAmount: number; futureAmount: number; total: number; future: number; details: PeriodOccurrenceDetail[] } => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
       const maxIterations = 500;
       let iterations = 0;
+      const details: PeriodOccurrenceDetail[] = [];
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -850,6 +858,8 @@ export const useReportsData = (
             continue;
           }
 
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          details.push({ date: dateStr, amount: occAmount, isFuture });
           totalAmount += occAmount;
           count++;
           if (isFuture) {
@@ -861,7 +871,7 @@ export const useReportsData = (
         iterations++;
       }
 
-      return { totalAmount, futureAmount, total: count, future: futureCount };
+      return { totalAmount, futureAmount, total: count, future: futureCount, details };
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
@@ -907,7 +917,7 @@ export const useReportsData = (
     // Period-based computation: only recurring transactions with occurrences in the period
     const periodItems: PeriodRecurringItem[] = [];
     for (const rt of activeRecurring) {
-      const { totalAmount, futureAmount, total, future } = getOccurrenceAmounts(rt);
+      const { totalAmount, futureAmount, total, future, details } = getOccurrenceAmounts(rt);
       if (total > 0) {
         const effectiveType = getEffectiveType(rt);
         periodItems.push({
@@ -917,6 +927,7 @@ export const useReportsData = (
           effectiveType,
           futureOccurrences: future,
           futurePeriodAmount: futureAmount,
+          occurrenceDetails: details,
         });
       }
     }

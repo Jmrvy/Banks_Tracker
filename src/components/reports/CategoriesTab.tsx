@@ -72,51 +72,28 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         };
       });
 
-    // Projected upcoming recurring transactions
+    // Projected upcoming recurring transactions - use per-occurrence calendar amounts
     if (includeUpcoming && upcomingItems && selectedCategory) {
       const catUpcoming = getUpcomingForCategory(selectedCategory, upcomingItems);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
       for (const item of catUpcoming) {
-        if (item.futureOccurrences <= 0) continue;
         const rt = item.recurring;
-        const effectiveAmount = item.futureOccurrences > 0 ? item.futurePeriodAmount / item.futureOccurrences : Number(rt.amount);
-        let current = new Date(rt.next_due_date + 'T00:00:00');
-        let count = 0;
-
-        const advanceDate = (d: Date, type: string): Date => {
-          switch (type) {
-            case 'daily': return addDays(d, 1);
-            case 'weekly': return addWeeks(d, 1);
-            case 'monthly': return addMonths(d, 1);
-            case 'quarterly': return addMonths(d, 3);
-            case 'yearly': return addYears(d, 1);
-            default: return addMonths(d, 1);
-          }
-        };
-
-        while (current <= periodEnd && count < item.futureOccurrences) {
-          if (current >= today && current >= periodStart) {
-            const dateStr = current.toISOString().split('T')[0];
-            realTxs.push({
-              id: `projected-${rt.id}-${count}`,
-              description: rt.description,
-              amount: effectiveAmount,
-              netAmount: effectiveAmount,
-              refundedAmount: 0,
-              isFullyRefunded: false,
-              hasRefund: false,
-              bank: (rt as any).account?.bank || 'other',
-              date: dateStr,
-              valueDate: dateStr,
-              type: 'expense',
-              isProjected: true,
-            });
-            count++;
-          }
-          current = advanceDate(current, rt.recurrence_type);
-        }
+        const futureDetails = (item.occurrenceDetails || []).filter(d => d.isFuture);
+        futureDetails.forEach((occ, idx) => {
+          realTxs.push({
+            id: `projected-${rt.id}-${idx}`,
+            description: rt.description,
+            amount: occ.amount,
+            netAmount: occ.amount,
+            refundedAmount: 0,
+            isFullyRefunded: false,
+            hasRefund: false,
+            bank: (rt as any).account?.bank || 'other',
+            date: occ.date,
+            valueDate: occ.date,
+            type: 'expense',
+            isProjected: true,
+          });
+        });
       }
     }
 
