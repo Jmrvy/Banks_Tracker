@@ -761,6 +761,41 @@ export const useReportsData = (
         }
       }
 
+      // Build actual debt payments by month for this debt (mirrors calendar's debtActualAmounts)
+      const debtActualByMonth = new Map<string, number>();
+      if (linkedDebt && debtPaymentInfos) {
+        for (const dp of debtPaymentInfos) {
+          if (dp.debt_id === linkedDebt.id) {
+            const monthKey = dp.payment_date.substring(0, 7);
+            debtActualByMonth.set(monthKey, (debtActualByMonth.get(monthKey) || 0) + dp.amount);
+          }
+        }
+      }
+
+      // Build actual installment amounts by month for this installment (mirrors calendar's installmentActualAmounts)
+      const installmentActualByMonth = new Map<string, number>();
+      if (rt.installment_payment_id) {
+        for (const tx of transactions) {
+          if (tx.installment_payment_id === rt.installment_payment_id) {
+            const txDate = activeDateType === 'value' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
+            const monthKey = txDate.substring(0, 7);
+            installmentActualByMonth.set(monthKey, (installmentActualByMonth.get(monthKey) || 0) + Number(tx.amount));
+          }
+        }
+      }
+
+      // Build actual recurring transactions by month (for non-installment, non-debt recurring)
+      const recurringActualByMonth = new Map<string, number>();
+      if (!rt.installment_payment_id && !linkedDebt) {
+        for (const tx of transactions) {
+          if (tx.recurring_transaction_id === rt.id && !tx.installment_payment_id) {
+            const txDate = activeDateType === 'value' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
+            const monthKey = txDate.substring(0, 7);
+            recurringActualByMonth.set(monthKey, (recurringActualByMonth.get(monthKey) || 0) + Number(tx.amount));
+          }
+        }
+      }
+
       let totalAmount = 0;
       let futureAmount = 0;
       let count = 0;
@@ -777,17 +812,42 @@ export const useReportsData = (
             continue;
           }
 
-          // Resolve amount for this specific occurrence
-          let occAmount: number;
+          const monthKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+
+          // Resolve amount for this specific occurrence (mirrors calendar logic)
+          let occAmount: number | undefined;
           if (linkedDebt) {
-            const monthKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
-            const scheduled = debtScheduleByMonth.get(monthKey);
-            occAmount = scheduled !== undefined ? scheduled : (linkedDebt.payment_amount > 0 ? linkedDebt.payment_amount : Number(rt.amount));
+            if (isPast) {
+              // Past debt: use actual paid amount, skip if none (matches calendar behavior)
+              occAmount = debtActualByMonth.get(monthKey);
+            } else {
+              // Future debt: scheduled if available, else payment_amount
+              const scheduled = debtScheduleByMonth.get(monthKey);
+              occAmount = scheduled !== undefined ? scheduled : (linkedDebt.payment_amount > 0 ? linkedDebt.payment_amount : Number(rt.amount));
+            }
           } else if (rt.installment_payment_id) {
-            const ip = installmentMap.get(rt.installment_payment_id);
-            occAmount = ip ? ip.installment_amount : Number(rt.amount);
+            if (isPast) {
+              // Past installment: use actual paid amount, skip if none (matches calendar behavior)
+              occAmount = installmentActualByMonth.get(monthKey);
+            } else {
+              const ip = installmentMap.get(rt.installment_payment_id);
+              occAmount = ip ? ip.installment_amount : Number(rt.amount);
+            }
           } else {
-            occAmount = Number(rt.amount);
+            if (isPast) {
+              // Past regular recurring: use actual amount if linked tx exists, else fallback to rt.amount
+              const actual = recurringActualByMonth.get(monthKey);
+              occAmount = actual !== undefined ? actual : Number(rt.amount);
+            } else {
+              occAmount = Number(rt.amount);
+            }
+          }
+
+          // Skip occurrence if no amount could be resolved (matches calendar's skipOccurrence)
+          if (occAmount === undefined) {
+            current = advanceDate(current, rt.recurrence_type);
+            iterations++;
+            continue;
           }
 
           totalAmount += occAmount;
