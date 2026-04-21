@@ -1,12 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Wallet, Calendar, ArrowRight, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useDebts } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 
 interface QuickPreviewProps {
   onShowFullDashboard: () => void;
@@ -15,8 +20,21 @@ interface QuickPreviewProps {
 export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   const [isRevealed, setIsRevealed] = useState(true);
   const { accounts, recurringTransactions, transactions } = useFinancialData();
+  const { installmentPayments } = useInstallmentPayments();
+  const { debts } = useDebts();
+  const { user } = useAuth();
   const { formatCurrency, preferences } = useUserPreferences();
   const navigate = useNavigate();
+
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<Array<{ debt_id: string; scheduled_date: string; scheduled_amount: number; is_paid: boolean | null }>>([]);
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('scheduled_debt_payments')
+      .select('debt_id, scheduled_date, scheduled_amount, is_paid')
+      .eq('user_id', user.id)
+      .then(({ data }) => setScheduledDebtPayments(data || []));
+  }, [user]);
 
   const totalBalance = useMemo(() => {
     return accounts.reduce((sum, acc) => sum + acc.balance, 0);
@@ -65,12 +83,22 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
     return recurringTransactions
       .filter(rt => {
         if (!rt.is_active) return false;
+        // Skip completed installments
+        if (rt.installment_payment_id) {
+          const ip = installmentPayments.find(p => p.id === rt.installment_payment_id);
+          if (!ip || !ip.is_active || ip.remaining_amount <= 0) return false;
+        }
+        // Skip completed debts
+        if (rt.debt_id) {
+          const debt = debts.find(d => d.id === rt.debt_id);
+          if (!debt || debt.status === 'completed' || debt.remaining_amount <= 0) return false;
+        }
         const dueDate = parseLocalDate(rt.next_due_date);
         return !isBefore(dueDate, today) && !isAfter(dueDate, nextWeek);
       })
       .sort((a, b) => parseLocalDate(a.next_due_date).getTime() - parseLocalDate(b.next_due_date).getTime())
       .slice(0, 5);
-  }, [recurringTransactions]);
+  }, [recurringTransactions, installmentPayments, debts]);
 
   const BlurredAmount = ({ amount, className = "" }: { amount: string; className?: string }) => (
     <span className={`transition-all duration-300 ${!isRevealed ? 'blur-md select-none' : ''} ${className}`}>
@@ -236,28 +264,38 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             </div>
 
             <div className="space-y-1">
-              {upcomingTransactions.map((transaction) => (
-                <button
-                  key={transaction.id}
-                  onClick={() => navigate('/recurring-transactions')}
-                  className="glass-row flex items-center justify-between w-full text-left"
-                >
-                  <div className="flex flex-col min-w-0 flex-1 mr-2">
-                    <span className="text-xs sm:text-sm font-medium truncate">
-                      {transaction.description}
-                    </span>
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">
-                      {format(parseLocalDate(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
-                    </span>
-                  </div>
-                  <BlurredAmount
-                    amount={`${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(transaction.amount)}`}
-                    className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
-                      transaction.type === 'income' ? 'text-success' : 'text-destructive'
-                    }`}
-                  />
-                </button>
-              ))}
+              {upcomingTransactions.map((transaction) => {
+                const displayAmount = getRecurringDisplayAmount(
+                  transaction,
+                  transaction.next_due_date,
+                  installmentPayments,
+                  debts,
+                  scheduledDebtPayments
+                );
+                const effectiveType = getRecurringEffectiveType(transaction, installmentPayments);
+                return (
+                  <button
+                    key={transaction.id}
+                    onClick={() => navigate('/recurring-transactions')}
+                    className="glass-row flex items-center justify-between w-full text-left"
+                  >
+                    <div className="flex flex-col min-w-0 flex-1 mr-2">
+                      <span className="text-xs sm:text-sm font-medium truncate">
+                        {transaction.description}
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">
+                        {format(parseLocalDate(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
+                      </span>
+                    </div>
+                    <BlurredAmount
+                      amount={`${effectiveType === 'expense' ? '-' : '+'}${formatCurrency(displayAmount)}`}
+                      className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
+                        effectiveType === 'income' ? 'text-success' : 'text-destructive'
+                      }`}
+                    />
+                  </button>
+                );
+              })}
               {upcomingTransactions.length === 0 && (
                 <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
                   Aucune transaction prevue

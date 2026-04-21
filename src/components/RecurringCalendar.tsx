@@ -204,6 +204,18 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [debtPayments]);
 
+  // Build debt payments lookup by debt_id + day (so past occurrences can be placed at real dates)
+  const debtActualByDay = useMemo(() => {
+    const map = new Map<string, { debt_id: string; amount: number }[]>();
+    debtPayments.forEach((dp) => {
+      const dayKey = dp.payment_date.substring(0, 10);
+      const existing = map.get(dayKey) || [];
+      existing.push({ debt_id: dp.debt_id, amount: dp.amount });
+      map.set(dayKey, existing);
+    });
+    return map;
+  }, [debtPayments]);
+
   // Count paid scheduled debt payments per debt
   const debtPaidCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -256,21 +268,31 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       let effectiveEndDate: Date | null = endDateLimit;
       if (transaction.installment_payment_id) {
         const ip = installmentPaymentsById.get(transaction.installment_payment_id);
-        if (ip && ip.installment_amount > 0) {
-          const maxFutureOccurrences = Math.ceil(ip.remaining_amount / ip.installment_amount);
-          // Calculate the last valid future occurrence date from next_due_date
-          let lastOccurrence = new Date(nextDueDate);
-          for (let i = 1; i < maxFutureOccurrences; i++) {
-            lastOccurrence = advanceDate(lastOccurrence, transaction.recurrence_type);
-          }
-          // Use the stricter limit
-          if (maxFutureOccurrences <= 0) {
-            // No remaining payments - don't show any future occurrences
-            if (!endDateLimit || lastOccurrence < endDateLimit) {
-              effectiveEndDate = nextDueDate; // Set to before next_due_date effectively
+        if (ip) {
+          // If installment is completed (inactive or no remaining), block future occurrences entirely.
+          // Set effectiveEndDate to day before next_due_date so no future occurrence is shown.
+          if (!ip.is_active || ip.installment_amount <= 0 || ip.remaining_amount <= 0) {
+            const blockDate = new Date(nextDueDate.getTime() - 86400000);
+            if (!effectiveEndDate || blockDate < effectiveEndDate) {
+              effectiveEndDate = blockDate;
             }
-          } else if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
-            effectiveEndDate = lastOccurrence;
+          } else {
+            const maxFutureOccurrences = Math.ceil(ip.remaining_amount / ip.installment_amount);
+            if (maxFutureOccurrences <= 0) {
+              const blockDate = new Date(nextDueDate.getTime() - 86400000);
+              if (!effectiveEndDate || blockDate < effectiveEndDate) {
+                effectiveEndDate = blockDate;
+              }
+            } else {
+              // Calculate the last valid future occurrence date from next_due_date
+              let lastOccurrence = new Date(nextDueDate);
+              for (let i = 1; i < maxFutureOccurrences; i++) {
+                lastOccurrence = advanceDate(lastOccurrence, transaction.recurrence_type);
+              }
+              if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
+                effectiveEndDate = lastOccurrence;
+              }
+            }
           }
         }
       }
@@ -280,15 +302,22 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       const resolvedDebtId = resolvedDebt?.id || null;
       if (resolvedDebt) {
         const debt = resolvedDebt;
-        if (debt.payment_amount > 0) {
+        // If debt is completed, block future occurrences entirely
+        if (debt.status === 'completed' || debt.remaining_amount <= 0) {
+          const blockDate = new Date(nextDueDate.getTime() - 86400000);
+          if (!effectiveEndDate || blockDate < effectiveEndDate) {
+            effectiveEndDate = blockDate;
+          }
+        } else if (debt.payment_amount > 0) {
           const maxFutureOccurrences = Math.ceil(debt.remaining_amount / debt.payment_amount);
           let lastOccurrence = new Date(nextDueDate);
           for (let i = 1; i < maxFutureOccurrences; i++) {
             lastOccurrence = advanceDate(lastOccurrence, transaction.recurrence_type);
           }
           if (maxFutureOccurrences <= 0) {
-            if (!endDateLimit || lastOccurrence < endDateLimit) {
-              effectiveEndDate = nextDueDate;
+            const blockDate = new Date(nextDueDate.getTime() - 86400000);
+            if (!effectiveEndDate || blockDate < effectiveEndDate) {
+              effectiveEndDate = blockDate;
             }
           } else if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
             effectiveEndDate = lastOccurrence;
@@ -360,14 +389,17 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             }
           }
 
-          // Debt-linked: use actual paid amount for past, scheduled amount for future
+          // Debt-linked: for past occurrences, if any debt_payments exist in this month,
+          // skip the computed occurrence — individual payments will be injected at real dates
+          // in post-processing. For future occurrences, use scheduled amount.
           if (resolvedDebtId) {
             const monthKey = format(currentOccurrence, 'yyyy-MM');
             const debtKey = `${resolvedDebtId}:${monthKey}`;
             if (isPast) {
               const actualAmount = debtActualAmounts.get(debtKey);
               if (actualAmount !== undefined) {
-                displayAmount = actualAmount;
+                // Real payments exist → skip computed occurrence; inject at real dates below
+                skipOccurrence = true;
               } else {
                 skipOccurrence = true;
               }
@@ -464,8 +496,36 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       });
     });
 
+    // Post-processing: inject actual debt_payments at their real dates.
+    // Each debt_payment is shown individually so the calendar reflects actual paid dates
+    // (e.g., April 20 payment shows on April 20, not on the scheduled date).
+    debtActualByDay.forEach((dayEntries, dayKey) => {
+      if (!dayKey.startsWith(currentMonthKey)) return;
+
+      dayEntries.forEach(({ debt_id, amount }) => {
+        // Find the recurring transaction(s) linked to this debt
+        const recurringTx = transactions.find(rt => {
+          if (rt.debt_id === debt_id) return true;
+          const d = debts.find(x => x.id === debt_id);
+          if (!d) return false;
+          const suffixReceived = `${d.description} (Remboursement dette)`;
+          const suffixGiven = `${d.description} (Remboursement prêt)`;
+          return rt.description === suffixReceived || rt.description === suffixGiven;
+        });
+        if (!recurringTx) return;
+
+        const existing = map.get(dayKey) || [];
+        map.set(dayKey, [...existing, {
+          transaction: recurringTx,
+          isPast: true,
+          displayAmount: amount,
+          occurrenceDate: dayKey,
+        }]);
+      });
+    });
+
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, scheduledDebtPaymentsByDebtMonth, dateField]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, debtActualByDay, scheduledDebtPaymentsByDebtMonth, debts, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {

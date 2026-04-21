@@ -251,7 +251,16 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         <div className="space-y-1.5">
           {categoryChartData
             .filter(c => c.spent > 0)
-            .sort((a, b) => b.spent - a.spent)
+            .sort((a, b) => {
+              // Sort by remaining amount (smallest first): over-budget first, then tight budgets, then comfortable
+              // Categories without budgets go to the end
+              const aHasBudget = a.budget > 0;
+              const bHasBudget = b.budget > 0;
+              if (aHasBudget && !bHasBudget) return -1;
+              if (!aHasBudget && bHasBudget) return 1;
+              if (!aHasBudget && !bHasBudget) return b.spent - a.spent;
+              return a.remaining - b.remaining;
+            })
             .map((category, index) => {
               const percentage = category.budget > 0 ? (category.spent / category.budget) * 100 : 0;
               const isOverBudget = category.budget > 0 && category.spent > category.budget;

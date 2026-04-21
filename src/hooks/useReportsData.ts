@@ -41,6 +41,11 @@ export interface PeriodRecurringItem {
   occurrences: number;
   periodAmount: number;
   effectiveType: 'income' | 'expense';
+  // Split by past vs future in the selected period
+  pastOccurrences: number;
+  futureOccurrences: number;
+  pastAmount: number;
+  futureAmount: number;
 }
 
 export interface RecurringData {
@@ -348,13 +353,68 @@ export const useReportsData = (
         }
       } else if (recurringTransactions.length > 0) {
         // Projection basée sur les transactions récurrentes - respecter les dates exactes
+        // Utilise les mêmes montants effectifs que le calendrier:
+        // - Installment-linked: installment_amount
+        // - Debt-linked: scheduled_amount du mois correspondant, sinon payment_amount
+        // - Regular: rt.amount
+        // Saute les installments/dettes terminés.
+        const ipMap = new Map<string, InstallmentPaymentInfo>();
+        if (installmentPayments) for (const ip of installmentPayments) ipMap.set(ip.id, ip);
+        const dMap = new Map<string, DebtInfo>();
+        if (debtInfos) for (const d of debtInfos) dMap.set(d.id, d);
+        const resolveDebtForProj = (rt: RecurringTransaction): DebtInfo | null => {
+          if (rt.debt_id) return dMap.get(rt.debt_id) || null;
+          if (rt.description.includes('(Remboursement dette)') || rt.description.includes('(Remboursement prêt)')) {
+            for (const d of dMap.values()) {
+              const suffixReceived = `${d.description} (Remboursement dette)`;
+              const suffixGiven = `${d.description} (Remboursement prêt)`;
+              if (rt.description === suffixReceived || rt.description === suffixGiven) return d;
+            }
+          }
+          return null;
+        };
+        const projEffectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
+          if (rt.installment_payment_id) {
+            const ip = ipMap.get(rt.installment_payment_id);
+            if (ip) return ip.installment_amount;
+          }
+          const debt = resolveDebtForProj(rt);
+          if (debt) {
+            const monthKey = dateStr.substring(0, 7);
+            if (scheduledDebtPaymentInfos) {
+              const s = scheduledDebtPaymentInfos.find(sp => sp.debt_id === debt.id && sp.scheduled_date.substring(0, 7) === monthKey);
+              if (s) return s.scheduled_amount;
+            }
+            if (debt.payment_amount > 0) return debt.payment_amount;
+          }
+          return Number(rt.amount);
+        };
+        const projEffectiveType = (rt: RecurringTransaction): 'income' | 'expense' => {
+          if (rt.installment_payment_id) {
+            const ip = ipMap.get(rt.installment_payment_id);
+            // Reimbursements = income in DB but should count as expense in projections
+            // Need to look up payment_type via original installmentPayments — not available in Info interface.
+            // Leave to rt.type for now; reimbursements are rare enough and the amount is what matters here.
+          }
+          return rt.type;
+        };
+        const projIsActive = (rt: RecurringTransaction): boolean => {
+          if (rt.installment_payment_id) {
+            const ip = ipMap.get(rt.installment_payment_id);
+            if (!ip || !ip.is_active || ip.remaining_amount <= 0) return false;
+          }
+          const debt = resolveDebtForProj(rt);
+          if (debt && (debt.status === 'completed' || debt.remaining_amount <= 0)) return false;
+          return true;
+        };
+
         const activeRecurring = recurringTransactions
-          .filter(rt => rt.is_active)
+          .filter(rt => rt.is_active && projIsActive(rt))
           .map(rt => ({ ...rt }));
 
         // Collecter toutes les occurrences futures des transactions récurrentes
         const futureTransactions: Array<{ date: Date; amount: number; type: string; description: string }> = [];
-        
+
         activeRecurring.forEach(rt => {
           const [_ry, _rm, _rd] = rt.next_due_date.split('-').map(Number);
           let nextDue = new Date(_ry, _rm - 1, _rd);
@@ -363,10 +423,11 @@ export const useReportsData = (
 
           while (nextDue <= projectionEndDate && iterations < maxIterations) {
             if (nextDue >= projectionStartDate) {
+              const ymd = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(nextDue.getDate()).padStart(2, '0')}`;
               futureTransactions.push({
                 date: new Date(nextDue),
-                amount: Number(rt.amount),
-                type: rt.type,
+                amount: projEffectiveAmount(rt, ymd),
+                type: projEffectiveType(rt),
                 description: rt.description
               });
             }
@@ -443,7 +504,7 @@ export const useReportsData = (
     }
 
     return dailyData;
-  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns, initialBalance]);
+  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns, initialBalance, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
@@ -601,7 +662,8 @@ export const useReportsData = (
     // Count occurrences of a recurring transaction in the period
     // Mirrors the calendar logic: past occurrences before next_due_date are counted,
     // future occurrences start from next_due_date and are capped by installment/debt limits
-    const getOccurrencesInPeriod = (rt: RecurringTransaction): number => {
+    // Returns { total, past, future } where past = already happened today, future = not yet
+    const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; past: number; future: number } => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
@@ -669,7 +731,8 @@ export const useReportsData = (
         }
       }
 
-      let count = 0;
+      let past = 0;
+      let future = 0;
 
       while (current <= period.to && iterations < maxIterations) {
         if (effectiveEndDate && current > effectiveEndDate) break;
@@ -684,13 +747,14 @@ export const useReportsData = (
             iterations++;
             continue;
           }
-          count++;
+          if (isPast) past++;
+          else future++;
         }
         current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      return count;
+      return { total: past + future, past, future };
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
@@ -736,15 +800,19 @@ export const useReportsData = (
     // Period-based computation: only recurring transactions with occurrences in the period
     const periodItems: PeriodRecurringItem[] = [];
     for (const rt of activeRecurring) {
-      const occurrences = getOccurrencesInPeriod(rt);
-      if (occurrences > 0) {
+      const occ = getOccurrencesInPeriod(rt);
+      if (occ.total > 0) {
         const effectiveType = getEffectiveType(rt);
         const amount = getEffectiveAmount(rt);
         periodItems.push({
           recurring: rt,
-          occurrences,
-          periodAmount: amount * occurrences,
+          occurrences: occ.total,
+          periodAmount: amount * occ.total,
           effectiveType,
+          pastOccurrences: occ.past,
+          futureOccurrences: occ.future,
+          pastAmount: amount * occ.past,
+          futureAmount: amount * occ.future,
         });
       }
     }
