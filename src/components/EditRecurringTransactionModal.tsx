@@ -41,13 +41,21 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
     is_paid: boolean | null;
   }
   const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
+  const [scheduledLoaded, setScheduledLoaded] = useState(false);
   useEffect(() => {
-    if (!user || !open) return;
+    if (!user || !open) {
+      setScheduledLoaded(false);
+      return;
+    }
+    setScheduledLoaded(false);
     supabase
       .from('scheduled_debt_payments')
       .select('debt_id, scheduled_date, scheduled_amount, is_paid')
       .eq('user_id', user.id)
-      .then(({ data }) => setScheduledDebtPayments(data || []));
+      .then(({ data }) => {
+        setScheduledDebtPayments(data || []);
+        setScheduledLoaded(true);
+      });
   }, [user, open]);
 
   const resolvedDebt = useMemo(() => {
@@ -101,9 +109,13 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
   const [loading, setLoading] = useState(false);
 
   // Load transaction data when modal opens
+  // For debt-linked transactions, wait until scheduledDebtPayments are loaded
+  // to avoid briefly showing the stale rt.amount before the real amount arrives
+  const isDebtLinked = !!resolvedDebt;
+  const dataReady = !isDebtLinked || scheduledLoaded;
+
   useEffect(() => {
-    if (transaction && open) {
-      // Filter recurrence_type to only supported values
+    if (transaction && open && dataReady) {
       const supportedRecurrence = ['weekly', 'monthly', 'quarterly', 'yearly'];
       const recurrenceType = supportedRecurrence.includes(transaction.recurrence_type)
         ? transaction.recurrence_type as 'weekly' | 'monthly' | 'quarterly' | 'yearly'
@@ -122,7 +134,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
         end_date: transaction.end_date || ''
       });
     }
-  }, [transaction, open, effectiveAmount, effectiveType]);
+  }, [transaction, open, dataReady, effectiveAmount, effectiveType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
