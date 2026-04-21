@@ -1,0 +1,1 @@
+ALTER TABLE public.notification_preferences ADD COLUMN IF NOT EXISTS date_type text NOT NULL DEFAULT 'accounting';

@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { BarChart3, Calendar, CalendarCheck, Download } from "lucide-react";
+import { BarChart3, Calendar, CalendarCheck, Download, Clock } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
@@ -17,6 +17,9 @@ import { IncomeTab } from "@/components/reports/IncomeTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ReportWizard } from "@/components/ReportWizard";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { PeriodRecurringItem } from "@/hooks/useReportsData";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -30,7 +33,17 @@ const Reports = () => {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>('accounting');
+  const [includeUpcoming, setIncludeUpcoming] = useState(false);
+  const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>(() => {
+    try {
+      const saved = localStorage.getItem('userPreferences');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.dateType === 'value') return 'value';
+      }
+    } catch {}
+    return 'accounting';
+  });
 
   // Installment payments data for capping recurring occurrence projections
   const { installmentPayments } = useInstallmentPayments();
@@ -45,7 +58,7 @@ const Reports = () => {
   );
 
   // Debt data for recurring transaction amount resolution
-  const { debts } = useDebts();
+  const { debts, payments: debtPayments } = useDebts();
   const debtInfos = useMemo(() =>
     debts.map(d => ({
       id: d.id,
@@ -56,6 +69,14 @@ const Reports = () => {
       status: d.status,
     })),
     [debts]
+  );
+  const debtPaymentInfos = useMemo(() =>
+    debtPayments.map(dp => ({
+      debt_id: dp.debt_id,
+      payment_date: dp.payment_date,
+      amount: dp.amount,
+    })),
+    [debtPayments]
   );
   const [scheduledDebtPaymentInfos, setScheduledDebtPaymentInfos] = useState<any[]>([]);
   useEffect(() => {
@@ -81,7 +102,7 @@ const Reports = () => {
     spendingPatternsData,
     accounts,
     filteredTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos, undefined, debtInfos, scheduledDebtPaymentInfos);
+  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos, undefined, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos);
 
   // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
   // Skip heavy computations (balance evolution, recurring, spending patterns) since they're already computed above
@@ -177,56 +198,91 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="income" className="mt-3 space-y-3">
-            {/* Sélecteur de type de date pour Revenus */}
-            <div className="flex items-center justify-end gap-2 animate-glass-fade-in">
-              <span className="text-xs text-muted-foreground">Type de date :</span>
-              <ToggleGroup 
-                type="single" 
-                value={incomeExpenseDateType} 
-                onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
-                className="h-8"
-              >
-                <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Comptable
-                </ToggleGroupItem>
-                <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
-                  <CalendarCheck className="h-3 w-3" />
-                  Valeur
-                </ToggleGroupItem>
-              </ToggleGroup>
+            {/* Sélecteurs pour Revenus */}
+            <div className="flex items-center justify-between gap-2 animate-glass-fade-in flex-wrap">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="upcoming-income"
+                  checked={includeUpcoming}
+                  onCheckedChange={setIncludeUpcoming}
+                  className="scale-75"
+                />
+                <Label htmlFor="upcoming-income" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                  <Clock className="h-3 w-3" />
+                  À venir
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Date :</span>
+                <ToggleGroup 
+                  type="single" 
+                  value={incomeExpenseDateType} 
+                  onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
+                  className="h-8"
+                >
+                  <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Comptable
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
+                    <CalendarCheck className="h-3 w-3" />
+                    Valeur
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
             <IncomeTab 
               incomeAnalysis={incomeAnalysis}
               totalIncome={incomeExpenseStats.income}
+              includeUpcoming={includeUpcoming}
+              upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'income')}
+              projectedIncome={recurringData.periodIncome}
             />
           </TabsContent>
 
           <TabsContent value="categories" className="mt-3 space-y-3">
-            {/* Sélecteur de type de date pour Dépenses */}
-            <div className="flex items-center justify-end gap-2 animate-glass-fade-in">
-              <span className="text-xs text-muted-foreground">Type de date :</span>
-              <ToggleGroup
-                type="single"
-                value={incomeExpenseDateType}
-                onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
-                className="h-8"
-              >
-                <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Comptable
-                </ToggleGroupItem>
-                <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
-                  <CalendarCheck className="h-3 w-3" />
-                  Valeur
-                </ToggleGroupItem>
-              </ToggleGroup>
+            {/* Sélecteurs pour Dépenses */}
+            <div className="flex items-center justify-between gap-2 animate-glass-fade-in flex-wrap">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="upcoming-expenses"
+                  checked={includeUpcoming}
+                  onCheckedChange={setIncludeUpcoming}
+                  className="scale-75"
+                />
+                <Label htmlFor="upcoming-expenses" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                  <Clock className="h-3 w-3" />
+                  À venir
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Date :</span>
+                <ToggleGroup
+                  type="single"
+                  value={incomeExpenseDateType}
+                  onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
+                  className="h-8"
+                >
+                  <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Comptable
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
+                    <CalendarCheck className="h-3 w-3" />
+                    Valeur
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
             <CategoriesTab
               categoryChartData={categoryChartData}
               transactions={incomeExpenseTransactions}
               periodStart={period.from}
               periodEnd={period.to}
+              includeUpcoming={includeUpcoming}
+              upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'expense')}
+              projectedExpenses={recurringData.periodExpenses}
+              dateType={incomeExpenseDateType}
             />
           </TabsContent>
 

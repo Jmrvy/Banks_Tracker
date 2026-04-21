@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Wallet, Calendar, ArrowRight, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useFinancialData } from "@/hooks/useFinancialData";
+import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -12,6 +12,13 @@ import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMo
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
+
+interface ScheduledDebtPayment {
+  debt_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean | null;
+}
 
 interface QuickPreviewProps {
   onShowFullDashboard: () => void;
@@ -25,8 +32,8 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   const { user } = useAuth();
   const { formatCurrency, preferences } = useUserPreferences();
   const navigate = useNavigate();
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
 
-  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<Array<{ debt_id: string; scheduled_date: string; scheduled_amount: number; is_paid: boolean | null }>>([]);
   useEffect(() => {
     if (!user) return;
     supabase
@@ -216,7 +223,8 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               {accounts.slice(0, 4).map((account) => (
                 <div
                   key={account.id}
-                  className="glass-row flex items-center justify-between"
+                  className="glass-row flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate('/accounts', { state: { selectedAccountId: account.id } })}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <div className={`h-2 w-2 rounded-full flex-shrink-0 ${account.balance >= 0 ? 'bg-success' : 'bg-destructive'}`} />

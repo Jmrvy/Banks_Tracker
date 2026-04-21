@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar, AlertTriangle, Repeat, ArrowRight } from 'lucide-react';
-import { useFinancialData } from '@/hooks/useFinancialData';
+import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData';
 import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useDebts } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -13,6 +13,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from '@/lib/recurringAmount';
+
+interface ScheduledDebtPayment {
+  debt_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean | null;
+}
 
 export const RecurringTransactionsWarning = () => {
   const { recurringTransactions } = useFinancialData();
@@ -23,7 +30,7 @@ export const RecurringTransactionsWarning = () => {
   const navigate = useNavigate();
   const [showRegularizeModal, setShowRegularizeModal] = useState(false);
 
-  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<Array<{ debt_id: string; scheduled_date: string; scheduled_amount: number; is_paid: boolean | null }>>([]);
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
   useEffect(() => {
     if (!user) return;
     supabase

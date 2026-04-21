@@ -36,16 +36,23 @@ export interface CategoryData {
   remaining: number;
 }
 
+export interface PeriodOccurrenceDetail {
+  date: string; // YYYY-MM-DD
+  amount: number;
+  isFuture: boolean;
+}
+
 export interface PeriodRecurringItem {
   recurring: RecurringTransaction;
   occurrences: number;
   periodAmount: number;
   effectiveType: 'income' | 'expense';
-  // Split by past vs future in the selected period
   pastOccurrences: number;
   futureOccurrences: number;
   pastAmount: number;
   futureAmount: number;
+  futurePeriodAmount: number;
+  occurrenceDetails: PeriodOccurrenceDetail[];
 }
 
 export interface RecurringData {
@@ -101,6 +108,12 @@ export interface ScheduledDebtPaymentInfo {
   is_paid: boolean | null;
 }
 
+export interface DebtPaymentInfo {
+  debt_id: string;
+  payment_date: string;
+  amount: number;
+}
+
 export interface UseReportsDataOptions {
   /** Skip heavy computations (balance evolution, recurring, spending patterns) when only stats/categories/income are needed */
   skipHeavyComputations?: boolean;
@@ -116,6 +129,7 @@ export const useReportsData = (
   options?: UseReportsDataOptions,
   debtInfos?: DebtInfo[],
   scheduledDebtPaymentInfos?: ScheduledDebtPaymentInfo[],
+  debtPaymentInfos?: DebtPaymentInfo[],
 ) => {
   const skipHeavy = options?.skipHeavyComputations ?? false;
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
@@ -666,8 +680,7 @@ export const useReportsData = (
     // Count occurrences of a recurring transaction in the period
     // Mirrors the calendar logic: past occurrences before next_due_date are counted,
     // future occurrences start from next_due_date and are capped by installment/debt limits
-    // Returns { total, past, future } where past = already happened today, future = not yet
-    const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; past: number; future: number } => {
+    const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; past: number; future: number; details: PeriodOccurrenceDetail[] } => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
@@ -681,16 +694,14 @@ export const useReportsData = (
       const nextDueDate = new Date(ny, nm - 1, nd);
 
       // Compute effective end date based on installment/debt remaining payments
-      // (same approach as RecurringCalendar)
       let effectiveEndDate: Date | null = endDate;
 
       if (rt.installment_payment_id) {
         const ip = installmentMap.get(rt.installment_payment_id);
         if (ip) {
           if (!ip.is_active || ip.installment_amount <= 0) {
-            // Installment completed or zero amount — no future occurrences
             if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
-              effectiveEndDate = new Date(nextDueDate.getTime() - 86400000); // day before next_due
+              effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
             }
           } else {
             const maxFuture = Math.ceil(ip.remaining_amount / ip.installment_amount);
@@ -737,6 +748,7 @@ export const useReportsData = (
 
       let past = 0;
       let future = 0;
+      const details: PeriodOccurrenceDetail[] = [];
 
       while (current <= period.to && iterations < maxIterations) {
         if (effectiveEndDate && current > effectiveEndDate) break;
@@ -745,7 +757,6 @@ export const useReportsData = (
           const isFuture = !isPast;
 
           // Mirror calendar: future occurrences before next_due_date are skipped
-          // (they've already been executed and recorded as actual transactions)
           if (isFuture && current < nextDueDate) {
             current = advanceDate(current, rt.recurrence_type);
             iterations++;
@@ -753,12 +764,14 @@ export const useReportsData = (
           }
           if (isPast) past++;
           else future++;
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          details.push({ date: dateStr, amount: getEffectiveAmount(rt), isFuture });
         }
         current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      return { total: past + future, past, future };
+      return { total: past + future, past, future, details };
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
@@ -807,16 +820,20 @@ export const useReportsData = (
       const occ = getOccurrencesInPeriod(rt);
       if (occ.total > 0) {
         const effectiveType = getEffectiveType(rt);
-        const amount = getEffectiveAmount(rt);
+        const totalAmount = occ.details.reduce((s, d) => s + d.amount, 0);
+        const futureAmt = occ.details.filter(d => d.isFuture).reduce((s, d) => s + d.amount, 0);
+        const pastAmt = occ.details.filter(d => !d.isFuture).reduce((s, d) => s + d.amount, 0);
         periodItems.push({
           recurring: rt,
           occurrences: occ.total,
-          periodAmount: amount * occ.total,
+          periodAmount: totalAmount,
           effectiveType,
           pastOccurrences: occ.past,
           futureOccurrences: occ.future,
-          pastAmount: amount * occ.past,
-          futureAmount: amount * occ.future,
+          pastAmount: pastAmt,
+          futureAmount: futureAmt,
+          futurePeriodAmount: futureAmt,
+          occurrenceDetails: occ.details,
         });
       }
     }
@@ -865,7 +882,7 @@ export const useReportsData = (
       periodExpenseCount,
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
     };
-  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
+  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos, transactions, activeDateType]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {

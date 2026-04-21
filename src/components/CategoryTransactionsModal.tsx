@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight, CalendarDays } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { CategoryData } from "@/hooks/useReportsData";
+import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { type Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import {
   LineChart,
@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
   Area,
 } from "recharts";
-import { eachDayOfInterval, format } from "date-fns";
+import { eachDayOfInterval, format, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -34,6 +34,7 @@ export interface CategoryTransaction {
   date: string;
   valueDate?: string;
   type: 'expense' | 'income' | 'transfer';
+  isProjected?: boolean;
 }
 
 interface CategoryTransactionsModalProps {
@@ -45,6 +46,9 @@ interface CategoryTransactionsModalProps {
   allTransactions?: FinancialTransaction[];
   periodStart?: Date;
   periodEnd?: Date;
+  dateType?: 'accounting' | 'value';
+  includeUpcoming?: boolean;
+  upcomingItems?: PeriodRecurringItem[];
 }
 
 const bankColors: Record<string, string> = {
@@ -82,16 +86,23 @@ export const CategoryTransactionsModal = ({
   allTransactions,
   periodStart,
   periodEnd,
+  dateType,
+  includeUpcoming,
+  upcomingItems,
 }: CategoryTransactionsModalProps) => {
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
-  const activeDateType = preferences.dateType;
+  const activeDateType = dateType || preferences.dateType;
 
+  const projectedCount = transactions.filter(t => t.isProjected).length;
+  const realCount = transactions.length - projectedCount;
+  
   // Calculer le total en utilisant les montants nets si disponibles
   const totalAmount = transactions.reduce((sum, t) => {
     const netAmount = t.netAmount ?? t.amount;
     return sum + Math.abs(netAmount);
   }, 0);
+  const projectedTotal = transactions.filter(t => t.isProjected).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Vérifier si une transaction a une date valeur différente de la date comptable
   const hasValueDateDifference = (t: CategoryTransaction) => {
@@ -133,28 +144,68 @@ export const CategoryTransactionsModal = ({
       );
 
     let running = 0;
+    const today = format(new Date(), "yyyy-MM-dd");
 
-    return days.map((day) => {
+    const chartPoints = days.map((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
+      // Use NET amounts (amount - refunded_amount) for each transaction
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
-        .reduce((s, t) => s + Number(t.amount), 0);
+        .reduce((s, t) => {
+          const gross = Number(t.amount);
+          const refunded = Number((t as any).refunded_amount || 0);
+          return s + Math.max(0, gross - refunded);
+        }, 0);
       running += dayTotal;
 
       return {
         date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
         spent: running,
         budget: Number(categoryData.budget),
+        isFuture: dayStr > today,
       };
     });
-  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData]);
 
+    // If includeUpcoming, add projected recurring amounts to future days
+    if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
+      // Compute future occurrence dates for each upcoming item using per-occurrence calendar amounts
+      const futureAdditions = new Map<string, number>();
+      for (const item of upcomingItems) {
+        const futureDetails = (item.occurrenceDetails || []).filter(d => d.isFuture);
+        for (const occ of futureDetails) {
+          if (occ.date > today) {
+            futureAdditions.set(occ.date, (futureAdditions.get(occ.date) || 0) + occ.amount);
+          }
+        }
+      }
+      
+      // Re-accumulate with projections
+      if (futureAdditions.size > 0) {
+        let projRunning = 0;
+        for (let i = 0; i < chartPoints.length; i++) {
+          const dayStr = format(days[i], "yyyy-MM-dd");
+          const projected = futureAdditions.get(dayStr) || 0;
+          projRunning += projected;
+          if (projRunning > 0) {
+            chartPoints[i].spent += projRunning;
+          }
+        }
+      }
+    }
+
+    return chartPoints;
+  }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData, includeUpcoming, upcomingItems]);
+
+  // Use the final chart value (which includes net amounts + projections) for display
+  const chartFinalSpent = budgetChartData.length > 0 ? budgetChartData[budgetChartData.length - 1].spent : 0;
+  const effectiveSpent = hasBudget && budgetChartData.length > 0 ? chartFinalSpent : Number(categoryData?.spent || 0);
+  
   const yMax = hasBudget
-    ? Math.max(Number(categoryData.budget) * 1.15, Number(categoryData.spent) * 1.05, 100)
+    ? Math.max(Number(categoryData.budget) * 1.15, effectiveSpent * 1.05, 100)
     : 100;
-  const isOverBudget = hasBudget && Number(categoryData.spent) > Number(categoryData.budget);
+  const isOverBudget = hasBudget && effectiveSpent > Number(categoryData.budget);
   const percentUsed = hasBudget
-    ? Math.round((Number(categoryData.spent) / Number(categoryData.budget)) * 100)
+    ? Math.round((effectiveSpent / Number(categoryData.budget)) * 100)
     : 0;
 
   const BudgetChartTooltip = ({ active, payload, label }: any) => {
@@ -195,14 +246,17 @@ export const CategoryTransactionsModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="flex items-center justify-between text-sm sm:text-lg">
+          <DialogTitle className="flex items-center justify-between text-sm sm:text-lg pr-8">
             <span className="truncate">{categoryName}</span>
             <Badge variant="secondary" className="text-xs sm:text-sm ml-2 flex-shrink-0">
               {formatCurrency(totalAmount)}
             </Badge>
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            {transactions.length} transaction{transactions.length > 1 ? 's' : ''}
+            {realCount} transaction{realCount > 1 ? 's' : ''}
+            {projectedCount > 0 && (
+              <span className="text-primary"> + {projectedCount} projetée{projectedCount > 1 ? 's' : ''}</span>
+            )}
           </p>
         </DialogHeader>
 
@@ -218,7 +272,7 @@ export const CategoryTransactionsModal = ({
               <div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                   <span>{percentUsed}% utilisé</span>
-                  <span>{formatCurrency(categoryData.spent)} / {formatCurrency(categoryData.budget)}</span>
+                  <span>{formatCurrency(effectiveSpent)} / {formatCurrency(categoryData.budget)}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                   <div
@@ -324,7 +378,10 @@ export const CategoryTransactionsModal = ({
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2"
+                    className={cn(
+                      "flex items-center justify-between p-2 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors gap-2",
+                      transaction.isProjected && "border-dashed border-primary/30 bg-primary/5"
+                    )}
                   >
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
@@ -342,7 +399,23 @@ export const CategoryTransactionsModal = ({
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-medium text-xs sm:text-sm truncate">{transaction.description}</p>
+                          <p className={cn("font-medium text-xs sm:text-sm truncate", transaction.isProjected && "italic text-muted-foreground")}>{transaction.description}</p>
+                          {transaction.isProjected && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] px-1 py-0 h-4 flex-shrink-0 border-primary/40 text-primary bg-primary/10"
+                                >
+                                  <CalendarClock className="w-2.5 h-2.5 mr-0.5" />
+                                  Projeté
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                Transaction récurrente projetée
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                           {hasRefund && (
                             <Tooltip>
                               <TooltipTrigger asChild>
