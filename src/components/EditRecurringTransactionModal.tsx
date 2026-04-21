@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,11 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, MinusCircle, Repeat, Clock, Target } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PlusCircle, MinusCircle, Repeat, Clock, Target, Info, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData';
+import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
+import { useDebts } from '@/hooks/useDebts';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
+import { supabase } from '@/integrations/supabase/client';
+import { getRecurringDisplayAmount, getRecurringEffectiveType } from '@/lib/recurringAmount';
 
 interface EditRecurringTransactionModalProps {
   open: boolean;
@@ -24,7 +30,51 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
   const { accounts, categories, updateRecurringTransaction } = useFinancialData();
-  
+  const { installmentPayments } = useInstallmentPayments();
+  const { debts } = useDebts();
+  const { user } = useAuth();
+
+  interface ScheduledDebtPayment {
+    debt_id: string;
+    scheduled_date: string;
+    scheduled_amount: number;
+    is_paid: boolean | null;
+  }
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
+  useEffect(() => {
+    if (!user || !open) return;
+    supabase
+      .from('scheduled_debt_payments')
+      .select('debt_id, scheduled_date, scheduled_amount, is_paid')
+      .eq('user_id', user.id)
+      .then(({ data }) => setScheduledDebtPayments(data || []));
+  }, [user, open]);
+
+  const isLinked = useMemo(() => {
+    if (!transaction) return { debt: false, installment: false, any: false };
+    const debt = !!transaction.debt_id;
+    const installment = !!transaction.installment_payment_id;
+    return { debt, installment, any: debt || installment };
+  }, [transaction]);
+
+  const effectiveAmount = useMemo(() => {
+    if (!transaction) return null;
+    if (!isLinked.any) return null;
+    return getRecurringDisplayAmount(
+      transaction,
+      transaction.next_due_date,
+      installmentPayments,
+      debts,
+      scheduledDebtPayments
+    );
+  }, [transaction, isLinked.any, installmentPayments, debts, scheduledDebtPayments]);
+
+  const effectiveType = useMemo(() => {
+    if (!transaction) return null;
+    if (!isLinked.installment) return null;
+    return getRecurringEffectiveType(transaction, installmentPayments);
+  }, [transaction, isLinked.installment, installmentPayments]);
+
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -42,14 +92,16 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
     if (transaction && open) {
       // Filter recurrence_type to only supported values
       const supportedRecurrence = ['weekly', 'monthly', 'quarterly', 'yearly'];
-      const recurrenceType = supportedRecurrence.includes(transaction.recurrence_type) 
+      const recurrenceType = supportedRecurrence.includes(transaction.recurrence_type)
         ? transaction.recurrence_type as 'weekly' | 'monthly' | 'quarterly' | 'yearly'
         : 'monthly';
-        
+
+      const resolvedAmount = effectiveAmount !== null ? effectiveAmount.toString() : transaction.amount.toString();
+
       setFormData({
         description: transaction.description,
-        amount: transaction.amount.toString(),
-        type: transaction.type,
+        amount: resolvedAmount,
+        type: effectiveType || transaction.type,
         account_id: transaction.account_id,
         category_id: transaction.category_id || '',
         recurrence_type: recurrenceType,
@@ -57,7 +109,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
         end_date: transaction.end_date || ''
       });
     }
-  }, [transaction, open]);
+  }, [transaction, open, effectiveAmount, effectiveType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,17 +124,22 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
     }
 
     setLoading(true);
-    
-    const result = await updateRecurringTransaction(transaction.id, {
+
+    const updatePayload: Record<string, any> = {
       description: formData.description,
-      amount: parseFloat(formData.amount),
-      type: formData.type,
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
       recurrence_type: formData.recurrence_type,
       start_date: formData.start_date,
       end_date: formData.end_date || undefined,
-    });
+    };
+
+    if (!isLinked.any) {
+      updatePayload.amount = parseFloat(formData.amount);
+      updatePayload.type = formData.type;
+    }
+
+    const result = await updateRecurringTransaction(transaction.id, updatePayload);
 
     if (result?.error) {
       toast({
@@ -186,14 +243,27 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
         <form id="edit-recurring-form" onSubmit={handleSubmit} className="space-y-6">
+          {/* Linked transaction info */}
+          {isLinked.any && (
+            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertDescription className="text-sm text-blue-800 dark:text-blue-300">
+                {isLinked.debt
+                  ? "Le montant et le type sont gérés par l'échéancier de la dette. Modifiez-les depuis les détails de la dette."
+                  : "Le montant et le type sont gérés par l'échéancier. Modifiez-les depuis les détails du paiement échelonné."}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Transaction Type Toggle */}
           <div className="flex gap-2">
             <Button
               type="button"
               variant={formData.type === 'income' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFormData({ ...formData, type: 'income' })}
+              onClick={() => !isLinked.any && setFormData({ ...formData, type: 'income' })}
               className="flex-1"
+              disabled={isLinked.any}
             >
               <PlusCircle className="h-4 w-4 mr-1" />
               Revenus
@@ -202,8 +272,9 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               type="button"
               variant={formData.type === 'expense' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFormData({ ...formData, type: 'expense' })}
+              onClick={() => !isLinked.any && setFormData({ ...formData, type: 'expense' })}
               className="flex-1"
+              disabled={isLinked.any}
             >
               <MinusCircle className="h-4 w-4 mr-1" />
               Dépense
@@ -224,13 +295,17 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
 
           {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="amount">Montant *</Label>
+            <Label htmlFor="amount" className="flex items-center gap-1.5">
+              Montant *
+              {isLinked.any && <Lock className="h-3 w-3 text-muted-foreground" />}
+            </Label>
             <AmountInput
               id="amount"
               placeholder="0.00"
               value={formData.amount}
-              onChange={(value) => setFormData({ ...formData, amount: value })}
+              onChange={(value) => !isLinked.any && setFormData({ ...formData, amount: value })}
               required
+              disabled={isLinked.any}
             />
           </div>
 

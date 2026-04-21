@@ -33,6 +33,7 @@ interface RecurringCalendarProps {
   onDelete: (id: string, description: string) => void;
   onExecuteEarly?: (transactionId: string, executionDate: string) => Promise<{ error: any } | undefined>;
   onRecordPayment?: (recurringTransactionId: string) => void;
+  onManageDebtPayment?: (debtId: string) => void;
 }
 
 interface CalendarOccurrence {
@@ -104,7 +105,7 @@ function advanceDate(date: Date, recurrenceType: string): Date {
   }
 }
 
-const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -931,6 +932,19 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Debt payment management button */}
+            {debtInfo && onManageDebtPayment && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-9 text-xs sm:text-sm gap-1.5"
+                onClick={() => onManageDebtPayment(debtInfo.debt.id)}
+              >
+                <Link className="h-3.5 w-3.5" />
+                Gérer les paiements
+              </Button>
             )}
 
             {/* Regular recurring payment history (non-installment, non-debt) */}

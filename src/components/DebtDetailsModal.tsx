@@ -25,6 +25,7 @@ import {
   Clock,
   Plus,
   Link,
+  Undo2,
 } from 'lucide-react';
 import { LinkDebtPaymentModal } from '@/components/LinkDebtPaymentModal';
 
@@ -139,6 +140,54 @@ export const DebtDetailsModal = ({
 
   const handlePaymentRecorded = () => {
     fetchScheduledPayments();
+  };
+
+  const [uncheckingId, setUncheckingId] = useState<string | null>(null);
+
+  const handleUncheckPayment = async (sp: ScheduledPayment) => {
+    if (!user || !debt) return;
+    setUncheckingId(sp.id);
+
+    try {
+      const paidAmount = sp.actual_amount || sp.scheduled_amount;
+
+      await supabase
+        .from('scheduled_debt_payments')
+        .update({ is_paid: null, paid_date: null, actual_amount: null })
+        .eq('id', sp.id)
+        .eq('user_id', user.id);
+
+      const matchingPayment = allPayments.find(
+        p => p.debt_id === debt.id &&
+          p.payment_date === (sp.paid_date || sp.scheduled_date) &&
+          Math.abs(p.amount - paidAmount) < 0.01
+      );
+      if (matchingPayment) {
+        await supabase
+          .from('debt_payments')
+          .delete()
+          .eq('id', matchingPayment.id)
+          .eq('user_id', user.id);
+      }
+
+      const newRemaining = debt.remaining_amount + paidAmount;
+      const updates: Record<string, any> = { remaining_amount: newRemaining };
+      if (debt.status === 'completed') {
+        updates.status = 'active';
+      }
+
+      await supabase
+        .from('debts')
+        .update(updates)
+        .eq('id', debt.id)
+        .eq('user_id', user.id);
+
+      await fetchScheduledPayments();
+    } catch (error) {
+      console.error('Error unchecking payment:', error);
+    } finally {
+      setUncheckingId(null);
+    }
   };
 
   if (!debt) return null;
@@ -457,10 +506,10 @@ export const DebtDetailsModal = ({
                       <div
                         key={sp.id}
                         className={`
-                          flex items-center gap-2 sm:gap-3 rounded-lg border p-2 sm:p-2.5 transition-colors
+                          flex items-center gap-2 sm:gap-3 rounded-lg border p-2 sm:p-2.5 transition-colors group
                           ${isNext ? 'border-primary/40 bg-primary/5' : ''}
                           ${isPast ? 'border-destructive/30 bg-destructive/5' : ''}
-                          ${isPaid ? 'opacity-60' : ''}
+                          ${isPaid ? 'opacity-60 hover:opacity-100' : ''}
                         `}
                       >
                         <div className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center">
@@ -489,7 +538,22 @@ export const DebtDetailsModal = ({
                           <span className={`text-[11px] sm:text-xs font-semibold whitespace-nowrap ${isPaid ? 'text-green-600' : ''}`}>
                             {formatCurrency(sp.actual_amount || sp.scheduled_amount)}
                           </span>
-                          {!isPaid && (
+                          {isPaid ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleUncheckPayment(sp)}
+                              disabled={uncheckingId === sp.id}
+                              className="h-6 w-6 sm:h-7 sm:w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Annuler ce paiement"
+                            >
+                              {uncheckingId === sp.id ? (
+                                <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" />
+                              ) : (
+                                <Undo2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground hover:text-destructive" />
+                              )}
+                            </Button>
+                          ) : (
                             <div className="flex items-center gap-0.5">
                               <Button
                                 variant="ghost"

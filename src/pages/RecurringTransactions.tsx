@@ -16,6 +16,7 @@ import NewRecurringTransactionModal from "@/components/NewRecurringTransactionMo
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
 import RecurringCalendar from "@/components/RecurringCalendar";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
+import { DebtDetailsModal } from "@/components/DebtDetailsModal";
 import { differenceInDays, startOfDay } from "date-fns";
 
 const RecurringTransactions = () => {
@@ -24,6 +25,7 @@ const RecurringTransactions = () => {
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [recordPaymentForId, setRecordPaymentForId] = useState<string | null>(null);
+  const [managingDebtId, setManagingDebtId] = useState<string | null>(null);
   const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, payments: debtPayments } = useDebts();
@@ -603,6 +605,7 @@ const RecurringTransactions = () => {
                 onDelete={handleDelete}
                 onExecuteEarly={handleExecuteEarly}
                 onRecordPayment={(id) => setRecordPaymentForId(id)}
+                onManageDebtPayment={(debtId) => setManagingDebtId(debtId)}
               />
             )}
           </TabsContent>
@@ -692,6 +695,16 @@ const RecurringTransactions = () => {
           open={!!recordPaymentForId}
           onOpenChange={(open) => !open && setRecordPaymentForId(null)}
           recurringTransactionId={recordPaymentForId}
+        />
+      )}
+
+      {managingDebtId && (
+        <DebtDetailsModal
+          open={!!managingDebtId}
+          onOpenChange={(open) => !open && setManagingDebtId(null)}
+          debt={debts.find(d => d.id === managingDebtId) || null}
+          onAddPayment={() => {}}
+          onEdit={() => {}}
         />
       )}
     </div>
