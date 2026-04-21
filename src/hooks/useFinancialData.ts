@@ -544,7 +544,7 @@ function useFinancialDataInternal() {
         .eq('is_paid', false)
         .order('scheduled_date', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (scheduledPayment) {
         transactionAmount = scheduledPayment.scheduled_amount;
       } else {
@@ -553,7 +553,7 @@ function useFinancialDataInternal() {
           .from('debts')
           .select('payment_amount')
           .eq('id', rt.debt_id)
-          .single();
+          .maybeSingle();
         if (debtData?.payment_amount) {
           transactionAmount = debtData.payment_amount;
         }
@@ -688,7 +688,7 @@ function useFinancialDataInternal() {
         .eq('is_paid', false)
         .order('scheduled_date', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (nextScheduled) {
         await supabase

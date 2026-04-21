@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect, memo } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +41,51 @@ interface CalendarOccurrence {
   displayAmount?: number;
   occurrenceDate: string; // YYYY-MM-DD
 }
+
+// Memoized calendar day cell — prevents re-rendering all 30+ cells on unrelated state changes
+const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCurrency, getEffectiveType, onDayClick }: {
+  day: Date;
+  dateKey: string;
+  dayTransactions: CalendarOccurrence[];
+  isToday: boolean;
+  formatCurrency: (amount: number) => string;
+  getEffectiveType: (t: RecurringTransaction) => 'income' | 'expense';
+  onDayClick: (dateKey: string, dayTransactions: CalendarOccurrence[]) => void;
+}) => {
+  const dayTotal = dayTransactions.reduce((sum, { transaction, displayAmount }) => {
+    const amount = displayAmount ?? transaction.amount;
+    return sum + (getEffectiveType(transaction) === 'income' ? amount : -amount);
+  }, 0);
+
+  return (
+    <div
+      className={`aspect-square border rounded-md sm:rounded-lg p-0.5 sm:p-1 flex flex-col items-center justify-center transition-colors ${
+        isToday
+          ? 'border-primary bg-primary/5'
+          : dayTransactions.length > 0
+            ? 'border-border/50 bg-muted/20'
+            : 'border-border/30'
+      } ${dayTransactions.length > 0 ? 'cursor-pointer hover:bg-muted/40' : ''}`}
+      onClick={() => onDayClick(dateKey, dayTransactions)}
+    >
+      <span className={`text-[10px] sm:text-xs font-medium ${
+        isToday ? 'text-primary' : 'text-foreground'
+      }`}>
+        {format(day, 'd')}
+      </span>
+
+      {dayTransactions.length > 0 && (
+        <span className={`text-[7px] sm:text-[10px] font-bold mt-0.5 ${
+          dayTransactions.every(d => d.isPast)
+            ? 'text-muted-foreground line-through'
+            : dayTotal >= 0 ? 'text-success' : 'text-destructive'
+        }`}>
+          {formatCurrency(Math.abs(dayTotal))}
+        </span>
+      )}
+    </div>
+  );
+});
 
 // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
 const parseLocalDate = (dateStr: string): Date => {
@@ -1007,39 +1052,17 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               const dayTransactions = transactionsByDay.get(dateKey) || [];
               const isToday = isSameDay(day, new Date());
 
-              const dayTotal = dayTransactions.reduce((sum, { transaction, displayAmount }) => {
-                const amount = displayAmount ?? transaction.amount;
-                return sum + (getEffectiveType(transaction) === 'income' ? amount : -amount);
-              }, 0);
-
               return (
-                <div
+                <CalendarDayCell
                   key={dateKey}
-                  className={`aspect-square border rounded-md sm:rounded-lg p-0.5 sm:p-1 flex flex-col items-center justify-center transition-colors ${
-                    isToday
-                      ? 'border-primary bg-primary/5'
-                      : dayTransactions.length > 0
-                        ? 'border-border/50 bg-muted/20'
-                        : 'border-border/30'
-                  } ${dayTransactions.length > 0 ? 'cursor-pointer hover:bg-muted/40' : ''}`}
-                  onClick={() => handleDayClick(dateKey, dayTransactions)}
-                >
-                  <span className={`text-[10px] sm:text-xs font-medium ${
-                    isToday ? 'text-primary' : 'text-foreground'
-                  }`}>
-                    {format(day, 'd')}
-                  </span>
-
-                  {dayTransactions.length > 0 && (
-                    <span className={`text-[7px] sm:text-[10px] font-bold mt-0.5 ${
-                      dayTransactions.every(d => d.isPast)
-                        ? 'text-muted-foreground line-through'
-                        : dayTotal >= 0 ? 'text-success' : 'text-destructive'
-                    }`}>
-                      {formatCurrency(Math.abs(dayTotal))}
-                    </span>
-                  )}
-                </div>
+                  day={day}
+                  dateKey={dateKey}
+                  dayTransactions={dayTransactions}
+                  isToday={isToday}
+                  formatCurrency={formatCurrency}
+                  getEffectiveType={getEffectiveType}
+                  onDayClick={handleDayClick}
+                />
               );
             })}
           </div>
@@ -1148,4 +1171,4 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   );
 };
 
-export default RecurringCalendar;
+export default memo(RecurringCalendar);

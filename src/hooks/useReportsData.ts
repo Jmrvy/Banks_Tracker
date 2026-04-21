@@ -373,6 +373,12 @@ export const useReportsData = (
           }
           return null;
         };
+        const sdpMap = new Map<string, number>();
+        if (scheduledDebtPaymentInfos) {
+          for (const sp of scheduledDebtPaymentInfos) {
+            sdpMap.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
+          }
+        }
         const projEffectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
           if (rt.installment_payment_id) {
             const ip = ipMap.get(rt.installment_payment_id);
@@ -381,10 +387,8 @@ export const useReportsData = (
           const debt = resolveDebtForProj(rt);
           if (debt) {
             const monthKey = dateStr.substring(0, 7);
-            if (scheduledDebtPaymentInfos) {
-              const s = scheduledDebtPaymentInfos.find(sp => sp.debt_id === debt.id && sp.scheduled_date.substring(0, 7) === monthKey);
-              if (s) return s.scheduled_amount;
-            }
+            const scheduled = sdpMap.get(`${debt.id}:${monthKey}`);
+            if (scheduled !== undefined) return scheduled;
             if (debt.payment_amount > 0) return debt.payment_amount;
           }
           return Number(rt.amount);

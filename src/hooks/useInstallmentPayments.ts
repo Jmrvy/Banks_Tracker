@@ -413,13 +413,14 @@ export const useInstallmentPayments = () => {
   const recalculateInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    const currentInstallment = installmentPayments.find(ip => ip.id === id);
-    if (!currentInstallment) {
-      return { error: new Error('Installment payment not found') };
-    }
-
-    // Fetch linked transactions and recurring in parallel (avoid waterfall)
-    const [txResult, recurringResult] = await Promise.all([
+    // Fetch fresh data from DB to avoid stale React state
+    const [ipResult, txResult, recurringResult] = await Promise.all([
+      supabase
+        .from('installment_payments')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single(),
       supabase
         .from('transactions')
         .select('id, amount, type')
@@ -432,6 +433,16 @@ export const useInstallmentPayments = () => {
         .eq('user_id', user.id)
         .maybeSingle()
     ]);
+
+    if (ipResult.error || !ipResult.data) {
+      return { error: ipResult.error || new Error('Installment payment not found') };
+    }
+
+    const currentInstallment: InstallmentPayment = {
+      ...ipResult.data,
+      frequency: ipResult.data.frequency as 'weekly' | 'monthly' | 'quarterly',
+      payment_type: (ipResult.data.payment_type as 'reimbursement' | 'payment') || 'payment',
+    };
 
     const { data: linkedTransactions, error: txError } = txResult;
     const { data: linkedRecurring } = recurringResult;
@@ -821,15 +832,21 @@ export const useInstallmentPayments = () => {
   ) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    const installmentPayment = installmentPayments.find(ip => ip.id === id);
-    if (!installmentPayment) return { error: new Error('Installment payment not found') };
+    const { data: freshData, error: fetchError } = await supabase
+      .from('installment_payments')
+      .select('installment_amount')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
 
-    let updatedAmount = installmentPayment.installment_amount;
+    if (fetchError || !freshData) return { error: fetchError || new Error('Installment payment not found') };
+
+    let updatedAmount = freshData.installment_amount;
 
     switch (adjustmentType) {
       case 'keep_current':
       case 'reduce_count':
-        updatedAmount = installmentPayment.installment_amount;
+        updatedAmount = freshData.installment_amount;
         break;
       case 'reduce_amount':
       case 'custom':
