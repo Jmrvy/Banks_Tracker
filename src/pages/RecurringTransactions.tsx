@@ -178,12 +178,25 @@ const RecurringTransactions = () => {
     return { debt, paid, paidCount, totalCount, pct };
   };
 
-  const getDebtPaymentHistoryForTransaction = (transaction: RecurringTransaction) => {
-    const debt = resolveDebt(transaction);
+  const getDebtPaymentHistoryForTransaction = (recurring: RecurringTransaction) => {
+    const debt = resolveDebt(recurring);
     if (!debt) return [];
-    return debtPayments
+    const entries: { id: string; payment_date: string; amount: number }[] = [];
+    const seen = new Set<string>();
+    debtPayments
       .filter(dp => dp.debt_id === debt.id)
-      .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
+      .forEach(dp => {
+        entries.push({ id: dp.id, payment_date: dp.payment_date, amount: dp.amount });
+        seen.add(`${dp.payment_date}:${dp.amount}`);
+      });
+    transactions
+      .filter(tx => tx.recurring_transaction_id === recurring.id && !tx.installment_payment_id)
+      .forEach(tx => {
+        const key = `${tx.transaction_date}:${tx.amount}`;
+        if (seen.has(key)) return;
+        entries.push({ id: tx.id, payment_date: tx.transaction_date, amount: tx.amount });
+      });
+    return entries.sort((a, b) => a.payment_date.localeCompare(b.payment_date));
   };
 
   // Split transactions into active and inactive for the list view

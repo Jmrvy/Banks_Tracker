@@ -239,7 +239,28 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [scheduledDebtPayments]);
 
+  // Build a set of debt IDs that have recurring transactions, for cross-referencing
+  const debtRecurringMap = useMemo(() => {
+    const map = new Map<string, string>();
+    transactions.forEach((rt) => {
+      if (rt.debt_id) {
+        map.set(rt.id, rt.debt_id);
+      } else if (rt.description.includes('(Remboursement dette)') || rt.description.includes('(Remboursement prêt)')) {
+        for (const d of debts) {
+          const suffixReceived = `${d.description} (Remboursement dette)`;
+          const suffixGiven = `${d.description} (Remboursement prêt)`;
+          if (rt.description === suffixReceived || rt.description === suffixGiven) {
+            map.set(rt.id, d.id);
+            break;
+          }
+        }
+      }
+    });
+    return map;
+  }, [transactions, debts]);
+
   // Build debt payments lookup by debt_id + month (actual amounts paid)
+  // Includes both debt_payments records AND transactions linked via recurring_transaction_id
   const debtActualAmounts = useMemo(() => {
     const map = new Map<string, number>();
     debtPayments.forEach((dp) => {
@@ -247,20 +268,47 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       const key = `${dp.debt_id}:${monthKey}`;
       map.set(key, (map.get(key) || 0) + dp.amount);
     });
+    actualTransactions.forEach((tx) => {
+      if (!tx.recurring_transaction_id || tx.installment_payment_id) return;
+      const debtId = debtRecurringMap.get(tx.recurring_transaction_id);
+      if (!debtId) return;
+      const txDate = (tx as any)[dateField] || tx.transaction_date;
+      const monthKey = txDate.substring(0, 7);
+      const key = `${debtId}:${monthKey}`;
+      if (!map.has(key)) {
+        map.set(key, tx.amount);
+      }
+    });
     return map;
-  }, [debtPayments]);
+  }, [debtPayments, actualTransactions, debtRecurringMap, dateField]);
 
   // Build debt payments lookup by debt_id + day (so past occurrences can be placed at real dates)
+  // Includes both debt_payments records AND transactions linked via recurring_transaction_id
   const debtActualByDay = useMemo(() => {
     const map = new Map<string, { debt_id: string; amount: number }[]>();
+    const seen = new Set<string>();
     debtPayments.forEach((dp) => {
       const dayKey = dp.payment_date.substring(0, 10);
       const existing = map.get(dayKey) || [];
       existing.push({ debt_id: dp.debt_id, amount: dp.amount });
       map.set(dayKey, existing);
+      seen.add(`${dp.debt_id}:${dayKey}:${dp.amount}`);
+    });
+    actualTransactions.forEach((tx) => {
+      if (!tx.recurring_transaction_id || tx.installment_payment_id) return;
+      const debtId = debtRecurringMap.get(tx.recurring_transaction_id);
+      if (!debtId) return;
+      const txDate = (tx as any)[dateField] || tx.transaction_date;
+      const dayKey = txDate.substring(0, 10);
+      const dedupKey = `${debtId}:${dayKey}:${tx.amount}`;
+      if (seen.has(dedupKey)) return;
+      seen.add(dedupKey);
+      const existing = map.get(dayKey) || [];
+      existing.push({ debt_id: debtId, amount: tx.amount });
+      map.set(dayKey, existing);
     });
     return map;
-  }, [debtPayments]);
+  }, [debtPayments, actualTransactions, debtRecurringMap, dateField]);
 
   // Count paid scheduled debt payments per debt
   const debtPaidCounts = useMemo(() => {
@@ -698,9 +746,23 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const getDebtPaymentHistoryForTransaction = (transaction: RecurringTransaction) => {
     const debt = resolveDebt(transaction);
     if (!debt) return [];
-    return debtPayments
+    const entries: { id: string; payment_date: string; amount: number; source: 'debt_payment' | 'transaction' }[] = [];
+    const seen = new Set<string>();
+    debtPayments
       .filter(dp => dp.debt_id === debt.id)
-      .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
+      .forEach(dp => {
+        entries.push({ id: dp.id, payment_date: dp.payment_date, amount: dp.amount, source: 'debt_payment' });
+        seen.add(`${dp.payment_date}:${dp.amount}`);
+      });
+    actualTransactions
+      .filter(tx => tx.recurring_transaction_id === transaction.id && !tx.installment_payment_id)
+      .forEach(tx => {
+        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const key = `${txDate}:${tx.amount}`;
+        if (seen.has(key)) return;
+        entries.push({ id: tx.id, payment_date: txDate, amount: tx.amount, source: 'transaction' });
+      });
+    return entries.sort((a, b) => a.payment_date.localeCompare(b.payment_date));
   };
 
   // Handle calendar day click: scroll to the first transaction of that day
