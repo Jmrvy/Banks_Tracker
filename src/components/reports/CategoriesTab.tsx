@@ -478,7 +478,14 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             .sort((a, b) => {
               const effectiveA = includeUpcoming ? a.spent + (projectedByCategory.get(a.name) || 0) : a.spent;
               const effectiveB = includeUpcoming ? b.spent + (projectedByCategory.get(b.name) || 0) : b.spent;
-              return effectiveB - effectiveA;
+              const aHasBudget = a.budget > 0;
+              const bHasBudget = b.budget > 0;
+              if (aHasBudget && !bHasBudget) return -1;
+              if (!aHasBudget && bHasBudget) return 1;
+              if (!aHasBudget && !bHasBudget) return effectiveB - effectiveA;
+              const aRemaining = a.budget - effectiveA;
+              const bRemaining = b.budget - effectiveB;
+              return aRemaining - bRemaining;
             })
             .map((category, index) => {
               const projected = projectedByCategory.get(category.name) || 0;

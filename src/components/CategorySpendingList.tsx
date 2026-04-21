@@ -4,41 +4,52 @@ import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModa
 import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { usePeriod } from "@/contexts/PeriodContext";
 import { PieChart } from "lucide-react";
 
 export const CategorySpendingList = () => {
   const { transactions, categories, loading } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
+  const { dateRange } = usePeriod();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const dateField = preferences.dateType === 'value' ? 'value_date' : 'transaction_date';
+
   const spendingData = useMemo(() => {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
-    
-    const currentMonthTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.transaction_date);
-      return transactionDate >= monthStart && transactionDate <= monthEnd;
+    const periodTransactions = transactions.filter(t => {
+      if (t.type === 'transfer') return false;
+      const d = new Date(t[dateField] || t.transaction_date);
+      return d >= dateRange.start && d <= dateRange.end;
     });
-    
+
+    const refundsByOriginalId = new Map<string, number>();
+    for (const t of periodTransactions) {
+      if (t.refund_of_transaction_id) {
+        const prev = refundsByOriginalId.get(t.refund_of_transaction_id) || 0;
+        refundsByOriginalId.set(t.refund_of_transaction_id, prev + t.amount);
+      }
+    }
+
     return categories.map(category => {
-      const categoryTransactions = currentMonthTransactions.filter(t => 
-        t.category?.name === category.name && t.type === 'expense'
+      const categoryExpenses = periodTransactions.filter(t =>
+        t.category?.name === category.name && t.type === 'expense' && !t.refund_of_transaction_id
       );
-      
-      const amount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
-      
+
+      let amount = categoryExpenses.reduce((sum, t) => {
+        const refunded = refundsByOriginalId.get(t.id) || 0;
+        return sum + Math.max(0, t.amount - refunded);
+      }, 0);
+
       return {
         name: category.name,
         amount,
         budget: category.budget || 0,
         color: category.color,
-        transactionCount: categoryTransactions.length
+        transactionCount: categoryExpenses.length
       };
     }).filter(cat => cat.amount > 0 || cat.budget > 0);
-  }, [transactions, categories]);
+  }, [transactions, categories, dateRange, dateField]);
 
   const handleCategoryClick = (categoryName: string) => {
     setSelectedCategory(categoryName);
@@ -46,14 +57,16 @@ export const CategorySpendingList = () => {
   };
 
   const getCategoryTransactions = (categoryName: string) => {
-    return transactions.filter(t => 
-      t.category?.name === categoryName && (t.type === 'expense' || t.type === 'transfer')
-    ).map(t => ({
+    return transactions.filter(t => {
+      if (t.category?.name !== categoryName || t.type !== 'expense') return false;
+      const d = new Date(t[dateField] || t.transaction_date);
+      return d >= dateRange.start && d <= dateRange.end;
+    }).map(t => ({
       id: t.id,
       description: t.description,
       amount: -t.amount,
       bank: t.account?.bank || 'other',
-      date: t.transaction_date,
+      date: t[dateField] || t.transaction_date,
       type: t.type as 'expense' | 'income' | 'transfer'
     }));
   };

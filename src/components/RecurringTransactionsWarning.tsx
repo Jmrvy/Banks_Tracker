@@ -1,17 +1,18 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar, AlertTriangle, Repeat, ArrowRight } from 'lucide-react';
 import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useNavigate } from 'react-router-dom';
-import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
 import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useDebts } from '@/hooks/useDebts';
-import { supabase } from '@/integrations/supabase/client';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
+import { getRecurringDisplayAmount, getRecurringEffectiveType } from '@/lib/recurringAmount';
 
 interface ScheduledDebtPayment {
   debt_id: string;
@@ -22,45 +23,22 @@ interface ScheduledDebtPayment {
 
 export const RecurringTransactionsWarning = () => {
   const { recurringTransactions } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
   const { debts } = useDebts();
   const { user } = useAuth();
-  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
-
-  useEffect(() => {
-    const fetchScheduled = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('scheduled_debt_payments')
-        .select('debt_id, scheduled_date, scheduled_amount, is_paid')
-        .eq('user_id', user.id)
-        .eq('is_paid', false);
-      if (data) setScheduledDebtPayments(data);
-    };
-    fetchScheduled();
-  }, [user]);
-
-  // Resolve effective amount: use installment_amount, scheduled debt amount, or debt payment_amount
-  const getEffectiveAmount = (rt: RecurringTransaction): number => {
-    if (rt.installment_payment_id) {
-      const ip = installmentPayments.find(p => p.id === rt.installment_payment_id);
-      if (ip) return ip.installment_amount;
-    }
-    if (rt.debt_id) {
-      // Check scheduled debt payment for the specific month of next_due_date
-      const monthKey = rt.next_due_date.substring(0, 7);
-      const scheduled = scheduledDebtPayments.find(
-        sp => sp.debt_id === rt.debt_id && sp.scheduled_date.substring(0, 7) === monthKey
-      );
-      if (scheduled) return scheduled.scheduled_amount;
-      const debt = debts.find(d => d.id === rt.debt_id);
-      if (debt?.payment_amount) return debt.payment_amount;
-    }
-    return rt.amount;
-  };
+  const { formatCurrency } = useUserPreferences();
   const navigate = useNavigate();
   const [showRegularizeModal, setShowRegularizeModal] = useState(false);
+
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('scheduled_debt_payments')
+      .select('debt_id, scheduled_date, scheduled_amount, is_paid')
+      .eq('user_id', user.id)
+      .then(({ data }) => setScheduledDebtPayments(data || []));
+  }, [user]);
 
   // Parse "YYYY-MM-DD" as local date (not UTC) to avoid timezone shift bugs
   const parseLocalDate = (dateStr: string): Date => {
@@ -73,6 +51,18 @@ export const RecurringTransactionsWarning = () => {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }, []);
 
+  const isStillActive = (rt: typeof recurringTransactions[number]) => {
+    if (rt.installment_payment_id) {
+      const ip = installmentPayments.find(p => p.id === rt.installment_payment_id);
+      if (!ip || !ip.is_active || ip.remaining_amount <= 0) return false;
+    }
+    if (rt.debt_id) {
+      const debt = debts.find(d => d.id === rt.debt_id);
+      if (!debt || debt.status === 'completed' || debt.remaining_amount <= 0) return false;
+    }
+    return true;
+  };
+
   const upcomingTransactions = useMemo(() => {
     const nextWeek = new Date(todayLocal);
     nextWeek.setDate(todayLocal.getDate() + 7);
@@ -80,21 +70,23 @@ export const RecurringTransactionsWarning = () => {
     return recurringTransactions
       .filter(rt => {
         if (!rt.is_active) return false;
+        if (!isStillActive(rt)) return false;
         const nextDue = parseLocalDate(rt.next_due_date);
         return nextDue >= todayLocal && nextDue <= nextWeek;
       })
       .sort((a, b) => parseLocalDate(a.next_due_date).getTime() - parseLocalDate(b.next_due_date).getTime());
-  }, [recurringTransactions, todayLocal]);
+  }, [recurringTransactions, todayLocal, installmentPayments, debts]);
 
   const overdueTransactions = useMemo(() => {
     return recurringTransactions
       .filter(rt => {
         if (!rt.is_active) return false;
+        if (!isStillActive(rt)) return false;
         const nextDue = parseLocalDate(rt.next_due_date);
         return nextDue < todayLocal;
       })
       .sort((a, b) => parseLocalDate(a.next_due_date).getTime() - parseLocalDate(b.next_due_date).getTime());
-  }, [recurringTransactions, todayLocal]);
+  }, [recurringTransactions, todayLocal, installmentPayments, debts]);
 
   if (upcomingTransactions.length === 0 && overdueTransactions.length === 0) {
     return null;
@@ -178,7 +170,10 @@ export const RecurringTransactionsWarning = () => {
           </CardHeader>
           <CardContent className="pt-0 px-3 sm:px-6 pb-3 sm:pb-6">
             <div className="space-y-1.5 sm:space-y-2">
-              {upcomingTransactions.slice(0, 3).map((transaction) => (
+              {upcomingTransactions.slice(0, 3).map((transaction) => {
+                const displayAmount = getRecurringDisplayAmount(transaction, transaction.next_due_date, installmentPayments, debts, scheduledDebtPayments);
+                const effectiveType = getRecurringEffectiveType(transaction, installmentPayments);
+                return (
                 <button
                   key={transaction.id}
                   onClick={() => navigate('/recurring-transactions')}
@@ -187,7 +182,7 @@ export const RecurringTransactionsWarning = () => {
                   {/* Mobile view - compact single line */}
                   <div className="flex items-center justify-between gap-2 sm:hidden">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-sm flex-shrink-0">{getTypeIcon(transaction.type)}</span>
+                      <span className="text-sm flex-shrink-0">{getTypeIcon(effectiveType)}</span>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium truncate text-foreground">{transaction.description}</p>
                         <p className="text-[10px] text-muted-foreground">
@@ -195,15 +190,15 @@ export const RecurringTransactionsWarning = () => {
                         </p>
                       </div>
                     </div>
-                    <p className={`text-xs font-semibold flex-shrink-0 ${getTypeColor(transaction.type)}`}>
-                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(getEffectiveAmount(transaction))}
+                    <p className={`text-xs font-semibold flex-shrink-0 ${getTypeColor(effectiveType)}`}>
+                      {effectiveType === 'income' ? '+' : '-'}{formatCurrency(displayAmount)}
                     </p>
                   </div>
 
                   {/* Desktop view - full details */}
                   <div className="hidden sm:flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
-                      <span className="text-base mt-0.5">{getTypeIcon(transaction.type)}</span>
+                      <span className="text-base mt-0.5">{getTypeIcon(effectiveType)}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate text-foreground">{transaction.description}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
@@ -212,8 +207,8 @@ export const RecurringTransactionsWarning = () => {
                             <>
                               <span>•</span>
                               <div className="flex items-center gap-1">
-                                <div 
-                                  className="w-2 h-2 rounded-full" 
+                                <div
+                                  className="w-2 h-2 rounded-full"
                                   style={{ backgroundColor: transaction.category.color }}
                                 />
                                 <span>{transaction.category.name}</span>
@@ -224,8 +219,8 @@ export const RecurringTransactionsWarning = () => {
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className={`text-sm font-semibold ${getTypeColor(transaction.type)}`}>
-                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(getEffectiveAmount(transaction))}
+                      <p className={`text-sm font-semibold ${getTypeColor(effectiveType)}`}>
+                        {effectiveType === 'income' ? '+' : '-'}{formatCurrency(displayAmount)}
                       </p>
                       <div className="flex items-center justify-end gap-1.5 mt-0.5">
                         <p className="text-xs text-muted-foreground">
@@ -241,7 +236,8 @@ export const RecurringTransactionsWarning = () => {
                     </div>
                   </div>
                 </button>
-              ))}
+                );
+              })}
 
               {upcomingTransactions.length > 3 && (
                 <div className="text-center pt-1 sm:pt-2">

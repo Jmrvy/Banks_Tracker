@@ -312,7 +312,7 @@ export const RecurringTab = ({
         </h3>
         <div className="space-y-1.5">
           {displayedItems.map((item) => {
-            const { recurring, occurrences, periodAmount, effectiveType } = item;
+            const { recurring, occurrences, periodAmount, effectiveType, pastOccurrences, futureOccurrences, pastAmount, futureAmount } = item;
             const isReimbursement = recurring.installment_payment_id && recurring.type === 'income';
 
             return (
@@ -342,6 +342,21 @@ export const RecurringTab = ({
                         <Badge variant="secondary" className="text-[8px] sm:text-[10px] px-1 py-0 h-4">
                           ×{occurrences}
                         </Badge>
+                        {pastOccurrences > 0 && futureOccurrences > 0 && (
+                          <span className="text-[8px] sm:text-[10px] text-muted-foreground">
+                            ({pastOccurrences} passée{pastOccurrences > 1 ? 's' : ''} · {futureOccurrences} à venir)
+                          </span>
+                        )}
+                        {pastOccurrences > 0 && futureOccurrences === 0 && (
+                          <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4 border-muted-foreground/40 text-muted-foreground">
+                            Passée
+                          </Badge>
+                        )}
+                        {pastOccurrences === 0 && futureOccurrences > 0 && (
+                          <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4 border-primary/40 text-primary">
+                            À venir
+                          </Badge>
+                        )}
                         {recurring.category && (
                           <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{recurring.category.name}</span>
                         )}
@@ -361,7 +376,12 @@ export const RecurringTab = ({
                     )}>
                       {effectiveType === 'income' ? '+' : '-'}{formatCurrency(periodAmount)}
                     </p>
-                    {occurrences > 1 && (
+                    {pastOccurrences > 0 && futureOccurrences > 0 && (
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                        {formatCurrency(pastAmount)} passé / {formatCurrency(futureAmount)} à venir
+                      </p>
+                    )}
+                    {occurrences > 1 && !(pastOccurrences > 0 && futureOccurrences > 0) && (
                       <p className="text-[9px] sm:text-[10px] text-muted-foreground">
                         {formatCurrency(periodAmount / occurrences)}/fois
                       </p>

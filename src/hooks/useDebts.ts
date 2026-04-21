@@ -154,19 +154,19 @@ export const useDebts = () => {
       const suffixReceived = `${debt.description} (Remboursement dette)`;
       const suffixGiven = `${debt.description} (Remboursement prêt)`;
 
-      // Delete auto-created transactions
+      // Delete auto-created transactions (use .in() to avoid injection via .or() string interpolation)
       await supabase
         .from('transactions')
         .delete()
         .eq('user_id', user.id)
-        .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
+        .in('description', [suffixReceived, suffixGiven]);
 
       // Delete any remaining recurring transactions matched by description
       await supabase
         .from('recurring_transactions')
         .delete()
         .eq('user_id', user.id)
-        .or(`description.eq.${suffixReceived},description.eq.${suffixGiven}`);
+        .in('description', [suffixReceived, suffixGiven]);
     }
 
     // debt_payments and scheduled_debt_payments are CASCADE-deleted by the DB

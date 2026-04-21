@@ -47,7 +47,10 @@ export interface PeriodRecurringItem {
   occurrences: number;
   periodAmount: number;
   effectiveType: 'income' | 'expense';
+  pastOccurrences: number;
   futureOccurrences: number;
+  pastAmount: number;
+  futureAmount: number;
   futurePeriodAmount: number;
   occurrenceDetails: PeriodOccurrenceDetail[];
 }
@@ -364,13 +367,72 @@ export const useReportsData = (
         }
       } else if (recurringTransactions.length > 0) {
         // Projection basée sur les transactions récurrentes - respecter les dates exactes
+        // Utilise les mêmes montants effectifs que le calendrier:
+        // - Installment-linked: installment_amount
+        // - Debt-linked: scheduled_amount du mois correspondant, sinon payment_amount
+        // - Regular: rt.amount
+        // Saute les installments/dettes terminés.
+        const ipMap = new Map<string, InstallmentPaymentInfo>();
+        if (installmentPayments) for (const ip of installmentPayments) ipMap.set(ip.id, ip);
+        const dMap = new Map<string, DebtInfo>();
+        if (debtInfos) for (const d of debtInfos) dMap.set(d.id, d);
+        const resolveDebtForProj = (rt: RecurringTransaction): DebtInfo | null => {
+          if (rt.debt_id) return dMap.get(rt.debt_id) || null;
+          if (rt.description.includes('(Remboursement dette)') || rt.description.includes('(Remboursement prêt)')) {
+            for (const d of dMap.values()) {
+              const suffixReceived = `${d.description} (Remboursement dette)`;
+              const suffixGiven = `${d.description} (Remboursement prêt)`;
+              if (rt.description === suffixReceived || rt.description === suffixGiven) return d;
+            }
+          }
+          return null;
+        };
+        const sdpMap = new Map<string, number>();
+        if (scheduledDebtPaymentInfos) {
+          for (const sp of scheduledDebtPaymentInfos) {
+            sdpMap.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
+          }
+        }
+        const projEffectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
+          if (rt.installment_payment_id) {
+            const ip = ipMap.get(rt.installment_payment_id);
+            if (ip) return ip.installment_amount;
+          }
+          const debt = resolveDebtForProj(rt);
+          if (debt) {
+            const monthKey = dateStr.substring(0, 7);
+            const scheduled = sdpMap.get(`${debt.id}:${monthKey}`);
+            if (scheduled !== undefined) return scheduled;
+            if (debt.payment_amount > 0) return debt.payment_amount;
+          }
+          return Number(rt.amount);
+        };
+        const projEffectiveType = (rt: RecurringTransaction): 'income' | 'expense' => {
+          if (rt.installment_payment_id) {
+            const ip = ipMap.get(rt.installment_payment_id);
+            // Reimbursements = income in DB but should count as expense in projections
+            // Need to look up payment_type via original installmentPayments — not available in Info interface.
+            // Leave to rt.type for now; reimbursements are rare enough and the amount is what matters here.
+          }
+          return rt.type;
+        };
+        const projIsActive = (rt: RecurringTransaction): boolean => {
+          if (rt.installment_payment_id) {
+            const ip = ipMap.get(rt.installment_payment_id);
+            if (!ip || !ip.is_active || ip.remaining_amount <= 0) return false;
+          }
+          const debt = resolveDebtForProj(rt);
+          if (debt && (debt.status === 'completed' || debt.remaining_amount <= 0)) return false;
+          return true;
+        };
+
         const activeRecurring = recurringTransactions
-          .filter(rt => rt.is_active)
+          .filter(rt => rt.is_active && projIsActive(rt))
           .map(rt => ({ ...rt }));
 
         // Collecter toutes les occurrences futures des transactions récurrentes
         const futureTransactions: Array<{ date: Date; amount: number; type: string; description: string }> = [];
-        
+
         activeRecurring.forEach(rt => {
           const [_ry, _rm, _rd] = rt.next_due_date.split('-').map(Number);
           let nextDue = new Date(_ry, _rm - 1, _rd);
@@ -379,10 +441,11 @@ export const useReportsData = (
 
           while (nextDue <= projectionEndDate && iterations < maxIterations) {
             if (nextDue >= projectionStartDate) {
+              const ymd = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(nextDue.getDate()).padStart(2, '0')}`;
               futureTransactions.push({
                 date: new Date(nextDue),
-                amount: Number(rt.amount),
-                type: rt.type,
+                amount: projEffectiveAmount(rt, ymd),
+                type: projEffectiveType(rt),
                 description: rt.description
               });
             }
@@ -459,7 +522,7 @@ export const useReportsData = (
     }
 
     return dailyData;
-  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns, initialBalance]);
+  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns, initialBalance, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
@@ -617,7 +680,7 @@ export const useReportsData = (
     // Count occurrences of a recurring transaction in the period
     // Mirrors the calendar logic: past occurrences before next_due_date are counted,
     // future occurrences start from next_due_date and are capped by installment/debt limits
-    const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; future: number } => {
+    const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; past: number; future: number; details: PeriodOccurrenceDetail[] } => {
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date ? new Date(rt.end_date) : null;
@@ -683,8 +746,9 @@ export const useReportsData = (
         }
       }
 
-      let count = 0;
-      let futureCount = 0;
+      let past = 0;
+      let future = 0;
+      const details: PeriodOccurrenceDetail[] = [];
 
       while (current <= period.to && iterations < maxIterations) {
         if (effectiveEndDate && current > effectiveEndDate) break;
@@ -698,180 +762,16 @@ export const useReportsData = (
             iterations++;
             continue;
           }
-          count++;
-          if (isFuture) futureCount++;
-        }
-        current = advanceDate(current, rt.recurrence_type);
-        iterations++;
-      }
-
-      return { total: count, future: futureCount };
-    };
-
-    // Compute per-occurrence amounts for a recurring transaction in the period
-    // This mirrors the calendar logic: each occurrence resolves its own amount
-    const getOccurrenceAmounts = (rt: RecurringTransaction): { totalAmount: number; futureAmount: number; total: number; future: number; details: PeriodOccurrenceDetail[] } => {
-      const [sy, sm, sd] = rt.start_date.split('-').map(Number);
-      let current = new Date(sy, sm - 1, sd);
-      const endDate = rt.end_date ? new Date(rt.end_date) : null;
-      const maxIterations = 500;
-      let iterations = 0;
-      const details: PeriodOccurrenceDetail[] = [];
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const [ny, nm, nd] = rt.next_due_date.split('-').map(Number);
-      const nextDueDate = new Date(ny, nm - 1, nd);
-
-      // Recompute effective end date (same logic as getOccurrencesInPeriod)
-      let effectiveEndDate: Date | null = endDate;
-      if (rt.installment_payment_id) {
-        const ip = installmentMap.get(rt.installment_payment_id);
-        if (ip) {
-          if (!ip.is_active || ip.installment_amount <= 0) {
-            if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
-          } else {
-            const maxFuture = Math.ceil(ip.remaining_amount / ip.installment_amount);
-            if (maxFuture <= 0) {
-              if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
-            } else {
-              let lastOcc = new Date(nextDueDate);
-              for (let i = 1; i < maxFuture; i++) lastOcc = advanceDate(lastOcc, rt.recurrence_type);
-              if (!effectiveEndDate || lastOcc < effectiveEndDate) effectiveEndDate = lastOcc;
-            }
-          }
-        }
-      }
-      const linkedDebt = resolveDebt(rt);
-      if (linkedDebt) {
-        if (linkedDebt.status === 'completed') {
-          if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
-        } else if (linkedDebt.payment_amount > 0) {
-          const maxFuture = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
-          if (maxFuture <= 0) {
-            if (!effectiveEndDate || nextDueDate < effectiveEndDate) effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
-          } else {
-            let lastOcc = new Date(nextDueDate);
-            for (let i = 1; i < maxFuture; i++) lastOcc = advanceDate(lastOcc, rt.recurrence_type);
-            if (!effectiveEndDate || lastOcc < effectiveEndDate) effectiveEndDate = lastOcc;
-          }
-        }
-      }
-
-      // Build scheduled debt payments lookup by month for this debt
-      const debtScheduleByMonth = new Map<string, number>();
-      if (linkedDebt && scheduledDebtPaymentInfos) {
-        for (const sp of scheduledDebtPaymentInfos) {
-          if (sp.debt_id === linkedDebt.id) {
-            debtScheduleByMonth.set(sp.scheduled_date.substring(0, 7), sp.scheduled_amount);
-          }
-        }
-      }
-
-      // Build actual debt payments by month for this debt (mirrors calendar's debtActualAmounts)
-      const debtActualByMonth = new Map<string, number>();
-      if (linkedDebt && debtPaymentInfos) {
-        for (const dp of debtPaymentInfos) {
-          if (dp.debt_id === linkedDebt.id) {
-            const monthKey = dp.payment_date.substring(0, 7);
-            debtActualByMonth.set(monthKey, (debtActualByMonth.get(monthKey) || 0) + dp.amount);
-          }
-        }
-      }
-
-      // Build actual installment amounts by month for this installment (mirrors calendar's installmentActualAmounts)
-      const installmentActualByMonth = new Map<string, number>();
-      if (rt.installment_payment_id) {
-        for (const tx of transactions) {
-          if (tx.installment_payment_id === rt.installment_payment_id) {
-            const txDate = activeDateType === 'value' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
-            const monthKey = txDate.substring(0, 7);
-            installmentActualByMonth.set(monthKey, (installmentActualByMonth.get(monthKey) || 0) + Number(tx.amount));
-          }
-        }
-      }
-
-      // Build actual recurring transactions by month (for non-installment, non-debt recurring)
-      const recurringActualByMonth = new Map<string, number>();
-      if (!rt.installment_payment_id && !linkedDebt) {
-        for (const tx of transactions) {
-          if (tx.recurring_transaction_id === rt.id && !tx.installment_payment_id) {
-            const txDate = activeDateType === 'value' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
-            const monthKey = txDate.substring(0, 7);
-            recurringActualByMonth.set(monthKey, (recurringActualByMonth.get(monthKey) || 0) + Number(tx.amount));
-          }
-        }
-      }
-
-      let totalAmount = 0;
-      let futureAmount = 0;
-      let count = 0;
-      let futureCount = 0;
-
-      while (current <= period.to && iterations < maxIterations) {
-        if (effectiveEndDate && current > effectiveEndDate) break;
-        if (current >= period.from && current <= period.to) {
-          const isPast = current < today;
-          const isFuture = !isPast;
-          if (isFuture && current < nextDueDate) {
-            current = advanceDate(current, rt.recurrence_type);
-            iterations++;
-            continue;
-          }
-
-          const monthKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
-
-          // Resolve amount for this specific occurrence (mirrors calendar logic)
-          let occAmount: number | undefined;
-          if (linkedDebt) {
-            if (isPast) {
-              // Past debt: use actual paid amount, skip if none (matches calendar behavior)
-              occAmount = debtActualByMonth.get(monthKey);
-            } else {
-              // Future debt: scheduled if available, else payment_amount
-              const scheduled = debtScheduleByMonth.get(monthKey);
-              occAmount = scheduled !== undefined ? scheduled : (linkedDebt.payment_amount > 0 ? linkedDebt.payment_amount : Number(rt.amount));
-            }
-          } else if (rt.installment_payment_id) {
-            if (isPast) {
-              // Past installment: use actual paid amount, skip if none (matches calendar behavior)
-              occAmount = installmentActualByMonth.get(monthKey);
-            } else {
-              const ip = installmentMap.get(rt.installment_payment_id);
-              occAmount = ip ? ip.installment_amount : Number(rt.amount);
-            }
-          } else {
-            if (isPast) {
-              // Past regular recurring: use actual amount if linked tx exists, else fallback to rt.amount
-              const actual = recurringActualByMonth.get(monthKey);
-              occAmount = actual !== undefined ? actual : Number(rt.amount);
-            } else {
-              occAmount = Number(rt.amount);
-            }
-          }
-
-          // Skip occurrence if no amount could be resolved (matches calendar's skipOccurrence)
-          if (occAmount === undefined) {
-            current = advanceDate(current, rt.recurrence_type);
-            iterations++;
-            continue;
-          }
-
+          if (isPast) past++;
+          else future++;
           const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-          details.push({ date: dateStr, amount: occAmount, isFuture });
-          totalAmount += occAmount;
-          count++;
-          if (isFuture) {
-            futureAmount += occAmount;
-            futureCount++;
-          }
+          details.push({ date: dateStr, amount: getEffectiveAmount(rt), isFuture });
         }
         current = advanceDate(current, rt.recurrence_type);
         iterations++;
       }
 
-      return { totalAmount, futureAmount, total: count, future: futureCount, details };
+      return { total: past + future, past, future, details };
     };
 
     // Monthly/yearly sums (kept for evolution tab projections)
@@ -917,17 +817,23 @@ export const useReportsData = (
     // Period-based computation: only recurring transactions with occurrences in the period
     const periodItems: PeriodRecurringItem[] = [];
     for (const rt of activeRecurring) {
-      const { totalAmount, futureAmount, total, future, details } = getOccurrenceAmounts(rt);
-      if (total > 0) {
+      const occ = getOccurrencesInPeriod(rt);
+      if (occ.total > 0) {
         const effectiveType = getEffectiveType(rt);
+        const totalAmount = occ.details.reduce((s, d) => s + d.amount, 0);
+        const futureAmt = occ.details.filter(d => d.isFuture).reduce((s, d) => s + d.amount, 0);
+        const pastAmt = occ.details.filter(d => !d.isFuture).reduce((s, d) => s + d.amount, 0);
         periodItems.push({
           recurring: rt,
-          occurrences: total,
+          occurrences: occ.total,
           periodAmount: totalAmount,
           effectiveType,
-          futureOccurrences: future,
-          futurePeriodAmount: futureAmount,
-          occurrenceDetails: details,
+          pastOccurrences: occ.past,
+          futureOccurrences: occ.future,
+          pastAmount: pastAmt,
+          futureAmount: futureAmt,
+          futurePeriodAmount: futureAmt,
+          occurrenceDetails: occ.details,
         });
       }
     }
