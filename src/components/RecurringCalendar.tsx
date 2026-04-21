@@ -485,17 +485,23 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
           // Debt-linked: for past occurrences, if any debt_payments exist in this month,
           // skip the computed occurrence — individual payments will be injected at real dates
-          // in post-processing. For future occurrences, use scheduled amount.
+          // in post-processing. If NO payments exist, keep the computed occurrence so the user
+          // sees the overdue/missed payment. For future occurrences, use scheduled amount.
           if (resolvedDebtId) {
             const monthKey = format(currentOccurrence, 'yyyy-MM');
             const debtKey = `${resolvedDebtId}:${monthKey}`;
             if (isPast) {
               const actualAmount = debtActualAmounts.get(debtKey);
               if (actualAmount !== undefined) {
-                // Real payments exist → skip computed occurrence; inject at real dates below
                 skipOccurrence = true;
               } else {
-                skipOccurrence = true;
+                // No payments exist — show the scheduled amount for this month
+                const scheduled = scheduledDebtPaymentsByDebtMonth.get(debtKey);
+                if (scheduled) {
+                  displayAmount = scheduled.scheduled_amount;
+                } else if (resolvedDebt && resolvedDebt.payment_amount > 0) {
+                  displayAmount = resolvedDebt.payment_amount;
+                }
               }
             } else {
               // Use scheduled amount for this month if available
