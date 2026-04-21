@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { supabase } from '@/integrations/supabase/client';
-import { getRecurringDisplayAmount, getRecurringEffectiveType } from '@/lib/recurringAmount';
+import { getRecurringEffectiveType, resolveDebtForRecurring } from '@/lib/recurringAmount';
 
 interface EditRecurringTransactionModalProps {
   open: boolean;
@@ -50,24 +50,37 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
       .then(({ data }) => setScheduledDebtPayments(data || []));
   }, [user, open]);
 
+  const resolvedDebt = useMemo(() => {
+    if (!transaction) return null;
+    return resolveDebtForRecurring(transaction, debts);
+  }, [transaction, debts]);
+
   const isLinked = useMemo(() => {
     if (!transaction) return { debt: false, installment: false, any: false };
-    const debt = !!transaction.debt_id;
+    const debt = !!resolvedDebt;
     const installment = !!transaction.installment_payment_id;
     return { debt, installment, any: debt || installment };
-  }, [transaction]);
+  }, [transaction, resolvedDebt]);
 
   const effectiveAmount = useMemo(() => {
     if (!transaction) return null;
+
+    if (transaction.installment_payment_id) {
+      const ip = installmentPayments.find(p => p.id === transaction.installment_payment_id);
+      if (ip) return ip.installment_amount;
+    }
+
+    if (resolvedDebt) {
+      const nextUnpaid = scheduledDebtPayments
+        .filter(sp => sp.debt_id === resolvedDebt.id && !sp.is_paid)
+        .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))[0];
+      if (nextUnpaid) return nextUnpaid.scheduled_amount;
+      if (resolvedDebt.payment_amount > 0) return resolvedDebt.payment_amount;
+    }
+
     if (!isLinked.any) return null;
-    return getRecurringDisplayAmount(
-      transaction,
-      transaction.next_due_date,
-      installmentPayments,
-      debts,
-      scheduledDebtPayments
-    );
-  }, [transaction, isLinked.any, installmentPayments, debts, scheduledDebtPayments]);
+    return Number(transaction.amount);
+  }, [transaction, isLinked.any, installmentPayments, resolvedDebt, scheduledDebtPayments]);
 
   const effectiveType = useMemo(() => {
     if (!transaction) return null;
