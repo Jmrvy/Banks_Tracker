@@ -713,15 +713,22 @@ function useFinancialDataInternal() {
           notes: `Échéance récurrente: ${rt.description}`,
         });
 
-      // Update debt remaining amount
+      // Recalculate remaining_amount from all debt_payments (mirrors installment pattern)
+      const { data: allDebtPayments } = await supabase
+        .from('debt_payments')
+        .select('amount')
+        .eq('debt_id', rt.debt_id)
+        .eq('user_id', user.id);
+
       const { data: debtData } = await supabase
         .from('debts')
-        .select('remaining_amount, total_amount')
+        .select('total_amount')
         .eq('id', rt.debt_id)
         .single();
 
       if (debtData) {
-        const newRemaining = Math.max(0, debtData.remaining_amount - transactionAmount);
+        const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
+        const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
         const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
         if (newRemaining <= 0) {
           debtUpdate.status = 'completed';
@@ -732,7 +739,6 @@ function useFinancialDataInternal() {
           .eq('id', rt.debt_id)
           .eq('user_id', user.id);
 
-        // Deactivate recurring if debt is fully paid
         if (newRemaining <= 0) {
           await supabase
             .from('recurring_transactions')
