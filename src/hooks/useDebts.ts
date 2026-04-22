@@ -37,9 +37,22 @@ export interface DebtPayment {
   created_at: string;
 }
 
+export interface ScheduledDebtPayment {
+  id: string;
+  debt_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  principal_amount: number;
+  interest_amount: number;
+  is_paid: boolean | null;
+  paid_date: string | null;
+  actual_amount: number | null;
+}
+
 export const useDebts = () => {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [payments, setPayments] = useState<DebtPayment[]>([]);
+  const [scheduledPayments, setScheduledPayments] = useState<ScheduledDebtPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -80,6 +93,28 @@ export const useDebts = () => {
     }
 
     setPayments(data || []);
+  };
+
+  const fetchScheduledPayments = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('scheduled_debt_payments')
+      .select('id, debt_id, scheduled_date, scheduled_amount, principal_amount, interest_amount, is_paid, paid_date, actual_amount')
+      .eq('user_id', user.id)
+      .order('scheduled_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching scheduled payments:', error);
+      return;
+    }
+
+    setScheduledPayments(data || []);
+  };
+
+  const getNextScheduledAmount = (debtId: string): number | null => {
+    const next = scheduledPayments.find(sp => sp.debt_id === debtId && !sp.is_paid);
+    return next ? next.scheduled_amount : null;
   };
 
   const createDebt = async (debtData: Omit<Debt, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<string | undefined> => {
@@ -309,7 +344,7 @@ export const useDebts = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchDebts(), fetchPayments()]);
+      await Promise.all([fetchDebts(), fetchPayments(), fetchScheduledPayments()]);
       setLoading(false);
     };
 
@@ -328,7 +363,10 @@ export const useDebts = () => {
 
       const scheduledSubscription = supabase
         .channel('scheduled_debt_payments_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_debt_payments' }, fetchDebts)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_debt_payments' }, () => {
+          fetchDebts();
+          fetchScheduledPayments();
+        })
         .subscribe();
 
       return () => {
@@ -342,12 +380,14 @@ export const useDebts = () => {
   return {
     debts,
     payments,
+    scheduledPayments,
     loading,
     createDebt,
     updateDebt,
     deleteDebt,
     getDebtDeletionImpact,
     addPayment,
-    deletePayment
+    deletePayment,
+    getNextScheduledAmount
   };
 };
