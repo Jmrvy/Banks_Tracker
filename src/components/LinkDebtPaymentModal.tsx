@@ -164,8 +164,15 @@ export const LinkDebtPaymentModal = ({
           : null,
       });
 
-      // Update the debt's remaining amount
-      const newRemaining = Math.max(0, debt.remaining_amount - paymentAmount);
+      // Recalculate remaining_amount from all debt_payments (avoids double-counting with DB trigger)
+      const { data: allDebtPayments } = await supabase
+        .from('debt_payments')
+        .select('amount')
+        .eq('debt_id', debt.id)
+        .eq('user_id', user.id);
+
+      const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
+      const newRemaining = Math.max(0, debt.total_amount - totalPaid);
       const updates: Record<string, any> = { remaining_amount: newRemaining };
       if (newRemaining <= 0) {
         updates.status = 'completed';

@@ -109,7 +109,7 @@ export const DebtDetailsModal = ({
         .eq('id', sp.id)
         .eq('user_id', user.id);
 
-      // Record the debt payment
+      // Record the debt payment (DB trigger auto-adjusts remaining_amount)
       await addPayment({
         debt_id: debt.id,
         amount: paymentAmount,
@@ -117,8 +117,15 @@ export const DebtDetailsModal = ({
         notes: `Échéance confirmée: ${format(new Date(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
       });
 
-      // Update debt remaining amount
-      const newRemaining = Math.max(0, debt.remaining_amount - paymentAmount);
+      // Recalculate remaining_amount from all debt_payments (avoids double-counting with DB trigger)
+      const { data: allDebtPayments } = await supabase
+        .from('debt_payments')
+        .select('amount')
+        .eq('debt_id', debt.id)
+        .eq('user_id', user.id);
+
+      const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
+      const newRemaining = Math.max(0, debt.total_amount - totalPaid);
       const updates: Record<string, any> = { remaining_amount: newRemaining };
       if (newRemaining <= 0) {
         updates.status = 'completed';
@@ -153,7 +160,7 @@ export const DebtDetailsModal = ({
 
       await supabase
         .from('scheduled_debt_payments')
-        .update({ is_paid: null, paid_date: null, actual_amount: null })
+        .update({ is_paid: false, paid_date: null, actual_amount: null })
         .eq('id', sp.id)
         .eq('user_id', user.id);
 
@@ -170,9 +177,17 @@ export const DebtDetailsModal = ({
           .eq('user_id', user.id);
       }
 
-      const newRemaining = debt.remaining_amount + paidAmount;
+      // Recalculate remaining_amount from all debt_payments (avoids double-counting with DB trigger)
+      const { data: allDebtPayments } = await supabase
+        .from('debt_payments')
+        .select('amount')
+        .eq('debt_id', debt.id)
+        .eq('user_id', user.id);
+
+      const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
+      const newRemaining = Math.max(0, debt.total_amount - totalPaid);
       const updates: Record<string, any> = { remaining_amount: newRemaining };
-      if (debt.status === 'completed') {
+      if (debt.status === 'completed' && newRemaining > 0) {
         updates.status = 'active';
       }
 
