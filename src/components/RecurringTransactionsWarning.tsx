@@ -8,6 +8,7 @@ import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData
 import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useDebts } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -40,11 +41,6 @@ export const RecurringTransactionsWarning = () => {
       .then(({ data }) => setScheduledDebtPayments(data || []));
   }, [user]);
 
-  // Parse "YYYY-MM-DD" as local date (not UTC) to avoid timezone shift bugs
-  const parseLocalDate = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
 
   const todayLocal = useMemo(() => {
     const now = new Date();

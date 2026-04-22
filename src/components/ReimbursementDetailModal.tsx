@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { InstallmentPayment } from '@/hooks/useInstallmentPayments';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { Calendar, CreditCard, ArrowRight, Wallet, Tag, Clock } from 'lucide-react';
@@ -17,10 +18,6 @@ interface ReimbursementDetailModalProps {
   installment: InstallmentPayment;
 }
 
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 export const ReimbursementDetailModal = ({
   open,

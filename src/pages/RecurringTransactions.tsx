@@ -18,6 +18,7 @@ import RecurringCalendar from "@/components/RecurringCalendar";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { DebtDetailsModal } from "@/components/DebtDetailsModal";
 import { differenceInDays, startOfDay } from "date-fns";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 const RecurringTransactions = () => {
   const { toast } = useToast();
@@ -117,10 +118,6 @@ const RecurringTransactions = () => {
     return result;
   };
 
-  const parseLocalDate = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
 
   const getRecurrenceLabel = (type: string) => {
     switch (type) {
@@ -156,12 +153,8 @@ const RecurringTransactions = () => {
   // Resolve debt for a transaction: by debt_id or description fallback
   const resolveDebt = (transaction: RecurringTransaction) => {
     if (transaction.debt_id) return debts.find(d => d.id === transaction.debt_id) || null;
-    if (transaction.description.includes('(Remboursement dette)') || transaction.description.includes('(Remboursement prêt)')) {
-      for (const d of debts) {
-        const suffixReceived = `${d.description} (Remboursement dette)`;
-        const suffixGiven = `${d.description} (Remboursement prêt)`;
-        if (transaction.description === suffixReceived || transaction.description === suffixGiven) return d;
-      }
+    for (const d of debts) {
+      if (transaction.description.startsWith(d.description + ' (')) return d;
     }
     return null;
   };
@@ -173,7 +166,7 @@ const RecurringTransactions = () => {
     const paid = debt.total_amount - debt.remaining_amount;
     const totalScheduled = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id).length;
     const paidCount = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id && sp.is_paid).length;
-    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 0);
+    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 1);
     const pct = debt.total_amount > 0 ? Math.min(100, Math.round((paid / debt.total_amount) * 1000) / 10) : 0;
     return { debt, paid, paidCount, totalCount, pct };
   };

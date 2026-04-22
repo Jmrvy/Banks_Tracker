@@ -96,10 +96,10 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
               <Label htmlFor="amount">Montant du prêt</Label>
               <Input
                 id="amount"
-                type="number"
+                type="text"
                 inputMode="decimal"
                 value={params.amount}
-                onChange={(e) => updateParam('amount', parseFloat(e.target.value) || 0)}
+                onChange={(e) => updateParam('amount', Math.max(0, parseFloat(e.target.value.replace(/,/g, '.')) || 0))}
                 placeholder="10000"
               />
             </div>
@@ -108,11 +108,10 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
               <Label htmlFor="rate">Taux d'intérêt annuel (%)</Label>
               <Input
                 id="rate"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.1"
                 value={params.rate}
-                onChange={(e) => updateParam('rate', parseFloat(e.target.value) || 0)}
+                onChange={(e) => updateParam('rate', Math.max(0, parseFloat(e.target.value.replace(/,/g, '.')) || 0))}
                 placeholder="3.0"
               />
             </div>
@@ -125,8 +124,9 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
                 id="duration"
                 type="number"
                 inputMode="numeric"
+                min="1"
                 value={params.duration}
-                onChange={(e) => updateParam('duration', parseInt(e.target.value) || 0)}
+                onChange={(e) => updateParam('duration', Math.max(1, parseInt(e.target.value) || 1))}
                 placeholder="24"
               />
             </div>

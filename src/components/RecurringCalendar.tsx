@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect, memo } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ interface ScheduledDebtPayment {
 }
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -39,6 +40,7 @@ interface RecurringCalendarProps {
 interface CalendarOccurrence {
   transaction: RecurringTransaction;
   isPast: boolean;
+  isOverdue?: boolean;
   displayAmount?: number;
   occurrenceDate: string; // YYYY-MM-DD
 }
@@ -77,9 +79,11 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
 
       {dayTransactions.length > 0 && (
         <span className={`text-[7px] sm:text-[10px] font-bold mt-0.5 ${
-          dayTransactions.every(d => d.isPast)
-            ? 'text-muted-foreground line-through'
-            : dayTotal >= 0 ? 'text-success' : 'text-destructive'
+          dayTransactions.some(d => d.isOverdue)
+            ? 'text-warning'
+            : dayTransactions.every(d => d.isPast)
+              ? 'text-muted-foreground line-through'
+              : dayTotal >= 0 ? 'text-success' : 'text-destructive'
         }`}>
           {formatCurrency(Math.abs(dayTotal))}
         </span>
@@ -88,11 +92,6 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
   );
 });
 
-// Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 // Helper to advance a date by recurrence type
 function advanceDate(date: Date, recurrenceType: string): Date {
@@ -278,12 +277,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return (transaction: RecurringTransaction): Debt | null => {
       if (transaction.debt_id) return debtsById.get(transaction.debt_id) || null;
       // Fallback: match by description pattern for old recurring transactions without debt_id
-      if (transaction.description.includes('(Remboursement dette)') || transaction.description.includes('(Remboursement prêt)')) {
-        for (const d of debts) {
-          const suffixReceived = `${d.description} (Remboursement dette)`;
-          const suffixGiven = `${d.description} (Remboursement prêt)`;
-          if (transaction.description === suffixReceived || transaction.description === suffixGiven) return d;
-        }
+      for (const d of debts) {
+        if (transaction.description.startsWith(d.description + ' (')) return d;
       }
       return null;
     };
@@ -437,16 +432,24 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
           // Debt-linked: mirror the installment pattern.
           // Past: show at scheduled date with actual paid amount if available,
-          //       or with scheduled amount if no payment (overdue/missed).
+          //       or with scheduled amount if no payment (overdue/missed → red).
           // Future: use scheduled amount for this month.
+          let isOverdue = false;
           if (resolvedDebtId) {
             const monthKey = format(currentOccurrence, 'yyyy-MM');
             const debtKey = `${resolvedDebtId}:${monthKey}`;
             if (isPast) {
               const actualAmount = debtActualAmounts.get(debtKey);
-              if (actualAmount !== undefined) {
-                displayAmount = actualAmount;
+              // Also check linked transactions as a second source of truth
+              const rtKey = `${transaction.id}:${monthKey}`;
+              const linkedTxs = recurringActualByMonth.get(rtKey);
+              const hasPaid = actualAmount !== undefined || (linkedTxs && linkedTxs.length > 0);
+
+              if (hasPaid) {
+                displayAmount = actualAmount ?? linkedTxs![0].amount;
               } else {
+                // Unpaid past debt occurrence → mark overdue (renders in red)
+                isOverdue = true;
                 const scheduled = scheduledDebtPaymentsByDebtMonth.get(debtKey);
                 if (scheduled) {
                   displayAmount = scheduled.scheduled_amount;
@@ -466,7 +469,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
           if (!skipOccurrence) {
             const existing = map.get(key) || [];
-            map.set(key, [...existing, { transaction, isPast, displayAmount, occurrenceDate: key }]);
+            map.set(key, [...existing, { transaction, isPast, isOverdue, displayAmount, occurrenceDate: key }]);
           }
         }
 
@@ -712,7 +715,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     const paid = debt.total_amount - debt.remaining_amount;
     const paidCount = debtPaidCounts.get(debt.id) || 0;
     const totalScheduled = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id).length;
-    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 0);
+    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 1);
     const pct = debt.total_amount > 0 ? Math.min(100, Math.round((paid / debt.total_amount) * 1000) / 10) : 0;
     return { debt, paid, paidCount, totalCount, pct };
   };
@@ -756,20 +759,23 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
   // Render an occurrence card (shared between upcoming and past)
   const renderOccurrenceCard = (occurrence: CalendarOccurrence, keyPrefix: string) => {
-    const { transaction, displayAmount, occurrenceDate, isPast } = occurrence;
+    const { transaction, displayAmount, occurrenceDate, isPast, isOverdue } = occurrence;
     const occDate = parseLocalDate(occurrenceDate);
     const today = startOfDay(new Date());
     const daysUntil = differenceInDays(occDate, today);
+    const daysLate = differenceInDays(today, occDate);
     const cardId = keyPrefix === 'past' ? `past:${transaction.id}:${occurrenceDate}` : `${transaction.id}:${occurrenceDate}`;
     const isExpanded = expandedTransactionId === cardId;
     const installmentInfo = getInstallmentInfo(transaction);
     const debtInfo = getDebtInfo(transaction);
+    // Overdue items render like upcoming (colored) but with special status
+    const dimmed = isPast && !isOverdue;
 
     return (
       <Card
         key={cardId}
         ref={(el) => setRef(cardId, el)}
-        className={`overflow-hidden border-border/50 ${isPast ? 'bg-card/50 opacity-70' : 'bg-card/80'}`}
+        className={`overflow-hidden border-border/50 ${dimmed ? 'bg-card/50 opacity-70' : isOverdue ? 'bg-destructive/5 border-destructive/30' : 'bg-card/80'}`}
       >
         {/* Main row */}
         <div
@@ -778,23 +784,30 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         >
           {/* Date badge */}
           <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
-            isPast ? 'bg-muted/30' : getEffectiveType(transaction) === 'income' ? 'bg-success/10' : 'bg-destructive/10'
+            dimmed ? 'bg-muted/30' : isOverdue ? 'bg-destructive/15' : getEffectiveType(transaction) === 'income' ? 'bg-success/10' : 'bg-destructive/10'
           }`}>
             <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
               {format(occDate, 'MMM', { locale: fr })}
             </span>
-            <span className={`text-sm sm:text-base font-bold leading-none ${isPast ? 'text-muted-foreground' : ''}`}>
+            <span className={`text-sm sm:text-base font-bold leading-none ${dimmed ? 'text-muted-foreground' : isOverdue ? 'text-destructive' : ''}`}>
               {format(occDate, 'd')}
             </span>
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <p className={`text-sm sm:text-base font-semibold truncate ${isPast ? 'text-muted-foreground' : ''}`}>
+            <p className={`text-sm sm:text-base font-semibold truncate ${dimmed ? 'text-muted-foreground' : ''}`}>
               {transaction.description}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              {isPast ? (
+              {isOverdue ? (
+                <>
+                  <AlertTriangle className="h-3 w-3 text-destructive" />
+                  <span className="text-[10px] sm:text-xs text-destructive font-medium">
+                    En retard ({daysLate} {daysLate === 1 ? 'jour' : 'jours'})
+                  </span>
+                </>
+              ) : isPast ? (
                 <>
                   <CheckCircle2 className="h-3 w-3 text-success" />
                   <span className="text-[10px] sm:text-xs text-muted-foreground">
@@ -817,7 +830,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             )}
             {debtInfo && (
               <span className="text-[10px] sm:text-xs text-muted-foreground">
-                {isPast ? debtInfo.paidCount : debtInfo.paidCount + 1} sur {debtInfo.totalCount} ({formatCurrency(debtInfo.debt.total_amount)})
+                {isPast && !isOverdue ? debtInfo.paidCount : isOverdue ? debtInfo.paidCount : debtInfo.paidCount + 1} sur {debtInfo.totalCount} ({formatCurrency(debtInfo.debt.total_amount)})
               </span>
             )}
           </div>
@@ -825,7 +838,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           {/* Amount + chevron */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`text-sm sm:text-base font-bold ${
-              isPast ? 'text-muted-foreground' : getEffectiveType(transaction) === 'income' ? 'text-success' : 'text-destructive'
+              dimmed ? 'text-muted-foreground' : isOverdue ? 'text-destructive' : getEffectiveType(transaction) === 'income' ? 'text-success' : 'text-destructive'
             }`}>
               {formatCurrency(displayAmount ?? transaction.amount)}
             </span>
@@ -1030,16 +1043,16 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
             {/* Action buttons */}
             <div className="flex gap-2 pt-2 border-t border-border/50">
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+              <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
                 onClick={() => onEdit(transaction)}>
                 <Pencil className="h-3.5 w-3.5" /> Modifier
               </Button>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+              <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
                 onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
                 {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 {transaction.is_active ? 'Désactiver' : 'Activer'}
               </Button>
-              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
+              <Button size="sm" variant="destructive" className="h-9 text-xs gap-1.5 px-3"
                 onClick={() => onDelete(transaction.id, transaction.description)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -1056,13 +1069,13 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       <Card className="bg-card/50 backdrop-blur border-border/50">
         <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8" aria-label="Mois précédent">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <CardTitle className="text-sm sm:text-lg font-semibold capitalize">
               {format(currentMonth, 'MMMM yyyy', { locale: fr })}
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8" aria-label="Mois suivant">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -1112,6 +1125,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded bg-destructive/20" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded bg-warning/30" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">En retard</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded bg-muted/50" />

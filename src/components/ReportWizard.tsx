@@ -254,7 +254,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     try {
       const canvas = await html2canvas(ref.current, {
         scale: 2,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'transparent',
         logging: false,
         useCORS: true,
       });

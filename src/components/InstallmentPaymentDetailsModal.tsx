@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { useToast } from '@/hooks/use-toast';
 import {
   useInstallmentPayments,
@@ -12,11 +13,6 @@ import {
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { RefreshCw, History, ArrowRight, Calendar, Loader2, Trash2 } from 'lucide-react';
 
-// Parse "YYYY-MM-DD" as local date
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 interface InstallmentPaymentDetailsModalProps {
   open: boolean;

@@ -11,6 +11,7 @@ import { useDebts, Debt } from '@/hooks/useDebts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { supabase } from '@/integrations/supabase/client';
+import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,8 @@ interface ScheduledPayment {
   debt_id: string;
   scheduled_date: string;
   scheduled_amount: number;
+  principal_amount: number;
+  interest_amount: number;
   actual_amount: number | null;
   is_paid: boolean | null;
   paid_date: string | null;
@@ -84,7 +87,7 @@ export const LinkDebtPaymentModal = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || loading) return;
 
     setLoading(true);
 
@@ -154,34 +157,23 @@ export const LinkDebtPaymentModal = ({
         console.error('Error updating scheduled payment:', scheduleError);
       }
 
-      // Record the debt payment
       await addPayment({
         debt_id: debt.id,
         amount: paymentAmount,
+        principal_amount: scheduledPayment.principal_amount,
+        interest_amount: scheduledPayment.interest_amount,
         payment_date: paymentDate,
         notes: mode === 'link' && selectedTransaction
           ? `Lié à: ${selectedTransaction.description}`
           : null,
       });
 
-      // Update the debt's remaining amount
-      const newRemaining = Math.max(0, debt.remaining_amount - paymentAmount);
-      const updates: Record<string, any> = { remaining_amount: newRemaining };
-      if (newRemaining <= 0) {
-        updates.status = 'completed';
-      }
-
-      await supabase
-        .from('debts')
-        .update(updates)
-        .eq('id', debt.id)
-        .eq('user_id', user.id);
-
+      const result = await recalculateDebtRemaining(debt.id, user.id);
       await refetch();
 
       toast({
         title: "Paiement enregistré",
-        description: `Échéance marquée comme payée. Restant: ${formatCurrency(newRemaining)}`,
+        description: `Échéance marquée comme payée. Restant: ${formatCurrency(result?.newRemaining ?? 0)}`,
       });
 
       setAmount('');

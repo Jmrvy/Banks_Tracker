@@ -36,14 +36,11 @@ import { useDebts, Debt } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { format, differenceInDays, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 const Debts = () => {
-  const { debts, payments, loading, deleteDebt } = useDebts();
+  const { debts, payments, loading, deleteDebt, getDebtDeletionImpact } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const [newDebtModalOpen, setNewDebtModalOpen] = useState(false);
   const [editDebtModalOpen, setEditDebtModalOpen] = useState(false);
@@ -52,6 +49,8 @@ const Debts = () => {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
+  const [deletionImpact, setDeletionImpact] = useState<{ transactionCount: number; recurringCount: number; paymentCount: number } | null>(null);
+  const [loadingImpact, setLoadingImpact] = useState(false);
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -80,9 +79,17 @@ const Debts = () => {
     setDetailsModalOpen(true);
   };
 
-  const handleDeleteClick = (debt: Debt) => {
+  const handleDeleteClick = async (debt: Debt) => {
     setDebtToDelete(debt);
+    setDeletionImpact(null);
     setDeleteDialogOpen(true);
+    setLoadingImpact(true);
+    try {
+      const impact = await getDebtDeletionImpact(debt.id);
+      setDeletionImpact(impact);
+    } finally {
+      setLoadingImpact(false);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -517,18 +524,39 @@ const Debts = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm sm:text-lg">Supprimer cette dette ?</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs sm:text-sm">
-              {debtToDelete && (
-                <>
-                  <strong>{debtToDelete.description}</strong> sera définitivement supprimée,
-                  ainsi que tous les paiements et échéances associés. Cette action est irréversible.
-                </>
-              )}
+            <AlertDialogDescription asChild>
+              <div className="text-xs sm:text-sm space-y-3">
+                {debtToDelete && (
+                  <p>
+                    <strong>{debtToDelete.description}</strong> sera définitivement supprimée.
+                    Cette action est irréversible.
+                  </p>
+                )}
+                {loadingImpact && (
+                  <p className="text-muted-foreground">Analyse des données liées...</p>
+                )}
+                {deletionImpact && (deletionImpact.transactionCount > 0 || deletionImpact.recurringCount > 0 || deletionImpact.paymentCount > 0) && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 space-y-1">
+                    <p className="font-medium text-destructive">Les éléments suivants seront également supprimés :</p>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                      {deletionImpact.transactionCount > 0 && (
+                        <li>{deletionImpact.transactionCount} transaction{deletionImpact.transactionCount > 1 ? 's' : ''}</li>
+                      )}
+                      {deletionImpact.recurringCount > 0 && (
+                        <li>{deletionImpact.recurringCount} transaction{deletionImpact.recurringCount > 1 ? 's' : ''} récurrente{deletionImpact.recurringCount > 1 ? 's' : ''}</li>
+                      )}
+                      {deletionImpact.paymentCount > 0 && (
+                        <li>{deletionImpact.paymentCount} paiement{deletionImpact.paymentCount > 1 ? 's' : ''} enregistré{deletionImpact.paymentCount > 1 ? 's' : ''}</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="h-9 text-xs sm:text-sm">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="h-9 text-xs sm:text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={loadingImpact} className="h-9 text-xs sm:text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>

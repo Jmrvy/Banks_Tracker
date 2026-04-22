@@ -140,8 +140,10 @@ export type Database = {
           created_at: string | null
           debt_id: string
           id: string
+          interest_amount: number
           notes: string | null
           payment_date: string
+          principal_amount: number
           user_id: string
         }
         Insert: {
@@ -149,8 +151,10 @@ export type Database = {
           created_at?: string | null
           debt_id: string
           id?: string
+          interest_amount?: number
           notes?: string | null
           payment_date: string
+          principal_amount?: number
           user_id: string
         }
         Update: {
@@ -158,8 +162,10 @@ export type Database = {
           created_at?: string | null
           debt_id?: string
           id?: string
+          interest_amount?: number
           notes?: string | null
           payment_date?: string
+          principal_amount?: number
           user_id?: string
         }
         Relationships: [
@@ -668,8 +674,10 @@ export type Database = {
           created_at: string | null
           debt_id: string
           id: string
+          interest_amount: number
           is_paid: boolean | null
           paid_date: string | null
+          principal_amount: number
           scheduled_amount: number
           scheduled_date: string
           user_id: string
@@ -679,8 +687,10 @@ export type Database = {
           created_at?: string | null
           debt_id: string
           id?: string
+          interest_amount?: number
           is_paid?: boolean | null
           paid_date?: string | null
+          principal_amount?: number
           scheduled_amount: number
           scheduled_date: string
           user_id: string
@@ -690,8 +700,10 @@ export type Database = {
           created_at?: string | null
           debt_id?: string
           id?: string
+          interest_amount?: number
           is_paid?: boolean | null
           paid_date?: string | null
+          principal_amount?: number
           scheduled_amount?: number
           scheduled_date?: string
           user_id?: string

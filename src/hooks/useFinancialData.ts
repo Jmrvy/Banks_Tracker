@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useMemo, createContext, useContext } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { recalculateDebtRemaining } from '@/utils/debtUtils';
 
 
 // Query keys for React Query cache
@@ -419,22 +420,70 @@ function useFinancialDataInternal() {
       // If this transaction is linked to an installment payment and amount changed, update remaining_amount
       if (originalTransaction?.installment_payment_id && updates.amount !== undefined && updates.amount !== originalAmount) {
         const amountDifference = updates.amount - originalAmount;
-        
+
         // Get current installment payment
         const { data: installmentPayment } = await supabase
           .from('installment_payments')
           .select('remaining_amount')
           .eq('id', originalTransaction.installment_payment_id)
           .single();
-        
+
         if (installmentPayment) {
-          // Adjust remaining amount: if transaction amount increased, decrease remaining (and vice versa)
           const newRemainingAmount = installmentPayment.remaining_amount - amountDifference;
-          
+
           await supabase
             .from('installment_payments')
             .update({ remaining_amount: Math.max(0, newRemainingAmount) })
             .eq('id', originalTransaction.installment_payment_id);
+        }
+      }
+
+      // If this transaction is linked to a debt via recurring transaction and amount changed, update the debt_payment
+      if (originalTransaction?.recurring_transaction_id && updates.amount !== undefined && updates.amount !== originalAmount) {
+        const linkedRT = recurringTransactions.find(r => r.id === originalTransaction.recurring_transaction_id);
+        if (linkedRT?.debt_id) {
+          const txDate = originalTransaction.transaction_date;
+
+          // Find the matching debt_payment by date and original amount
+          const { data: debtPaymentsOnDate } = await supabase
+            .from('debt_payments')
+            .select('id, amount, principal_amount, interest_amount')
+            .eq('debt_id', linkedRT.debt_id)
+            .eq('user_id', user.id)
+            .eq('payment_date', txDate);
+
+          const matchingPayment = (debtPaymentsOnDate || []).find(
+            dp => Math.abs(Number(dp.amount) - originalAmount) < 0.01
+          );
+
+          if (matchingPayment) {
+            // Scale principal/interest proportionally if the total amount changed
+            const ratio = originalAmount > 0 ? updates.amount / originalAmount : 1;
+            const newPrincipal = Math.round(Number(matchingPayment.principal_amount) * ratio * 100) / 100;
+            const newInterest = Math.round((updates.amount - newPrincipal) * 100) / 100;
+
+            await supabase
+              .from('debt_payments')
+              .update({
+                amount: updates.amount,
+                principal_amount: newPrincipal,
+                interest_amount: Math.max(0, newInterest),
+              })
+              .eq('id', matchingPayment.id)
+              .eq('user_id', user.id);
+
+            // Also update the scheduled_debt_payment actual_amount
+            const monthKey = txDate.substring(0, 7);
+            await supabase
+              .from('scheduled_debt_payments')
+              .update({ actual_amount: updates.amount })
+              .eq('debt_id', linkedRT.debt_id)
+              .eq('user_id', user.id)
+              .eq('is_paid', true)
+              .like('scheduled_date', `${monthKey}%`);
+
+            await recalculateDebtRemaining(linkedRT.debt_id, user.id);
+          }
         }
       }
 
@@ -484,13 +533,13 @@ function useFinancialDataInternal() {
           .select('remaining_amount, is_active')
           .eq('id', transactionToDelete.installment_payment_id)
           .single();
-        
+
         if (installmentPayment) {
           const newRemainingAmount = installmentPayment.remaining_amount + transactionToDelete.amount;
-          
+
           await supabase
             .from('installment_payments')
-            .update({ 
+            .update({
               remaining_amount: newRemainingAmount,
               // Re-activate the installment if it was completed
               is_active: true
@@ -505,7 +554,65 @@ function useFinancialDataInternal() {
         }
       }
 
-      fetchTransactions(); fetchAccounts();
+      // If this transaction was linked to a debt recurring transaction, reverse the debt payment
+      if (transactionToDelete?.recurring_transaction_id) {
+        const linkedRT = recurringTransactions.find(r => r.id === transactionToDelete.recurring_transaction_id);
+        if (linkedRT?.debt_id) {
+          const txDate = transactionToDelete.transaction_date;
+          const txAmount = Number(transactionToDelete.amount);
+
+          // Find and delete the matching debt_payment
+          const { data: debtPaymentsOnDate } = await supabase
+            .from('debt_payments')
+            .select('id, amount')
+            .eq('debt_id', linkedRT.debt_id)
+            .eq('user_id', user.id)
+            .eq('payment_date', txDate);
+
+          const matchingDebtPayment = (debtPaymentsOnDate || []).find(
+            dp => Math.abs(Number(dp.amount) - txAmount) < 0.01
+          ) || null;
+
+          if (matchingDebtPayment) {
+            await supabase
+              .from('debt_payments')
+              .delete()
+              .eq('id', matchingDebtPayment.id)
+              .eq('user_id', user.id);
+          }
+
+          // Reset the matching scheduled_debt_payment back to unpaid
+          const monthKey = txDate.substring(0, 7);
+          const { data: scheduledForMonth } = await supabase
+            .from('scheduled_debt_payments')
+            .select('id')
+            .eq('debt_id', linkedRT.debt_id)
+            .eq('user_id', user.id)
+            .eq('is_paid', true)
+            .like('scheduled_date', `${monthKey}%`)
+            .limit(1)
+            .maybeSingle();
+
+          if (scheduledForMonth) {
+            await supabase
+              .from('scheduled_debt_payments')
+              .update({ is_paid: false, paid_date: null, actual_amount: null })
+              .eq('id', scheduledForMonth.id)
+              .eq('user_id', user.id);
+          }
+
+          await recalculateDebtRemaining(linkedRT.debt_id, user.id);
+
+          // Re-activate the recurring transaction if it was completed
+          await supabase
+            .from('recurring_transactions')
+            .update({ is_active: true, updated_at: new Date().toISOString() })
+            .eq('id', linkedRT.id)
+            .eq('user_id', user.id);
+        }
+      }
+
+      fetchTransactions(); fetchAccounts(); fetchRecurringTransactions();
     }
     return { error };
   };
@@ -535,18 +642,22 @@ function useFinancialDataInternal() {
     }
 
     // For debt-linked recurring transactions, use the scheduled amount for this date
+    let debtScheduledPrincipal = 0;
+    let debtScheduledInterest = 0;
     if (rt.debt_id) {
       const { data: scheduledPayment } = await supabase
         .from('scheduled_debt_payments')
-        .select('scheduled_amount')
+        .select('scheduled_amount, principal_amount, interest_amount')
         .eq('debt_id', rt.debt_id)
         .eq('user_id', user.id)
-        .eq('is_paid', false)
+        .neq('is_paid', true)
         .order('scheduled_date', { ascending: true })
         .limit(1)
         .maybeSingle();
       if (scheduledPayment) {
         transactionAmount = scheduledPayment.scheduled_amount;
+        debtScheduledPrincipal = scheduledPayment.principal_amount || 0;
+        debtScheduledInterest = scheduledPayment.interest_amount || 0;
       } else {
         // Fallback to debt's payment_amount
         const { data: debtData } = await supabase
@@ -685,7 +796,7 @@ function useFinancialDataInternal() {
         .select('id')
         .eq('debt_id', rt.debt_id)
         .eq('user_id', user.id)
-        .eq('is_paid', false)
+        .neq('is_paid', true)
         .order('scheduled_date', { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -702,50 +813,26 @@ function useFinancialDataInternal() {
           .eq('user_id', user.id);
       }
 
-      // Record debt payment
+      // Record debt payment with capital/interest split
       await supabase
         .from('debt_payments')
         .insert({
           debt_id: rt.debt_id,
           user_id: user.id,
           amount: transactionAmount,
+          principal_amount: debtScheduledPrincipal,
+          interest_amount: debtScheduledInterest,
           payment_date: executionDate,
           notes: `Échéance récurrente: ${rt.description}`,
         });
 
-      // Recalculate remaining_amount from all debt_payments (mirrors installment pattern)
-      const { data: allDebtPayments } = await supabase
-        .from('debt_payments')
-        .select('amount')
-        .eq('debt_id', rt.debt_id)
-        .eq('user_id', user.id);
-
-      const { data: debtData } = await supabase
-        .from('debts')
-        .select('total_amount')
-        .eq('id', rt.debt_id)
-        .single();
-
-      if (debtData) {
-        const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-        const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
-        const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
-        if (newRemaining <= 0) {
-          debtUpdate.status = 'completed';
-        }
+      const result = await recalculateDebtRemaining(rt.debt_id, user.id);
+      if (result && result.newRemaining <= 0) {
         await supabase
-          .from('debts')
-          .update(debtUpdate)
-          .eq('id', rt.debt_id)
+          .from('recurring_transactions')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', recurringId)
           .eq('user_id', user.id);
-
-        if (newRemaining <= 0) {
-          await supabase
-            .from('recurring_transactions')
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq('id', recurringId)
-            .eq('user_id', user.id);
-        }
       }
     }
 
@@ -936,7 +1023,11 @@ function useFinancialDataInternal() {
             if (rt.debt_id) {
               const monthKey = currentDueDateString.substring(0, 7);
               const matchingScheduled = debtScheduledPayments.find(sp => sp.scheduled_date.substring(0, 7) === monthKey && !sp.is_paid);
+              let scheduledPrincipal = 0;
+              let scheduledInterest = 0;
               if (matchingScheduled) {
+                scheduledPrincipal = matchingScheduled.principal_amount || 0;
+                scheduledInterest = matchingScheduled.interest_amount || 0;
                 await supabase
                   .from('scheduled_debt_payments')
                   .update({ is_paid: true, paid_date: currentDueDateString, actual_amount: occurrenceAmount })
@@ -952,6 +1043,8 @@ function useFinancialDataInternal() {
                   debt_id: rt.debt_id,
                   user_id: user.id,
                   amount: occurrenceAmount,
+                  principal_amount: scheduledPrincipal,
+                  interest_amount: scheduledInterest,
                   payment_date: currentDueDateString,
                   notes: `Récurrence automatique: ${rt.description}`,
                 });
@@ -1009,37 +1102,12 @@ function useFinancialDataInternal() {
 
         // Update debt remaining_amount if linked
         if (rt.debt_id && occurrencesProcessed > 0) {
-          // Recalculate from all debt_payments
-          const { data: allDebtPayments } = await supabase
-            .from('debt_payments')
-            .select('amount')
-            .eq('debt_id', rt.debt_id)
-            .eq('user_id', user.id);
-
-          const { data: debtData } = await supabase
-            .from('debts')
-            .select('total_amount')
-            .eq('id', rt.debt_id)
-            .single();
-
-          if (debtData) {
-            const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-            const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
-            const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
-
-            if (newRemaining <= 0) {
-              debtUpdate.status = 'completed';
-              await supabase
-                .from('recurring_transactions')
-                .update({ is_active: false, updated_at: new Date().toISOString() })
-                .eq('id', rt.id)
-                .eq('user_id', user.id);
-            }
-
+          const result = await recalculateDebtRemaining(rt.debt_id, user.id);
+          if (result && result.newRemaining <= 0) {
             await supabase
-              .from('debts')
-              .update(debtUpdate)
-              .eq('id', rt.debt_id)
+              .from('recurring_transactions')
+              .update({ is_active: false, updated_at: new Date().toISOString() })
+              .eq('id', rt.id)
               .eq('user_id', user.id);
           }
         }

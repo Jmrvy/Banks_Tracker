@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +31,7 @@ export const RecordInstallmentPaymentModal = ({
 }: RecordInstallmentPaymentModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { formatCurrency } = useUserPreferences();
   const { installmentPayments, recalculateInstallmentPayment } = useInstallmentPayments();
   const { transactions, refetch } = useFinancialData();
   const [amount, setAmount] = useState('');
@@ -126,7 +128,7 @@ export const RecordInstallmentPaymentModal = ({
       } else {
         toast({
           title: "Paiement enregistré",
-          description: result ? `Restant: ${result.newRemainingAmount.toFixed(2)}€, mensualité: ${result.newInstallmentAmount.toFixed(2)}€` : "Le paiement a été enregistré.",
+          description: result ? `Restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}` : "Le paiement a été enregistré.",
         });
       }
 
@@ -138,9 +140,6 @@ export const RecordInstallmentPaymentModal = ({
       setLoading(false);
     }
   };
-
-  const formatCurrency = (amount: number) =>
-    amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

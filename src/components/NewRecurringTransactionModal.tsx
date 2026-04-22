@@ -71,7 +71,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
       const typeLabel = formData.type === 'income' ? 'Revenus récurrents' : 'Dépense récurrente';
       toast({
         title: `${typeLabel} créé${formData.type === 'income' ? 's' : 'e'}`,
-        description: `${typeLabel} de ${formData.amount}€ programmé${formData.type === 'income' ? 's' : 'e'} avec succès.`,
+        description: `${typeLabel} de ${formatCurrency(parseFloat(formData.amount) || 0)} programmé${formData.type === 'income' ? 's' : 'e'} avec succès.`,
       });
       
       // Reset form

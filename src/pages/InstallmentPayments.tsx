@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { useSearchParams } from "react-router-dom";
 import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,11 +29,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, startOfDay } from "date-fns";
 
-// Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 const InstallmentPayments = () => {
   const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions, detectOrphanedTransactions, deleteOrphanedTransactions } = useInstallmentPayments();

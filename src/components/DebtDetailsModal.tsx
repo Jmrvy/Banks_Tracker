@@ -8,6 +8,8 @@ import { Debt, DebtPayment, useDebts } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { recalculateDebtRemaining } from '@/utils/debtUtils';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -34,6 +36,8 @@ interface ScheduledPayment {
   debt_id: string;
   scheduled_date: string;
   scheduled_amount: number;
+  principal_amount: number;
+  interest_amount: number;
   actual_amount: number | null;
   is_paid: boolean | null;
   paid_date: string | null;
@@ -56,6 +60,7 @@ export const DebtDetailsModal = ({
 }: DebtDetailsModalProps) => {
   const { formatCurrency } = useUserPreferences();
   const { user } = useAuth();
+  const { toast } = useToast();
   const { payments: allPayments, deletePayment, addPayment } = useDebts();
   const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
@@ -98,7 +103,6 @@ export const DebtDetailsModal = ({
       const paymentDate = sp.scheduled_date;
       const paymentAmount = sp.scheduled_amount;
 
-      // Mark scheduled payment as paid
       await supabase
         .from('scheduled_debt_payments')
         .update({
@@ -109,30 +113,20 @@ export const DebtDetailsModal = ({
         .eq('id', sp.id)
         .eq('user_id', user.id);
 
-      // Record the debt payment
       await addPayment({
         debt_id: debt.id,
         amount: paymentAmount,
+        principal_amount: sp.principal_amount,
+        interest_amount: sp.interest_amount,
         payment_date: paymentDate,
         notes: `Échéance confirmée: ${format(new Date(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
       });
 
-      // Update debt remaining amount
-      const newRemaining = Math.max(0, debt.remaining_amount - paymentAmount);
-      const updates: Record<string, any> = { remaining_amount: newRemaining };
-      if (newRemaining <= 0) {
-        updates.status = 'completed';
-      }
-
-      await supabase
-        .from('debts')
-        .update(updates)
-        .eq('id', debt.id)
-        .eq('user_id', user.id);
-
+      await recalculateDebtRemaining(debt.id, user.id);
       await fetchScheduledPayments();
     } catch (error) {
       console.error('Error confirming payment:', error);
+      toast({ title: "Erreur", description: "Impossible de confirmer le paiement", variant: "destructive" });
     } finally {
       setConfirmingId(null);
     }
@@ -149,19 +143,22 @@ export const DebtDetailsModal = ({
     setUncheckingId(sp.id);
 
     try {
+      const paidDate = sp.paid_date || sp.scheduled_date;
       const paidAmount = sp.actual_amount || sp.scheduled_amount;
 
       await supabase
         .from('scheduled_debt_payments')
-        .update({ is_paid: null, paid_date: null, actual_amount: null })
+        .update({ is_paid: false, paid_date: null, actual_amount: null })
         .eq('id', sp.id)
         .eq('user_id', user.id);
 
+      // Match by date first, then narrow by amount. Check both exact date and month match.
       const matchingPayment = allPayments.find(
-        p => p.debt_id === debt.id &&
-          p.payment_date === (sp.paid_date || sp.scheduled_date) &&
-          Math.abs(p.amount - paidAmount) < 0.01
+        p => p.debt_id === debt.id && p.payment_date === paidDate && Math.abs(p.amount - paidAmount) < 0.01
+      ) || allPayments.find(
+        p => p.debt_id === debt.id && p.payment_date === paidDate
       );
+
       if (matchingPayment) {
         await supabase
           .from('debt_payments')
@@ -170,21 +167,11 @@ export const DebtDetailsModal = ({
           .eq('user_id', user.id);
       }
 
-      const newRemaining = debt.remaining_amount + paidAmount;
-      const updates: Record<string, any> = { remaining_amount: newRemaining };
-      if (debt.status === 'completed') {
-        updates.status = 'active';
-      }
-
-      await supabase
-        .from('debts')
-        .update(updates)
-        .eq('id', debt.id)
-        .eq('user_id', user.id);
-
+      await recalculateDebtRemaining(debt.id, user.id);
       await fetchScheduledPayments();
     } catch (error) {
       console.error('Error unchecking payment:', error);
+      toast({ title: "Erreur", description: "Impossible d'annuler le paiement", variant: "destructive" });
     } finally {
       setUncheckingId(null);
     }
@@ -422,13 +409,22 @@ export const DebtDetailsModal = ({
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    {debtPayments.length} paiement{debtPayments.length > 1 ? 's' : ''}
-                  </p>
-                  <p className="text-xs sm:text-sm font-medium">
-                    Total: {formatCurrency(debtPayments.reduce((s, p) => s + p.amount, 0))}
-                  </p>
+                <div className="flex flex-col gap-1 mb-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {debtPayments.length} paiement{debtPayments.length > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs sm:text-sm font-medium">
+                      Total: {formatCurrency(debtPayments.reduce((s, p) => s + p.amount, 0))}
+                    </p>
+                  </div>
+                  {debtPayments.some(p => p.principal_amount > 0) && (
+                    <div className="flex items-center justify-end gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                      <span>Capital: {formatCurrency(debtPayments.reduce((s, p) => s + (p.principal_amount || 0), 0))}</span>
+                      <span>·</span>
+                      <span>Intérêts: {formatCurrency(debtPayments.reduce((s, p) => s + (p.interest_amount || 0), 0))}</span>
+                    </div>
+                  )}
                 </div>
                 {debtPayments.map((payment) => (
                   <div key={payment.id} className="rounded-lg border p-2.5 sm:p-3 group">
@@ -527,6 +523,13 @@ export const DebtDetailsModal = ({
                           <p className={`text-[11px] sm:text-xs font-medium ${isPaid ? 'line-through' : ''}`}>
                             {format(new Date(sp.scheduled_date), 'dd MMM yyyy', { locale: fr })}
                           </p>
+                          {(sp.principal_amount > 0 || sp.interest_amount > 0) && (
+                            <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                              {sp.principal_amount > 0 ? `Capital: ${formatCurrency(sp.principal_amount)}` : ''}
+                              {sp.principal_amount > 0 && sp.interest_amount > 0 ? ' · ' : ''}
+                              {sp.interest_amount > 0 ? `Intérêts: ${formatCurrency(sp.interest_amount)}` : ''}
+                            </p>
+                          )}
                           {isNext && (
                             <p className="text-[9px] sm:text-[10px] text-primary font-medium">Prochaine échéance</p>
                           )}

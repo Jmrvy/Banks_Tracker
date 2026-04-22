@@ -111,7 +111,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                        formData.type === 'transfer' ? 'Transfert' : 'Dépense';
       toast({
         title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
-        description: `${typeLabel} de ${formData.amount}€ ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
+        description: `${typeLabel} de ${formatCurrency(parseFloat(formData.amount) || 0)} ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
       });
       
       resetForm();

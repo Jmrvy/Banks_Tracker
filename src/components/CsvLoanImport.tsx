@@ -192,6 +192,8 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
           user_id: user.id,
           scheduled_date: row.date,
           scheduled_amount: row.payment,
+          principal_amount: row.principal,
+          interest_amount: row.interest,
           is_paid: false,
         }));
 
