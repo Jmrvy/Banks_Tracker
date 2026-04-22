@@ -36,11 +36,8 @@ import { useDebts, Debt } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { format, differenceInDays, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 const Debts = () => {
   const { debts, payments, loading, deleteDebt, getDebtDeletionImpact } = useDebts();

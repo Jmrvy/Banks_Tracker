@@ -8,6 +8,7 @@ import { useDebts } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -77,11 +78,6 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
     return { income, expenses, net: income - expenses };
   }, [transactions, preferences.dateType]);
 
-  // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-  const parseLocalDate = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
 
   const upcomingTransactions = useMemo(() => {
     const today = startOfToday();

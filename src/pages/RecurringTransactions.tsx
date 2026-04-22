@@ -18,6 +18,7 @@ import RecurringCalendar from "@/components/RecurringCalendar";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { DebtDetailsModal } from "@/components/DebtDetailsModal";
 import { differenceInDays, startOfDay } from "date-fns";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 const RecurringTransactions = () => {
   const { toast } = useToast();
@@ -117,10 +118,6 @@ const RecurringTransactions = () => {
     return result;
   };
 
-  const parseLocalDate = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
 
   const getRecurrenceLabel = (type: string) => {
     switch (type) {

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PlusCircle, MinusCircle, Repeat, Clock, Target, Info, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -198,11 +199,6 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
     }
   };
 
-  // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-  const parseLocalDate = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
 
   // Show the actual next_due_date from the DB transaction.
   // If the user changed start_date or recurrence_type, recalculate a preview.

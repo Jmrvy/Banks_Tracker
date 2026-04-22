@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { Receipt, Calendar, Wallet } from "lucide-react";
@@ -24,11 +25,6 @@ interface Transaction {
   category_id: string | null;
 }
 
-// Parse "YYYY-MM-DD" as local date
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 interface InstallmentTransactionsModalProps {
   open: boolean;

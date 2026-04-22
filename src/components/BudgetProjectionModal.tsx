@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMemo, useState } from "react";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface BudgetProjectionModalProps {
   open: boolean;
@@ -26,11 +27,6 @@ export const BudgetProjectionModal = ({ open, onOpenChange, useSpendingPatterns 
     const currentDay = now.getDate();
     const daysRemaining = daysInMonth - currentDay;
 
-    // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-    const parseLocalDate = (dateStr: string): Date => {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      return new Date(y, m - 1, d);
-    };
 
     // Helper function to calculate next occurrence of a recurring transaction
     const getNextOccurrences = (recurring, fromDate, toDate) => {

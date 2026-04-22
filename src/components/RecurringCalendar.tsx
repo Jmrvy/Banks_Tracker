@@ -20,6 +20,7 @@ interface ScheduledDebtPayment {
 }
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -91,11 +92,6 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
   );
 });
 
-// Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-const parseLocalDate = (dateStr: string): Date => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
 
 // Helper to advance a date by recurrence type
 function advanceDate(date: Date, recurrenceType: string): Date {

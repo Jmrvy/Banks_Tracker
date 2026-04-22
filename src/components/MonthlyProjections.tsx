@@ -6,6 +6,7 @@ import { useState, useMemo } from "react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { BudgetProjectionModal } from "@/components/BudgetProjectionModal";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 export const MonthlyProjections = () => {
   const { transactions, accounts, categories, recurringTransactions, loading } = useFinancialData();
@@ -22,11 +23,6 @@ export const MonthlyProjections = () => {
     const currentDay = now.getDate();
     const daysRemaining = daysInMonth - currentDay;
 
-    // Parse "YYYY-MM-DD" as local date to avoid UTC shift bugs
-    const parseLocalDate = (dateStr: string): Date => {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      return new Date(y, m - 1, d);
-    };
 
     const getNextOccurrences = (recurring, fromDate, toDate) => {
       const occurrences = [];
