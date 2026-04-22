@@ -40,7 +40,7 @@ import { parseLocalDate } from '@/lib/dateUtils';
 
 
 const Debts = () => {
-  const { debts, payments, loading, deleteDebt, getDebtDeletionImpact } = useDebts();
+  const { debts, payments, loading, deleteDebt, getDebtDeletionImpact, getNextScheduledAmount } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const [newDebtModalOpen, setNewDebtModalOpen] = useState(false);
   const [editDebtModalOpen, setEditDebtModalOpen] = useState(false);
@@ -262,7 +262,7 @@ const Debts = () => {
               {debt.payment_frequency && debt.payment_amount > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
-                  <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(debt.payment_amount)}</span>
+                  <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(getNextScheduledAmount(debt.id) ?? debt.payment_amount)}</span>
                 </div>
               )}
               {debt.payment_frequency && (

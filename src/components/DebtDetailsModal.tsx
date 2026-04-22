@@ -307,7 +307,7 @@ export const DebtDetailsModal = ({
                     Échéance
                   </span>
                   <span className="text-[11px] sm:text-sm font-medium">
-                    {formatCurrency(debt.payment_amount)} / {getFrequencyLabel(debt.payment_frequency)?.toLowerCase()}
+                    {formatCurrency(nextScheduled?.scheduled_amount ?? debt.payment_amount)} / {getFrequencyLabel(debt.payment_frequency)?.toLowerCase()}
                   </span>
                 </div>
               )}
