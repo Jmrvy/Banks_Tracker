@@ -140,24 +140,22 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
             <div className="space-y-1.5">
               <Label>Montant Total *</Label>
               <Input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
                 placeholder="0.00"
                 value={formData.total_amount}
-                onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, total_amount: e.target.value.replace(/,/g, '.') })}
                 required
               />
             </div>
             <div className="space-y-1.5">
               <Label>Montant par échéance *</Label>
               <Input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
                 placeholder="0.00"
                 value={formData.installment_amount}
-                onChange={(e) => setFormData({ ...formData, installment_amount: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, installment_amount: e.target.value.replace(/,/g, '.') })}
                 required
               />
             </div>

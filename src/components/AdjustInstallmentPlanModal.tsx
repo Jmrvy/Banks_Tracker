@@ -228,12 +228,11 @@ export const AdjustInstallmentPlanModal = ({
                     </Label>
                     <div className="mt-1.5">
                       <Input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        step="0.01"
                         placeholder="0.00"
                         value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
+                        onChange={(e) => setCustomAmount(e.target.value.replace(/,/g, '.'))}
                         disabled={adjustmentType !== 'custom'}
                         className="w-full h-8 text-xs sm:text-sm"
                       />

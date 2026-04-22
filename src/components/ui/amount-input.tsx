@@ -9,8 +9,7 @@ interface AmountInputProps extends Omit<React.ComponentProps<"input">, "type" | 
 const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
   ({ className, value, onChange, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Replace comma with period for decimal separator compatibility
-      const normalizedValue = e.target.value.replace(',', '.');
+      const normalizedValue = e.target.value.replace(/,/g, '.');
       onChange(normalizedValue);
     };
 

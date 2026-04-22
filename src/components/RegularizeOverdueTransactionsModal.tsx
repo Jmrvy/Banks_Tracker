@@ -203,9 +203,9 @@ export const RegularizeOverdueTransactionsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="w-[95vw] sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
+          <DialogTitle className="text-sm sm:text-lg flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             Régulariser les transactions en retard
           </DialogTitle>
@@ -214,7 +214,7 @@ export const RegularizeOverdueTransactionsModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           {missedOccurrences.length > 0 ? (
             <>
               <div className="flex items-center justify-between">

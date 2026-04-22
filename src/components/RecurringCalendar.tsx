@@ -1043,16 +1043,16 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
             {/* Action buttons */}
             <div className="flex gap-2 pt-2 border-t border-border/50">
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+              <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
                 onClick={() => onEdit(transaction)}>
                 <Pencil className="h-3.5 w-3.5" /> Modifier
               </Button>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+              <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
                 onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
                 {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 {transaction.is_active ? 'Désactiver' : 'Activer'}
               </Button>
-              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
+              <Button size="sm" variant="destructive" className="h-9 text-xs gap-1.5 px-3"
                 onClick={() => onDelete(transaction.id, transaction.description)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -1069,13 +1069,13 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       <Card className="bg-card/50 backdrop-blur border-border/50">
         <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8" aria-label="Mois précédent">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <CardTitle className="text-sm sm:text-lg font-semibold capitalize">
               {format(currentMonth, 'MMMM yyyy', { locale: fr })}
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8" aria-label="Mois suivant">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

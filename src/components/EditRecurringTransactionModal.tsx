@@ -177,7 +177,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
       const typeLabel = formData.type === 'income' ? 'Revenus récurrents' : 'Dépense récurrente';
       toast({
         title: `${typeLabel} modifié${formData.type === 'income' ? 's' : 'e'}`,
-        description: `${typeLabel} de ${formData.amount}€ mis à jour avec succès.`,
+        description: `${typeLabel} de ${formatCurrency(parseFloat(formData.amount) || 0)} mis à jour avec succès.`,
       });
       
       onOpenChange(false);
