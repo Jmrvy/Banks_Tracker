@@ -135,46 +135,104 @@ export const useDebts = () => {
     await fetchDebts();
   };
 
-  const deleteDebt = async (id: string) => {
-    if (!user) return;
+  const getDebtDeletionImpact = async (id: string): Promise<{ transactionCount: number; recurringCount: number; paymentCount: number }> => {
+    if (!user) return { transactionCount: 0, recurringCount: 0, paymentCount: 0 };
 
-    // Delete linked transactions (debt payment transactions created via LinkDebtPaymentModal)
-    // Find debt_payments with notes starting with "Lié à:" to identify linked transaction descriptions
-    const { data: debtPayments } = await supabase
-      .from('debt_payments')
-      .select('notes')
-      .eq('debt_id', id)
-      .eq('user_id', user.id);
-
-    // Delete recurring transactions linked to this debt via debt_id (reliable)
-    await supabase
+    // Count recurring transactions linked to this debt
+    const { data: linkedRecurring } = await supabase
       .from('recurring_transactions')
-      .delete()
+      .select('id')
       .eq('user_id', user.id)
       .eq('debt_id', id);
 
-    // Also delete by description as fallback for older records without debt_id
+    const recurringIds = (linkedRecurring || []).map(r => r.id);
+
+    // Also count by description fallback
     const debt = debts.find(d => d.id === id);
     if (debt) {
       const suffixReceived = `${debt.description} (Remboursement dette)`;
       const suffixGiven = `${debt.description} (Remboursement prêt)`;
+      const { data: legacyRecurring } = await supabase
+        .from('recurring_transactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .in('description', [suffixReceived, suffixGiven]);
+      (legacyRecurring || []).forEach(r => {
+        if (!recurringIds.includes(r.id)) recurringIds.push(r.id);
+      });
+    }
 
-      // Delete auto-created transactions (use .in() to avoid injection via .or() string interpolation)
+    // Count transactions created from these recurring transactions
+    let transactionCount = 0;
+    if (recurringIds.length > 0) {
+      const { count } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .in('recurring_transaction_id', recurringIds);
+      transactionCount = count || 0;
+    }
+
+    // Count debt_payments
+    const { count: paymentCount } = await supabase
+      .from('debt_payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('debt_id', id)
+      .eq('user_id', user.id);
+
+    return {
+      transactionCount,
+      recurringCount: recurringIds.length,
+      paymentCount: paymentCount || 0,
+    };
+  };
+
+  const deleteDebt = async (id: string) => {
+    if (!user) return;
+
+    // 1. Find all recurring transactions linked to this debt
+    const { data: linkedRecurring } = await supabase
+      .from('recurring_transactions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('debt_id', id);
+
+    const recurringIds = (linkedRecurring || []).map(r => r.id);
+
+    // Also find by description fallback for older records
+    const debt = debts.find(d => d.id === id);
+    if (debt) {
+      const suffixReceived = `${debt.description} (Remboursement dette)`;
+      const suffixGiven = `${debt.description} (Remboursement prêt)`;
+      const { data: legacyRecurring } = await supabase
+        .from('recurring_transactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .in('description', [suffixReceived, suffixGiven]);
+      (legacyRecurring || []).forEach(r => {
+        if (!recurringIds.includes(r.id)) recurringIds.push(r.id);
+      });
+    }
+
+    // 2. Delete all transactions created from these recurring transactions
+    if (recurringIds.length > 0) {
       await supabase
         .from('transactions')
         .delete()
         .eq('user_id', user.id)
-        .in('description', [suffixReceived, suffixGiven]);
+        .in('recurring_transaction_id', recurringIds);
+    }
 
-      // Delete any remaining recurring transactions matched by description
+    // 3. Delete the recurring transactions themselves
+    if (recurringIds.length > 0) {
       await supabase
         .from('recurring_transactions')
         .delete()
         .eq('user_id', user.id)
-        .in('description', [suffixReceived, suffixGiven]);
+        .in('id', recurringIds);
     }
 
-    // debt_payments and scheduled_debt_payments are CASCADE-deleted by the DB
+    // 4. Delete the debt (debt_payments and scheduled_debt_payments are CASCADE-deleted by the DB)
     const { error } = await supabase
       .from('debts')
       .delete()
@@ -192,7 +250,7 @@ export const useDebts = () => {
 
     toast({
       title: "Succès",
-      description: "Dette supprimée avec succès"
+      description: "Dette et transactions associées supprimées avec succès"
     });
 
     await fetchDebts();
@@ -288,6 +346,7 @@ export const useDebts = () => {
     createDebt,
     updateDebt,
     deleteDebt,
+    getDebtDeletionImpact,
     addPayment,
     deletePayment
   };

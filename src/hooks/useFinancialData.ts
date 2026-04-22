@@ -420,22 +420,70 @@ function useFinancialDataInternal() {
       // If this transaction is linked to an installment payment and amount changed, update remaining_amount
       if (originalTransaction?.installment_payment_id && updates.amount !== undefined && updates.amount !== originalAmount) {
         const amountDifference = updates.amount - originalAmount;
-        
+
         // Get current installment payment
         const { data: installmentPayment } = await supabase
           .from('installment_payments')
           .select('remaining_amount')
           .eq('id', originalTransaction.installment_payment_id)
           .single();
-        
+
         if (installmentPayment) {
-          // Adjust remaining amount: if transaction amount increased, decrease remaining (and vice versa)
           const newRemainingAmount = installmentPayment.remaining_amount - amountDifference;
-          
+
           await supabase
             .from('installment_payments')
             .update({ remaining_amount: Math.max(0, newRemainingAmount) })
             .eq('id', originalTransaction.installment_payment_id);
+        }
+      }
+
+      // If this transaction is linked to a debt via recurring transaction and amount changed, update the debt_payment
+      if (originalTransaction?.recurring_transaction_id && updates.amount !== undefined && updates.amount !== originalAmount) {
+        const linkedRT = recurringTransactions.find(r => r.id === originalTransaction.recurring_transaction_id);
+        if (linkedRT?.debt_id) {
+          const txDate = originalTransaction.transaction_date;
+
+          // Find the matching debt_payment by date and original amount
+          const { data: debtPaymentsOnDate } = await supabase
+            .from('debt_payments')
+            .select('id, amount, principal_amount, interest_amount')
+            .eq('debt_id', linkedRT.debt_id)
+            .eq('user_id', user.id)
+            .eq('payment_date', txDate);
+
+          const matchingPayment = (debtPaymentsOnDate || []).find(
+            dp => Math.abs(Number(dp.amount) - originalAmount) < 0.01
+          );
+
+          if (matchingPayment) {
+            // Scale principal/interest proportionally if the total amount changed
+            const ratio = originalAmount > 0 ? updates.amount / originalAmount : 1;
+            const newPrincipal = Math.round(Number(matchingPayment.principal_amount) * ratio * 100) / 100;
+            const newInterest = Math.round((updates.amount - newPrincipal) * 100) / 100;
+
+            await supabase
+              .from('debt_payments')
+              .update({
+                amount: updates.amount,
+                principal_amount: newPrincipal,
+                interest_amount: Math.max(0, newInterest),
+              })
+              .eq('id', matchingPayment.id)
+              .eq('user_id', user.id);
+
+            // Also update the scheduled_debt_payment actual_amount
+            const monthKey = txDate.substring(0, 7);
+            await supabase
+              .from('scheduled_debt_payments')
+              .update({ actual_amount: updates.amount })
+              .eq('debt_id', linkedRT.debt_id)
+              .eq('user_id', user.id)
+              .eq('is_paid', true)
+              .like('scheduled_date', `${monthKey}%`);
+
+            await recalculateDebtRemaining(linkedRT.debt_id, user.id);
+          }
         }
       }
 
