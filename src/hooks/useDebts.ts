@@ -30,6 +30,8 @@ export interface DebtPayment {
   debt_id: string;
   user_id: string;
   amount: number;
+  principal_amount: number;
+  interest_amount: number;
   payment_date: string;
   notes: string | null;
   created_at: string;

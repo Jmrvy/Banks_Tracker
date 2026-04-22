@@ -22,6 +22,8 @@ interface ScheduledPayment {
   debt_id: string;
   scheduled_date: string;
   scheduled_amount: number;
+  principal_amount: number;
+  interest_amount: number;
   actual_amount: number | null;
   is_paid: boolean | null;
   paid_date: string | null;
@@ -154,25 +156,27 @@ export const LinkDebtPaymentModal = ({
         console.error('Error updating scheduled payment:', scheduleError);
       }
 
-      // Record the debt payment
+      // Record the debt payment with capital/interest split
       await addPayment({
         debt_id: debt.id,
         amount: paymentAmount,
+        principal_amount: scheduledPayment.principal_amount,
+        interest_amount: scheduledPayment.interest_amount,
         payment_date: paymentDate,
         notes: mode === 'link' && selectedTransaction
           ? `Lié à: ${selectedTransaction.description}`
           : null,
       });
 
-      // Recalculate remaining_amount from all debt_payments (avoids double-counting with DB trigger)
+      // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
       const { data: allDebtPayments } = await supabase
         .from('debt_payments')
-        .select('amount')
+        .select('principal_amount')
         .eq('debt_id', debt.id)
         .eq('user_id', user.id);
 
-      const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-      const newRemaining = Math.max(0, debt.total_amount - totalPaid);
+      const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
+      const newRemaining = Math.max(0, debt.total_amount - totalPrincipalPaid);
       const updates: Record<string, any> = { remaining_amount: newRemaining };
       if (newRemaining <= 0) {
         updates.status = 'completed';

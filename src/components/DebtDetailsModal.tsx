@@ -34,6 +34,8 @@ interface ScheduledPayment {
   debt_id: string;
   scheduled_date: string;
   scheduled_amount: number;
+  principal_amount: number;
+  interest_amount: number;
   actual_amount: number | null;
   is_paid: boolean | null;
   paid_date: string | null;
@@ -109,23 +111,25 @@ export const DebtDetailsModal = ({
         .eq('id', sp.id)
         .eq('user_id', user.id);
 
-      // Record the debt payment (DB trigger auto-adjusts remaining_amount)
+      // Record the debt payment (DB trigger auto-adjusts remaining_amount via principal_amount)
       await addPayment({
         debt_id: debt.id,
         amount: paymentAmount,
+        principal_amount: sp.principal_amount,
+        interest_amount: sp.interest_amount,
         payment_date: paymentDate,
         notes: `Échéance confirmée: ${format(new Date(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
       });
 
-      // Recalculate remaining_amount from all debt_payments (avoids double-counting with DB trigger)
+      // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
       const { data: allDebtPayments } = await supabase
         .from('debt_payments')
-        .select('amount')
+        .select('principal_amount')
         .eq('debt_id', debt.id)
         .eq('user_id', user.id);
 
-      const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-      const newRemaining = Math.max(0, debt.total_amount - totalPaid);
+      const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
+      const newRemaining = Math.max(0, debt.total_amount - totalPrincipalPaid);
       const updates: Record<string, any> = { remaining_amount: newRemaining };
       if (newRemaining <= 0) {
         updates.status = 'completed';
@@ -177,15 +181,15 @@ export const DebtDetailsModal = ({
           .eq('user_id', user.id);
       }
 
-      // Recalculate remaining_amount from all debt_payments (avoids double-counting with DB trigger)
+      // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
       const { data: allDebtPayments } = await supabase
         .from('debt_payments')
-        .select('amount')
+        .select('principal_amount')
         .eq('debt_id', debt.id)
         .eq('user_id', user.id);
 
-      const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-      const newRemaining = Math.max(0, debt.total_amount - totalPaid);
+      const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
+      const newRemaining = Math.max(0, debt.total_amount - totalPrincipalPaid);
       const updates: Record<string, any> = { remaining_amount: newRemaining };
       if (debt.status === 'completed' && newRemaining > 0) {
         updates.status = 'active';
@@ -542,6 +546,13 @@ export const DebtDetailsModal = ({
                           <p className={`text-[11px] sm:text-xs font-medium ${isPaid ? 'line-through' : ''}`}>
                             {format(new Date(sp.scheduled_date), 'dd MMM yyyy', { locale: fr })}
                           </p>
+                          {(sp.principal_amount > 0 || sp.interest_amount > 0) && (
+                            <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                              {sp.principal_amount > 0 ? `Capital: ${formatCurrency(sp.principal_amount)}` : ''}
+                              {sp.principal_amount > 0 && sp.interest_amount > 0 ? ' · ' : ''}
+                              {sp.interest_amount > 0 ? `Intérêts: ${formatCurrency(sp.interest_amount)}` : ''}
+                            </p>
+                          )}
                           {isNext && (
                             <p className="text-[9px] sm:text-[10px] text-primary font-medium">Prochaine échéance</p>
                           )}

@@ -553,11 +553,10 @@ function useFinancialDataInternal() {
               .eq('user_id', user.id);
           }
 
-          // Recalculate remaining_amount from all debt_payments (DB trigger may handle this,
-          // but we recalculate to be safe and consistent with executeRecurringTransactionEarly)
+          // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
           const { data: allDebtPayments } = await supabase
             .from('debt_payments')
-            .select('amount')
+            .select('principal_amount')
             .eq('debt_id', linkedRT.debt_id)
             .eq('user_id', user.id);
 
@@ -568,8 +567,8 @@ function useFinancialDataInternal() {
             .single();
 
           if (debtData) {
-            const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-            const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
+            const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
+            const newRemaining = Math.max(0, debtData.total_amount - totalPrincipalPaid);
             const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
             if (debtData.status === 'completed' && newRemaining > 0) {
               debtUpdate.status = 'active';
@@ -620,10 +619,12 @@ function useFinancialDataInternal() {
     }
 
     // For debt-linked recurring transactions, use the scheduled amount for this date
+    let debtScheduledPrincipal = 0;
+    let debtScheduledInterest = 0;
     if (rt.debt_id) {
       const { data: scheduledPayment } = await supabase
         .from('scheduled_debt_payments')
-        .select('scheduled_amount')
+        .select('scheduled_amount, principal_amount, interest_amount')
         .eq('debt_id', rt.debt_id)
         .eq('user_id', user.id)
         .neq('is_paid', true)
@@ -632,6 +633,8 @@ function useFinancialDataInternal() {
         .maybeSingle();
       if (scheduledPayment) {
         transactionAmount = scheduledPayment.scheduled_amount;
+        debtScheduledPrincipal = scheduledPayment.principal_amount || 0;
+        debtScheduledInterest = scheduledPayment.interest_amount || 0;
       } else {
         // Fallback to debt's payment_amount
         const { data: debtData } = await supabase
@@ -787,21 +790,23 @@ function useFinancialDataInternal() {
           .eq('user_id', user.id);
       }
 
-      // Record debt payment
+      // Record debt payment with capital/interest split
       await supabase
         .from('debt_payments')
         .insert({
           debt_id: rt.debt_id,
           user_id: user.id,
           amount: transactionAmount,
+          principal_amount: debtScheduledPrincipal,
+          interest_amount: debtScheduledInterest,
           payment_date: executionDate,
           notes: `Échéance récurrente: ${rt.description}`,
         });
 
-      // Recalculate remaining_amount from all debt_payments (mirrors installment pattern)
+      // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
       const { data: allDebtPayments } = await supabase
         .from('debt_payments')
-        .select('amount')
+        .select('principal_amount')
         .eq('debt_id', rt.debt_id)
         .eq('user_id', user.id);
 
@@ -812,8 +817,8 @@ function useFinancialDataInternal() {
         .single();
 
       if (debtData) {
-        const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-        const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
+        const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
+        const newRemaining = Math.max(0, debtData.total_amount - totalPrincipalPaid);
         const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
         if (newRemaining <= 0) {
           debtUpdate.status = 'completed';
@@ -1021,7 +1026,11 @@ function useFinancialDataInternal() {
             if (rt.debt_id) {
               const monthKey = currentDueDateString.substring(0, 7);
               const matchingScheduled = debtScheduledPayments.find(sp => sp.scheduled_date.substring(0, 7) === monthKey && !sp.is_paid);
+              let scheduledPrincipal = 0;
+              let scheduledInterest = 0;
               if (matchingScheduled) {
+                scheduledPrincipal = matchingScheduled.principal_amount || 0;
+                scheduledInterest = matchingScheduled.interest_amount || 0;
                 await supabase
                   .from('scheduled_debt_payments')
                   .update({ is_paid: true, paid_date: currentDueDateString, actual_amount: occurrenceAmount })
@@ -1037,6 +1046,8 @@ function useFinancialDataInternal() {
                   debt_id: rt.debt_id,
                   user_id: user.id,
                   amount: occurrenceAmount,
+                  principal_amount: scheduledPrincipal,
+                  interest_amount: scheduledInterest,
                   payment_date: currentDueDateString,
                   notes: `Récurrence automatique: ${rt.description}`,
                 });
@@ -1094,10 +1105,10 @@ function useFinancialDataInternal() {
 
         // Update debt remaining_amount if linked
         if (rt.debt_id && occurrencesProcessed > 0) {
-          // Recalculate from all debt_payments
+          // Recalculate from principal paid only (interest does not reduce capital)
           const { data: allDebtPayments } = await supabase
             .from('debt_payments')
-            .select('amount')
+            .select('principal_amount')
             .eq('debt_id', rt.debt_id)
             .eq('user_id', user.id);
 
@@ -1108,8 +1119,8 @@ function useFinancialDataInternal() {
             .single();
 
           if (debtData) {
-            const totalPaid = (allDebtPayments || []).reduce((sum: number, dp: { amount: number }) => sum + Number(dp.amount), 0);
-            const newRemaining = Math.max(0, debtData.total_amount - totalPaid);
+            const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
+            const newRemaining = Math.max(0, debtData.total_amount - totalPrincipalPaid);
             const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
 
             if (newRemaining <= 0) {
