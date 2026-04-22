@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useMemo, createContext, useContext } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { recalculateDebtRemaining } from '@/utils/debtUtils';
 
 
 // Query keys for React Query cache
@@ -512,18 +513,17 @@ function useFinancialDataInternal() {
           const txDate = transactionToDelete.transaction_date;
           const txAmount = Number(transactionToDelete.amount);
 
-          // Find and delete the matching debt_payment (DB trigger auto-adjusts remaining_amount)
-          const { data: matchingDebtPayment } = await supabase
+          // Find and delete the matching debt_payment
+          const { data: debtPaymentsOnDate } = await supabase
             .from('debt_payments')
             .select('id, amount')
             .eq('debt_id', linkedRT.debt_id)
             .eq('user_id', user.id)
-            .eq('payment_date', txDate)
-            .then(res => {
-              if (!res.data) return res;
-              const match = res.data.find(dp => Math.abs(Number(dp.amount) - txAmount) < 0.01);
-              return { ...res, data: match || null };
-            });
+            .eq('payment_date', txDate);
+
+          const matchingDebtPayment = (debtPaymentsOnDate || []).find(
+            dp => Math.abs(Number(dp.amount) - txAmount) < 0.01
+          ) || null;
 
           if (matchingDebtPayment) {
             await supabase
@@ -553,32 +553,7 @@ function useFinancialDataInternal() {
               .eq('user_id', user.id);
           }
 
-          // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
-          const { data: allDebtPayments } = await supabase
-            .from('debt_payments')
-            .select('principal_amount')
-            .eq('debt_id', linkedRT.debt_id)
-            .eq('user_id', user.id);
-
-          const { data: debtData } = await supabase
-            .from('debts')
-            .select('total_amount, status')
-            .eq('id', linkedRT.debt_id)
-            .single();
-
-          if (debtData) {
-            const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
-            const newRemaining = Math.max(0, debtData.total_amount - totalPrincipalPaid);
-            const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
-            if (debtData.status === 'completed' && newRemaining > 0) {
-              debtUpdate.status = 'active';
-            }
-            await supabase
-              .from('debts')
-              .update(debtUpdate)
-              .eq('id', linkedRT.debt_id)
-              .eq('user_id', user.id);
-          }
+          await recalculateDebtRemaining(linkedRT.debt_id, user.id);
 
           // Re-activate the recurring transaction if it was completed
           await supabase
@@ -803,39 +778,13 @@ function useFinancialDataInternal() {
           notes: `Échéance récurrente: ${rt.description}`,
         });
 
-      // Recalculate remaining_amount from principal paid only (interest does not reduce capital)
-      const { data: allDebtPayments } = await supabase
-        .from('debt_payments')
-        .select('principal_amount')
-        .eq('debt_id', rt.debt_id)
-        .eq('user_id', user.id);
-
-      const { data: debtData } = await supabase
-        .from('debts')
-        .select('total_amount')
-        .eq('id', rt.debt_id)
-        .single();
-
-      if (debtData) {
-        const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
-        const newRemaining = Math.max(0, debtData.total_amount - totalPrincipalPaid);
-        const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
-        if (newRemaining <= 0) {
-          debtUpdate.status = 'completed';
-        }
+      const result = await recalculateDebtRemaining(rt.debt_id, user.id);
+      if (result && result.newRemaining <= 0) {
         await supabase
-          .from('debts')
-          .update(debtUpdate)
-          .eq('id', rt.debt_id)
+          .from('recurring_transactions')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', recurringId)
           .eq('user_id', user.id);
-
-        if (newRemaining <= 0) {
-          await supabase
-            .from('recurring_transactions')
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq('id', recurringId)
-            .eq('user_id', user.id);
-        }
       }
     }
 
@@ -1105,37 +1054,12 @@ function useFinancialDataInternal() {
 
         // Update debt remaining_amount if linked
         if (rt.debt_id && occurrencesProcessed > 0) {
-          // Recalculate from principal paid only (interest does not reduce capital)
-          const { data: allDebtPayments } = await supabase
-            .from('debt_payments')
-            .select('principal_amount')
-            .eq('debt_id', rt.debt_id)
-            .eq('user_id', user.id);
-
-          const { data: debtData } = await supabase
-            .from('debts')
-            .select('total_amount')
-            .eq('id', rt.debt_id)
-            .single();
-
-          if (debtData) {
-            const totalPrincipalPaid = (allDebtPayments || []).reduce((sum: number, dp: { principal_amount: number }) => sum + Number(dp.principal_amount), 0);
-            const newRemaining = Math.max(0, debtData.total_amount - totalPrincipalPaid);
-            const debtUpdate: Record<string, unknown> = { remaining_amount: newRemaining };
-
-            if (newRemaining <= 0) {
-              debtUpdate.status = 'completed';
-              await supabase
-                .from('recurring_transactions')
-                .update({ is_active: false, updated_at: new Date().toISOString() })
-                .eq('id', rt.id)
-                .eq('user_id', user.id);
-            }
-
+          const result = await recalculateDebtRemaining(rt.debt_id, user.id);
+          if (result && result.newRemaining <= 0) {
             await supabase
-              .from('debts')
-              .update(debtUpdate)
-              .eq('id', rt.debt_id)
+              .from('recurring_transactions')
+              .update({ is_active: false, updated_at: new Date().toISOString() })
+              .eq('id', rt.id)
               .eq('user_id', user.id);
           }
         }

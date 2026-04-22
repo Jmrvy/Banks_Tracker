@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { debtSchema, validateForm } from '@/lib/validations';
 import { CsvLoanImport } from '@/components/CsvLoanImport';
 import { supabase } from '@/integrations/supabase/client';
+import { useTranslation } from 'react-i18next';
 
 interface NewDebtModalProps {
   open: boolean;
@@ -28,6 +29,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
   const { accounts, categories } = useFinancialData();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('calculator');
   const [calculation, setCalculation] = useState<LoanCalculation | null>(null);
@@ -67,7 +69,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
 
     // loan_received = expense (we pay), loan_given = income (we receive)
     const transactionType = type === 'loan_received' ? 'expense' : 'income';
-    const suffix = type === 'loan_received' ? 'Remboursement dette' : 'Remboursement prêt';
+    const suffix = type === 'loan_received' ? t('debts.debtRepaymentSuffix') : t('debts.loanRepaymentSuffix');
 
     const frequencyMap: Record<string, string> = {
       'monthly': 'monthly',
@@ -98,6 +100,11 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
 
     if (error) {
       console.error('Error creating recurring transaction for debt:', error);
+      toast({
+        title: "Erreur",
+        description: "La transaction récurrente n'a pas pu être créée pour cette dette.",
+        variant: "destructive",
+      });
     }
   };
 

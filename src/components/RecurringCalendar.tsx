@@ -78,9 +78,11 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
 
       {dayTransactions.length > 0 && (
         <span className={`text-[7px] sm:text-[10px] font-bold mt-0.5 ${
-          dayTransactions.every(d => d.isPast)
-            ? 'text-muted-foreground line-through'
-            : dayTotal >= 0 ? 'text-success' : 'text-destructive'
+          dayTransactions.some(d => d.isOverdue)
+            ? 'text-warning'
+            : dayTransactions.every(d => d.isPast)
+              ? 'text-muted-foreground line-through'
+              : dayTotal >= 0 ? 'text-success' : 'text-destructive'
         }`}>
           {formatCurrency(Math.abs(dayTotal))}
         </span>
@@ -279,12 +281,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return (transaction: RecurringTransaction): Debt | null => {
       if (transaction.debt_id) return debtsById.get(transaction.debt_id) || null;
       // Fallback: match by description pattern for old recurring transactions without debt_id
-      if (transaction.description.includes('(Remboursement dette)') || transaction.description.includes('(Remboursement prêt)')) {
-        for (const d of debts) {
-          const suffixReceived = `${d.description} (Remboursement dette)`;
-          const suffixGiven = `${d.description} (Remboursement prêt)`;
-          if (transaction.description === suffixReceived || transaction.description === suffixGiven) return d;
-        }
+      for (const d of debts) {
+        if (transaction.description.startsWith(d.description + ' (')) return d;
       }
       return null;
     };
@@ -721,7 +719,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     const paid = debt.total_amount - debt.remaining_amount;
     const paidCount = debtPaidCounts.get(debt.id) || 0;
     const totalScheduled = scheduledDebtPayments.filter(sp => sp.debt_id === debt.id).length;
-    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 0);
+    const totalCount = totalScheduled > 0 ? totalScheduled : (debt.payment_amount > 0 ? Math.ceil(debt.total_amount / debt.payment_amount) : 1);
     const pct = debt.total_amount > 0 ? Math.min(100, Math.round((paid / debt.total_amount) * 1000) / 10) : 0;
     return { debt, paid, paidCount, totalCount, pct };
   };
@@ -1131,6 +1129,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded bg-destructive/20" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded bg-warning/30" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">En retard</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded bg-muted/50" />

@@ -243,7 +243,19 @@
     "addPayment": "Ajouter un paiement",
     "paymentHistory": "Historique des paiements",
     "iOwe": "Je dois",
-    "owedToMe": "On me doit"
+    "owedToMe": "On me doit",
+    "principalAmount": "Capital",
+    "interestAmount": "Intérêts",
+    "debtRepaymentSuffix": "Remboursement dette",
+    "loanRepaymentSuffix": "Remboursement prêt",
+    "statusActive": "Actif",
+    "statusCompleted": "Terminé",
+    "statusDefaulted": "En défaut",
+    "overdue": "En retard",
+    "paid": "Payé",
+    "scheduled": "Programmé",
+    "totalPrincipal": "Total capital remboursé",
+    "totalInterest": "Total intérêts payés"
   },
   "recurring": {
     "title": "Transactions Récurrentes",
@@ -260,7 +272,12 @@
       "monthly": "Mensuel",
       "quarterly": "Trimestriel",
       "yearly": "Annuel"
-    }
+    },
+    "calendarLegendIncome": "Revenus",
+    "calendarLegendExpense": "Dépenses",
+    "calendarLegendOverdue": "En retard",
+    "calendarLegendPast": "Passées",
+    "monthTotal": "Total du mois"
   },
   "installments": {
     "title": "Paiements Échelonnés",

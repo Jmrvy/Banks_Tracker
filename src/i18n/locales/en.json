@@ -243,7 +243,19 @@
     "addPayment": "Add payment",
     "paymentHistory": "Payment history",
     "iOwe": "I owe",
-    "owedToMe": "Owed to me"
+    "owedToMe": "Owed to me",
+    "principalAmount": "Principal",
+    "interestAmount": "Interest",
+    "debtRepaymentSuffix": "Debt repayment",
+    "loanRepaymentSuffix": "Loan repayment",
+    "statusActive": "Active",
+    "statusCompleted": "Completed",
+    "statusDefaulted": "Defaulted",
+    "overdue": "Overdue",
+    "paid": "Paid",
+    "scheduled": "Scheduled",
+    "totalPrincipal": "Total principal repaid",
+    "totalInterest": "Total interest paid"
   },
   "recurring": {
     "title": "Recurring Transactions",
@@ -260,7 +272,12 @@
       "monthly": "Monthly",
       "quarterly": "Quarterly",
       "yearly": "Yearly"
-    }
+    },
+    "calendarLegendIncome": "Income",
+    "calendarLegendExpense": "Expenses",
+    "calendarLegendOverdue": "Overdue",
+    "calendarLegendPast": "Past",
+    "monthTotal": "Monthly total"
   },
   "installments": {
     "title": "Installment Payments",

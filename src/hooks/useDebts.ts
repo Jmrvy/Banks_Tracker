@@ -110,10 +110,13 @@ export const useDebts = () => {
   };
 
   const updateDebt = async (id: string, updates: Partial<Debt>) => {
+    if (!user) return;
+
     const { error } = await supabase
       .from('debts')
       .update(updates)
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
       toast({
@@ -265,9 +268,15 @@ export const useDebts = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'debt_payments' }, fetchPayments)
         .subscribe();
 
+      const scheduledSubscription = supabase
+        .channel('scheduled_debt_payments_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_debt_payments' }, fetchDebts)
+        .subscribe();
+
       return () => {
         debtsSubscription.unsubscribe();
         paymentsSubscription.unsubscribe();
+        scheduledSubscription.unsubscribe();
       };
     }
   }, [user]);
