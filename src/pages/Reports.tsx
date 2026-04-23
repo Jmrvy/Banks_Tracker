@@ -20,6 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PeriodRecurringItem } from "@/hooks/useReportsData";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -114,14 +115,7 @@ const Reports = () => {
   } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, incomeExpenseDateType, undefined, { skipHeavyComputations: true });
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-          <p className="text-sm text-muted-foreground">Chargement des récapitulatifs...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Chargement..." />;
   }
 
   return (
@@ -136,7 +130,7 @@ const Reports = () => {
               </div>
               Analyse
             </h1>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+            <p className="text-xs sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
               {period.label}
             </p>
           </div>
@@ -172,16 +166,16 @@ const Reports = () => {
         {/* Graphiques et analyses */}
         <Tabs defaultValue="evolution" className="space-y-3 w-full">
           <TabsList className="w-full grid grid-cols-4 h-9 sm:h-10 p-0.5 sm:p-1">
-            <TabsTrigger value="evolution" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
+            <TabsTrigger value="evolution" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Évolution
             </TabsTrigger>
-            <TabsTrigger value="income" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
+            <TabsTrigger value="income" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Revenus
             </TabsTrigger>
-            <TabsTrigger value="categories" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
+            <TabsTrigger value="categories" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Dépenses
             </TabsTrigger>
-            <TabsTrigger value="recurring" className="text-[10px] sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
+            <TabsTrigger value="recurring" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
               Récurrents
             </TabsTrigger>
           </TabsList>
@@ -207,7 +201,7 @@ const Reports = () => {
                   onCheckedChange={setIncludeUpcoming}
                   className="scale-75"
                 />
-                <Label htmlFor="upcoming-income" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                <Label htmlFor="upcoming-income" className="text-xs sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
                   <Clock className="h-3 w-3" />
                   À venir
                 </Label>
@@ -250,7 +244,7 @@ const Reports = () => {
                   onCheckedChange={setIncludeUpcoming}
                   className="scale-75"
                 />
-                <Label htmlFor="upcoming-expenses" className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                <Label htmlFor="upcoming-expenses" className="text-xs sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
                   <Clock className="h-3 w-3" />
                   À venir
                 </Label>

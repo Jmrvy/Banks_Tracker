@@ -12,6 +12,7 @@ import {
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, CHART_SEMANTIC, formatAxisValue } from '@/lib/chartConfig';
 
 interface ScheduledPayment {
   scheduled_date: string;
@@ -70,10 +71,10 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
     if (!data) return null;
 
     return (
-      <div className="rounded-lg border bg-popover p-2.5 shadow-md text-xs space-y-1">
+      <div className={TOOLTIP_CLASS + " space-y-1"}>
         <p className="font-medium">
           {format(new Date(data.date + 'T00:00:00'), 'dd MMM yyyy', { locale: fr })}
-          {data.isPaid && <span className="text-green-500 ml-1.5">Payé</span>}
+          {data.isPaid && <span className="text-success ml-1.5">Payé</span>}
         </p>
         <div className="space-y-0.5 text-muted-foreground">
           <p>Capital restant: <span className="text-foreground font-medium">{formatCurrency(data.remaining)}</span></p>
@@ -92,13 +93,13 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
 
         {/* Cost summary */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-3">
-          <div className="bg-blue-500/10 rounded-lg p-1.5 sm:p-2">
+          <div className="bg-[hsl(200,75%,60%)]/10 rounded-lg p-1.5 sm:p-2">
             <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Intérêts</p>
-            <p className="text-[11px] sm:text-sm font-bold text-blue-600 truncate">{formatCurrency(totals.interest)}</p>
+            <p className="text-[11px] sm:text-sm font-bold text-[hsl(200,75%,60%)] truncate">{formatCurrency(totals.interest)}</p>
           </div>
-          <div className="bg-purple-500/10 rounded-lg p-1.5 sm:p-2">
+          <div className="bg-[hsl(280,70%,65%)]/10 rounded-lg p-1.5 sm:p-2">
             <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Assurance</p>
-            <p className="text-[11px] sm:text-sm font-bold text-purple-600 truncate">{formatCurrency(totals.insurance)}</p>
+            <p className="text-[11px] sm:text-sm font-bold text-[hsl(280,70%,65%)] truncate">{formatCurrency(totals.insurance)}</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-1.5 sm:p-2">
             <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Coût total</p>
@@ -116,19 +117,19 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
                   <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                tick={AXIS_TICK}
                 tickLine={false}
                 axisLine={false}
                 interval={tickInterval}
               />
               <YAxis
-                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                tick={AXIS_TICK}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString()}
+                tickFormatter={formatAxisValue}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
@@ -139,10 +140,10 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
                 strokeWidth={2}
                 dot={false}
               />
-              <Bar dataKey="principal" stackId="breakdown" fill="#22c55e" opacity={0.7} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="interest" stackId="breakdown" fill="#3b82f6" opacity={0.7} radius={[0, 0, 0, 0]} />
+              <Bar dataKey="principal" stackId="breakdown" fill={CHART_SEMANTIC.principal} opacity={0.7} radius={[0, 0, 0, 0]} />
+              <Bar dataKey="interest" stackId="breakdown" fill={CHART_SEMANTIC.interest} opacity={0.7} radius={[0, 0, 0, 0]} />
               {totals.insurance > 0 && (
-                <Bar dataKey="insurance" stackId="breakdown" fill="#a855f7" opacity={0.7} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="insurance" stackId="breakdown" fill={CHART_SEMANTIC.insurance} opacity={0.7} radius={[2, 2, 0, 0]} />
               )}
             </ComposedChart>
           </ResponsiveContainer>
@@ -155,16 +156,16 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
             <span className="text-[9px] sm:text-[10px] text-muted-foreground">Capital restant</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+            <div className="w-2.5 h-2.5 rounded-full bg-success" />
             <span className="text-[9px] sm:text-[10px] text-muted-foreground">Capital</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'hsl(200, 75%, 60%)' }} />
             <span className="text-[9px] sm:text-[10px] text-muted-foreground">Intérêts</span>
           </div>
           {totals.insurance > 0 && (
             <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'hsl(280, 70%, 65%)' }} />
               <span className="text-[9px] sm:text-[10px] text-muted-foreground">Assurance</span>
             </div>
           )}

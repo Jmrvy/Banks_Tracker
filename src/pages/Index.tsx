@@ -17,6 +17,7 @@ import { QuickPreview } from "@/components/QuickPreview";
 import { AggregatedBalanceEvolution } from "@/components/dashboard/AggregatedBalanceEvolution";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard } from "lucide-react";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 const Index = () => {
   const { user } = useAuth();
@@ -40,14 +41,7 @@ const Index = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-          <p className="text-sm text-muted-foreground">Chargement de vos données financières...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Chargement de vos données financières..." />;
   }
 
   // Redirect new users to onboarding setup

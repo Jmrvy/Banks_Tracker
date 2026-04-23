@@ -385,7 +385,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
-              className="flex-1 h-9 text-xs sm:text-sm"
+              className="min-w-[100px] h-9 text-xs sm:text-sm"
             >
               Annuler
             </Button>

@@ -1,16 +1,18 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  ResponsiveContainer, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
   Tooltip,
   Cell
 } from "recharts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, formatAxisValue } from "@/lib/chartConfig";
 
 interface CategoryData {
   name: string;
@@ -77,8 +79,8 @@ export function CategoryCumulativeChart({
       const data = payload[0].payload;
       return (
         <div className={cn(
-          "bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl",
-          "p-2.5 sm:p-3 max-w-[180px] sm:max-w-none",
+          TOOLTIP_CLASS,
+          "max-w-[180px] sm:max-w-none",
           "animate-scale-in"
         )}>
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 pb-1.5 border-b border-border/30">
@@ -142,12 +144,10 @@ export function CategoryCumulativeChart({
                 bottom: isMobile ? 55 : 45 
               }}
             >
-              <XAxis 
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis
                 dataKey="displayName"
-                tick={{ 
-                  fontSize: isMobile ? 9 : 11, 
-                  fill: 'hsl(var(--foreground))'
-                }}
+                tick={AXIS_TICK}
                 axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
                 tickLine={false}
                 height={isMobile ? 50 : 40}
@@ -155,12 +155,9 @@ export function CategoryCumulativeChart({
                 angle={isMobile ? -45 : -35}
                 textAnchor="end"
               />
-              <YAxis 
-                tickFormatter={(value) => {
-                  if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
-                  return value.toString();
-                }}
-                tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
+              <YAxis
+                tickFormatter={formatAxisValue}
+                tick={AXIS_TICK}
                 axisLine={false}
                 tickLine={false}
                 width={isMobile ? 35 : 45}

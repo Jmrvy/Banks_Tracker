@@ -24,6 +24,7 @@ import { DebtDetailsModal } from '@/components/DebtDetailsModal';
 import DebtCard from '@/components/DebtCard';
 import { useDebts, Debt, DebtPayment } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 
 const Debts = () => {
@@ -104,14 +105,7 @@ const Debts = () => {
   });
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-          <p className="text-sm text-muted-foreground">Chargement des dettes...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Chargement..." />;
   }
 
   return (
@@ -141,12 +135,12 @@ const Debts = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
           <Card className="stat-card">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground whitespace-nowrap">Total dû</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Total dû</p>
                   <div className="icon-badge icon-badge-sm bg-destructive/10 flex-shrink-0 flex">
                     <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-destructive" />
                   </div>
@@ -162,7 +156,7 @@ const Debts = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Actifs</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Actifs</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {activeDebts.length}
                   </p>
@@ -178,7 +172,7 @@ const Debts = () => {
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Terminés</p>
+                  <p className="section-header text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Terminés</p>
                   <p className="text-base sm:text-2xl font-bold">
                     {completedDebts.length}
                   </p>
