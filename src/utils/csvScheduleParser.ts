@@ -278,12 +278,22 @@ export async function parseLoanCSV(file: File): Promise<ParsedLoanInfo & { valid
   const duration = schedule.length || null;
   const monthlyPayment = schedule.length > 0 ? schedule[0].payment : null;
 
-  // Interest rate estimate: use interest / outstanding balance from the row
+  // Interest rate estimate: skip the first interest row (often a partial period)
+  // and use the second one for a more accurate full-month calculation
   let interestRate: number | null = null;
-  const firstInterestIdx = schedule.findIndex(r => r.interest > 0);
-  if (firstInterestIdx >= 0) {
-    const row = schedule[firstInterestIdx];
-    // The balance interest is calculated on: remaining + principal paid in this period
+  const interestRows = schedule.filter(r => r.interest > 0);
+  if (interestRows.length >= 2) {
+    const row = interestRows[1];
+    const balanceForInterest = row.remainingBalance + row.principal;
+    if (balanceForInterest > 0) {
+      const monthlyRate = row.interest / balanceForInterest;
+      const annual = monthlyRate * 12 * 100;
+      if (annual > 0 && annual < 30) {
+        interestRate = Math.round(annual * 100) / 100;
+      }
+    }
+  } else if (interestRows.length === 1) {
+    const row = interestRows[0];
     const balanceForInterest = row.remainingBalance + row.principal;
     if (balanceForInterest > 0) {
       const monthlyRate = row.interest / balanceForInterest;
