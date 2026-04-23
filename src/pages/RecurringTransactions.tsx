@@ -205,6 +205,12 @@ const RecurringTransactions = () => {
       listDisplayAmount = installmentInfo.ip.installment_amount;
     }
 
+    // For debt-linked recurring: check if any scheduled_debt_payment is overdue
+    // (past date with is_paid === false), even if next_due_date has advanced
+    const hasOverdueDebtPayment = debtInfo ? scheduledDebtPayments.some(
+      sp => sp.debt_id === debtInfo.debt.id && sp.is_paid === false && parseLocalDate(sp.scheduled_date) < today
+    ) : false;
+
     return (
       <Card
         key={recurring.id}
@@ -244,7 +250,7 @@ const RecurringTransactions = () => {
               <Clock className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">
                 {recurring.is_active ? (
-                  daysUntil < 0 ? 'En retard' :
+                  (daysUntil < 0 || hasOverdueDebtPayment) ? 'En retard' :
                   daysUntil === 0 ? "Aujourd'hui" :
                   daysUntil === 1 ? 'Demain' :
                   `Dans ${daysUntil} jours`
@@ -282,7 +288,7 @@ const RecurringTransactions = () => {
         {/* Expanded detail */}
         {isExpanded && (
           <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm md:max-w-md">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground text-xs">Fréquence</span>
                 <span className="font-medium text-xs sm:text-sm">{getRecurrenceLabel(recurring.recurrence_type)}</span>
@@ -338,7 +344,7 @@ const RecurringTransactions = () => {
 
             {/* Installment progress */}
             {installmentInfo && (
-              <div className="space-y-3">
+              <div className="space-y-3 md:max-w-md">
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <div>
@@ -386,7 +392,7 @@ const RecurringTransactions = () => {
 
             {/* Debt progress */}
             {debtInfo && (
-              <div className="space-y-3">
+              <div className="space-y-3 md:max-w-md">
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <div>
@@ -433,7 +439,7 @@ const RecurringTransactions = () => {
             )}
 
             {/* Action buttons */}
-            <div className="flex gap-2 pt-2 border-t border-border/50">
+            <div className="flex gap-2 pt-2 border-t border-border/50 md:max-w-md">
               <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
                 onClick={() => setEditingTransaction(recurring)}>
                 <Pencil className="h-3.5 w-3.5" /> Modifier
@@ -604,7 +610,7 @@ const RecurringTransactions = () => {
           </TabsContent>
 
           {/* List View - Klarna-style */}
-          <TabsContent value="list" className="mt-4 space-y-4">
+          <TabsContent value="list" className="mt-4 space-y-4 md:max-w-3xl md:mx-auto">
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
