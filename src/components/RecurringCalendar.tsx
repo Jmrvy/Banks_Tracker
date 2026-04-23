@@ -440,10 +440,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             const debtKey = `${resolvedDebtId}:${monthKey}`;
             if (isPast) {
               // Cross-check the scheduled_debt_payments table for this month.
-              // If a scheduled payment exists and is_paid is explicitly false,
+              // If a scheduled payment exists and is_paid is not true (false or null),
               // treat the occurrence as overdue regardless of other sources.
               const scheduledForMonth = scheduledDebtPaymentsByDebtMonth.get(debtKey);
-              const scheduledExplicitlyUnpaid = scheduledForMonth && scheduledForMonth.is_paid === false;
+              const scheduledExplicitlyUnpaid = scheduledForMonth && scheduledForMonth.is_paid !== true;
 
               const actualAmount = debtActualAmounts.get(debtKey);
               // Also check linked transactions as a second source of truth

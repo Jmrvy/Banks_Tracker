@@ -206,9 +206,9 @@ const RecurringTransactions = () => {
     }
 
     // For debt-linked recurring: check if any scheduled_debt_payment is overdue
-    // (past date with is_paid === false), even if next_due_date has advanced
+    // (past date with is_paid not true), even if next_due_date has advanced
     const hasOverdueDebtPayment = debtInfo ? scheduledDebtPayments.some(
-      sp => sp.debt_id === debtInfo.debt.id && sp.is_paid === false && parseLocalDate(sp.scheduled_date) < today
+      sp => sp.debt_id === debtInfo.debt.id && sp.is_paid !== true && parseLocalDate(sp.scheduled_date) < today
     ) : false;
 
     return (
