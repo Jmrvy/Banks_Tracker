@@ -9,6 +9,7 @@ import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
+import { OverdueDebtPaymentsAlert } from "@/components/OverdueDebtPaymentsAlert";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ExcludedTransactionsModal } from "@/components/ExcludedTransactionsModal";
 import { QuickPreview } from "@/components/QuickPreview";
@@ -90,6 +91,7 @@ const Index = () => {
 
       <div className="p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6">
         <RecurringTransactionsWarning />
+        <OverdueDebtPaymentsAlert />
 
         {/* Stats cards */}
         <StatsCards 
