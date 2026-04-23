@@ -38,7 +38,8 @@
     "balance": "Solde",
     "currency": "Devise",
     "pageNotFound": "Oops ! Page introuvable",
-    "returnHome": "Retour à l'accueil"
+    "returnHome": "Retour à l'accueil",
+    "menu": "Menu"
   },
   "navigation": {
     "home": "Accueil",

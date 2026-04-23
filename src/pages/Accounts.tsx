@@ -10,6 +10,7 @@ import { AccountDetails } from "@/components/AccountDetails";
 import { getBankLabel, getAccountTypeLabel } from "@/lib/constants";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
@@ -29,16 +30,7 @@ const Accounts = () => {
   }, [accounts, selectedAccountId]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Chargement..." />;
   }
 
   // If an account is selected, show its details
@@ -137,7 +129,7 @@ const Accounts = () => {
                       <h3 className="font-semibold text-base sm:text-lg truncate">{account.name}</h3>
                       <p className="text-xs sm:text-sm text-muted-foreground">{getBankLabel(account.bank, t)}</p>
                     </div>
-                    <Badge variant="outline" className="text-[10px] sm:text-xs flex-shrink-0">
+                    <Badge variant="outline" className="text-xs sm:text-xs flex-shrink-0">
                       {getAccountTypeLabel(account.account_type, t)}
                     </Badge>
                   </div>

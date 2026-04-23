@@ -41,7 +41,7 @@ export const MobileNavigation = () => {
                 }`}
               >
                 <Icon className={`h-5 w-5 transition-transform ${isItemActive ? 'scale-110' : ''}`} />
-                <span className={`text-[10px] leading-tight font-medium ${isItemActive ? 'font-semibold' : ''}`}>
+                <span className={`text-xs leading-tight font-medium ${isItemActive ? 'font-semibold' : ''}`}>
                   {t(item.nameKey)}
                 </span>
               </Button>
@@ -60,7 +60,7 @@ export const MobileNavigation = () => {
             }`}
           >
             <Plus className={`h-5 w-5 transition-transform ${location.pathname === "/new-transaction" ? 'scale-110' : ''}`} />
-            <span className={`text-[10px] leading-tight font-medium ${location.pathname === "/new-transaction" ? 'font-semibold' : ''}`}>
+            <span className={`text-xs leading-tight font-medium ${location.pathname === "/new-transaction" ? 'font-semibold' : ''}`}>
               {t('common.add')}
             </span>
           </Button>
@@ -73,7 +73,7 @@ export const MobileNavigation = () => {
             className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
           >
             <Menu className="h-5 w-5" />
-            <span className="text-[10px] leading-tight font-medium">Menu</span>
+            <span className="text-xs leading-tight font-medium">{t('common.menu')}</span>
           </Button>
         </div>
       </nav>
@@ -81,7 +81,7 @@ export const MobileNavigation = () => {
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="right" className="w-[280px] p-0">
           <SheetHeader className="px-6 py-4 border-b">
-            <SheetTitle className="text-left">Menu</SheetTitle>
+            <SheetTitle className="text-left">{t('common.menu')}</SheetTitle>
           </SheetHeader>
 
           <nav className="flex-1 overflow-y-auto py-4">

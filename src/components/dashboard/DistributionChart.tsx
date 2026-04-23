@@ -6,16 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 import { cn } from "@/lib/utils";
-
-const COLORS = [
-  'hsl(340, 75%, 60%)', // Pink
-  'hsl(38, 70%, 68%)',  // Gold
-  'hsl(200, 75%, 60%)', // Blue
-  'hsl(150, 65%, 55%)', // Green
-  'hsl(280, 70%, 65%)', // Purple
-  'hsl(25, 75%, 60%)',  // Orange
-  'hsl(210, 15%, 50%)', // Gray
-];
+import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
 
 interface DistributionChartProps {
   startDate: Date;
@@ -51,7 +42,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     
     monthTransactions.forEach(t => {
       const catName = t.category?.name || 'Unknown';
-      const catColor = t.category?.color || COLORS[0];
+      const catColor = t.category?.color || CHART_COLORS[0];
       const refundedAmount = t.refunded_amount || 0;
       const netAmount = Math.max(0, t.amount - refundedAmount);
       if (netAmount <= 0) return; // Skip fully refunded transactions
@@ -89,8 +80,8 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       const data = payload[0].payload;
       return (
         <div className={cn(
-          "bg-popover/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-[0_8px_32px_-4px_hsl(220_20%_4%/0.6)]",
-          "p-2.5 sm:p-3 max-w-[160px] sm:max-w-none",
+          TOOLTIP_CLASS,
+          "max-w-[160px] sm:max-w-none",
           "animate-scale-in"
         )}>
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 pb-1.5 border-b border-border/30">

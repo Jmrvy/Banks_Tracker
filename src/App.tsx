@@ -34,6 +34,7 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { InlineSpinner } from "@/components/LoadingSpinner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,7 +50,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center"><InlineSpinner /></div>;
   }
   
   if (!user) {
@@ -80,7 +81,7 @@ function AppRoutes() {
     <>
       {user && !isOnboardingPage && !isMobile && <AppSidebar />}
       <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pb-20 min-h-screen" : "min-h-screen"}>
-        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" /></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><InlineSpinner /></div>}>
         <Routes>
           <Route 
             path="/auth" 
@@ -186,9 +187,7 @@ function AppRoutes() {
 
 const I18nLoadingFallback = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="text-center space-y-4">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-    </div>
+    <InlineSpinner />
   </div>
 );
 

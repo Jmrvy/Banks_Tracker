@@ -7,6 +7,7 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { eachDayOfInterval, format, isSameDay, isBefore, addWeeks, addMonths, addQuarters, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, formatAxisValue } from "@/lib/chartConfig";
 
 interface CashflowChartProps {
   startDate: Date;
@@ -168,7 +169,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
       const isProjection = data.balance === null && data.projectedBalance !== null;
 
       return (
-        <div className="bg-popover/90 backdrop-blur-2xl border border-white/[0.08] rounded-xl shadow-[0_8px_32px_-4px_hsl(220_20%_4%/0.6),inset_0_0.5px_0_0_hsl(210_20%_98%/0.08)] p-3">
+        <div className={TOOLTIP_CLASS}>
           <p className="text-sm font-medium mb-2">{data.date}</p>
           <div className="space-y-1 text-xs">
             <div className="flex items-center justify-between gap-4">
@@ -211,19 +212,19 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+        <CartesianGrid {...GRID_PROPS} />
         <XAxis
           dataKey="date"
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
+          tick={AXIS_TICK}
           tickLine={false}
+          axisLine={false}
           interval="preserveStartEnd"
         />
         <YAxis
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
+          tick={AXIS_TICK}
           tickLine={false}
-          tickFormatter={(value) => `${value.toLocaleString()}€`}
+          axisLine={false}
+          tickFormatter={formatAxisValue}
           width={60}
         />
         <Tooltip content={<CustomTooltip />} />

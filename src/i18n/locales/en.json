@@ -38,7 +38,8 @@
     "balance": "Balance",
     "currency": "Currency",
     "pageNotFound": "Oops! Page not found",
-    "returnHome": "Return to Home"
+    "returnHome": "Return to Home",
+    "menu": "Menu"
   },
   "navigation": {
     "home": "Home",

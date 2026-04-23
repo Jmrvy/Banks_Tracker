@@ -16,6 +16,7 @@ import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import {
   AreaChart,
   Area,
@@ -215,16 +216,7 @@ const Savings = () => {
   };
 
   if (loading || goalsLoading || installmentsLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Chargement..." />;
   }
 
   return (
@@ -260,7 +252,7 @@ const Savings = () => {
         </div>
 
         {/* Investment Statistics for Period */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
           <Card className="stat-card">
             <CardContent className="p-2.5 sm:p-4">
               <div className="flex items-center justify-between gap-1">
@@ -317,7 +309,7 @@ const Savings = () => {
                   <p className="text-base sm:text-2xl font-bold text-success truncate">
                     +{formatCurrency(reimbursementStats.total)}
                   </p>
-                  <p className="text-[9px] sm:text-xs text-muted-foreground">
+                  <p className="text-xs sm:text-xs text-muted-foreground">
                     {reimbursementStats.count} tx
                   </p>
                 </div>

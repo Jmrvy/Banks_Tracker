@@ -152,7 +152,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
 
   return (
     <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {cards.map((card) => (
           <Card
             key={card.label}
@@ -161,7 +161,7 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
             }`}
             onClick={() => handleCardClick(card.label)}
           >
-            <CardContent className="p-2.5 sm:p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1 min-w-0 mb-0.5 sm:mb-1">

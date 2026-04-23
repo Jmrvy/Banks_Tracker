@@ -82,7 +82,12 @@ export const CommandPalette = () => {
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Rechercher une page, transaction, compte, dette..." />
       <CommandList>
-        <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
+        <CommandEmpty>
+          <div className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">Aucun résultat trouvé</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Essayez un autre terme de recherche</p>
+          </div>
+        </CommandEmpty>
 
         <CommandGroup heading="Pages">
           {pages.map((page) => {

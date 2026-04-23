@@ -40,8 +40,8 @@ export const BudgetAlertsCard = () => {
       .sort((a, b) => b.percent - a.percent);
   }, [categoryChartData]);
 
-  const exceeded = alerts.filter(a => a.percent >= 100);
-  const approaching = alerts.filter(a => a.percent < 100);
+  const exceeded = alerts.filter(a => a.percent > 100);
+  const approaching = alerts.filter(a => a.percent <= 100);
 
   const handleCategoryClick = (catName: string) => {
     setSelectedCategory(catName);
