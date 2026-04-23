@@ -69,7 +69,32 @@
     "signInError": "Erreur de connexion",
     "signUpError": "Erreur d'inscription",
     "signUpSuccess": "Inscription réussie",
-    "signUpSuccessDesc": "Vérifiez votre email pour confirmer votre compte."
+    "signUpSuccessDesc": "Vérifiez votre email pour confirmer votre compte.",
+    "fullName": "Nom complet",
+    "signInTab": "Connexion",
+    "signUpTab": "Inscription",
+    "emailPlaceholder": "Saisissez votre email",
+    "passwordPlaceholder": "Saisissez votre mot de passe",
+    "namePlaceholder": "Saisissez votre nom complet",
+    "createPasswordPlaceholder": "Créez un mot de passe",
+    "passwordHint": "8 caractères min, majuscule, minuscule, chiffre",
+    "signingIn": "Connexion...",
+    "signingUp": "Création...",
+    "checkEmail": "Vérifiez votre email",
+    "checkEmailDesc": "Nous vous avons envoyé un lien de confirmation.",
+    "unexpectedError": "Erreur",
+    "unexpectedErrorDesc": "Une erreur inattendue s'est produite",
+    "validation": {
+      "emailInvalid": "Format email invalide",
+      "emailTooLong": "Email trop long",
+      "passwordRequired": "Mot de passe requis",
+      "nameRequired": "Nom requis",
+      "nameTooLong": "Nom trop long",
+      "passwordMin": "Minimum 8 caractères",
+      "passwordUppercase": "Au moins une majuscule",
+      "passwordLowercase": "Au moins une minuscule",
+      "passwordDigit": "Au moins un chiffre"
+    }
   },
   "accounts": {
     "title": "Comptes",

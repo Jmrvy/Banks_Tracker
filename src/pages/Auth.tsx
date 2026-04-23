@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,22 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { z } from 'zod';
 
-const signInSchema = z.object({
-  email: z.string().email('Format email invalide').max(255, 'Email trop long'),
-  password: z.string().min(1, 'Mot de passe requis'),
-});
-
-const signUpSchema = z.object({
-  fullName: z.string().trim().min(1, 'Nom requis').max(100, 'Nom trop long'),
-  email: z.string().email('Format email invalide').max(255, 'Email trop long'),
-  password: z.string()
-    .min(8, 'Minimum 8 caractères')
-    .regex(/[A-Z]/, 'Au moins une majuscule')
-    .regex(/[a-z]/, 'Au moins une minuscule')
-    .regex(/[0-9]/, 'Au moins un chiffre'),
-});
-
 export default function Auth() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -32,10 +19,24 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const signInSchema = z.object({
+    email: z.string().email(t('auth.validation.emailInvalid')).max(255, t('auth.validation.emailTooLong')),
+    password: z.string().min(1, t('auth.validation.passwordRequired')),
+  });
+
+  const signUpSchema = z.object({
+    fullName: z.string().trim().min(1, t('auth.validation.nameRequired')).max(100, t('auth.validation.nameTooLong')),
+    email: z.string().email(t('auth.validation.emailInvalid')).max(255, t('auth.validation.emailTooLong')),
+    password: z.string()
+      .min(8, t('auth.validation.passwordMin'))
+      .regex(/[A-Z]/, t('auth.validation.passwordUppercase'))
+      .regex(/[a-z]/, t('auth.validation.passwordLowercase'))
+      .regex(/[0-9]/, t('auth.validation.passwordDigit')),
+  });
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        // After signup, redirect to onboarding; otherwise to dashboard
         const needsOnboarding = localStorage.getItem('budget-app-needs-onboarding');
         if (needsOnboarding) {
           navigate('/onboarding');
@@ -57,7 +58,7 @@ export default function Auth() {
       if (!validation.success) {
         const firstError = validation.error.errors[0];
         toast({
-          title: "Erreur de validation",
+          title: t('auth.validationError'),
           description: firstError.message,
           variant: "destructive",
         });
@@ -72,15 +73,15 @@ export default function Auth() {
 
       if (error) {
         toast({
-          title: "Erreur de connexion",
+          title: t('auth.signInError'),
           description: error.message,
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        title: t('auth.unexpectedError'),
+        description: t('auth.unexpectedErrorDesc'),
         variant: "destructive",
       });
     }
@@ -97,7 +98,7 @@ export default function Auth() {
       if (!validation.success) {
         const firstError = validation.error.errors[0];
         toast({
-          title: "Erreur de validation",
+          title: t('auth.validationError'),
           description: firstError.message,
           variant: "destructive",
         });
@@ -118,22 +119,21 @@ export default function Auth() {
 
       if (error) {
         toast({
-          title: "Erreur d'inscription",
+          title: t('auth.signUpError'),
           description: error.message,
           variant: "destructive",
         });
       } else {
-        // Flag for onboarding redirect after email confirmation or auto-login
         localStorage.setItem('budget-app-needs-onboarding', 'true');
         toast({
-          title: "Vérifiez votre email",
-          description: "Nous vous avons envoyé un lien de confirmation.",
+          title: t('auth.checkEmail'),
+          description: t('auth.checkEmailDesc'),
         });
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        title: t('auth.unexpectedError'),
+        description: t('auth.unexpectedErrorDesc'),
         variant: "destructive",
       });
     }
@@ -146,27 +146,27 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center p-4 sm:p-6">
           <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
-            Bienvenue sur JMRVY CB
+            {t('auth.welcome')}
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm mt-1.5">
-            Connectez-vous ou créez un compte
+            {t('auth.welcomeSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
-              <TabsTrigger value="signin" className="text-xs sm:text-sm">Connexion</TabsTrigger>
-              <TabsTrigger value="signup" className="text-xs sm:text-sm">Inscription</TabsTrigger>
+              <TabsTrigger value="signin" className="text-xs sm:text-sm">{t('auth.signInTab')}</TabsTrigger>
+              <TabsTrigger value="signup" className="text-xs sm:text-sm">{t('auth.signUpTab')}</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="signin-email" className="text-xs sm:text-sm">Email</Label>
+                  <Label htmlFor="signin-email" className="text-xs sm:text-sm">{t('auth.email')}</Label>
                   <Input
                     id="signin-email"
                     type="email"
-                    placeholder="Saisissez votre email"
+                    placeholder={t('auth.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -174,11 +174,11 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="signin-password" className="text-xs sm:text-sm">Mot de passe</Label>
+                  <Label htmlFor="signin-password" className="text-xs sm:text-sm">{t('auth.password')}</Label>
                   <Input
                     id="signin-password"
                     type="password"
-                    placeholder="Saisissez votre mot de passe"
+                    placeholder={t('auth.passwordPlaceholder')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -186,19 +186,19 @@ export default function Auth() {
                   />
                 </div>
                 <Button type="submit" className="w-full h-9 sm:h-10 text-sm" disabled={loading}>
-                  {loading ? 'Connexion...' : 'Se connecter'}
+                  {loading ? t('auth.signingIn') : t('auth.signIn')}
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="signup-name" className="text-xs sm:text-sm">Nom complet</Label>
+                  <Label htmlFor="signup-name" className="text-xs sm:text-sm">{t('auth.fullName')}</Label>
                   <Input
                     id="signup-name"
                     type="text"
-                    placeholder="Saisissez votre nom complet"
+                    placeholder={t('auth.namePlaceholder')}
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
@@ -206,11 +206,11 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="signup-email" className="text-xs sm:text-sm">Email</Label>
+                  <Label htmlFor="signup-email" className="text-xs sm:text-sm">{t('auth.email')}</Label>
                   <Input
                     id="signup-email"
                     type="email"
-                    placeholder="Saisissez votre email"
+                    placeholder={t('auth.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -218,11 +218,11 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="signup-password" className="text-xs sm:text-sm">Mot de passe</Label>
+                  <Label htmlFor="signup-password" className="text-xs sm:text-sm">{t('auth.password')}</Label>
                   <Input
                     id="signup-password"
                     type="password"
-                    placeholder="Créez un mot de passe"
+                    placeholder={t('auth.createPasswordPlaceholder')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -230,11 +230,11 @@ export default function Auth() {
                     className="h-9 sm:h-10 text-sm"
                   />
                   <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    8 caractères min, majuscule, minuscule, chiffre
+                    {t('auth.passwordHint')}
                   </p>
                 </div>
                 <Button type="submit" className="w-full h-9 sm:h-10 text-sm" disabled={loading}>
-                  {loading ? 'Création...' : 'S\'inscrire'}
+                  {loading ? t('auth.signingUp') : t('auth.signUp')}
                 </Button>
               </form>
             </TabsContent>

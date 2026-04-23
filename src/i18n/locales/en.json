@@ -69,7 +69,32 @@
     "signInError": "Sign in error",
     "signUpError": "Sign up error",
     "signUpSuccess": "Sign up successful",
-    "signUpSuccessDesc": "Check your email to confirm your account."
+    "signUpSuccessDesc": "Check your email to confirm your account.",
+    "fullName": "Full name",
+    "signInTab": "Sign In",
+    "signUpTab": "Sign Up",
+    "emailPlaceholder": "Enter your email",
+    "passwordPlaceholder": "Enter your password",
+    "namePlaceholder": "Enter your full name",
+    "createPasswordPlaceholder": "Create a password",
+    "passwordHint": "8+ characters, uppercase, lowercase, digit",
+    "signingIn": "Signing in...",
+    "signingUp": "Creating...",
+    "checkEmail": "Check your email",
+    "checkEmailDesc": "We sent you a confirmation link.",
+    "unexpectedError": "Error",
+    "unexpectedErrorDesc": "An unexpected error occurred",
+    "validation": {
+      "emailInvalid": "Invalid email format",
+      "emailTooLong": "Email too long",
+      "passwordRequired": "Password required",
+      "nameRequired": "Name required",
+      "nameTooLong": "Name too long",
+      "passwordMin": "At least 8 characters",
+      "passwordUppercase": "At least one uppercase letter",
+      "passwordLowercase": "At least one lowercase letter",
+      "passwordDigit": "At least one digit"
+    }
   },
   "accounts": {
     "title": "Accounts",

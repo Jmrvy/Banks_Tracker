@@ -80,47 +80,7 @@ Liquid Glass UX Design System — Inspired by Apple's translucent material langu
     --glass-shadow: 220 20% 4%;
   }
 
-  .dark {
-    /* Keep same values as root since we're dark by default */
-    --background: 220 18% 8%;
-    --foreground: 210 20% 98%;
-    --card: 220 16% 12%;
-    --card-foreground: 210 20% 98%;
-    --popover: 220 16% 14%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 38 70% 68%;
-    --primary-foreground: 220 18% 8%;
-    --secondary: 220 14% 18%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 220 14% 20%;
-    --muted-foreground: 210 10% 65%;
-    --accent: 220 14% 18%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 98%;
-    --success: 142 71% 45%;
-    --success-foreground: 210 20% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 220 18% 8%;
-    --border: 220 14% 22%;
-    --input: 220 14% 22%;
-    --ring: 38 70% 68%;
-    --sidebar-background: 220 18% 10%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 38 70% 68%;
-    --sidebar-primary-foreground: 220 18% 8%;
-    --sidebar-accent: 220 14% 16%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 38 70% 68%;
-    --glass-bg: 220 16% 14%;
-    --glass-bg-opacity: 0.55;
-    --glass-border-opacity: 0.12;
-    --glass-blur: 20px;
-    --glass-blur-heavy: 40px;
-    --glass-highlight: 210 20% 98%;
-    --glass-shadow: 220 20% 4%;
-  }
+  /* Dark-first: .dark inherits :root tokens — no overrides needed */
 }
 
 @layer base {
