@@ -13,8 +13,10 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
 
 // Eagerly loaded (critical path)
-import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
+
+// Dashboard lazy-loaded to reduce initial bundle
+const Index = lazy(() => import("@/pages/Index"));
 
 // Lazy-loaded pages (loaded on navigation)
 const Reports = lazy(() => import("@/pages/Reports"));
@@ -30,6 +32,7 @@ const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const queryClient = new QueryClient({
@@ -176,6 +179,7 @@ function AppRoutes() {
         </Suspense>
       </div>
       {user && !isOnboardingPage && isMobile && <MobileNavigation />}
+      {user && <CommandPalette />}
     </>
   );
 }
