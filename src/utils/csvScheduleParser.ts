@@ -209,8 +209,23 @@ export function validateSchedule(schedule: ParsedScheduleRow[], totalAmount: num
  * Parse a CSV file with the expected bank amortization schedule format.
  * Only accepts CSV — no PDF or Excel.
  */
+/**
+ * Read file text with encoding detection.
+ * French bank CSVs are often Windows-1252/ISO-8859-1, not UTF-8.
+ */
+async function readFileText(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  try {
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    return decoder.decode(buffer);
+  } catch {
+    const decoder = new TextDecoder('windows-1252');
+    return decoder.decode(buffer);
+  }
+}
+
 export async function parseLoanCSV(file: File): Promise<ParsedLoanInfo & { validation: CsvValidationResult }> {
-  const text = await file.text();
+  const text = await readFileText(file);
   const delimiter = detectDelimiter(text);
   const useCommaDot = delimiter === ';' || delimiter === '\t';
   const lines = text.split(/\r?\n/).filter(l => l.trim());
