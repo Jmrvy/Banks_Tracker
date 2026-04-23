@@ -15,7 +15,7 @@ import {
 import { format, differenceInDays, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { Debt, DebtPayment } from '@/hooks/useDebts';
+import { Debt, DebtPayment, ScheduledDebtPayment } from '@/hooks/useDebts';
 
 const getTypeLabel = (type: string) => {
   switch (type) {
@@ -43,6 +43,7 @@ interface DebtCardProps {
   onToggleExpand: () => void;
   payments: DebtPayment[];
   nextScheduledAmount: number | null;
+  nextScheduledPayment: ScheduledDebtPayment | null;
   formatCurrency: (amount: number) => string;
   onAddPayment: (debt: Debt) => void;
   onEdit: (debt: Debt) => void;
@@ -56,6 +57,7 @@ const DebtCard = React.memo(({
   onToggleExpand,
   payments,
   nextScheduledAmount,
+  nextScheduledPayment,
   formatCurrency,
   onAddPayment,
   onEdit,
@@ -182,9 +184,25 @@ const DebtCard = React.memo(({
               </div>
             )}
             {debt.payment_frequency && debt.payment_amount > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
-                <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(nextScheduledAmount ?? debt.payment_amount)}</span>
+              <div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
+                  <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(nextScheduledAmount ?? debt.payment_amount)}</span>
+                </div>
+                {nextScheduledPayment && (nextScheduledPayment.principal_amount > 0 || nextScheduledPayment.interest_amount > 0) && (
+                  <div className="flex justify-end gap-2 mt-0.5">
+                    {nextScheduledPayment.principal_amount > 0 && (
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                        Capital: {formatCurrency(nextScheduledPayment.principal_amount)}
+                      </span>
+                    )}
+                    {nextScheduledPayment.interest_amount > 0 && (
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                        Intérêts: {formatCurrency(nextScheduledPayment.interest_amount)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {debt.payment_frequency && (
@@ -237,19 +255,40 @@ const DebtCard = React.memo(({
           {payments.length > 0 && (
             <div className="space-y-0.5">
               <p className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1.5">Historique</p>
-              {payments.slice(-5).map((p) => (
-                <div key={p.id} className="flex items-center gap-2 py-1">
-                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                    <svg className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+              {payments.slice(-5).map((p) => {
+                const hasBreakdown = p.principal_amount > 0 || p.interest_amount > 0;
+                return (
+                  <div key={p.id} className="flex items-start gap-2 py-1">
+                    <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] sm:text-sm">
+                          {format(parseLocalDate(p.payment_date), 'd MMM', { locale: fr })}
+                        </span>
+                        <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">{formatCurrency(p.amount)}</span>
+                      </div>
+                      {hasBreakdown && (
+                        <div className="flex gap-2 mt-0.5">
+                          {p.principal_amount > 0 && (
+                            <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                              Capital: {formatCurrency(p.principal_amount)}
+                            </span>
+                          )}
+                          {p.interest_amount > 0 && (
+                            <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                              Intérêts: {formatCurrency(p.interest_amount)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-[11px] sm:text-sm flex-1">
-                    {format(parseLocalDate(p.payment_date), 'd MMM', { locale: fr })}
-                  </span>
-                  <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">{formatCurrency(p.amount)}</span>
-                </div>
-              ))}
+                );
+              })}
               {payments.length > 5 && (
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center">
                   +{payments.length - 5} autre{payments.length - 5 > 1 ? 's' : ''}
