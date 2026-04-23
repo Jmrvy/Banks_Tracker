@@ -288,7 +288,7 @@ const RecurringTransactions = () => {
         {/* Expanded detail */}
         {isExpanded && (
           <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
-            <div className="space-y-2 text-sm md:max-w-md">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground text-xs">Fréquence</span>
                 <span className="font-medium text-xs sm:text-sm">{getRecurrenceLabel(recurring.recurrence_type)}</span>
@@ -344,7 +344,7 @@ const RecurringTransactions = () => {
 
             {/* Installment progress */}
             {installmentInfo && (
-              <div className="space-y-3 md:max-w-md">
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <div>
@@ -392,7 +392,7 @@ const RecurringTransactions = () => {
 
             {/* Debt progress */}
             {debtInfo && (
-              <div className="space-y-3 md:max-w-md">
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <div>
@@ -439,7 +439,7 @@ const RecurringTransactions = () => {
             )}
 
             {/* Action buttons */}
-            <div className="flex gap-2 pt-2 border-t border-border/50 md:max-w-md">
+            <div className="flex gap-2 pt-2 border-t border-border/50">
               <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
                 onClick={() => setEditingTransaction(recurring)}>
                 <Pencil className="h-3.5 w-3.5" /> Modifier
