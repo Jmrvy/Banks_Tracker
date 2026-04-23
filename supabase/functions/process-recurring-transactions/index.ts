@@ -180,6 +180,7 @@ serve(async (req) => {
               account_id: recurring.account_id,
               category_id: recurring.category_id,
               transaction_date: recurring.next_due_date,
+              value_date: recurring.next_due_date,
               user_id: recurring.user_id,
               installment_payment_id: recurring.installment_payment_id || null,
               recurring_transaction_id: recurring.id,
