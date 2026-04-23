@@ -205,6 +205,12 @@ const RecurringTransactions = () => {
       listDisplayAmount = installmentInfo.ip.installment_amount;
     }
 
+    // For debt-linked recurring: check if any scheduled_debt_payment is overdue
+    // (past date with is_paid not true), even if next_due_date has advanced
+    const hasOverdueDebtPayment = debtInfo ? scheduledDebtPayments.some(
+      sp => sp.debt_id === debtInfo.debt.id && sp.is_paid !== true && parseLocalDate(sp.scheduled_date) < today
+    ) : false;
+
     return (
       <Card
         key={recurring.id}
@@ -244,7 +250,7 @@ const RecurringTransactions = () => {
               <Clock className="h-3 w-3 text-muted-foreground" />
               <span className="text-[10px] sm:text-xs text-muted-foreground">
                 {recurring.is_active ? (
-                  daysUntil < 0 ? 'En retard' :
+                  (daysUntil < 0 || hasOverdueDebtPayment) ? 'En retard' :
                   daysUntil === 0 ? "Aujourd'hui" :
                   daysUntil === 1 ? 'Demain' :
                   `Dans ${daysUntil} jours`
@@ -604,7 +610,7 @@ const RecurringTransactions = () => {
           </TabsContent>
 
           {/* List View - Klarna-style */}
-          <TabsContent value="list" className="mt-4 space-y-4">
+          <TabsContent value="list" className="mt-4 space-y-4 md:max-w-3xl md:mx-auto">
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
