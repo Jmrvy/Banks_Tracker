@@ -3,6 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { GRID_PROPS } from "@/lib/chartConfig";
 import { BalanceDataPoint, ReportsStats, RecurringData, SpendingPatternsData } from "@/hooks/useReportsData";
 import { MonthlyProjections } from "@/components/MonthlyProjections";
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
@@ -134,7 +135,7 @@ export const EvolutionTab = ({
                     data={balanceEvolutionData}
                     margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <CartesianGrid {...GRID_PROPS} />
                     <XAxis 
                       dataKey="date" 
                       fontSize={9}
