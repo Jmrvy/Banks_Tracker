@@ -190,18 +190,9 @@ const DebtCard = React.memo(({
                   <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(nextScheduledAmount ?? debt.payment_amount)}</span>
                 </div>
                 {nextScheduledPayment && (nextScheduledPayment.principal_amount > 0 || nextScheduledPayment.interest_amount > 0) && (
-                  <div className="flex justify-end gap-2 mt-0.5">
-                    {nextScheduledPayment.principal_amount > 0 && (
-                      <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        Capital: {formatCurrency(nextScheduledPayment.principal_amount)}
-                      </span>
-                    )}
-                    {nextScheduledPayment.interest_amount > 0 && (
-                      <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        Intérêts: {formatCurrency(nextScheduledPayment.interest_amount)}
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground text-right mt-0.5">
+                    Capital: {formatCurrency(nextScheduledPayment.principal_amount)} · Intérêts: {formatCurrency(nextScheduledPayment.interest_amount)}
+                  </p>
                 )}
               </div>
             )}
@@ -272,18 +263,9 @@ const DebtCard = React.memo(({
                         <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">{formatCurrency(p.amount)}</span>
                       </div>
                       {hasBreakdown && (
-                        <div className="flex gap-2 mt-0.5">
-                          {p.principal_amount > 0 && (
-                            <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                              Capital: {formatCurrency(p.principal_amount)}
-                            </span>
-                          )}
-                          {p.interest_amount > 0 && (
-                            <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                              Intérêts: {formatCurrency(p.interest_amount)}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                          Capital: {formatCurrency(p.principal_amount)} · Intérêts: {formatCurrency(p.interest_amount)}
+                        </p>
                       )}
                     </div>
                   </div>

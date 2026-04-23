@@ -525,9 +525,7 @@ export const DebtDetailsModal = ({
                           </p>
                           {(sp.principal_amount > 0 || sp.interest_amount > 0) && (
                             <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                              {sp.principal_amount > 0 ? `Capital: ${formatCurrency(sp.principal_amount)}` : ''}
-                              {sp.principal_amount > 0 && sp.interest_amount > 0 ? ' · ' : ''}
-                              {sp.interest_amount > 0 ? `Intérêts: ${formatCurrency(sp.interest_amount)}` : ''}
+                              Capital: {formatCurrency(sp.principal_amount)} · Intérêts: {formatCurrency(sp.interest_amount)}
                             </p>
                           )}
                           {isNext && (
