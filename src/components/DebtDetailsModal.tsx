@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { useToast } from '@/hooks/use-toast';
+import { DebtAmortizationChart } from '@/components/DebtAmortizationChart';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -360,6 +361,14 @@ export const DebtDetailsModal = ({
                   </span>
                 </div>
               </div>
+            )}
+
+            {/* Amortization chart */}
+            {scheduledPayments.length > 0 && (
+              <DebtAmortizationChart
+                scheduledPayments={scheduledPayments}
+                totalAmount={debt.total_amount}
+              />
             )}
 
             {/* Notes */}
