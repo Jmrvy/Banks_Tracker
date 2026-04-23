@@ -33,6 +33,7 @@ export interface DebtPayment {
   amount: number;
   principal_amount: number;
   interest_amount: number;
+  insurance_amount: number;
   payment_date: string;
   notes: string | null;
   created_at: string;
@@ -45,6 +46,7 @@ export interface ScheduledDebtPayment {
   scheduled_amount: number;
   principal_amount: number;
   interest_amount: number;
+  insurance_amount: number;
   is_paid: boolean | null;
   paid_date: string | null;
   actual_amount: number | null;
@@ -108,7 +110,7 @@ export const useDebts = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('scheduled_debt_payments')
-        .select('id, debt_id, scheduled_date, scheduled_amount, principal_amount, interest_amount, is_paid, paid_date, actual_amount')
+        .select('id, debt_id, scheduled_date, scheduled_amount, principal_amount, interest_amount, insurance_amount, is_paid, paid_date, actual_amount')
         .eq('user_id', user!.id)
         .order('scheduled_date', { ascending: true });
 

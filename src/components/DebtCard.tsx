@@ -189,19 +189,11 @@ const DebtCard = React.memo(({
                   <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
                   <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(nextScheduledAmount ?? debt.payment_amount)}</span>
                 </div>
-                {nextScheduledPayment && (nextScheduledPayment.principal_amount > 0 || nextScheduledPayment.interest_amount > 0) && (
-                  <div className="flex justify-end gap-2 mt-0.5">
-                    {nextScheduledPayment.principal_amount > 0 && (
-                      <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        Capital: {formatCurrency(nextScheduledPayment.principal_amount)}
-                      </span>
-                    )}
-                    {nextScheduledPayment.interest_amount > 0 && (
-                      <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        Intérêts: {formatCurrency(nextScheduledPayment.interest_amount)}
-                      </span>
-                    )}
-                  </div>
+                {nextScheduledPayment && (nextScheduledPayment.principal_amount > 0 || nextScheduledPayment.interest_amount > 0 || (nextScheduledPayment.insurance_amount || 0) > 0) && (
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground text-right mt-0.5">
+                    Capital: {formatCurrency(nextScheduledPayment.principal_amount)} · Intérêts: {formatCurrency(nextScheduledPayment.interest_amount)}
+                    {(nextScheduledPayment.insurance_amount || 0) > 0 && ` · Assurance: ${formatCurrency(nextScheduledPayment.insurance_amount)}`}
+                  </p>
                 )}
               </div>
             )}
@@ -256,7 +248,7 @@ const DebtCard = React.memo(({
             <div className="space-y-0.5">
               <p className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1.5">Historique</p>
               {payments.slice(-5).map((p) => {
-                const hasBreakdown = p.principal_amount > 0 || p.interest_amount > 0;
+                const hasBreakdown = p.principal_amount > 0 || p.interest_amount > 0 || (p.insurance_amount || 0) > 0;
                 return (
                   <div key={p.id} className="flex items-start gap-2 py-1">
                     <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -272,18 +264,10 @@ const DebtCard = React.memo(({
                         <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">{formatCurrency(p.amount)}</span>
                       </div>
                       {hasBreakdown && (
-                        <div className="flex gap-2 mt-0.5">
-                          {p.principal_amount > 0 && (
-                            <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                              Capital: {formatCurrency(p.principal_amount)}
-                            </span>
-                          )}
-                          {p.interest_amount > 0 && (
-                            <span className="text-[9px] sm:text-[10px] text-muted-foreground">
-                              Intérêts: {formatCurrency(p.interest_amount)}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                          Capital: {formatCurrency(p.principal_amount)} · Intérêts: {formatCurrency(p.interest_amount)}
+                          {(p.insurance_amount || 0) > 0 && ` · Assurance: ${formatCurrency(p.insurance_amount)}`}
+                        </p>
                       )}
                     </div>
                   </div>
