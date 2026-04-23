@@ -216,11 +216,11 @@ const Savings = () => {
 
   if (loading || goalsLoading || installmentsLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p>{t('common.loading')}</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -228,7 +228,7 @@ const Savings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
       <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
@@ -464,9 +464,9 @@ const Savings = () => {
 
           {goals.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-8 sm:p-12 text-center">
                 <div className="icon-badge icon-badge-lg mx-auto mb-3">
-                  <Target className="h-10 w-10 text-muted-foreground" />
+                  <Target className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   {t('savings.noGoals')}

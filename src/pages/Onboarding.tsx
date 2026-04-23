@@ -18,7 +18,8 @@ import {
   DollarSign, Target, PiggyBank, Scale, History, Receipt,
   Bell, Mail, FileText, Settings, Filter, Pause, Play,
   ArrowUpRight, ArrowDownRight, MousePointerClick,
-  Search, Download, Pencil, Trash2, MoreVertical
+  Search, Download, Pencil, Trash2, MoreVertical,
+  ChevronDown, CheckCircle2, Upload, Clock
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -345,7 +346,7 @@ const FeatureMockup = ({ id }: { id: string }) => {
         </div>
       );
 
-    /* ── Debts: 3 stats + tabs + debt cards ── */
+    /* ── Debts: 3 stats + tabs + expandable debt card ── */
     case 'debts':
       return (
         <div className={mockupWrapper}>
@@ -353,72 +354,115 @@ const FeatureMockup = ({ id }: { id: string }) => {
           <div className="flex items-center justify-between px-3 py-2 border-b">
             <div>
               <p className="font-semibold flex items-center gap-1.5">
-                <Scale className="h-3.5 w-3.5 text-primary" />
-                Gestion des dettes
+                <Wallet className="h-3.5 w-3.5 text-primary" />
+                Gestion des Dettes
               </p>
-              <p className="text-[10px] text-muted-foreground">Suivez vos prets et remboursements</p>
+              <p className="text-[10px] text-muted-foreground ml-5">Suivez vos prets et remboursements</p>
             </div>
             <div className="h-5 px-1.5 rounded-md bg-primary text-primary-foreground flex items-center gap-0.5">
               <Plus className="h-2.5 w-2.5" />
               <span className="text-[10px]">Nouvelle dette</span>
             </div>
           </div>
-          {/* 3 stat cards */}
+          {/* 3 stat cards: Total dû, Actifs, Terminés */}
           <div className="px-3 py-2 grid grid-cols-3 gap-1.5 border-b">
             <div className="rounded-lg border p-1.5">
-              <div className="flex items-center gap-1 mb-0.5">
-                <div className="h-4 w-4 rounded-full bg-success/10 flex items-center justify-center">
-                  <Wallet className="w-2 h-2 text-success" />
-                </div>
-              </div>
-              <p className="text-[9px] text-muted-foreground">Prets accordes</p>
-              <p className="font-bold text-[11px] text-success">150 €</p>
-            </div>
-            <div className="rounded-lg border p-1.5">
-              <div className="flex items-center gap-1 mb-0.5">
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-[9px] text-muted-foreground">Total du</p>
                 <div className="h-4 w-4 rounded-full bg-destructive/10 flex items-center justify-center">
                   <Wallet className="w-2 h-2 text-destructive" />
                 </div>
               </div>
-              <p className="text-[9px] text-muted-foreground">Prets contractes</p>
-              <p className="font-bold text-[11px] text-destructive">80 €</p>
+              <p className="font-bold text-[11px]">12 500 €</p>
             </div>
             <div className="rounded-lg border p-1.5">
-              <div className="flex items-center gap-1 mb-0.5">
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-[9px] text-muted-foreground">Actifs</p>
                 <div className="h-4 w-4 rounded-full bg-success/10 flex items-center justify-center">
                   <Wallet className="w-2 h-2 text-success" />
                 </div>
               </div>
-              <p className="text-[9px] text-muted-foreground">Position nette</p>
-              <p className="font-bold text-[11px] text-success">+70 €</p>
+              <p className="font-bold text-[11px]">2</p>
+            </div>
+            <div className="rounded-lg border p-1.5">
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-[9px] text-muted-foreground">Termines</p>
+                <div className="h-4 w-4 rounded-full bg-muted/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-2 h-2 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="font-bold text-[11px]">1</p>
             </div>
           </div>
-          {/* Tabs */}
+          {/* Filter tabs */}
           <div className="mx-3 mt-2 rounded-lg bg-muted/30 p-0.5 grid grid-cols-3 gap-0.5">
-            {[{ l: 'Tous', n: 2 }, { l: 'Accordes', n: 1 }, { l: 'Contractes', n: 1 }].map((tab, i) => (
+            {[{ l: 'Actifs', n: 2 }, { l: 'Termines', n: 1 }, { l: 'Tous', n: 3 }].map((tab, i) => (
               <div key={i} className={`text-center py-1 rounded text-[10px] font-medium ${i === 0 ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                 {tab.l} ({tab.n})
               </div>
             ))}
           </div>
-          {/* Debt card */}
-          <div className="px-3 py-2">
-            <div className="rounded-lg border p-2 space-y-1">
-              <p className="font-semibold text-[11px]">Pret a Pierre</p>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-muted-foreground">Restant :</span>
-                <span className="font-bold text-success">150,00 €</span>
+          {/* Expanded debt card with progress */}
+          <div className="px-3 py-2 space-y-1.5">
+            <div className="rounded-lg border overflow-hidden">
+              {/* Card header row */}
+              <div className="flex items-center gap-2 p-2">
+                <div className="h-7 w-7 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                  <Wallet className="h-3 w-3 text-destructive" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-[11px]">Credit immobilier</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-destructive/10 text-destructive">Contracte</span>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] mt-0.5">
+                    <span className="text-muted-foreground">Restant: <span className="font-bold text-foreground">10 000 €</span></span>
+                    <span className="text-muted-foreground">67%</span>
+                  </div>
+                  <Progress value={67} className="h-1 mt-1" />
+                </div>
+              </div>
+              {/* Expanded details */}
+              <div className="border-t bg-muted/5 p-2 space-y-1.5">
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                  <div><span className="text-muted-foreground">Total:</span> <span className="font-semibold">30 000 €</span></div>
+                  <div><span className="text-muted-foreground">Paye:</span> <span className="font-semibold text-success">20 000 €</span></div>
+                  <div><span className="text-muted-foreground">Taux:</span> <span className="font-semibold">2,5%</span></div>
+                  <div><span className="text-muted-foreground">Mensualite:</span> <span className="font-semibold">850 €</span></div>
+                </div>
+                {/* Payment history mini */}
+                <div className="border-t pt-1.5">
+                  <p className="text-[9px] text-muted-foreground font-medium mb-1">Derniers paiements</p>
+                  <div className="space-y-0.5">
+                    {[{ d: '01/04/2026', a: '850 €' }, { d: '01/03/2026', a: '850 €' }].map((p, i) => (
+                      <div key={i} className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">{p.d}</span>
+                        <span className="font-medium text-success">{p.a}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Action buttons */}
+                <div className="flex gap-1 pt-1 border-t">
+                  <div className="flex-1 h-5 flex items-center justify-center rounded bg-primary text-primary-foreground text-[9px] font-medium">Paiement</div>
+                  <div className="flex-1 h-5 flex items-center justify-center rounded bg-muted text-[9px]"><Upload className="h-2.5 w-2.5 mr-0.5" />CSV</div>
+                  <div className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted"><Pencil className="h-2.5 w-2.5 text-muted-foreground" /></div>
+                  <div className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted"><History className="h-2.5 w-2.5 text-muted-foreground" /></div>
+                </div>
               </div>
             </div>
           </div>
           <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Ajoutez des paiements partiels depuis chaque carte</span>
+            <span className="text-[10px] text-primary font-medium">Importez un echeancier CSV et activez le paiement recurrent</span>
           </div>
         </div>
       );
 
-    /* ── Recurring: 3 stats + Calendar/List tabs + cards ── */
+    /* ── Recurring: 3 stats + Calendar view + list card ── */
     case 'recurring':
       return (
         <div className={mockupWrapper}>
@@ -440,7 +484,7 @@ const FeatureMockup = ({ id }: { id: string }) => {
             <div className="rounded-lg border p-1.5 flex items-center justify-between">
               <div>
                 <p className="text-[9px] text-muted-foreground">Active</p>
-                <p className="font-bold text-sm">3</p>
+                <p className="font-bold text-sm">5</p>
               </div>
               <div className="h-5 w-5 rounded-full bg-success/10 flex items-center justify-center">
                 <Play className="h-2.5 w-2.5 text-success" />
@@ -470,38 +514,69 @@ const FeatureMockup = ({ id }: { id: string }) => {
             <div className="text-center py-1 rounded bg-background shadow-sm text-[10px] font-medium">Calendrier</div>
             <div className="text-center py-1 rounded text-[10px] font-medium text-muted-foreground">Liste</div>
           </div>
-          {/* Card (list view preview) */}
-          <div className="px-3 py-2 space-y-1.5">
-            {[
-              { name: 'Loyer', amount: '850,00 €', type: 'expense', freq: 'Mensuelle', next: '01 avr 2026', active: true },
-              { name: 'Salaire', amount: '2 800,00 €', type: 'income', freq: 'Mensuelle', next: '28 mar 2026', active: true },
-            ].map((r, i) => (
-              <div key={i} className="rounded-lg border p-2 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[11px]">{r.name}</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground">Actif</span>
+          {/* Mini calendar preview */}
+          <div className="px-3 py-2">
+            <div className="rounded-lg border p-2">
+              <div className="grid grid-cols-7 gap-0.5 text-center text-[8px] text-muted-foreground mb-1">
+                {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => <div key={i}>{d}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5 text-center text-[9px]">
+                {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                  <div key={day} className={`py-0.5 rounded ${
+                    day === 1 ? 'bg-destructive/20 text-destructive font-bold' :
+                    day === 5 ? 'bg-success/20 text-success font-bold' :
+                    day === 15 ? 'bg-primary/20 text-primary font-bold' :
+                    day === 28 ? 'bg-success/20 text-success font-bold' :
+                    ''
+                  }`}>{day}</div>
+                ))}
+              </div>
+              <div className="mt-1.5 pt-1.5 border-t space-y-0.5">
+                <div className="flex items-center gap-1 text-[9px]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  <span className="text-muted-foreground">1 avr</span>
+                  <span className="font-medium">Loyer</span>
+                  <span className="ml-auto font-bold text-destructive">-850 €</span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Montant:</span><span className={`font-bold ${r.type === 'income' ? 'text-success' : 'text-destructive'}`}>{r.amount}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Frequence:</span><span className="font-medium">{r.freq}</span></div>
-                  <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Prochain:</span><span className="font-medium">{r.next}</span></div>
-                </div>
-                <div className="flex gap-1 pt-1 border-t">
-                  <div className="flex-1 flex items-center justify-center py-0.5 rounded hover:bg-muted"><Pencil className="h-2.5 w-2.5 text-muted-foreground" /></div>
-                  <div className="flex-1 flex items-center justify-center py-0.5 rounded hover:bg-muted"><Pause className="h-2.5 w-2.5 text-muted-foreground" /></div>
-                  <div className="flex-1 flex items-center justify-center py-0.5 rounded hover:bg-muted"><Trash2 className="h-2.5 w-2.5 text-muted-foreground" /></div>
+                <div className="flex items-center gap-1 text-[9px]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                  <span className="text-muted-foreground">5 avr</span>
+                  <span className="font-medium">Salaire</span>
+                  <span className="ml-auto font-bold text-success">+2 800 €</span>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+          {/* Expandable list card preview */}
+          <div className="px-3 pb-2">
+            <div className="rounded-lg border overflow-hidden">
+              <div className="flex items-center gap-2 p-2">
+                <div className="h-7 w-7 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                  <ArrowDownRight className="h-3 w-3 text-destructive" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-[11px]">Credit immo</span>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-destructive/10 text-destructive">Dette liee</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                    <span>Mensuel</span>
+                    <span>·</span>
+                    <span>Prochain: 01 mai</span>
+                  </div>
+                </div>
+                <span className="font-bold text-[11px] text-destructive">-850 €</span>
+              </div>
+            </div>
           </div>
           <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Mettez en pause ou executez en avance depuis chaque carte</span>
+            <span className="text-[10px] text-primary font-medium">Cliquez sur un jour du calendrier pour voir les echeances</span>
           </div>
         </div>
       );
 
-    /* ── Installments: Filter tabs + cards with progress ── */
+    /* ── Installments: Filter tabs + expandable cards with progress ── */
     case 'installments':
       return (
         <div className={mockupWrapper}>
@@ -519,53 +594,85 @@ const FeatureMockup = ({ id }: { id: string }) => {
                 <span className="text-[10px]">Nouveau</span>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1 ml-[30px]">Chaque paiement cree une transaction recurrente</p>
+            <p className="text-[10px] text-muted-foreground mt-1 ml-[30px]">Chaque paiement cree automatiquement une recurrence liee</p>
           </div>
           {/* Filter tabs */}
           <div className="mx-3 mt-2 rounded-lg bg-muted/30 p-0.5 grid grid-cols-3 gap-0.5">
-            {['Actifs (2)', 'Termines (0)', 'Tous (2)'].map((tab, i) => (
+            {['Actifs (2)', 'Termines (1)', 'Tous (3)'].map((tab, i) => (
               <div key={i} className={`text-center py-1 rounded text-[10px] font-medium ${i === 0 ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>{tab}</div>
             ))}
           </div>
-          {/* Cards */}
+          {/* Expanded card */}
           <div className="px-3 py-2 space-y-1.5">
-            {[
-              { name: 'Ordinateur portable', total: '1 200 €', remaining: '600 €', installment: '300 €', pct: 50, type: 'payment' },
-              { name: 'Remboursement assurance', total: '900 €', remaining: '450 €', installment: '90 €', pct: 50, type: 'reimbursement' },
-            ].map((inst, i) => (
-              <div key={i} className="rounded-lg border p-2 space-y-1.5">
+            <div className="rounded-lg border overflow-hidden">
+              <div className="p-2 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[11px]">{inst.name}</span>
+                  <span className="font-semibold text-[11px]">Ordinateur portable</span>
                   <div className="flex items-center gap-1">
-                    <span className={`text-[9px] px-1 py-0.5 rounded border ${inst.type === 'reimbursement' ? 'border-success text-success' : ''}`}>
-                      {inst.type === 'reimbursement' ? 'Remboursement' : 'Paiement'}
-                    </span>
+                    <span className="text-[9px] px-1 py-0.5 rounded border">Paiement</span>
                     <span className="text-[9px] px-1 py-0.5 rounded bg-primary text-primary-foreground">Actif</span>
                     <MoreVertical className="h-3 w-3 text-muted-foreground" />
                   </div>
                 </div>
-                {/* Progress */}
                 <div>
                   <div className="flex justify-between text-[10px] mb-1">
                     <span className="text-muted-foreground">Progression</span>
-                    <span className="font-semibold">{inst.pct}%</span>
+                    <span className="font-semibold">50%</span>
                   </div>
-                  <Progress value={inst.pct} className="h-1.5" />
+                  <Progress value={50} className="h-1.5" />
                 </div>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Total:</span><span className="font-bold">{inst.total}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Restant:</span><span className="font-bold text-orange-500">{inst.remaining}</span></div>
-                  <div className="flex justify-between col-span-2"><span className="text-muted-foreground">Mensualite:</span><span className="font-semibold">{inst.installment}</span></div>
-                </div>
-                <div className="pt-1 border-t">
-                  <div className="rounded bg-primary text-primary-foreground text-center py-1 text-[10px] font-medium">Enregistrer un paiement</div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total:</span><span className="font-bold">1 200 €</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Restant:</span><span className="font-bold text-orange-500">600 €</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Mensualite:</span><span className="font-semibold">300 €</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Echeances:</span><span className="font-semibold">2/4</span></div>
                 </div>
               </div>
-            ))}
+              {/* Expanded history */}
+              <div className="border-t bg-muted/5 p-2 space-y-1">
+                <p className="text-[9px] text-muted-foreground font-medium">Historique des echeances</p>
+                <div className="space-y-0.5">
+                  {[
+                    { d: '01/04/2026', paid: true },
+                    { d: '01/03/2026', paid: true },
+                    { d: '01/05/2026', paid: false },
+                    { d: '01/06/2026', paid: false },
+                  ].map((h, i) => (
+                    <div key={i} className="flex items-center justify-between text-[10px]">
+                      <div className="flex items-center gap-1">
+                        {h.paid
+                          ? <CheckCircle2 className="h-2.5 w-2.5 text-success" />
+                          : <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                        }
+                        <span className={h.paid ? '' : 'text-muted-foreground'}>{h.d}</span>
+                      </div>
+                      <span className={`font-medium ${h.paid ? 'text-success' : 'text-muted-foreground'}`}>300 €</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Collapsed card */}
+            <div className="rounded-lg border p-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-[11px]">Remboursement assurance</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] px-1 py-0.5 rounded border border-success text-success">Remboursement</span>
+                  <span className="text-[9px] px-1 py-0.5 rounded bg-primary text-primary-foreground">Actif</span>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1">
+                  <span className="text-muted-foreground">Progression</span>
+                  <span className="font-semibold">50%</span>
+                </div>
+                <Progress value={50} className="h-1.5" />
+              </div>
+            </div>
           </div>
           <div className="px-3 pb-2 flex items-center gap-1.5">
             <MousePointerClick className="h-3 w-3 text-primary" />
-            <span className="text-[10px] text-primary font-medium">Menu ··· pour details, historique ou recalculer</span>
+            <span className="text-[10px] text-primary font-medium">Menu ··· pour ajuster le plan ou voir l'historique complet</span>
           </div>
         </div>
       );
@@ -815,48 +922,54 @@ const featureGuides = [
     id: 'debts',
     icon: Scale,
     title: "Dettes",
-    desc: "Suivez les prets donnes et recus, gerez les remboursements et visualisez votre position nette.",
+    desc: "Suivez vos prets et credits avec echeancier, repartition capital/interets, progression et paiements automatiques.",
     steps: [
-      "Ajoutez une dette en precisant s'il s'agit d'un pret donne ou recu.",
-      "Renseignez le montant, la personne concernee et une description.",
-      "Enregistrez les remboursements partiels au fur et a mesure.",
-      "Consultez votre position nette : total prete vs total du."
+      "Creez une dette en precisant le type (pret donne ou contracte), le montant total et le taux d'interet.",
+      "Importez un echeancier CSV depuis votre banque pour obtenir la repartition capital/interets de chaque echeance.",
+      "Activez le paiement recurrent automatique pour que chaque echeance soit comptabilisee sans intervention.",
+      "Suivez la progression en temps reel : montant paye, restant, barre de progression et historique des paiements.",
+      "Consultez le detail de chaque dette pour voir l'echeancier complet et l'historique."
     ],
     tips: [
-      "Filtrez par onglet (tous, prets donnes, prets recus) pour une vue ciblee.",
-      "Chaque remboursement est lie automatiquement a la dette correspondante."
+      "L'import CSV detecte automatiquement le format de votre banque (separateur, format de date, decimales).",
+      "Les echeances en retard apparaissent en rouge dans le calendrier des transactions recurrentes.",
+      "Chaque paiement de dette est lie a la transaction correspondante — modifier ou supprimer l'un met a jour l'autre."
     ]
   },
   {
     id: 'recurring',
     icon: Receipt,
     title: "Recurrentes",
-    desc: "Programmez vos depenses et revenus reguliers (loyer, salaire, abonnements...). Calendrier visuel des echeances.",
+    desc: "Programmez vos depenses et revenus reguliers (loyer, salaire, abonnements...). Calendrier visuel et traitement automatique.",
     steps: [
-      "Ajoutez une transaction recurrente en precisant le montant et la frequence (mensuel, hebdomadaire...).",
-      "Definissez la date de debut et eventuellement une date de fin.",
-      "Consultez le calendrier pour visualiser toutes vos echeances a venir.",
-      "Mettez en pause ou executez en avance une recurrence selon vos besoins."
+      "Ajoutez une transaction recurrente en precisant le montant, la frequence (quotidien, hebdomadaire, mensuel, trimestriel, annuel) et le compte.",
+      "Visualisez toutes vos echeances dans le calendrier : cliquez sur un jour pour voir les transactions prevues.",
+      "Le traitement automatique cree la transaction a la date prevue — les echeances passees sont traitees au prochain lancement.",
+      "Executez une echeance en avance depuis la carte ou mettez-la en pause sans la supprimer.",
+      "Les dettes et paiements echelonnes creent automatiquement leurs recurrences liees."
     ],
     tips: [
-      "Configurez vos recurrentes des le depart pour avoir une vision precise de votre budget mensuel.",
-      "Vous pouvez mettre en pause une recurrence sans la supprimer, et l'executer en avance si besoin."
+      "Les echeances en retard (dettes) apparaissent en rouge dans le calendrier pour une visibilite immediate.",
+      "Le compteur '7 jours' en haut de page vous alerte des echeances a venir dans la semaine.",
+      "Basculez entre vue Calendrier et vue Liste selon votre preference — la liste affiche les details complets."
     ]
   },
   {
     id: 'installments',
     icon: CreditCard,
     title: "Paiements echelonnes",
-    desc: "Suivez vos achats en plusieurs fois et credits en cours avec progression et montants restants.",
+    desc: "Suivez vos achats en plusieurs fois et remboursements en cours avec progression, historique et transaction recurrente automatique.",
     steps: [
-      "Creez un paiement echelonne en indiquant le montant total et le nombre d'echeances.",
-      "Renseignez la date de debut et la frequence des paiements.",
-      "Suivez la progression avec la barre de completion et le montant restant.",
-      "Chaque echeance est automatiquement comptabilisee dans vos transactions."
+      "Creez un paiement echelonne en precisant le montant total, la mensualite, la frequence et la date de debut.",
+      "Choisissez le type : paiement (vous payez) ou remboursement (vous recevez).",
+      "Une transaction recurrente est automatiquement creee et liee au paiement echelonne.",
+      "Suivez la progression avec la barre de completion, le montant paye et le restant.",
+      "Ajustez le plan en cours de route : modifiez la mensualite ou le nombre d'echeances restantes."
     ],
     tips: [
-      "Ideal pour suivre les achats en plusieurs fois ou les credits en cours.",
-      "La barre de progression vous montre en un coup d'oeil ou vous en etes."
+      "Le menu ··· sur chaque carte donne acces aux details, a l'historique et au recalcul du plan.",
+      "L'historique affiche chaque paiement avec son statut (paye, a venir) et le lien vers la transaction.",
+      "Quand toutes les echeances sont payees, le paiement passe automatiquement en statut termine."
     ]
   },
   {

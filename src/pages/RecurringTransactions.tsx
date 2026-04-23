@@ -1,14 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Repeat, Calendar, Trash2, Pause, Play, Plus, Pencil, List, CalendarDays, ChevronDown, Clock } from "lucide-react";
+import { Repeat, Calendar, Pause, Play, Plus, List, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
-import { useDebts } from "@/hooks/useDebts";
+import { useDebts, ScheduledDebtPayment } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,8 +15,9 @@ import EditRecurringTransactionModal from "@/components/EditRecurringTransaction
 import RecurringCalendar from "@/components/RecurringCalendar";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { DebtDetailsModal } from "@/components/DebtDetailsModal";
-import { differenceInDays, startOfDay } from "date-fns";
+import { startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
+import RecurringListCard from "@/components/RecurringListCard";
 
 const RecurringTransactions = () => {
   const { toast } = useToast();
@@ -31,7 +30,7 @@ const RecurringTransactions = () => {
   const { installmentPayments } = useInstallmentPayments();
   const { debts, payments: debtPayments } = useDebts();
   const { user } = useAuth();
-  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<any[]>([]);
+  const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
   const {
     recurringTransactions,
     transactions,
@@ -46,15 +45,17 @@ const RecurringTransactions = () => {
     fetchRecurringTransactions();
   }, [fetchRecurringTransactions]);
 
-  // Fetch all scheduled debt payments for calendar display
   useEffect(() => {
     const fetchScheduledDebtPayments = async () => {
       if (!user) return;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('scheduled_debt_payments')
         .select('*')
         .eq('user_id', user.id)
         .order('scheduled_date', { ascending: true });
+      if (error) {
+        console.error('Error fetching scheduled debt payments:', error);
+      }
       setScheduledDebtPayments(data || []);
     };
     fetchScheduledDebtPayments();
@@ -118,26 +119,23 @@ const RecurringTransactions = () => {
     return result;
   };
 
-
-  const getRecurrenceLabel = (type: string) => {
-    switch (type) {
-      case 'weekly': return 'Hebdomadaire';
-      case 'monthly': return 'Mensuelle';
-      case 'quarterly': return 'Trimestrielle';
-      case 'yearly': return 'Annuelle';
-      default: return type;
+  const installmentTxCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of transactions) {
+      if (tx.installment_payment_id) {
+        map.set(tx.installment_payment_id, (map.get(tx.installment_payment_id) || 0) + 1);
+      }
     }
-  };
+    return map;
+  }, [transactions]);
 
-  // Installment helpers for the list view
   const getInstallmentInfo = (transaction: RecurringTransaction) => {
     if (!transaction.installment_payment_id) return null;
     const ip = installmentPayments.find(p => p.id === transaction.installment_payment_id);
     if (!ip) return null;
     const paid = ip.total_amount - ip.remaining_amount;
-    const paidCount = transactions.filter(tx => tx.installment_payment_id === ip.id).length;
+    const paidCount = installmentTxCounts.get(ip.id) || 0;
     const rawTotalCount = ip.installment_amount > 0 ? Math.ceil(ip.total_amount / ip.installment_amount) : 0;
-    // When completed (remaining_amount <= 0), clamp totalCount to paidCount
     const isCompleted = ip.remaining_amount <= 0;
     const totalCount = isCompleted ? paidCount : rawTotalCount;
     const pct = ip.total_amount > 0 ? Math.min(100, Math.round((paid / ip.total_amount) * 1000) / 10) : 0;
@@ -150,7 +148,6 @@ const RecurringTransactions = () => {
       .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
   };
 
-  // Resolve debt for a transaction: by debt_id or description fallback
   const resolveDebt = (transaction: RecurringTransaction) => {
     if (transaction.debt_id) return debts.find(d => d.id === transaction.debt_id) || null;
     for (const d of debts) {
@@ -159,7 +156,6 @@ const RecurringTransactions = () => {
     return null;
   };
 
-  // Debt helpers for the list view
   const getDebtInfo = (transaction: RecurringTransaction) => {
     const debt = resolveDebt(transaction);
     if (!debt) return null;
@@ -179,22 +175,29 @@ const RecurringTransactions = () => {
       .sort((a, b) => a.payment_date.localeCompare(b.payment_date));
   };
 
-  // Split transactions into active and inactive for the list view
-  const activeTransactions = recurringTransactions.filter(t => t.is_active);
-  const inactiveTransactions = recurringTransactions.filter(t => !t.is_active);
+  const activeTransactions = useMemo(
+    () => recurringTransactions.filter(t => t.is_active),
+    [recurringTransactions]
+  );
 
-  const renderListCard = (recurring: RecurringTransaction) => {
-    const isExpanded = expandedListId === recurring.id;
-    const nextDue = parseLocalDate(recurring.next_due_date);
-    const today = startOfDay(new Date());
-    const daysUntil = differenceInDays(nextDue, today);
+  const inactiveTransactions = useMemo(
+    () => recurringTransactions.filter(t => !t.is_active),
+    [recurringTransactions]
+  );
+
+  const dueInSevenDaysCount = useMemo(() => {
+    const today = new Date();
+    const inSevenDays = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+    return activeTransactions.filter(t => parseLocalDate(t.next_due_date) <= inSevenDays).length;
+  }, [activeTransactions]);
+
+  const getListCardProps = useCallback((recurring: RecurringTransaction) => {
     const installmentInfo = getInstallmentInfo(recurring);
     const debtInfo = getDebtInfo(recurring);
+    const today = startOfDay(new Date());
 
-    // Determine the display amount: use next scheduled debt payment or debt payment_amount
     let listDisplayAmount = recurring.amount;
     if (debtInfo) {
-      // Find next unpaid scheduled payment for this debt
       const nextScheduled = scheduledDebtPayments.find(sp => sp.debt_id === debtInfo.debt.id && !sp.is_paid);
       if (nextScheduled) {
         listDisplayAmount = nextScheduled.scheduled_amount;
@@ -205,263 +208,28 @@ const RecurringTransactions = () => {
       listDisplayAmount = installmentInfo.ip.installment_amount;
     }
 
-    // For debt-linked recurring: check if any scheduled_debt_payment is overdue
-    // (past date with is_paid not true), even if next_due_date has advanced
     const hasOverdueDebtPayment = debtInfo ? scheduledDebtPayments.some(
       sp => sp.debt_id === debtInfo.debt.id && sp.is_paid !== true && parseLocalDate(sp.scheduled_date) < today
     ) : false;
 
-    return (
-      <Card
-        key={recurring.id}
-        className={`overflow-hidden border-border/50 ${recurring.is_active ? 'bg-card/80' : 'bg-card/50 opacity-70'}`}
-      >
-        {/* Main row */}
-        <div
-          className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-          onClick={() => setExpandedListId(isExpanded ? null : recurring.id)}
-        >
-          {/* Type indicator + status */}
-          <div className={`flex-shrink-0 w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
-            !recurring.is_active ? 'bg-muted/30' : recurring.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'
-          }`}>
-            <Repeat className={`h-4 w-4 sm:h-5 sm:w-5 ${
-              !recurring.is_active ? 'text-muted-foreground' : recurring.type === 'income' ? 'text-success' : 'text-destructive'
-            }`} />
-          </div>
+    const installmentPaymentHistory = recurring.installment_payment_id
+      ? getPaymentHistory(recurring.installment_payment_id)
+      : [];
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className={`text-sm sm:text-base font-semibold truncate ${!recurring.is_active ? 'text-muted-foreground' : ''}`}>
-                {recurring.description}
-              </p>
-            {!recurring.is_active && (() => {
-              const instInfo = getInstallmentInfo(recurring);
-              const isCompleted = instInfo?.isCompleted;
-              return (
-                <Badge variant={isCompleted ? "default" : "secondary"} className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${isCompleted ? 'bg-success text-white' : ''}`}>
-                  {isCompleted ? 'Terminé' : 'Inactif'}
-                </Badge>
-              );
-            })()}
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[10px] sm:text-xs text-muted-foreground">
-                {recurring.is_active ? (
-                  (daysUntil < 0 || hasOverdueDebtPayment) ? 'En retard' :
-                  daysUntil === 0 ? "Aujourd'hui" :
-                  daysUntil === 1 ? 'Demain' :
-                  `Dans ${daysUntil} jours`
-                ) : (
-                  getRecurrenceLabel(recurring.recurrence_type)
-                )}
-              </span>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">
-                · {getRecurrenceLabel(recurring.recurrence_type)}
-              </span>
-            </div>
-            {installmentInfo && (
-              <span className="text-[10px] sm:text-xs text-muted-foreground">
-                {installmentInfo.paidCount} sur {installmentInfo.totalCount} payé · {installmentInfo.ip.payment_type === 'reimbursement' ? 'Remboursement' : 'Échelonné'}
-              </span>
-            )}
-            {debtInfo && (
-              <span className="text-[10px] sm:text-xs text-muted-foreground">
-                {debtInfo.paidCount} sur {debtInfo.totalCount} payé · {debtInfo.debt.type === 'loan_received' ? 'Remboursement dette' : 'Remboursement prêt'}
-              </span>
-            )}
-          </div>
+    const debtPaymentHistory = getDebtPaymentHistoryForTransaction(recurring);
 
-          {/* Amount + chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`text-sm sm:text-base font-bold ${
-              !recurring.is_active ? 'text-muted-foreground' : recurring.type === 'income' ? 'text-success' : 'text-destructive'
-            }`}>
-              {formatCurrency(listDisplayAmount)}
-            </span>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-          </div>
-        </div>
-
-        {/* Expanded detail */}
-        {isExpanded && (
-          <div className="border-t border-border/50 p-3 sm:p-4 space-y-4 bg-muted/10">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Fréquence</span>
-                <span className="font-medium text-xs sm:text-sm">{getRecurrenceLabel(recurring.recurrence_type)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Compte</span>
-                <span className="font-medium text-xs sm:text-sm truncate max-w-[150px]">{recurring.account?.name}</span>
-              </div>
-              {recurring.category && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-xs">Catégorie</span>
-                  <Badge variant="outline" className="gap-1.5 text-xs">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: recurring.category.color }} />
-                    {recurring.category.name}
-                  </Badge>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Prochain paiement</span>
-                <span className={`font-medium text-xs sm:text-sm ${
-                  recurring.is_active && daysUntil < 0 ? 'text-warning' : ''
-                }`}>
-                  {nextDue.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Début</span>
-                <span className="font-medium text-xs sm:text-sm">
-                  {parseLocalDate(recurring.start_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-              {recurring.end_date && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-xs">Fin</span>
-                  <span className="font-medium text-xs sm:text-sm">
-                    {parseLocalDate(recurring.end_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-xs">Statut</span>
-                {(() => {
-                  const instInfo = getInstallmentInfo(recurring);
-                  const isCompleted = instInfo?.isCompleted;
-                  return (
-                    <Badge variant={recurring.is_active ? 'default' : isCompleted ? 'default' : 'secondary'} className={`text-xs ${isCompleted ? 'bg-success text-white' : ''}`}>
-                      {recurring.is_active ? 'Actif' : isCompleted ? 'Terminé' : 'Inactif'}
-                    </Badge>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Installment progress */}
-            {installmentInfo && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.paid)}</p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm sm:text-base font-bold">{formatCurrency(installmentInfo.ip.remaining_amount)}</p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
-                    </div>
-                  </div>
-                  <Progress value={installmentInfo.pct} className="h-2" />
-                </div>
-
-                {/* Payment timeline */}
-                <div className="space-y-1">
-                  {getPaymentHistory(recurring.installment_payment_id!).map((tx) => (
-                    <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
-                      <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="text-xs sm:text-sm flex-1">
-                        {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                      </span>
-                      <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
-                    </div>
-                  ))}
-                  {/* Next pending */}
-                  {recurring.is_active && installmentInfo.ip.remaining_amount > 0 && (
-                    <div className="flex items-center gap-2.5 py-1.5">
-                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
-                      <span className="text-xs sm:text-sm flex-1">
-                        {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                      </span>
-                      <span className="text-xs sm:text-sm font-medium">
-                        {formatCurrency(installmentInfo.ip.installment_amount)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Debt progress */}
-            {debtInfo && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-sm sm:text-base font-bold">{formatCurrency(debtInfo.paid)}</p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Payé</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm sm:text-base font-bold">{formatCurrency(debtInfo.debt.remaining_amount)}</p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Restant</p>
-                    </div>
-                  </div>
-                  <Progress value={debtInfo.pct} className="h-2" />
-                </div>
-
-                {/* Debt payment timeline */}
-                <div className="space-y-1">
-                  {getDebtPaymentHistoryForTransaction(recurring).map((dp) => (
-                    <div key={dp.id} className="flex items-center gap-2.5 py-1.5">
-                      <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="text-xs sm:text-sm flex-1">
-                        {parseLocalDate(dp.payment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                      </span>
-                      <span className="text-xs sm:text-sm font-medium">{formatCurrency(dp.amount)}</span>
-                    </div>
-                  ))}
-                  {/* Next pending */}
-                  {recurring.is_active && debtInfo.debt.remaining_amount > 0 && (
-                    <div className="flex items-center gap-2.5 py-1.5">
-                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
-                      <span className="text-xs sm:text-sm flex-1">
-                        {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                      </span>
-                      <span className="text-xs sm:text-sm font-medium">
-                        {formatCurrency(listDisplayAmount)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex gap-2 pt-2 border-t border-border/50">
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                onClick={() => setEditingTransaction(recurring)}>
-                <Pencil className="h-3.5 w-3.5" /> Modifier
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-                onClick={() => handleToggleActive(recurring.id, recurring.is_active)}>
-                {recurring.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {recurring.is_active ? 'Désactiver' : 'Activer'}
-              </Button>
-              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
-                onClick={() => handleDelete(recurring.id, recurring.description)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
-    );
-  };
+    return {
+      installmentInfo,
+      debtInfo,
+      listDisplayAmount,
+      hasOverdueDebtPayment,
+      installmentPaymentHistory,
+      debtPaymentHistory,
+    };
+  }, [installmentPayments, transactions, debts, debtPayments, scheduledDebtPayments]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
       <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
 
         {/* Header */}
@@ -496,7 +264,7 @@ const RecurringTransactions = () => {
                 <div className="flex-1 min-w-0">
                   <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Active</p>
                   <p className="text-base sm:text-2xl font-bold">
-                    {recurringTransactions.filter(t => t.is_active).length}
+                    {activeTransactions.length}
                   </p>
                 </div>
                 <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
@@ -512,7 +280,7 @@ const RecurringTransactions = () => {
                 <div className="flex-1 min-w-0">
                   <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Inactive</p>
                   <p className="text-base sm:text-2xl font-bold">
-                    {recurringTransactions.filter(t => !t.is_active).length}
+                    {inactiveTransactions.length}
                   </p>
                 </div>
                 <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 flex">
@@ -528,13 +296,7 @@ const RecurringTransactions = () => {
                 <div className="flex-1 min-w-0">
                   <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">7 jours</p>
                   <p className="text-base sm:text-2xl font-bold">
-                    {recurringTransactions.filter(t => {
-                      if (!t.is_active) return false;
-                      const nextDue = parseLocalDate(t.next_due_date);
-                      const today = new Date();
-                      const inSevenDays = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-                      return nextDue <= inSevenDays;
-                    }).length}
+                    {dueInSevenDaysCount}
                   </p>
                 </div>
                 <div className="icon-badge icon-badge-sm bg-warning/10 flex-shrink-0 flex">
@@ -563,7 +325,7 @@ const RecurringTransactions = () => {
             {loading ? (
               <Card>
                 <CardContent className="p-6">
-                  <div className="animate-pulse space-y-4">
+                  <div className="animate-pulse space-y-4" role="status">
                     <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
                     <div className="grid grid-cols-7 gap-2">
                       {Array(35).fill(0).map((_, i) => (
@@ -651,7 +413,27 @@ const RecurringTransactions = () => {
                       </span>
                     </div>
                     <div className="space-y-2">
-                      {activeTransactions.map(renderListCard)}
+                      {activeTransactions.map(recurring => {
+                        const props = getListCardProps(recurring);
+                        return (
+                          <RecurringListCard
+                            key={recurring.id}
+                            recurring={recurring}
+                            isExpanded={expandedListId === recurring.id}
+                            onToggleExpand={() => setExpandedListId(expandedListId === recurring.id ? null : recurring.id)}
+                            installmentInfo={props.installmentInfo}
+                            debtInfo={props.debtInfo}
+                            listDisplayAmount={props.listDisplayAmount}
+                            hasOverdueDebtPayment={props.hasOverdueDebtPayment}
+                            installmentPaymentHistory={props.installmentPaymentHistory}
+                            debtPaymentHistory={props.debtPaymentHistory}
+                            formatCurrency={formatCurrency}
+                            onEdit={setEditingTransaction}
+                            onToggleActive={handleToggleActive}
+                            onDelete={handleDelete}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -668,7 +450,27 @@ const RecurringTransactions = () => {
                       </span>
                     </div>
                     <div className="space-y-2">
-                      {inactiveTransactions.map(renderListCard)}
+                      {inactiveTransactions.map(recurring => {
+                        const props = getListCardProps(recurring);
+                        return (
+                          <RecurringListCard
+                            key={recurring.id}
+                            recurring={recurring}
+                            isExpanded={expandedListId === recurring.id}
+                            onToggleExpand={() => setExpandedListId(expandedListId === recurring.id ? null : recurring.id)}
+                            installmentInfo={props.installmentInfo}
+                            debtInfo={props.debtInfo}
+                            listDisplayAmount={props.listDisplayAmount}
+                            hasOverdueDebtPayment={props.hasOverdueDebtPayment}
+                            installmentPaymentHistory={props.installmentPaymentHistory}
+                            debtPaymentHistory={props.debtPaymentHistory}
+                            formatCurrency={formatCurrency}
+                            onEdit={setEditingTransaction}
+                            onToggleActive={handleToggleActive}
+                            onDelete={handleDelete}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 )}
