@@ -174,6 +174,10 @@ export const useDebts = () => {
     return next ? next.scheduled_amount : null;
   };
 
+  const getNextScheduledPayment = (debtId: string): ScheduledDebtPayment | null => {
+    return scheduledPayments.find(sp => sp.debt_id === debtId && !sp.is_paid) ?? null;
+  };
+
   const createDebt = async (debtData: Omit<Debt, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<string | undefined> => {
     if (!user) return;
 
@@ -427,6 +431,7 @@ export const useDebts = () => {
     getDebtDeletionImpact,
     addPayment,
     deletePayment,
-    getNextScheduledAmount
+    getNextScheduledAmount,
+    getNextScheduledPayment
   };
 };

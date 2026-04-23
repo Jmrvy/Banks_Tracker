@@ -27,7 +27,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 
 const Debts = () => {
-  const { debts, payments, loading, deleteDebt, getDebtDeletionImpact, getNextScheduledAmount } = useDebts();
+  const { debts, payments, loading, deleteDebt, getDebtDeletionImpact, getNextScheduledAmount, getNextScheduledPayment } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const [newDebtModalOpen, setNewDebtModalOpen] = useState(false);
   const [editDebtModalOpen, setEditDebtModalOpen] = useState(false);
@@ -227,6 +227,7 @@ const Debts = () => {
                 onToggleExpand={() => setExpandedId(expandedId === debt.id ? null : debt.id)}
                 payments={paymentsByDebt.get(debt.id) || []}
                 nextScheduledAmount={getNextScheduledAmount(debt.id)}
+                nextScheduledPayment={getNextScheduledPayment(debt.id)}
                 formatCurrency={formatCurrency}
                 onAddPayment={handleAddPayment}
                 onEdit={handleEditDebt}
