@@ -32,7 +32,7 @@ interface RecurringCalendarProps {
   onEdit: (transaction: RecurringTransaction) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
-  onExecuteEarly?: (transactionId: string, executionDate: string) => Promise<{ error: any } | undefined>;
+  onExecuteEarly?: (transactionId: string, executionDate: string) => Promise<{ error: unknown } | undefined>;
   onRecordPayment?: (recurringTransactionId: string) => void;
   onManageDebtPayment?: (debtId: string) => void;
 }
@@ -104,12 +104,15 @@ function advanceDate(date: Date, recurrenceType: string): Date {
   }
 }
 
+type DateField = 'value_date' | 'transaction_date';
+const getTxDate = (tx: Transaction, field: DateField): string => field === 'value_date' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
+
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const { formatCurrency, preferences } = useUserPreferences();
-  const dateField = preferences.dateType === 'value' ? 'value_date' : 'transaction_date';
+  const dateField: DateField = preferences.dateType === 'value' ? 'value_date' : 'transaction_date';
   const transactionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -133,7 +136,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     const map = new Map<string, number>();
     actualTransactions.forEach((tx) => {
       if (tx.installment_payment_id) {
-        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const txDate = getTxDate(tx, dateField);
         const monthKey = txDate.substring(0, 7);
         const key = `${tx.installment_payment_id}:${monthKey}`;
         map.set(key, (map.get(key) || 0) + tx.amount);
@@ -148,7 +151,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     const map = new Map<string, { installmentPaymentId: string; amount: number; recurringId: string | null }[]>();
     actualTransactions.forEach((tx) => {
       if (tx.installment_payment_id) {
-        const txDate = (tx as any)[dateField] || tx.transaction_date;
+        const txDate = getTxDate(tx, dateField);
         const dayKey = txDate.substring(0, 10);
         const existing = map.get(dayKey) || [];
         // Find the recurring transaction linked to this installment
@@ -171,7 +174,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     actualTransactions.forEach((tx) => {
       const rtId = tx.recurring_transaction_id;
       if (!rtId || tx.installment_payment_id) return; // installments handled separately
-      const txDate = (tx as any)[dateField] || tx.transaction_date;
+      const txDate = getTxDate(tx, dateField);
       const monthKey = txDate.substring(0, 7);
       const key = `${rtId}:${monthKey}`;
       const existing = map.get(key) || [];
@@ -193,7 +196,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       if (!rtId) return;
       const recurringTx = transactions.find(rt => rt.id === rtId);
       if (!recurringTx) return;
-      const txDate = (tx as any)[dateField] || tx.transaction_date;
+      const txDate = getTxDate(tx, dateField);
       const dayKey = txDate.substring(0, 10);
       const existing = map.get(dayKey) || [];
       existing.push({ recurringTx, amount: tx.amount });
@@ -697,8 +700,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return actualTransactions
       .filter(tx => tx.installment_payment_id === installmentPaymentId)
       .sort((a, b) => {
-        const dateA = (a as any)[dateField] || a.transaction_date;
-        const dateB = (b as any)[dateField] || b.transaction_date;
+        const dateA = getTxDate(a, dateField);
+        const dateB = getTxDate(b, dateField);
         return dateA.localeCompare(dateB);
       });
   };
@@ -708,8 +711,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return actualTransactions
       .filter(tx => tx.recurring_transaction_id === recurringTransactionId && !tx.installment_payment_id)
       .sort((a, b) => {
-        const dateA = (a as any)[dateField] || a.transaction_date;
-        const dateB = (b as any)[dateField] || b.transaction_date;
+        const dateA = getTxDate(a, dateField);
+        const dateB = getTxDate(b, dateField);
         return dateA.localeCompare(dateB);
       });
   };
@@ -909,7 +912,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                     <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
                       <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                       <span className="text-xs sm:text-sm flex-1">
-                        {parseLocalDate((tx as any)[dateField] || tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                        {parseLocalDate(getTxDate(tx, dateField)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
                       </span>
                       <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
                     </div>
@@ -999,7 +1002,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                       <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
                         <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                         <span className="text-xs sm:text-sm flex-1">
-                          {parseLocalDate((tx as any)[dateField] || tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          {parseLocalDate(getTxDate(tx, dateField)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </span>
                         <span className="text-xs sm:text-sm font-medium">{formatCurrency(tx.amount)}</span>
                       </div>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -49,68 +50,124 @@ export interface ScheduledDebtPayment {
   actual_amount: number | null;
 }
 
+const DEBT_QUERY_KEYS = {
+  debts: (userId: string) => ['debts', userId] as const,
+  payments: (userId: string) => ['debtPayments', userId] as const,
+  scheduledPayments: (userId: string) => ['scheduledDebtPayments', userId] as const,
+};
+
 export const useDebts = () => {
-  const [debts, setDebts] = useState<Debt[]>([]);
-  const [payments, setPayments] = useState<DebtPayment[]>([]);
-  const [scheduledPayments, setScheduledPayments] = useState<ScheduledDebtPayment[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchDebts = async () => {
+  const debtsQuery = useQuery({
+    queryKey: DEBT_QUERY_KEYS.debts(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les dettes",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      return (data ?? []) as Debt[];
+    },
+    enabled: !!user,
+  });
+
+  const paymentsQuery = useQuery({
+    queryKey: DEBT_QUERY_KEYS.payments(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('debt_payments')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('payment_date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching payments:', error);
+        throw error;
+      }
+
+      return (data ?? []) as DebtPayment[];
+    },
+    enabled: !!user,
+  });
+
+  const scheduledPaymentsQuery = useQuery({
+    queryKey: DEBT_QUERY_KEYS.scheduledPayments(user?.id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('scheduled_debt_payments')
+        .select('id, debt_id, scheduled_date, scheduled_amount, principal_amount, interest_amount, is_paid, paid_date, actual_amount')
+        .eq('user_id', user!.id)
+        .order('scheduled_date', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching scheduled payments:', error);
+        throw error;
+      }
+
+      return (data ?? []) as ScheduledDebtPayment[];
+    },
+    enabled: !!user,
+  });
+
+  const debts = debtsQuery.data ?? [];
+  const payments = paymentsQuery.data ?? [];
+  const scheduledPayments = scheduledPaymentsQuery.data ?? [];
+  const loading = !user ? false : (debtsQuery.isLoading || paymentsQuery.isLoading || scheduledPaymentsQuery.isLoading);
+
+  const invalidateDebts = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: DEBT_QUERY_KEYS.debts(user.id) });
+  }, [user, queryClient]);
+
+  const invalidatePayments = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: DEBT_QUERY_KEYS.payments(user.id) });
+  }, [user, queryClient]);
+
+  const invalidateScheduledPayments = useCallback(() => {
+    if (user) queryClient.invalidateQueries({ queryKey: DEBT_QUERY_KEYS.scheduledPayments(user.id) });
+  }, [user, queryClient]);
+
+  useEffect(() => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('debts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const channel = supabase
+      .channel('debt-data-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'debts', filter: `user_id=eq.${user.id}` },
+        () => invalidateDebts()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'debt_payments', filter: `user_id=eq.${user.id}` },
+        () => invalidatePayments()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'scheduled_debt_payments', filter: `user_id=eq.${user.id}` },
+        () => {
+          invalidateDebts();
+          invalidateScheduledPayments();
+        }
+      )
+      .subscribe();
 
-    if (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les dettes",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setDebts(data || []);
-  };
-
-  const fetchPayments = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('debt_payments')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('payment_date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching payments:', error);
-      return;
-    }
-
-    setPayments(data || []);
-  };
-
-  const fetchScheduledPayments = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('scheduled_debt_payments')
-      .select('id, debt_id, scheduled_date, scheduled_amount, principal_amount, interest_amount, is_paid, paid_date, actual_amount')
-      .eq('user_id', user.id)
-      .order('scheduled_date', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching scheduled payments:', error);
-      return;
-    }
-
-    setScheduledPayments(data || []);
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, invalidateDebts, invalidatePayments, invalidateScheduledPayments]);
 
   const getNextScheduledAmount = (debtId: string): number | null => {
     const next = scheduledPayments.find(sp => sp.debt_id === debtId && !sp.is_paid);
@@ -140,7 +197,7 @@ export const useDebts = () => {
       description: "Dette créée avec succès"
     });
 
-    await fetchDebts();
+    invalidateDebts();
     return data?.id;
   };
 
@@ -167,53 +224,67 @@ export const useDebts = () => {
       description: "Dette modifiée avec succès"
     });
 
-    await fetchDebts();
+    invalidateDebts();
   };
 
   const getDebtDeletionImpact = async (id: string): Promise<{ transactionCount: number; recurringCount: number; paymentCount: number }> => {
     if (!user) return { transactionCount: 0, recurringCount: 0, paymentCount: 0 };
 
-    // Count recurring transactions linked to this debt
-    const { data: linkedRecurring } = await supabase
+    const { data: linkedRecurring, error: linkedRecurringError } = await supabase
       .from('recurring_transactions')
       .select('id')
       .eq('user_id', user.id)
       .eq('debt_id', id);
 
+    if (linkedRecurringError) {
+      console.error('Error fetching linked recurring transactions:', linkedRecurringError);
+    }
+
     const recurringIds = (linkedRecurring || []).map(r => r.id);
 
-    // Also count by description fallback
     const debt = debts.find(d => d.id === id);
     if (debt) {
       const suffixReceived = `${debt.description} (Remboursement dette)`;
       const suffixGiven = `${debt.description} (Remboursement prêt)`;
-      const { data: legacyRecurring } = await supabase
+      const { data: legacyRecurring, error: legacyError } = await supabase
         .from('recurring_transactions')
         .select('id')
         .eq('user_id', user.id)
         .in('description', [suffixReceived, suffixGiven]);
+
+      if (legacyError) {
+        console.error('Error fetching legacy recurring transactions:', legacyError);
+      }
+
       (legacyRecurring || []).forEach(r => {
         if (!recurringIds.includes(r.id)) recurringIds.push(r.id);
       });
     }
 
-    // Count transactions created from these recurring transactions
     let transactionCount = 0;
     if (recurringIds.length > 0) {
-      const { count } = await supabase
+      const { count, error: txCountError } = await supabase
         .from('transactions')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .in('recurring_transaction_id', recurringIds);
+
+      if (txCountError) {
+        console.error('Error counting linked transactions:', txCountError);
+      }
+
       transactionCount = count || 0;
     }
 
-    // Count debt_payments
-    const { count: paymentCount } = await supabase
+    const { count: paymentCount, error: paymentCountError } = await supabase
       .from('debt_payments')
       .select('id', { count: 'exact', head: true })
       .eq('debt_id', id)
       .eq('user_id', user.id);
+
+    if (paymentCountError) {
+      console.error('Error counting debt payments:', paymentCountError);
+    }
 
     return {
       transactionCount,
@@ -225,31 +296,37 @@ export const useDebts = () => {
   const deleteDebt = async (id: string) => {
     if (!user) return;
 
-    // 1. Find all recurring transactions linked to this debt
-    const { data: linkedRecurring } = await supabase
+    const { data: linkedRecurring, error: linkedRecurringError } = await supabase
       .from('recurring_transactions')
       .select('id')
       .eq('user_id', user.id)
       .eq('debt_id', id);
 
+    if (linkedRecurringError) {
+      console.error('Error fetching linked recurring transactions for deletion:', linkedRecurringError);
+    }
+
     const recurringIds = (linkedRecurring || []).map(r => r.id);
 
-    // Also find by description fallback for older records
     const debt = debts.find(d => d.id === id);
     if (debt) {
       const suffixReceived = `${debt.description} (Remboursement dette)`;
       const suffixGiven = `${debt.description} (Remboursement prêt)`;
-      const { data: legacyRecurring } = await supabase
+      const { data: legacyRecurring, error: legacyError } = await supabase
         .from('recurring_transactions')
         .select('id')
         .eq('user_id', user.id)
         .in('description', [suffixReceived, suffixGiven]);
+
+      if (legacyError) {
+        console.error('Error fetching legacy recurring transactions for deletion:', legacyError);
+      }
+
       (legacyRecurring || []).forEach(r => {
         if (!recurringIds.includes(r.id)) recurringIds.push(r.id);
       });
     }
 
-    // 2. Delete all transactions created from these recurring transactions
     if (recurringIds.length > 0) {
       await supabase
         .from('transactions')
@@ -258,7 +335,6 @@ export const useDebts = () => {
         .in('recurring_transaction_id', recurringIds);
     }
 
-    // 3. Delete the recurring transactions themselves
     if (recurringIds.length > 0) {
       await supabase
         .from('recurring_transactions')
@@ -267,7 +343,6 @@ export const useDebts = () => {
         .in('id', recurringIds);
     }
 
-    // 4. Delete the debt (debt_payments and scheduled_debt_payments are CASCADE-deleted by the DB)
     const { error } = await supabase
       .from('debts')
       .delete()
@@ -288,8 +363,8 @@ export const useDebts = () => {
       description: "Dette et transactions associées supprimées avec succès"
     });
 
-    await fetchDebts();
-    await fetchPayments();
+    invalidateDebts();
+    invalidatePayments();
   };
 
   const addPayment = async (paymentData: Omit<DebtPayment, 'id' | 'user_id' | 'created_at'>) => {
@@ -313,8 +388,8 @@ export const useDebts = () => {
       description: "Paiement enregistré avec succès"
     });
 
-    await fetchDebts();
-    await fetchPayments();
+    invalidateDebts();
+    invalidatePayments();
   };
 
   const deletePayment = async (id: string) => {
@@ -337,45 +412,9 @@ export const useDebts = () => {
       description: "Paiement supprimé avec succès"
     });
 
-    await fetchDebts();
-    await fetchPayments();
+    invalidateDebts();
+    invalidatePayments();
   };
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchDebts(), fetchPayments(), fetchScheduledPayments()]);
-      setLoading(false);
-    };
-
-    if (user) {
-      loadData();
-
-      const debtsSubscription = supabase
-        .channel('debts_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'debts' }, fetchDebts)
-        .subscribe();
-
-      const paymentsSubscription = supabase
-        .channel('payments_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'debt_payments' }, fetchPayments)
-        .subscribe();
-
-      const scheduledSubscription = supabase
-        .channel('scheduled_debt_payments_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_debt_payments' }, () => {
-          fetchDebts();
-          fetchScheduledPayments();
-        })
-        .subscribe();
-
-      return () => {
-        debtsSubscription.unsubscribe();
-        paymentsSubscription.unsubscribe();
-        scheduledSubscription.unsubscribe();
-      };
-    }
-  }, [user]);
 
   return {
     debts,

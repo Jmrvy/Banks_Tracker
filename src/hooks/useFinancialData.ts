@@ -340,13 +340,14 @@ function useFinancialDataInternal() {
     
     if (updates.start_date || updates.recurrence_type) {
       // Get current transaction to have all needed data
-      const { data: currentTransaction } = await supabase
+      const { data: currentTransaction, error: fetchCurrentErr } = await supabase
         .from('recurring_transactions')
         .select('*')
         .eq('id', id)
         .eq('user_id', user.id)
         .maybeSingle();
-      
+
+      if (fetchCurrentErr) console.error('Error fetching current recurring transaction:', fetchCurrentErr);
       if (currentTransaction) {
         const baseStart = updates.start_date || currentTransaction.start_date;
         const recurrenceType = updates.recurrence_type || currentTransaction.recurrence_type;
@@ -422,12 +423,13 @@ function useFinancialDataInternal() {
         const amountDifference = updates.amount - originalAmount;
 
         // Get current installment payment
-        const { data: installmentPayment } = await supabase
+        const { data: installmentPayment, error: ipErr } = await supabase
           .from('installment_payments')
           .select('remaining_amount')
           .eq('id', originalTransaction.installment_payment_id)
           .single();
 
+        if (ipErr) console.error('Error fetching installment payment:', ipErr);
         if (installmentPayment) {
           const newRemainingAmount = installmentPayment.remaining_amount - amountDifference;
 
@@ -445,13 +447,14 @@ function useFinancialDataInternal() {
           const txDate = originalTransaction.transaction_date;
 
           // Find the matching debt_payment by date and original amount
-          const { data: debtPaymentsOnDate } = await supabase
+          const { data: debtPaymentsOnDate, error: dpErr } = await supabase
             .from('debt_payments')
             .select('id, amount, principal_amount, interest_amount')
             .eq('debt_id', linkedRT.debt_id)
             .eq('user_id', user.id)
             .eq('payment_date', txDate);
 
+          if (dpErr) console.error('Error fetching debt payments on date:', dpErr);
           const matchingPayment = (debtPaymentsOnDate || []).find(
             dp => Math.abs(Number(dp.amount) - originalAmount) < 0.01
           );
@@ -507,13 +510,14 @@ function useFinancialDataInternal() {
     if (!error) {
       // If this transaction is a refund, decrement refunded_amount on the original transaction
       if (transactionToDelete?.refund_of_transaction_id) {
-        const { data: originalTransaction } = await supabase
+        const { data: originalTransaction, error: refundErr } = await supabase
           .from('transactions')
           .select('refunded_amount')
           .eq('id', transactionToDelete.refund_of_transaction_id)
           .eq('user_id', user.id)
           .maybeSingle();
 
+        if (refundErr) console.error('Error fetching original transaction for refund reversal:', refundErr);
         if (originalTransaction) {
           const currentRefunded = originalTransaction.refunded_amount || 0;
           const newRefunded = Math.max(0, currentRefunded - Number(transactionToDelete.amount));
@@ -528,12 +532,13 @@ function useFinancialDataInternal() {
 
       // If this transaction was linked to an installment payment, add the amount back to remaining_amount
       if (transactionToDelete?.installment_payment_id) {
-        const { data: installmentPayment } = await supabase
+        const { data: installmentPayment, error: ipDelErr } = await supabase
           .from('installment_payments')
           .select('remaining_amount, is_active')
           .eq('id', transactionToDelete.installment_payment_id)
           .single();
 
+        if (ipDelErr) console.error('Error fetching installment payment for reversal:', ipDelErr);
         if (installmentPayment) {
           const newRemainingAmount = installmentPayment.remaining_amount + transactionToDelete.amount;
 
@@ -562,13 +567,14 @@ function useFinancialDataInternal() {
           const txAmount = Number(transactionToDelete.amount);
 
           // Find and delete the matching debt_payment
-          const { data: debtPaymentsOnDate } = await supabase
+          const { data: debtPaymentsOnDate, error: dpDelErr } = await supabase
             .from('debt_payments')
             .select('id, amount')
             .eq('debt_id', linkedRT.debt_id)
             .eq('user_id', user.id)
             .eq('payment_date', txDate);
 
+          if (dpDelErr) console.error('Error fetching debt payments for reversal:', dpDelErr);
           const matchingDebtPayment = (debtPaymentsOnDate || []).find(
             dp => Math.abs(Number(dp.amount) - txAmount) < 0.01
           ) || null;
@@ -583,7 +589,7 @@ function useFinancialDataInternal() {
 
           // Reset the matching scheduled_debt_payment back to unpaid
           const monthKey = txDate.substring(0, 7);
-          const { data: scheduledForMonth } = await supabase
+          const { data: scheduledForMonth, error: spErr } = await supabase
             .from('scheduled_debt_payments')
             .select('id')
             .eq('debt_id', linkedRT.debt_id)
@@ -593,6 +599,7 @@ function useFinancialDataInternal() {
             .limit(1)
             .maybeSingle();
 
+          if (spErr) console.error('Error fetching scheduled payment for reversal:', spErr);
           if (scheduledForMonth) {
             await supabase
               .from('scheduled_debt_payments')
@@ -630,11 +637,12 @@ function useFinancialDataInternal() {
     let transactionAmount = rt.amount;
     let transactionType = rt.type;
     if (rt.installment_payment_id) {
-      const { data: ipData } = await supabase
+      const { data: ipData, error: ipFetchErr } = await supabase
         .from('installment_payments')
         .select('installment_amount, payment_type')
         .eq('id', rt.installment_payment_id)
         .single();
+      if (ipFetchErr) console.error('Error fetching installment for early execution:', ipFetchErr);
       if (ipData) {
         transactionAmount = ipData.installment_amount;
         transactionType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
@@ -645,7 +653,7 @@ function useFinancialDataInternal() {
     let debtScheduledPrincipal = 0;
     let debtScheduledInterest = 0;
     if (rt.debt_id) {
-      const { data: scheduledPayment } = await supabase
+      const { data: scheduledPayment, error: spFetchErr } = await supabase
         .from('scheduled_debt_payments')
         .select('scheduled_amount, principal_amount, interest_amount')
         .eq('debt_id', rt.debt_id)
@@ -654,6 +662,7 @@ function useFinancialDataInternal() {
         .order('scheduled_date', { ascending: true })
         .limit(1)
         .maybeSingle();
+      if (spFetchErr) console.error('Error fetching scheduled payment for early execution:', spFetchErr);
       if (scheduledPayment) {
         transactionAmount = scheduledPayment.scheduled_amount;
         debtScheduledPrincipal = scheduledPayment.principal_amount || 0;
@@ -930,7 +939,7 @@ function useFinancialDataInternal() {
         // Fetch full installment data once (reused later for remaining_amount update)
         let txType = rt.type;
         let txAmount = rt.amount;
-        let installmentData: any = null;
+        let installmentData: { total_amount: number; installment_amount: number; remaining_amount: number; payment_type: string; is_active: boolean } | null = null;
         if (rt.installment_payment_id) {
           const { data: ipData } = await supabase
             .from('installment_payments')
@@ -945,7 +954,7 @@ function useFinancialDataInternal() {
         }
 
         // For debt-linked recurring, fetch scheduled payments to check which are already paid
-        let debtScheduledPayments: any[] = [];
+        let debtScheduledPayments: { id: string; scheduled_date: string; scheduled_amount: number; principal_amount: number; interest_amount: number; is_paid: boolean | null }[] = [];
         if (rt.debt_id) {
           const { data: spData } = await supabase
             .from('scheduled_debt_payments')
