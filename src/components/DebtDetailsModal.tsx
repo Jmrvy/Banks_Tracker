@@ -38,6 +38,7 @@ interface ScheduledPayment {
   scheduled_amount: number;
   principal_amount: number;
   interest_amount: number;
+  insurance_amount: number;
   actual_amount: number | null;
   is_paid: boolean | null;
   paid_date: string | null;
@@ -118,6 +119,7 @@ export const DebtDetailsModal = ({
         amount: paymentAmount,
         principal_amount: sp.principal_amount,
         interest_amount: sp.interest_amount,
+        insurance_amount: sp.insurance_amount || 0,
         payment_date: paymentDate,
         notes: `Échéance confirmée: ${format(new Date(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
       });
@@ -419,10 +421,16 @@ export const DebtDetailsModal = ({
                     </p>
                   </div>
                   {debtPayments.some(p => p.principal_amount > 0) && (
-                    <div className="flex items-center justify-end gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                    <div className="flex items-center justify-end gap-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
                       <span>Capital: {formatCurrency(debtPayments.reduce((s, p) => s + (p.principal_amount || 0), 0))}</span>
                       <span>·</span>
                       <span>Intérêts: {formatCurrency(debtPayments.reduce((s, p) => s + (p.interest_amount || 0), 0))}</span>
+                      {debtPayments.some(p => (p.insurance_amount || 0) > 0) && (
+                        <>
+                          <span>·</span>
+                          <span>Assurance: {formatCurrency(debtPayments.reduce((s, p) => s + (p.insurance_amount || 0), 0))}</span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -523,9 +531,10 @@ export const DebtDetailsModal = ({
                           <p className={`text-[11px] sm:text-xs font-medium ${isPaid ? 'line-through' : ''}`}>
                             {format(new Date(sp.scheduled_date), 'dd MMM yyyy', { locale: fr })}
                           </p>
-                          {(sp.principal_amount > 0 || sp.interest_amount > 0) && (
+                          {(sp.principal_amount > 0 || sp.interest_amount > 0 || (sp.insurance_amount || 0) > 0) && (
                             <p className="text-[9px] sm:text-[10px] text-muted-foreground">
                               Capital: {formatCurrency(sp.principal_amount)} · Intérêts: {formatCurrency(sp.interest_amount)}
+                              {(sp.insurance_amount || 0) > 0 && ` · Assurance: ${formatCurrency(sp.insurance_amount)}`}
                             </p>
                           )}
                           {isNext && (

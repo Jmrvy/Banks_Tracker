@@ -25,6 +25,7 @@ interface ScheduledPayment {
   scheduled_amount: number;
   principal_amount: number;
   interest_amount: number;
+  insurance_amount: number;
   actual_amount: number | null;
   is_paid: boolean | null;
   paid_date: string | null;
@@ -162,6 +163,7 @@ export const LinkDebtPaymentModal = ({
         amount: paymentAmount,
         principal_amount: scheduledPayment.principal_amount,
         interest_amount: scheduledPayment.interest_amount,
+        insurance_amount: scheduledPayment.insurance_amount || 0,
         payment_date: paymentDate,
         notes: mode === 'link' && selectedTransaction
           ? `Lié à: ${selectedTransaction.description}`

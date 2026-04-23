@@ -140,6 +140,7 @@ export type Database = {
           created_at: string | null
           debt_id: string
           id: string
+          insurance_amount: number
           interest_amount: number
           notes: string | null
           payment_date: string
@@ -151,6 +152,7 @@ export type Database = {
           created_at?: string | null
           debt_id: string
           id?: string
+          insurance_amount?: number
           interest_amount?: number
           notes?: string | null
           payment_date: string
@@ -162,6 +164,7 @@ export type Database = {
           created_at?: string | null
           debt_id?: string
           id?: string
+          insurance_amount?: number
           interest_amount?: number
           notes?: string | null
           payment_date?: string
@@ -674,6 +677,7 @@ export type Database = {
           created_at: string | null
           debt_id: string
           id: string
+          insurance_amount: number
           interest_amount: number
           is_paid: boolean | null
           paid_date: string | null
@@ -687,6 +691,7 @@ export type Database = {
           created_at?: string | null
           debt_id: string
           id?: string
+          insurance_amount?: number
           interest_amount?: number
           is_paid?: boolean | null
           paid_date?: string | null
@@ -700,6 +705,7 @@ export type Database = {
           created_at?: string | null
           debt_id?: string
           id?: string
+          insurance_amount?: number
           interest_amount?: number
           is_paid?: boolean | null
           paid_date?: string | null
