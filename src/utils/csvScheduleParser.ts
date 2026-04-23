@@ -112,7 +112,8 @@ function splitCSVLine(line: string, delimiter: string): string[] {
 }
 
 /**
- * Normalize a header name for matching (lowercase, remove accents, trim)
+ * Normalize a header name for matching (lowercase, remove accents, trim,
+ * and also strip U+FFFD replacement characters from encoding failures)
  */
 function normalizeHeader(h: string): string {
   return h.toLowerCase()
@@ -123,17 +124,36 @@ function normalizeHeader(h: string): string {
 const EXPECTED_HEADERS: Record<string, string[]> = {
   date: ['date'],
   periodNumber: ['n', 'no', 'numero'],
-  payment: ['montantecheance', 'montantech', 'echeance', 'mensualite', 'paiement'],
+  payment: ['montantecheance', 'montantech', 'echeance', 'mensualite', 'paiement', 'montant'],
   interest: ['interets', 'interet', 'interest'],
   insurance: ['assurance', 'insurance', 'cotisation'],
-  principal: ['capitalamorti', 'amortissement', 'capital amorti', 'principal'],
+  principal: ['capitalamorti', 'amortissement', 'principal'],
   remainingBalance: ['capitalrestantdu', 'capitalrestant', 'crd', 'solde', 'restant', 'remaining'],
 };
 
 /**
  * Match CSV headers to expected columns. Returns mapping or null if invalid.
+ * Uses positional matching for the standard 7-column French bank format first,
+ * then falls back to name-based matching.
  */
 function matchHeaders(headers: string[]): Record<string, number> | null {
+  // Standard 7-column format: Date;N°;Montant échéance;Intérêts;Assurance;Capital amorti;Capital restant dû
+  if (headers.length >= 7) {
+    const first = normalizeHeader(headers[0]);
+    if (first === 'date' || first.includes('date')) {
+      return {
+        date: 0,
+        periodNumber: 1,
+        payment: 2,
+        interest: 3,
+        insurance: 4,
+        principal: 5,
+        remainingBalance: 6,
+      };
+    }
+  }
+
+  // Fallback: name-based matching
   const mapping: Record<string, number> = {};
   const normalized = headers.map(normalizeHeader);
 
@@ -146,7 +166,6 @@ function matchHeaders(headers: string[]): Record<string, number> | null {
     }
   }
 
-  // Minimum required: date + at least payment or remainingBalance
   if (!('date' in mapping)) return null;
   if (!('payment' in mapping) && !('remainingBalance' in mapping)) return null;
 
@@ -212,16 +231,15 @@ export function validateSchedule(schedule: ParsedScheduleRow[], totalAmount: num
 /**
  * Read file text with encoding detection.
  * French bank CSVs are often Windows-1252/ISO-8859-1, not UTF-8.
+ * Detects encoding failures by checking for U+FFFD replacement characters.
  */
 async function readFileText(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-  try {
-    const decoder = new TextDecoder('utf-8', { fatal: true });
-    return decoder.decode(buffer);
-  } catch {
-    const decoder = new TextDecoder('windows-1252');
-    return decoder.decode(buffer);
+  const utf8Text = new TextDecoder('utf-8').decode(buffer);
+  if (utf8Text.includes('�')) {
+    return new TextDecoder('windows-1252').decode(buffer);
   }
+  return utf8Text;
 }
 
 export async function parseLoanCSV(file: File): Promise<ParsedLoanInfo & { validation: CsvValidationResult }> {
