@@ -34,7 +34,7 @@ export const MobileNavigation = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(item.path)}
-                className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 ${
+                className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                   isItemActive
                     ? "text-primary bg-primary/10 shadow-[0_0_8px_-2px_hsl(38_70%_68%/0.3)]"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
@@ -53,7 +53,7 @@ export const MobileNavigation = () => {
             variant="ghost"
             size="sm"
             onClick={() => navigate("/new-transaction")}
-            className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 ${
+            className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               location.pathname === "/new-transaction"
                 ? "text-primary bg-primary/10 shadow-[0_0_8px_-2px_hsl(38_70%_68%/0.3)]"
                 : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
@@ -70,7 +70,7 @@ export const MobileNavigation = () => {
             variant="ghost"
             size="sm"
             onClick={() => setMenuOpen(true)}
-            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
           >
             <Menu className="h-5 w-5" />
             <span className="text-[10px] leading-tight font-medium">Menu</span>
