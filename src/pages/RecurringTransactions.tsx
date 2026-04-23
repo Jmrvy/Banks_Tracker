@@ -229,7 +229,7 @@ const RecurringTransactions = () => {
   }, [installmentPayments, transactions, debts, debtPayments, scheduledDebtPayments]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
       <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
 
         {/* Header */}
@@ -325,7 +325,7 @@ const RecurringTransactions = () => {
             {loading ? (
               <Card>
                 <CardContent className="p-6">
-                  <div className="animate-pulse space-y-4">
+                  <div className="animate-pulse space-y-4" role="status">
                     <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
                     <div className="grid grid-cols-7 gap-2">
                       {Array(35).fill(0).map((_, i) => (

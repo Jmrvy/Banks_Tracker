@@ -193,7 +193,7 @@ Liquid Glass UX Design System — Inspired by Apple's translucent material langu
 
   /* Hover state for glass surfaces */
   .glass-hover {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .glass-hover:hover {
     background: hsl(var(--glass-bg) / 0.7);
@@ -346,23 +346,23 @@ Liquid Glass UX Design System — Inspired by Apple's translucent material langu
 
   /* Compact padding for mobile */
   .p-responsive {
-    @apply p-3 sm:p-4 lg:p-6;
+    @apply p-3 sm:p-4 md:p-6;
   }
 
   .px-responsive {
-    @apply px-3 sm:px-4 lg:px-6;
+    @apply px-3 sm:px-4 md:px-6;
   }
 
   .py-responsive {
-    @apply py-3 sm:py-4 lg:py-6;
+    @apply py-3 sm:py-4 md:py-6;
   }
 
   /* Compact spacing */
   .space-y-responsive > * + * {
-    @apply mt-3 sm:mt-4 lg:mt-6;
+    @apply mt-3 sm:mt-4 md:mt-6;
   }
 
   .gap-responsive {
-    @apply gap-3 sm:gap-4 lg:gap-6;
+    @apply gap-3 sm:gap-4 md:gap-6;
   }
 }

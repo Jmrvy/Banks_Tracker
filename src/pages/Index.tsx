@@ -39,10 +39,10 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <div>Chargement de vos données financières...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
+          <p className="text-sm text-muted-foreground">Chargement de vos données financières...</p>
         </div>
       </div>
     );
@@ -56,7 +56,7 @@ const Index = () => {
   // Show quick preview on each login / page refresh
   if (showQuickPreview) {
     return (
-      <div className="min-h-screen bg-background pb-20 md:pb-8">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
         <div className="p-4 md:p-6 lg:p-8 border-b">
           <div className="max-w-5xl mx-auto">
             <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Aperçu rapide</h1>
@@ -69,7 +69,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
       <DashboardHeader
         selectedPeriod={selectedPeriod}
         onPeriodChange={setSelectedPeriod}
