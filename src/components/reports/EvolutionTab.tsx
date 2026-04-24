@@ -1,21 +1,21 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { GRID_PROPS } from "@/lib/chartConfig";
-import { BalanceDataPoint, ReportsStats, RecurringData, SpendingPatternsData } from "@/hooks/useReportsData";
+import { BalanceDataPoint, ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import { MonthlyProjections } from "@/components/MonthlyProjections";
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useMemo } from "react";
+import { format, differenceInDays } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
   stats: ReportsStats;
   recurringData: RecurringData;
-  spendingPatternsData: SpendingPatternsData | null;
-  useSpendingPatterns: boolean;
-  setUseSpendingPatterns: (value: boolean) => void;
 }
 
 const chartConfig = {
@@ -33,11 +33,86 @@ export const EvolutionTab = ({
   balanceEvolutionData,
   stats,
   recurringData,
-  spendingPatternsData,
-  useSpendingPatterns,
-  setUseSpendingPatterns
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const isMobile = useIsMobile();
+
+  // Process chart data: smart sampling + adaptive date labels
+  const chartData = useMemo(() => {
+    if (!balanceEvolutionData || balanceEvolutionData.length === 0) return [];
+
+    const data = balanceEvolutionData;
+    const firstDate = data[0]?.dateObj;
+    const lastDate = data[data.length - 1]?.dateObj;
+    if (!firstDate || !lastDate) return data;
+
+    const totalDays = Math.max(1, differenceInDays(lastDate, firstDate));
+
+    // Adaptive label format
+    const labelFmt = totalDays > 180
+      ? (isMobile ? 'MMM' : 'MMM yyyy')
+      : totalDays > 60
+        ? (isMobile ? 'dd/MM' : 'dd MMM')
+        : (isMobile ? 'dd/MM' : 'dd MMM');
+
+    // Target ~25-30 chart points max
+    const maxPoints = isMobile ? 20 : 30;
+    if (data.length <= maxPoints) {
+      return data.map(d => ({
+        ...d,
+        date: format(d.dateObj, labelFmt, { locale: fr }),
+      }));
+    }
+
+    // Sample: always keep first, last, and transition points (where solde switches to null)
+    const sampled: BalanceDataPoint[] = [];
+    const step = Math.max(1, Math.floor(data.length / maxPoints));
+
+    for (let i = 0; i < data.length; i++) {
+      const isFirst = i === 0;
+      const isLast = i === data.length - 1;
+      const isSamplePoint = i % step === 0;
+      // Keep transition between real and projected
+      const isTransition = i > 0 && (
+        (data[i].solde === null && data[i - 1].solde !== null) ||
+        (data[i].solde !== null && data[i - 1].solde === null)
+      );
+
+      if (isFirst || isLast || isSamplePoint || isTransition) {
+        sampled.push({
+          ...data[i],
+          date: format(data[i].dateObj, labelFmt, { locale: fr }),
+        });
+      }
+    }
+
+    return sampled;
+  }, [balanceEvolutionData, isMobile]);
+
+  // Compute Y-axis domain
+  const yDomain = useMemo(() => {
+    if (chartData.length === 0) return [0, 1000];
+    let min = Infinity, max = -Infinity;
+    for (const d of chartData) {
+      if (d.solde !== null) { min = Math.min(min, d.solde); max = Math.max(max, d.solde); }
+      if (d.soldeProjecte !== undefined) { min = Math.min(min, d.soldeProjecte); max = Math.max(max, d.soldeProjecte); }
+    }
+    if (!isFinite(min)) min = 0;
+    if (!isFinite(max)) max = 1000;
+    const range = max - min || 1;
+    const padding = range * 0.1;
+    const yMin = Math.floor((min - padding) / 100) * 100;
+    const yMax = Math.ceil((max + padding) / 100) * 100;
+    return [yMin, yMax] as [number, number];
+  }, [chartData]);
+
+  const yTickFormatter = (value: number) => {
+    const abs = Math.abs(value);
+    if (abs >= 1000) return `${(value / 1000).toFixed(abs >= 10000 ? 0 : 1)}k`;
+    return `${Math.round(value)}`;
+  };
+
+  const xTickInterval = Math.max(0, Math.floor(chartData.length / (isMobile ? 5 : 8)) - 1);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -106,51 +181,39 @@ export const EvolutionTab = ({
       {/* Graphique d'évolution */}
       <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
-              <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
-                Projection sur 3 mois
-              </CardDescription>
-            </div>
-            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] rounded-xl px-2.5 py-1.5">
-              <Switch
-                id="spending-patterns"
-                checked={useSpendingPatterns}
-                onCheckedChange={setUseSpendingPatterns}
-                className="scale-75 sm:scale-90"
-              />
-              <label htmlFor="spending-patterns" className="text-[10px] sm:text-xs font-medium cursor-pointer">
-                {useSpendingPatterns ? 'Patterns' : 'Récurrents'}
-              </label>
-            </div>
+          <div>
+            <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
+            <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
+              Projection basée sur les transactions récurrentes
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="pt-0 px-1.5 sm:px-4 pb-2 sm:pb-4">
-          {balanceEvolutionData && balanceEvolutionData.length > 0 ? (
+          {chartData.length > 0 ? (
             <div className="w-full h-[180px] sm:h-[250px] lg:h-[300px] overflow-hidden">
               <ChartContainer config={chartConfig} className="w-full h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart 
-                    data={balanceEvolutionData}
+                  <ComposedChart
+                    data={chartData}
                     margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                   >
                     <CartesianGrid {...GRID_PROPS} />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       fontSize={9}
                       tickLine={false}
                       axisLine={false}
                       className="text-muted-foreground"
-                      interval="preserveStartEnd"
+                      interval={xTickInterval}
                     />
-                    <YAxis 
+                    <YAxis
                       fontSize={9}
                       tickLine={false}
                       axisLine={false}
                       className="text-muted-foreground"
                       width={50}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      domain={yDomain}
+                      tickFormatter={yTickFormatter}
                     />
                     <ChartTooltip 
                       content={
