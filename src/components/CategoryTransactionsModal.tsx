@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
   Area,
 } from "recharts";
-import { eachDayOfInterval, format, addDays, addWeeks, addMonths, addYears } from "date-fns";
+import { eachDayOfInterval, differenceInDays, format, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -145,12 +145,20 @@ export const CategoryTransactionsModal = ({
 
     let running = 0;
     const today = format(new Date(), "yyyy-MM-dd");
+    const totalDays = days.length;
+    const budgetVal = Number(categoryData.budget);
 
-    // Build one entry per day, tracking cumulative spend from real transactions
-    const dayPoints: Array<{ dayStr: string; label: string; spent: number; budget: number; isFuture: boolean }> = [];
+    // Determine label format based on period length
+    const labelFmt = totalDays > 180
+      ? (isMobile ? 'MMM' : 'MMM yyyy')
+      : totalDays > 60
+        ? (isMobile ? 'dd/MM' : 'dd MMM')
+        : (isMobile ? 'dd' : 'dd MMM');
 
-    for (let i = 0; i < days.length; i++) {
-      const day = days[i];
+    // Build cumulative spend per day (real transactions)
+    const spentByDay = new Map<string, number>();
+    let cumulative = 0;
+    for (const day of days) {
       const dayStr = format(day, "yyyy-MM-dd");
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
@@ -159,18 +167,11 @@ export const CategoryTransactionsModal = ({
           const refunded = Number((t as any).refunded_amount || 0);
           return s + Math.max(0, gross - refunded);
         }, 0);
-      running += dayTotal;
-
-      dayPoints.push({
-        dayStr,
-        label: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
-        spent: running,
-        budget: Number(categoryData.budget),
-        isFuture: dayStr > today,
-      });
+      cumulative += dayTotal;
+      spentByDay.set(dayStr, cumulative);
     }
 
-    // If includeUpcoming, add projected recurring amounts to future days
+    // Add projected recurring amounts
     if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
       const futureAdditions = new Map<string, number>();
       for (const item of upcomingItems) {
@@ -181,33 +182,62 @@ export const CategoryTransactionsModal = ({
           }
         }
       }
-
       if (futureAdditions.size > 0) {
         let projRunning = 0;
-        for (const dp of dayPoints) {
-          const projected = futureAdditions.get(dp.dayStr) || 0;
+        for (const day of days) {
+          const dayStr = format(day, "yyyy-MM-dd");
+          const projected = futureAdditions.get(dayStr) || 0;
           projRunning += projected;
           if (projRunning > 0) {
-            dp.spent += projRunning;
+            spentByDay.set(dayStr, (spentByDay.get(dayStr) || 0) + projRunning);
           }
         }
       }
     }
 
-    // Build final chart points, prepending a zero-point so the line always starts at 0
+    // Determine sampling: pick evenly-spaced days to keep the chart readable
+    // For 1 month (~30 days): every day or every other day → ~15-30 points
+    // For 3 months (~90 days): weekly → ~13 points
+    // For 1 year (~365 days): bi-weekly → ~26 points
+    const sampleEvery = totalDays <= 45 ? 1 : totalDays <= 100 ? 3 : totalDays <= 200 ? 7 : 14;
+
+    // Build sampled chart points, always including the first and last day
     const chartPoints: Array<{ date: string; spent: number; budget: number; isFuture: boolean }> = [];
-    if (dayPoints.length > 0) {
-      const first = dayPoints[0];
-      if (first.spent > 0) {
-        chartPoints.push({ date: first.label, spent: 0, budget: first.budget, isFuture: first.isFuture });
-      }
-      for (const dp of dayPoints) {
-        if (chartPoints.length === 0 && dp.spent === 0) continue;
-        chartPoints.push({ date: dp.label, spent: dp.spent, budget: dp.budget, isFuture: dp.isFuture });
-      }
-      if (chartPoints.length === 0) {
-        chartPoints.push({ date: first.label, spent: 0, budget: first.budget, isFuture: first.isFuture });
-      }
+
+    // Always start at 0
+    const firstDay = days[0];
+    const firstDayStr = format(firstDay, "yyyy-MM-dd");
+    const firstSpent = spentByDay.get(firstDayStr) || 0;
+    chartPoints.push({
+      date: format(firstDay, labelFmt, { locale: fr }),
+      spent: 0,
+      budget: budgetVal,
+      isFuture: firstDayStr > today,
+    });
+
+    // If first day already has spending, add it as a second point (same label)
+    if (firstSpent > 0) {
+      chartPoints.push({
+        date: format(firstDay, labelFmt, { locale: fr }),
+        spent: firstSpent,
+        budget: budgetVal,
+        isFuture: firstDayStr > today,
+      });
+    }
+
+    for (let i = 1; i < totalDays; i++) {
+      const isLastDay = i === totalDays - 1;
+      const isSamplePoint = i % sampleEvery === 0;
+      if (!isSamplePoint && !isLastDay) continue;
+
+      const day = days[i];
+      const dayStr = format(day, "yyyy-MM-dd");
+      chartPoints.push({
+        date: format(day, labelFmt, { locale: fr }),
+        spent: spentByDay.get(dayStr) || 0,
+        budget: budgetVal,
+        isFuture: dayStr > today,
+      });
     }
 
     return chartPoints;
@@ -330,7 +360,7 @@ export const CategoryTransactionsModal = ({
                       tick={{ fontSize: isMobile ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
                       tickLine={false}
                       axisLine={{ stroke: "hsl(var(--border))" }}
-                      interval={isMobile ? 6 : 4}
+                      interval={Math.max(0, Math.floor(budgetChartData.length / (isMobile ? 5 : 7)) - 1)}
                     />
                     <YAxis
                       domain={[0, yMax]}
