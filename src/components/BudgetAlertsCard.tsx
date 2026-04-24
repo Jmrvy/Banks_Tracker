@@ -6,20 +6,27 @@ import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useReportsData, type CategoryData } from '@/hooks/useReportsData';
 import { CategoryTransactionsModal, type CategoryTransaction } from '@/components/CategoryTransactionsModal';
+import { usePeriod } from '@/contexts/PeriodContext';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export const BudgetAlertsCard = () => {
   const { transactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
+  const { selectedPeriod, dateRange, periodLabel } = usePeriod();
 
   const now = useMemo(() => new Date(), []);
-  const emptyRange = useMemo(() => ({ from: now, to: now }), [now]);
+
+  const reportsPeriodType = selectedPeriod === '1m' ? 'month' as const : 'custom' as const;
+  const reportsDateRange = useMemo(() => ({
+    from: dateRange.start,
+    to: dateRange.end,
+  }), [dateRange]);
 
   const { categoryChartData, filteredTransactions, period } = useReportsData(
-    'month',
+    reportsPeriodType,
     now,
-    emptyRange,
+    reportsDateRange,
     false,
     undefined,
     undefined,
@@ -109,6 +116,9 @@ export const BudgetAlertsCard = () => {
             <AlertDescription className="text-foreground">
               <p className="text-xs sm:text-sm font-medium mb-2">
                 {exceeded.length} budget{exceeded.length > 1 ? 's' : ''} dépassé{exceeded.length > 1 ? 's' : ''}
+                {selectedPeriod !== '1m' && (
+                  <span className="font-normal text-destructive/80"> ({periodLabel})</span>
+                )}
               </p>
               {renderItems(exceeded, true)}
             </AlertDescription>
@@ -121,6 +131,9 @@ export const BudgetAlertsCard = () => {
             <AlertDescription className="text-foreground">
               <p className="text-xs sm:text-sm font-medium mb-2">
                 {approaching.length} budget{approaching.length > 1 ? 's' : ''} bientôt atteint{approaching.length > 1 ? 's' : ''}
+                {selectedPeriod !== '1m' && (
+                  <span className="font-normal text-orange-600/80 dark:text-orange-400/80"> ({periodLabel})</span>
+                )}
               </p>
               {renderItems(approaching, false)}
             </AlertDescription>
