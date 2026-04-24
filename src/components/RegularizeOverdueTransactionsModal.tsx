@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format, addDays, addWeeks, addMonths, addYears, isBefore, isEqual, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
 
 interface RegularizeOverdueTransactionsModalProps {
   open: boolean;
@@ -61,7 +62,7 @@ export const RegularizeOverdueTransactionsModal = ({
         occurrences.push({
           recurringId: rt.id,
           date: new Date(currentDate),
-          description: rt.description,
+          description: resolveNamePlaceholders(rt.description, currentDate),
           amount: rt.amount,
           type: rt.type,
           accountId: rt.account_id,
