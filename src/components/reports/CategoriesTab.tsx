@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,19 +44,18 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     setModalOpen(true);
   };
 
-  const getCategoryTransactions = () => {
+  const getCategoryTransactions = useCallback(() => {
     if (!selectedCategory) return [];
-    
+
     const activeDateType = dateType || preferences.dateType;
-    
-    // Real transactions
+
     const realTxs = transactions
       .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false)
       .map(t => {
         const refundedAmount = (t as any).refunded_amount || 0;
         const grossAmount = Math.abs(t.amount);
         const netAmount = Math.max(0, grossAmount - refundedAmount);
-        
+
         return {
           id: t.id,
           description: t.description,
@@ -73,7 +72,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         };
       });
 
-    // Projected upcoming recurring transactions - use per-occurrence calendar amounts
     if (includeUpcoming && upcomingItems && selectedCategory) {
       const catUpcoming = getUpcomingForCategory(selectedCategory, upcomingItems);
       for (const item of catUpcoming) {
@@ -98,20 +96,17 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       }
     }
 
-    // Sort by date
     return realTxs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  };
+  }, [selectedCategory, dateType, preferences.dateType, transactions, includeUpcoming, upcomingItems]);
 
   // Build chart data: include projected amounts when upcoming is active
-  const chartData = (() => {
-    // Start with real spending
+  const chartData = useMemo(() => {
     const merged = new Map<string, { value: number; projected: number; color: string }>();
     for (const c of categoryChartData) {
       if (c.spent > 0) {
         merged.set(c.name, { value: Math.abs(c.spent), projected: 0, color: c.color });
       }
     }
-    // Add projected amounts
     if (includeUpcoming && upcomingItems) {
       for (const item of upcomingItems) {
         if (item.futureOccurrences <= 0) continue;
@@ -135,9 +130,9 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       }))
       .filter(c => c.value > 0)
       .sort((a, b) => b.value - a.value);
-  })();
+  }, [categoryChartData, includeUpcoming, upcomingItems]);
 
-  const totalChartValue = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalChartValue = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0), [chartData]);
   const totalRealSpent = chartData.reduce((sum, item) => sum + item.realValue, 0);
   const totalSpent = totalChartValue;
   

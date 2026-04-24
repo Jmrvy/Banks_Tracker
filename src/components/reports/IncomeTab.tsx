@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
@@ -75,8 +75,9 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
   }
 
   // Compute projected upcoming income by category
-  const upcomingByCategory = includeUpcoming && upcomingItems ? (() => {
-    const map = new Map<string, { amount: number; count: number; items: typeof upcomingItems }>();
+  const upcomingByCategory = useMemo(() => {
+    if (!includeUpcoming || !upcomingItems) return null;
+    const map = new Map<string, { amount: number; count: number }>();
     for (const pi of upcomingItems) {
       if (pi.futureOccurrences <= 0) continue;
       const catName = pi.recurring.category?.name || 'Sans catégorie';
@@ -84,17 +85,17 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
       if (existing) {
         existing.amount += pi.futurePeriodAmount;
         existing.count += pi.futureOccurrences;
-        existing.items.push(pi);
       } else {
-        map.set(catName, { amount: pi.futurePeriodAmount, count: pi.futureOccurrences, items: [pi] });
+        map.set(catName, { amount: pi.futurePeriodAmount, count: pi.futureOccurrences });
       }
     }
     return map;
-  })() : null;
+  }, [includeUpcoming, upcomingItems]);
 
-  const totalProjected = includeUpcoming && upcomingItems
-    ? upcomingItems.reduce((sum, pi) => sum + pi.futurePeriodAmount, 0)
-    : 0;
+  const totalProjected = useMemo(
+    () => (includeUpcoming && upcomingItems ? upcomingItems.reduce((sum, pi) => sum + pi.futurePeriodAmount, 0) : 0),
+    [includeUpcoming, upcomingItems],
+  );
   const grandTotal = totalIncome + totalProjected;
 
   // Build combined categories: real + projected
@@ -107,7 +108,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
     projectedCount: number;
     totalCount: number;
   }
-  const combinedCategories: CombinedCategory[] = (() => {
+  const combinedCategories = useMemo<CombinedCategory[]>(() => {
     const map = new Map<string, CombinedCategory>();
     for (const cat of incomeAnalysis) {
       map.set(cat.category, {
@@ -142,17 +143,20 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
       });
     }
     return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
-  })();
+  }, [incomeAnalysis, includeUpcoming, upcomingByCategory]);
 
   const totalForPercentage = grandTotal > 0 ? grandTotal : 1;
 
   // Données pour le graphique circulaire
-  const pieChartData = combinedCategories.map((cat, index) => ({
-    name: cat.name,
-    value: cat.totalAmount,
-    count: cat.totalCount,
-    color: COLORS[index % COLORS.length]
-  }));
+  const pieChartData = useMemo(
+    () => combinedCategories.map((cat, index) => ({
+      name: cat.name,
+      value: cat.totalAmount,
+      count: cat.totalCount,
+      color: COLORS[index % COLORS.length],
+    })),
+    [combinedCategories],
+  );
 
   return (
     <div className="space-y-3">

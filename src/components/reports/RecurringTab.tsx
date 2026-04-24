@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,8 +40,10 @@ export const RecurringTab = ({
   } = recurringData;
 
   // Donut chart data — only expenses by category for the period
-  const expenseCategories = periodByCategory.filter(c => c.type === 'expense');
-  const totalExpenseCat = expenseCategories.reduce((s, c) => s + c.amount, 0);
+  const { expenseCategories, totalExpenseCat } = useMemo(() => {
+    const cats = periodByCategory.filter(c => c.type === 'expense');
+    return { expenseCategories: cats, totalExpenseCat: cats.reduce((s, c) => s + c.amount, 0) };
+  }, [periodByCategory]);
 
   const recurrenceLabel = (type: string) => {
     switch (type) {
@@ -54,14 +56,19 @@ export const RecurringTab = ({
   };
 
   // Sort period items: expenses first, then by amount desc
-  const sortedItems = [...periodItems].sort((a, b) => {
-    if (a.effectiveType !== b.effectiveType) {
-      return a.effectiveType === 'expense' ? -1 : 1;
-    }
-    return b.periodAmount - a.periodAmount;
-  });
+  const sortedItems = useMemo(() => {
+    return [...periodItems].sort((a, b) => {
+      if (a.effectiveType !== b.effectiveType) {
+        return a.effectiveType === 'expense' ? -1 : 1;
+      }
+      return b.periodAmount - a.periodAmount;
+    });
+  }, [periodItems]);
 
-  const displayedItems = showAllItems ? sortedItems : sortedItems.slice(0, 5);
+  const displayedItems = useMemo(
+    () => (showAllItems ? sortedItems : sortedItems.slice(0, 5)),
+    [showAllItems, sortedItems],
+  );
 
   if (periodItems.length === 0) {
     return (

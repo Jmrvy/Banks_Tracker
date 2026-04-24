@@ -93,7 +93,8 @@ const Reports = () => {
     fetch();
   }, [user]);
 
-  // Données pour Évolution et Récurrents - toujours en date comptable
+  // Single hook call: evolution/recurring always use accounting date (primary),
+  // income/expense tabs use user-selected date type (secondary).
   const {
     loading,
     period,
@@ -102,17 +103,23 @@ const Reports = () => {
     recurringData,
     spendingPatternsData,
     accounts,
-    filteredTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, 'accounting', installmentPaymentInfos, undefined, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos);
-
-  // Données pour Revenus et Dépenses - selon le choix de l'utilisateur
-  // Skip heavy computations (balance evolution, recurring, spending patterns) since they're already computed above
-  const {
-    stats: incomeExpenseStats,
-    categoryChartData,
-    incomeAnalysis,
-    filteredTransactions: incomeExpenseTransactions
-  } = useReportsData(periodType, selectedDate, dateRange, useSpendingPatterns, incomeExpenseDateType, undefined, { skipHeavyComputations: true });
+    filteredTransactions,
+    secondaryStats: incomeExpenseStats,
+    secondaryCategoryChartData: categoryChartData,
+    secondaryIncomeAnalysis: incomeAnalysis,
+    secondaryFilteredTransactions: incomeExpenseTransactions,
+  } = useReportsData(
+    periodType,
+    selectedDate,
+    dateRange,
+    useSpendingPatterns,
+    'accounting',
+    installmentPaymentInfos,
+    { secondaryDateType: incomeExpenseDateType },
+    debtInfos,
+    scheduledDebtPaymentInfos,
+    debtPaymentInfos,
+  );
 
   if (loading) {
     return <LoadingSpinner text="Chargement..." />;
