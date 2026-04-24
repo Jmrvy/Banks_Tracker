@@ -4,13 +4,13 @@ import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveConta
 import { cn } from "@/lib/utils";
 import { GRID_PROPS } from "@/lib/chartConfig";
 import { BalanceDataPoint, ReportsStats, RecurringData } from "@/hooks/useReportsData";
-import { MonthlyProjections } from "@/components/MonthlyProjections";
-import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMemo } from "react";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
@@ -48,14 +48,12 @@ export const EvolutionTab = ({
 
     const totalDays = Math.max(1, differenceInDays(lastDate, firstDate));
 
-    // Adaptive label format
     const labelFmt = totalDays > 180
       ? (isMobile ? 'MMM' : 'MMM yyyy')
       : totalDays > 60
         ? (isMobile ? 'dd/MM' : 'dd MMM')
         : (isMobile ? 'dd/MM' : 'dd MMM');
 
-    // Target ~25-30 chart points max
     const maxPoints = isMobile ? 20 : 30;
     if (data.length <= maxPoints) {
       return data.map(d => ({
@@ -64,7 +62,6 @@ export const EvolutionTab = ({
       }));
     }
 
-    // Sample: always keep first, last, and transition points (where solde switches to null)
     const sampled: BalanceDataPoint[] = [];
     const step = Math.max(1, Math.floor(data.length / maxPoints));
 
@@ -72,7 +69,6 @@ export const EvolutionTab = ({
       const isFirst = i === 0;
       const isLast = i === data.length - 1;
       const isSamplePoint = i % step === 0;
-      // Keep transition between real and projected
       const isTransition = i > 0 && (
         (data[i].solde === null && data[i - 1].solde !== null) ||
         (data[i].solde !== null && data[i - 1].solde === null)
@@ -89,7 +85,6 @@ export const EvolutionTab = ({
     return sampled;
   }, [balanceEvolutionData, isMobile]);
 
-  // Compute Y-axis domain
   const yDomain = useMemo(() => {
     if (chartData.length === 0) return [0, 1000];
     let min = Infinity, max = -Infinity;
@@ -114,9 +109,52 @@ export const EvolutionTab = ({
 
   const xTickInterval = Math.max(0, Math.floor(chartData.length / (isMobile ? 5 : 8)) - 1);
 
+  // Build flat list of future projected transactions sorted by date
+  const projectedTransactions = useMemo(() => {
+    const items: Array<{
+      id: string;
+      description: string;
+      amount: number;
+      date: string;
+      type: 'income' | 'expense';
+      category?: { name: string; color: string };
+      account?: string;
+    }> = [];
+
+    for (const pi of recurringData.periodItems) {
+      const futureDetails = (pi.occurrenceDetails || []).filter(d => d.isFuture);
+      futureDetails.forEach((occ, idx) => {
+        items.push({
+          id: `${pi.recurring.id}-${idx}`,
+          description: resolveNamePlaceholders(pi.recurring.description, new Date(occ.date)),
+          amount: occ.amount,
+          date: occ.date,
+          type: pi.effectiveType,
+          category: pi.recurring.category ? { name: pi.recurring.category.name, color: pi.recurring.category.color } : undefined,
+          account: pi.recurring.account?.name,
+        });
+      });
+    }
+
+    items.sort((a, b) => a.date.localeCompare(b.date));
+    return items;
+  }, [recurringData.periodItems]);
+
+  // Compute projected balance: current balance + all projected transactions
+  const projectedFinalBalance = useMemo(() => {
+    let balance = stats.finalBalance;
+    for (const tx of projectedTransactions) {
+      balance += tx.type === 'income' ? tx.amount : -tx.amount;
+    }
+    return balance;
+  }, [stats.finalBalance, projectedTransactions]);
+
+  const projectedIncome = projectedTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const projectedExpenses = projectedTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Résumé rapide - Cards compactes */}
+      {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 animate-glass-fade-in">
         <Card className="glass-hover">
           <CardContent className="p-2.5 sm:p-3">
@@ -178,7 +216,7 @@ export const EvolutionTab = ({
         </Card>
       </div>
 
-      {/* Graphique d'évolution */}
+      {/* Balance evolution chart */}
       <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
           <div>
@@ -215,11 +253,11 @@ export const EvolutionTab = ({
                       domain={yDomain}
                       tickFormatter={yTickFormatter}
                     />
-                    <ChartTooltip 
+                    <ChartTooltip
                       content={
-                        <ChartTooltipContent 
+                        <ChartTooltipContent
                           formatter={(value, name) => [
-                            typeof value === 'number' 
+                            typeof value === 'number'
                               ? formatCurrency(value)
                               : 'N/A',
                             name === 'solde' ? 'Solde réel' : 'Projeté'
@@ -258,45 +296,88 @@ export const EvolutionTab = ({
         </CardContent>
       </Card>
 
-      {/* Projections mensuelles - Composant dédié */}
-      <MonthlyProjections />
+      {/* Projected recurring summary + transaction breakdown */}
+      {projectedTransactions.length > 0 && (
+        <Card className="animate-glass-slide-up">
+          <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
+            <CardTitle className="text-sm sm:text-base">Projection récurrente</CardTitle>
+            <CardDescription className="text-[10px] sm:text-xs">
+              {projectedTransactions.length} transaction{projectedTransactions.length > 1 ? 's' : ''} à venir sur la période
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3">
+            {/* Summary row */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-success/5 border border-success/10 text-center">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Revenus</p>
+                <p className="text-xs sm:text-sm font-bold text-success">+{formatCurrency(projectedIncome)}</p>
+              </div>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-destructive/5 border border-destructive/10 text-center">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</p>
+                <p className="text-xs sm:text-sm font-bold text-destructive">-{formatCurrency(projectedExpenses)}</p>
+              </div>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-primary/5 border border-primary/10 text-center">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Solde projeté</p>
+                <p className={cn(
+                  "text-xs sm:text-sm font-bold",
+                  projectedFinalBalance >= 0 ? "text-success" : "text-destructive"
+                )}>
+                  {formatCurrency(projectedFinalBalance)}
+                </p>
+              </div>
+            </div>
 
-      {/* Projection récurrents */}
-      <Card className="animate-glass-slide-up">
-        <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
-          <CardTitle className="text-sm sm:text-base">
-            Projection mensuelle
-          </CardTitle>
-          <CardDescription className="text-[10px] sm:text-xs">
-            Basée sur les transactions récurrentes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-success/5 border border-success/10">
-              <span className="text-xs sm:text-sm text-muted-foreground">Revenus récurrents</span>
-              <span className="text-sm sm:text-lg font-bold text-success">
-                {formatCurrency(recurringData.monthlyIncome)}
-              </span>
+            {/* Transaction list */}
+            <div className="space-y-1">
+              {projectedTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-lg bg-muted/20 border border-border/30"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className={cn(
+                      "w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0",
+                      tx.type === 'income' ? "bg-success/10" : "bg-destructive/10"
+                    )}>
+                      {tx.type === 'income'
+                        ? <ArrowDownRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
+                        : <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
+                      }
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium truncate">{tx.description}</p>
+                      <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
+                        <span>{format(new Date(tx.date), 'dd MMM', { locale: fr })}</span>
+                        {tx.account && (
+                          <>
+                            <span>•</span>
+                            <span className="truncate">{tx.account}</span>
+                          </>
+                        )}
+                        {tx.category && (
+                          <>
+                            <span>•</span>
+                            <div className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tx.category.color }} />
+                              <span className="truncate">{tx.category.name}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "text-xs sm:text-sm font-semibold flex-shrink-0",
+                    tx.type === 'income' ? "text-success" : "text-destructive"
+                  )}>
+                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-              <span className="text-xs sm:text-sm text-muted-foreground">Dépenses récurrentes</span>
-              <span className="text-sm sm:text-lg font-bold text-destructive">
-                {formatCurrency(recurringData.monthlyExpenses)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-primary/5 border border-primary/10">
-              <span className="text-xs sm:text-sm text-muted-foreground">Net récurrent</span>
-              <span className={cn(
-                "text-sm sm:text-lg font-bold",
-                recurringData.monthlyNet >= 0 ? "text-success" : "text-destructive"
-              )}>
-                {recurringData.monthlyNet >= 0 ? "+" : ""}{formatCurrency(recurringData.monthlyNet)}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
