@@ -1,10 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { GRID_PROPS } from "@/lib/chartConfig";
-import { BalanceDataPoint, ReportsStats, RecurringData, SpendingPatternsData } from "@/hooks/useReportsData";
+import { BalanceDataPoint, ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import { MonthlyProjections } from "@/components/MonthlyProjections";
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -17,9 +16,6 @@ interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
   stats: ReportsStats;
   recurringData: RecurringData;
-  spendingPatternsData: SpendingPatternsData | null;
-  useSpendingPatterns: boolean;
-  setUseSpendingPatterns: (value: boolean) => void;
 }
 
 const chartConfig = {
@@ -37,9 +33,6 @@ export const EvolutionTab = ({
   balanceEvolutionData,
   stats,
   recurringData,
-  spendingPatternsData,
-  useSpendingPatterns,
-  setUseSpendingPatterns
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const isMobile = useIsMobile();
@@ -188,24 +181,11 @@ export const EvolutionTab = ({
       {/* Graphique d'évolution */}
       <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
-              <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
-                Projection sur 3 mois
-              </CardDescription>
-            </div>
-            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] rounded-xl px-2.5 py-1.5">
-              <Switch
-                id="spending-patterns"
-                checked={useSpendingPatterns}
-                onCheckedChange={setUseSpendingPatterns}
-                className="scale-75 sm:scale-90"
-              />
-              <label htmlFor="spending-patterns" className="text-[10px] sm:text-xs font-medium cursor-pointer">
-                {useSpendingPatterns ? 'Patterns' : 'Récurrents'}
-              </label>
-            </div>
+          <div>
+            <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
+            <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
+              Projection basée sur les transactions récurrentes
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="pt-0 px-1.5 sm:px-4 pb-2 sm:pb-4">

@@ -185,9 +185,6 @@ const Reports = () => {
               balanceEvolutionData={balanceEvolutionData}
               stats={stats}
               recurringData={recurringData}
-              spendingPatternsData={spendingPatternsData}
-              useSpendingPatterns={useSpendingPatterns}
-              setUseSpendingPatterns={setUseSpendingPatterns}
             />
           </TabsContent>
 

@@ -253,16 +253,11 @@ export const useReportsData = (
   }, [filteredTransactions, initialBalance]);
 
   // Données pour l'évolution des soldes avec projection
-  // Uses the selected date type (accounting or value date) for consistency
+  // Always uses transaction_date (accounting date) for chart positioning, regardless of date type setting
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     if (skipHeavy) return [];
-    // Helper to get the date based on user preference
-    const getAccountingDate = (t: Transaction) => {
-      if (activeDateType === 'value') {
-        return new Date(t.value_date || t.transaction_date);
-      }
-      return new Date(t.transaction_date);
-    };
+    // Always use transaction_date (accounting date) for the evolution chart
+    const getAccountingDate = (t: Transaction) => new Date(t.transaction_date);
     
     // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
     // Puis trier par date comptable pour l'affichage
@@ -340,32 +335,8 @@ export const useReportsData = (
       const projectionEndDate = new Date(endDate);
 
       let projectedBalance = runningBalance;
-      let currentDate = new Date(projectionStartDate);
 
-      if (useSpendingPatterns && filteredTransactions.length > 0) {
-        // Projection basée sur les patterns de dépenses
-        const daysInPeriod = differenceInDays(period.to, period.from) + 1;
-        const dailyAvgIncome = stats.income / daysInPeriod;
-        const dailyAvgExpenses = stats.expenses / daysInPeriod;
-        const dailyNetAvg = dailyAvgIncome - dailyAvgExpenses;
-
-        // Ajouter des points hebdomadaires pour la projection
-        while (currentDate <= projectionEndDate) {
-          projectedBalance += dailyNetAvg;
-
-          // Ajouter un point chaque semaine ou à la fin du mois
-          if (currentDate.getDate() % 7 === 0 || currentDate.getDate() === 1) {
-            dailyData.push({
-              date: format(currentDate, "dd/MM", { locale: fr }),
-              solde: null,
-              soldeProjecte: projectedBalance,
-              dateObj: new Date(currentDate),
-              isProjection: true
-            });
-          }
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-      } else if (recurringTransactions.length > 0) {
+      if (recurringTransactions.length > 0) {
         // Projection basée sur les transactions récurrentes - respecter les dates exactes
         // Utilise les mêmes montants effectifs que le calendrier:
         // - Installment-linked: installment_amount
@@ -524,7 +495,7 @@ export const useReportsData = (
     }
 
     return dailyData;
-  }, [filteredTransactions, stats, period, recurringTransactions, useSpendingPatterns, initialBalance, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
+  }, [filteredTransactions, stats, period, recurringTransactions, initialBalance, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
