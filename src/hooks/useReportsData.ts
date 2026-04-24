@@ -309,193 +309,8 @@ export const useReportsData = (
       });
     });
 
-    // Ajouter le point de fin de période si nécessaire
-    const endDate = period.to;
-    const lastDataDate = dailyData[dailyData.length - 1]?.dateObj;
-    if (!lastDataDate || lastDataDate < endDate) {
-      dailyData.push({
-        date: format(endDate, "dd/MM", { locale: fr }),
-        solde: runningBalance,
-        soldeProjecte: runningBalance,
-        dateObj: endDate
-      });
-    }
-
-    // Ne faire de projection que si la période n'est pas terminée
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const periodEndDate = new Date(endDate);
-    periodEndDate.setHours(0, 0, 0, 0);
-
-    // Si la période est déjà terminée, pas de projection
-    if (periodEndDate >= today) {
-      // Projection uniquement jusqu'à la fin de la période sélectionnée
-      const projectionStartDate = new Date(today);
-      projectionStartDate.setDate(projectionStartDate.getDate() + 1);
-      const projectionEndDate = new Date(endDate);
-
-      let projectedBalance = runningBalance;
-
-      if (recurringTransactions.length > 0) {
-        // Projection basée sur les transactions récurrentes - respecter les dates exactes
-        // Utilise les mêmes montants effectifs que le calendrier:
-        // - Installment-linked: installment_amount
-        // - Debt-linked: scheduled_amount du mois correspondant, sinon payment_amount
-        // - Regular: rt.amount
-        // Saute les installments/dettes terminés.
-        const ipMap = new Map<string, InstallmentPaymentInfo>();
-        if (installmentPayments) for (const ip of installmentPayments) ipMap.set(ip.id, ip);
-        const dMap = new Map<string, DebtInfo>();
-        if (debtInfos) for (const d of debtInfos) dMap.set(d.id, d);
-        const resolveDebtForProj = (rt: RecurringTransaction): DebtInfo | null => {
-          if (rt.debt_id) return dMap.get(rt.debt_id) || null;
-          if (rt.description.includes('(Remboursement dette)') || rt.description.includes('(Remboursement prêt)')) {
-            for (const d of dMap.values()) {
-              const suffixReceived = `${d.description} (Remboursement dette)`;
-              const suffixGiven = `${d.description} (Remboursement prêt)`;
-              if (rt.description === suffixReceived || rt.description === suffixGiven) return d;
-            }
-          }
-          return null;
-        };
-        const sdpMap = new Map<string, number>();
-        if (scheduledDebtPaymentInfos) {
-          for (const sp of scheduledDebtPaymentInfos) {
-            sdpMap.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
-          }
-        }
-        const projEffectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
-          if (rt.installment_payment_id) {
-            const ip = ipMap.get(rt.installment_payment_id);
-            if (ip) return ip.installment_amount;
-          }
-          const debt = resolveDebtForProj(rt);
-          if (debt) {
-            const monthKey = dateStr.substring(0, 7);
-            const scheduled = sdpMap.get(`${debt.id}:${monthKey}`);
-            if (scheduled !== undefined) return scheduled;
-            if (debt.payment_amount > 0) return debt.payment_amount;
-          }
-          return Number(rt.amount);
-        };
-        const projEffectiveType = (rt: RecurringTransaction): 'income' | 'expense' => {
-          if (rt.installment_payment_id) {
-            const ip = ipMap.get(rt.installment_payment_id);
-            // Reimbursements = income in DB but should count as expense in projections
-            // Need to look up payment_type via original installmentPayments — not available in Info interface.
-            // Leave to rt.type for now; reimbursements are rare enough and the amount is what matters here.
-          }
-          return rt.type;
-        };
-        const projIsActive = (rt: RecurringTransaction): boolean => {
-          if (rt.installment_payment_id) {
-            const ip = ipMap.get(rt.installment_payment_id);
-            if (!ip || !ip.is_active || ip.remaining_amount <= 0) return false;
-          }
-          const debt = resolveDebtForProj(rt);
-          if (debt && (debt.status === 'completed' || debt.remaining_amount <= 0)) return false;
-          return true;
-        };
-
-        const activeRecurring = recurringTransactions
-          .filter(rt => rt.is_active && projIsActive(rt))
-          .map(rt => ({ ...rt }));
-
-        // Collecter toutes les occurrences futures des transactions récurrentes
-        const futureTransactions: Array<{ date: Date; amount: number; type: string; description: string }> = [];
-
-        activeRecurring.forEach(rt => {
-          if (!rt.next_due_date) return;
-          const [_ry, _rm, _rd] = rt.next_due_date.split('-').map(Number);
-          if (isNaN(_ry) || isNaN(_rm) || isNaN(_rd)) return;
-          let nextDue = new Date(_ry, _rm - 1, _rd);
-          const maxIterations = 100; // Limite de sécurité
-          let iterations = 0;
-
-          while (nextDue <= projectionEndDate && iterations < maxIterations) {
-            if (nextDue >= projectionStartDate) {
-              const ymd = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(nextDue.getDate()).padStart(2, '0')}`;
-              futureTransactions.push({
-                date: new Date(nextDue),
-                amount: projEffectiveAmount(rt, ymd),
-                type: projEffectiveType(rt),
-                description: rt.description
-              });
-            }
-
-            // Calculer la prochaine occurrence (safe date advancement)
-            const cy = nextDue.getFullYear();
-            const cm = nextDue.getMonth();
-            const cd = nextDue.getDate();
-            switch (rt.recurrence_type) {
-              case 'weekly':
-                nextDue = new Date(cy, cm, cd + 7);
-                break;
-              case 'monthly': {
-                const next = new Date(cy, cm + 1, cd);
-                nextDue = next.getMonth() !== (cm + 1) % 12
-                  ? new Date(cy, cm + 2, 0)
-                  : next;
-                break;
-              }
-              case 'quarterly': {
-                const nextQ = new Date(cy, cm + 3, cd);
-                nextDue = nextQ.getMonth() !== (cm + 3) % 12
-                  ? new Date(cy, cm + 4, 0)
-                  : nextQ;
-                break;
-              }
-              case 'yearly':
-                nextDue = new Date(cy + 1, cm, cd);
-                break;
-            }
-            iterations++;
-          }
-        });
-
-        // Trier les transactions par date
-        futureTransactions.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-        // Ajouter des points de projection seulement aux dates des transactions
-        let currentProjectedBalance = runningBalance;
-        futureTransactions.forEach(ft => {
-          // Appliquer l'impact de la transaction
-          if (ft.type === 'income') {
-            currentProjectedBalance += ft.amount;
-          } else if (ft.type === 'expense') {
-            currentProjectedBalance -= ft.amount;
-          }
-
-          // Ajouter un point au graphique
-          dailyData.push({
-            date: format(ft.date, "dd/MM", { locale: fr }),
-            solde: null,
-            soldeProjecte: currentProjectedBalance,
-            dateObj: new Date(ft.date),
-            isProjection: true
-          });
-        });
-      }
-
-      // S'assurer qu'il y a au moins quelques points de projection
-      if (dailyData.filter(d => d.isProjection).length === 0 && dailyData.length < 5) {
-        // Ajouter au moins 3 points de projection mensuels si pas assez de données
-        for (let i = 1; i <= 3; i++) {
-          const futureDate = new Date(endDate);
-          futureDate.setMonth(futureDate.getMonth() + i);
-          dailyData.push({
-            date: format(futureDate, "dd/MM", { locale: fr }),
-            solde: null,
-            soldeProjecte: runningBalance,
-            dateObj: futureDate,
-            isProjection: true
-          });
-        }
-      }
-    }
-
     return dailyData;
-  }, [filteredTransactions, stats, period, recurringTransactions, initialBalance, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
+  }, [filteredTransactions, period, initialBalance, skipHeavy]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
@@ -880,6 +695,52 @@ export const useReportsData = (
     };
   }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos, transactions, activeDateType]);
 
+  // Augment balance evolution with projections from recurringData.periodItems
+  const balanceEvolutionWithProjection = useMemo<BalanceDataPoint[]>(() => {
+    if (skipHeavy || balanceEvolutionData.length === 0) return balanceEvolutionData;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const periodEnd = new Date(period.to);
+    periodEnd.setHours(0, 0, 0, 0);
+
+    if (periodEnd < today) return balanceEvolutionData;
+
+    const futureItems: Array<{ date: Date; amount: number; type: 'income' | 'expense' }> = [];
+    for (const pi of recurringData.periodItems) {
+      for (const occ of pi.occurrenceDetails) {
+        if (occ.isFuture) {
+          futureItems.push({
+            date: new Date(occ.date),
+            amount: occ.amount,
+            type: pi.effectiveType,
+          });
+        }
+      }
+    }
+
+    if (futureItems.length === 0) return balanceEvolutionData;
+
+    futureItems.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    const lastPoint = balanceEvolutionData[balanceEvolutionData.length - 1];
+    let currentProjected = lastPoint?.soldeProjecte ?? lastPoint?.solde ?? 0;
+
+    const projectionPoints: BalanceDataPoint[] = futureItems.map(ft => {
+      if (ft.type === 'income') currentProjected += ft.amount;
+      else currentProjected -= ft.amount;
+      return {
+        date: format(ft.date, "dd/MM", { locale: fr }),
+        solde: null,
+        soldeProjecte: currentProjected,
+        dateObj: new Date(ft.date),
+        isProjection: true,
+      };
+    });
+
+    return [...balanceEvolutionData, ...projectionPoints];
+  }, [balanceEvolutionData, recurringData.periodItems, period, skipHeavy]);
+
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {
     if (skipHeavy) return null;
@@ -909,7 +770,7 @@ export const useReportsData = (
     period,
     filteredTransactions,
     stats,
-    balanceEvolutionData,
+    balanceEvolutionData: balanceEvolutionWithProjection,
     categoryChartData,
     recurringData,
     spendingPatternsData,
