@@ -8,6 +8,7 @@ import { RecurringTransaction, Transaction } from "@/hooks/useFinancialData";
 import { DebtPayment } from "@/hooks/useDebts";
 import { differenceInDays, startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { InstallmentPayment } from "@/hooks/useInstallmentPayments";
 
 export interface InstallmentInfo {
@@ -104,7 +105,7 @@ const RecurringListCard = React.memo(({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <p className={`text-sm sm:text-base font-semibold truncate ${!recurring.is_active ? 'text-muted-foreground' : ''}`}>
-              {recurring.description}
+              {resolveNamePlaceholders(recurring.description, parseLocalDate(recurring.next_due_date))}
             </p>
           {!recurring.is_active && (() => {
             const isCompleted = installmentInfo?.isCompleted;
