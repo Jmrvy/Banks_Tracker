@@ -146,7 +146,20 @@ export const CategoryTransactionsModal = ({
     let running = 0;
     const today = format(new Date(), "yyyy-MM-dd");
 
-    const chartPoints = days.map((day) => {
+    const chartPoints: Array<{ date: string; spent: number; budget: number; isFuture: boolean }> = [];
+
+    // Start with a zero point so the chart line always begins at 0
+    if (days.length > 0) {
+      chartPoints.push({
+        date: format(days[0], isMobile ? "dd" : "dd MMM", { locale: fr }),
+        spent: 0,
+        budget: Number(categoryData.budget),
+        isFuture: format(days[0], "yyyy-MM-dd") > today,
+      });
+    }
+
+    for (let i = 0; i < days.length; i++) {
+      const day = days[i];
       const dayStr = format(day, "yyyy-MM-dd");
       // Use NET amounts (amount - refunded_amount) for each transaction
       const dayTotal = catTxs
@@ -158,13 +171,16 @@ export const CategoryTransactionsModal = ({
         }, 0);
       running += dayTotal;
 
-      return {
+      // Skip duplicating the first day's zero point when nothing was spent
+      if (i === 0 && running === 0) continue;
+
+      chartPoints.push({
         date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
         spent: running,
         budget: Number(categoryData.budget),
         isFuture: dayStr > today,
-      };
-    });
+      });
+    }
 
     // If includeUpcoming, add projected recurring amounts to future days
     if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
