@@ -140,14 +140,15 @@ export const EvolutionTab = ({
     return items;
   }, [recurringData.periodItems]);
 
-  // Compute projected balance: current balance + all projected transactions
+  // Compute projected balance: current balance + gap projection + all projected transactions
+  const gapBalance = recurringData.gapBalance || 0;
   const projectedFinalBalance = useMemo(() => {
-    let balance = stats.finalBalance;
+    let balance = stats.finalBalance + gapBalance;
     for (const tx of projectedTransactions) {
       balance += tx.type === 'income' ? tx.amount : -tx.amount;
     }
     return balance;
-  }, [stats.finalBalance, projectedTransactions]);
+  }, [stats.finalBalance, gapBalance, projectedTransactions]);
 
   const projectedIncome = projectedTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const projectedExpenses = projectedTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -165,7 +166,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Début</span>
             </div>
             <p className="text-sm sm:text-base font-bold truncate">
-              {formatCurrency(stats.initialBalance)}
+              {formatCurrency(stats.initialBalance + gapBalance)}
             </p>
           </CardContent>
         </Card>
@@ -208,9 +209,9 @@ export const EvolutionTab = ({
             </div>
             <p className={cn(
               "text-sm sm:text-base font-bold truncate",
-              stats.finalBalance >= 0 ? "text-success" : "text-destructive"
+              (stats.finalBalance + gapBalance) >= 0 ? "text-success" : "text-destructive"
             )}>
-              {formatCurrency(stats.finalBalance)}
+              {formatCurrency(stats.finalBalance + gapBalance)}
             </p>
           </CardContent>
         </Card>
