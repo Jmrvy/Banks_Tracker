@@ -118,6 +118,10 @@ export interface DebtPaymentInfo {
 export interface UseReportsDataOptions {
   /** Skip heavy computations (balance evolution, recurring, spending patterns) when only stats/categories/income are needed */
   skipHeavyComputations?: boolean;
+  /** Compute a second set of filteredTransactions/stats/categoryChartData/incomeAnalysis using this date type.
+   * Used by the Reports page to show income/expense tabs with a user-selectable date type
+   * while keeping balance evolution on the accounting date. Avoids calling the hook twice. */
+  secondaryDateType?: 'accounting' | 'value';
 }
 
 export const useReportsData = (
@@ -811,6 +815,110 @@ export const useReportsData = (
   // Analyse des revenus par catégories automatiques
   const incomeAnalysis = useIncomeAnalysis(filteredTransactions);
 
+  // Secondary date-type computations (used by Reports.tsx to show income/expense tabs
+  // with a user-selectable date type while the evolution/recurring tabs always use accounting date).
+  const secondaryDateType = options?.secondaryDateType;
+  const useSecondary = secondaryDateType !== undefined && secondaryDateType !== activeDateType;
+
+  const secondaryFilteredTransactions = useMemo(() => {
+    if (!useSecondary) return filteredTransactions;
+    return transactions.filter(transaction => {
+      const dateToUse = secondaryDateType === 'value'
+        ? new Date(transaction.value_date || transaction.transaction_date)
+        : new Date(transaction.transaction_date);
+      return isWithinInterval(dateToUse, { start: period.from, end: period.to });
+    });
+  }, [useSecondary, filteredTransactions, transactions, period, secondaryDateType]);
+
+  const secondaryInitialBalance = useMemo(() => {
+    if (!useSecondary) return initialBalance;
+    const accountNames = new Set(accounts.map(a => a.name));
+    const netChangeByAccount = new Map<string, number>();
+    for (const t of transactions) {
+      const transactionDate = secondaryDateType === 'value'
+        ? new Date(t.value_date || t.transaction_date)
+        : new Date(t.transaction_date);
+      if (transactionDate < period.from) continue;
+      const srcName = t.account?.name;
+      const dstName = t.transfer_to_account?.name;
+      if (srcName && accountNames.has(srcName)) {
+        const prev = netChangeByAccount.get(srcName) || 0;
+        switch (t.type) {
+          case 'income': netChangeByAccount.set(srcName, prev - Number(t.amount)); break;
+          case 'expense': netChangeByAccount.set(srcName, prev + Number(t.amount)); break;
+          case 'transfer': netChangeByAccount.set(srcName, prev + Number(t.amount) + Number(t.transfer_fee || 0)); break;
+        }
+      }
+      if (dstName && accountNames.has(dstName)) {
+        const prev = netChangeByAccount.get(dstName) || 0;
+        netChangeByAccount.set(dstName, prev - Number(t.amount));
+      }
+    }
+    return accounts.reduce((sum, account) => sum + Number(account.balance) + (netChangeByAccount.get(account.name) || 0), 0);
+  }, [useSecondary, initialBalance, accounts, transactions, period, secondaryDateType]);
+
+  const secondaryStats = useMemo<ReportsStats>(() => {
+    if (!useSecondary) return stats;
+    const statsTransactions = secondaryFilteredTransactions.filter(t => t.include_in_stats !== false);
+    const income = statsTransactions
+      .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const expenses = statsTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.max(0, Number(t.amount) - (t.refunded_amount || 0)), 0);
+    const transferFees = statsTransactions
+      .filter(t => t.type === 'transfer')
+      .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
+    const netPeriodBalance = income - expenses - transferFees;
+    return {
+      income,
+      expenses,
+      netPeriodBalance,
+      initialBalance: secondaryInitialBalance,
+      finalBalance: secondaryInitialBalance + netPeriodBalance,
+    };
+  }, [useSecondary, stats, secondaryFilteredTransactions, secondaryInitialBalance]);
+
+  const secondaryCategoryChartData = useMemo<CategoryData[]>(() => {
+    if (!useSecondary) return categoryChartData;
+    let budgetMultiplier = 1;
+    if (periodType === 'year') budgetMultiplier = 12;
+    else if (periodType === 'custom') budgetMultiplier = (differenceInDays(period.to, period.from) + 1) / 30;
+
+    const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
+    const expensesByCategory = secondaryFilteredTransactions
+      .filter(t => t.type === 'expense' && t.include_in_stats !== false)
+      .reduce((acc, t) => {
+        const categoryId = t.category?.id || 'uncategorized';
+        const categoryName = t.category?.name || 'Non catégorisé';
+        const categoryBudget = categoryBudgetMap.get(categoryId) || 0;
+        const categoryColor = t.category?.color || '#6b7280';
+        const netAmount = Math.max(0, Number(t.amount) - (t.refunded_amount || 0));
+        if (!acc[categoryId]) {
+          acc[categoryId] = { name: categoryName, spent: 0, budget: Number(categoryBudget) * budgetMultiplier, color: categoryColor };
+        }
+        acc[categoryId].spent += netAmount;
+        return acc;
+      }, {} as Record<string, { name: string; spent: number; budget: number; color: string }>);
+
+    categories.forEach(category => {
+      if (category.budget && category.budget > 0 && !expensesByCategory[category.id]) {
+        expensesByCategory[category.id] = { name: category.name, spent: 0, budget: Number(category.budget) * budgetMultiplier, color: category.color };
+      }
+    });
+
+    return Object.entries(expensesByCategory)
+      .map(([_, data]) => ({
+        ...data,
+        percentage: data.budget > 0 ? (data.spent / data.budget * 100).toFixed(1) : "0",
+        remaining: data.budget > 0 ? Math.max(0, data.budget - data.spent) : 0,
+      }))
+      .sort((a, b) => b.spent - a.spent);
+  }, [useSecondary, categoryChartData, secondaryFilteredTransactions, categories, periodType, period]);
+
+  const secondaryIncomeAnalysisComputed = useIncomeAnalysis(useSecondary ? secondaryFilteredTransactions : []);
+  const secondaryIncomeAnalysis = useSecondary ? secondaryIncomeAnalysisComputed : incomeAnalysis;
+
   return {
     loading,
     period,
@@ -821,6 +929,11 @@ export const useReportsData = (
     recurringData,
     spendingPatternsData,
     incomeAnalysis,
-    accounts
+    accounts,
+    // Secondary date-type views (same as primary when secondaryDateType is absent or equal)
+    secondaryFilteredTransactions,
+    secondaryStats,
+    secondaryCategoryChartData,
+    secondaryIncomeAnalysis,
   };
 };

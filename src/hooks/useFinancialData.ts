@@ -758,7 +758,7 @@ function useFinancialDataInternal() {
     if (rt.installment_payment_id) {
       const { data: installment } = await supabase
         .from('installment_payments')
-        .select('*')
+        .select('id, total_amount, remaining_amount')
         .eq('id', rt.installment_payment_id)
         .single();
 
@@ -925,6 +925,45 @@ function useFinancialDataInternal() {
 
     let processedCount = 0;
 
+    // Batch-fetch all installments, scheduled_debt_payments, and debts upfront.
+    // Avoids N+1 queries inside the dueTransactions loop.
+    const installmentIds = [...new Set(dueTransactions.map(rt => rt.installment_payment_id).filter((id): id is string => Boolean(id)))];
+    const debtIds = [...new Set(dueTransactions.map(rt => rt.debt_id).filter((id): id is string => Boolean(id)))];
+
+    const installmentMap = new Map<string, { total_amount: number; installment_amount: number; remaining_amount: number; payment_type: string; is_active: boolean }>();
+    if (installmentIds.length > 0) {
+      const { data } = await supabase
+        .from('installment_payments')
+        .select('id, total_amount, installment_amount, remaining_amount, payment_type, is_active')
+        .in('id', installmentIds);
+      for (const ip of data || []) installmentMap.set(ip.id, ip);
+    }
+
+    const debtPaymentsMap = new Map<string, { id: string; scheduled_date: string; scheduled_amount: number; principal_amount: number; interest_amount: number; is_paid: boolean | null }[]>();
+    const debtAmountMap = new Map<string, number>();
+    if (debtIds.length > 0) {
+      const [schedResp, debtResp] = await Promise.all([
+        supabase
+          .from('scheduled_debt_payments')
+          .select('id, debt_id, scheduled_date, scheduled_amount, principal_amount, interest_amount, is_paid')
+          .in('debt_id', debtIds)
+          .eq('user_id', user.id)
+          .order('scheduled_date', { ascending: true }),
+        supabase
+          .from('debts')
+          .select('id, payment_amount')
+          .in('id', debtIds),
+      ]);
+      for (const sp of schedResp.data || []) {
+        const arr = debtPaymentsMap.get(sp.debt_id) || [];
+        arr.push(sp);
+        debtPaymentsMap.set(sp.debt_id, arr);
+      }
+      for (const d of debtResp.data || []) {
+        if (d.payment_amount) debtAmountMap.set(d.id, d.payment_amount);
+      }
+    }
+
     for (const rt of dueTransactions) {
       try {
         // Check if end_date has passed
@@ -936,49 +975,28 @@ function useFinancialDataInternal() {
           continue;
         }
 
-        // For installment-linked recurring, fetch correct type from installment
-        // Fetch full installment data once (reused later for remaining_amount update)
+        // Resolve installment data from batched map
         let txType = rt.type;
         let txAmount = rt.amount;
         let installmentData: { total_amount: number; installment_amount: number; remaining_amount: number; payment_type: string; is_active: boolean } | null = null;
         if (rt.installment_payment_id) {
-          const { data: ipData } = await supabase
-            .from('installment_payments')
-            .select('*')
-            .eq('id', rt.installment_payment_id)
-            .single();
-          installmentData = ipData;
-          if (ipData) {
-            txType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
-            txAmount = ipData.installment_amount;
+          installmentData = installmentMap.get(rt.installment_payment_id) || null;
+          if (installmentData) {
+            txType = installmentData.payment_type === 'reimbursement' ? 'income' : 'expense';
+            txAmount = installmentData.installment_amount;
           }
         }
 
-        // For debt-linked recurring, fetch scheduled payments to check which are already paid
+        // Resolve debt scheduled payments from batched map
         let debtScheduledPayments: { id: string; scheduled_date: string; scheduled_amount: number; principal_amount: number; interest_amount: number; is_paid: boolean | null }[] = [];
         if (rt.debt_id) {
-          const { data: spData } = await supabase
-            .from('scheduled_debt_payments')
-            .select('*')
-            .eq('debt_id', rt.debt_id)
-            .eq('user_id', user.id)
-            .order('scheduled_date', { ascending: true });
-          debtScheduledPayments = spData || [];
-
-          // Use next unpaid scheduled amount if available
+          debtScheduledPayments = debtPaymentsMap.get(rt.debt_id) || [];
           const nextUnpaid = debtScheduledPayments.find(sp => !sp.is_paid);
           if (nextUnpaid) {
             txAmount = nextUnpaid.scheduled_amount;
           } else {
-            // Fallback to debt payment_amount
-            const { data: debtData } = await supabase
-              .from('debts')
-              .select('payment_amount')
-              .eq('id', rt.debt_id)
-              .single();
-            if (debtData?.payment_amount) {
-              txAmount = debtData.payment_amount;
-            }
+            const paymentAmount = debtAmountMap.get(rt.debt_id);
+            if (paymentAmount) txAmount = paymentAmount;
           }
         }
 
@@ -1149,38 +1167,50 @@ function useFinancialDataInternal() {
   useEffect(() => {
     if (!user) return;
 
-    // Set up real-time subscriptions — invalidate React Query cache
+    // Debounce rapid successive realtime events so that bulk inserts (e.g. recurring
+    // processing creating many transactions) trigger only one refetch burst.
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const debounce = (key: string, fn: () => void, ms = 250) => {
+      const existing = timers.get(key);
+      if (existing) clearTimeout(existing);
+      timers.set(key, setTimeout(() => {
+        timers.delete(key);
+        fn();
+      }, ms));
+    };
+
     const channel = supabase
       .channel('financial-data-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` },
-        () => fetchAccounts()
+        () => debounce('accounts', fetchAccounts),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
-        () => setTimeout(() => { fetchTransactions(); fetchAccounts(); }, 200)
+        () => debounce('transactions', () => { fetchTransactions(); fetchAccounts(); }),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${user.id}` },
-        () => fetchCategories()
+        () => debounce('categories', fetchCategories),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'recurring_transactions', filter: `user_id=eq.${user.id}` },
-        () => fetchRecurringTransactions()
+        () => debounce('recurring', fetchRecurringTransactions),
       )
       .subscribe();
 
-    // Listen for cross-hook installment→recurring sync events
-    const handleInstallmentSync = () => fetchRecurringTransactions();
+    const handleInstallmentSync = () => debounce('recurring', fetchRecurringTransactions);
     window.addEventListener('installment-recurring-updated', handleInstallmentSync);
 
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('installment-recurring-updated', handleInstallmentSync);
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
     };
   }, [user?.id]);
 

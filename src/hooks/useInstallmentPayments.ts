@@ -769,6 +769,15 @@ export const useInstallmentPayments = () => {
     if (user) {
       loadData();
 
+      let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+      const debouncedRefetch = () => {
+        if (refetchTimer) clearTimeout(refetchTimer);
+        refetchTimer = setTimeout(() => {
+          refetchTimer = null;
+          fetchInstallmentPayments();
+        }, 250);
+      };
+
       const channelId = `installment_payments_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       const installmentPaymentsSubscription = supabase
         .channel(channelId)
@@ -780,14 +789,13 @@ export const useInstallmentPayments = () => {
             table: 'installment_payments',
             filter: `user_id=eq.${user.id}`,
           },
-          () => {
-            fetchInstallmentPayments();
-          }
+          debouncedRefetch,
         )
         .subscribe();
 
       return () => {
         installmentPaymentsSubscription.unsubscribe();
+        if (refetchTimer) clearTimeout(refetchTimer);
       };
     }
   }, [user]);

@@ -33,10 +33,8 @@ import {
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
-import * as XLSX from 'xlsx';
+// Heavy export libs (jspdf, jspdf-autotable, html2canvas, xlsx) are loaded
+// dynamically inside the export handlers to keep them out of the initial bundle.
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useReportsData } from "@/hooks/useReportsData";
@@ -248,25 +246,30 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     }
   };
 
-  // Helper to capture chart as image
-  const captureChartAsImage = async (ref: React.RefObject<HTMLDivElement>): Promise<string | null> => {
-    if (!ref.current) return null;
-    try {
-      const canvas = await html2canvas(ref.current, {
-        scale: 2,
-        backgroundColor: 'transparent',
-        logging: false,
-        useCORS: true,
-      });
-      return canvas.toDataURL('image/png');
-    } catch (error) {
-      console.error('Error capturing chart:', error);
-      return null;
-    }
-  };
-
   // PDF Generation with Charts
   const generatePDF = async () => {
+    const [{ default: jsPDF }, { default: autoTable }, { default: html2canvas }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+      import('html2canvas'),
+    ]);
+
+    const captureChartAsImage = async (ref: React.RefObject<HTMLDivElement>): Promise<string | null> => {
+      if (!ref.current) return null;
+      try {
+        const canvas = await html2canvas(ref.current, {
+          scale: 2,
+          backgroundColor: 'transparent',
+          logging: false,
+          useCORS: true,
+        });
+        return canvas.toDataURL('image/png');
+      } catch (error) {
+        console.error('Error capturing chart:', error);
+        return null;
+      }
+    };
+
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -710,6 +713,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
 
   // Excel Generation
   const generateExcel = async () => {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
     const formatNum = (n: number) => Number(n.toFixed(2));

@@ -45,8 +45,21 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        maximumFileSizeToCacheInBytes: 5000000, // 5 MB
+        // Exclude the heavy export bundle (jspdf+xlsx+html2canvas, ~900 KB) from
+        // precache. It's only used when users explicitly export a report, so we
+        // lazy-load it on demand via NetworkFirst instead.
+        globIgnores: ['**/vendor-export-*.js'],
+        maximumFileSizeToCacheInBytes: 2_000_000, // 2 MB
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/vendor-export-.*\.js$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'vendor-export',
+              expiration: { maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/cuanladihtpvkmjhvrln\.supabase\.co\/.*$/,
             handler: 'NetworkFirst',
