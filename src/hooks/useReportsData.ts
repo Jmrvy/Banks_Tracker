@@ -434,7 +434,9 @@ export const useReportsData = (
         const futureTransactions: Array<{ date: Date; amount: number; type: string; description: string }> = [];
 
         activeRecurring.forEach(rt => {
+          if (!rt.next_due_date) return;
           const [_ry, _rm, _rd] = rt.next_due_date.split('-').map(Number);
+          if (isNaN(_ry) || isNaN(_rm) || isNaN(_rd)) return;
           let nextDue = new Date(_ry, _rm - 1, _rd);
           const maxIterations = 100; // Limite de sécurité
           let iterations = 0;
@@ -620,10 +622,23 @@ export const useReportsData = (
       return null;
     };
 
+    // Build scheduled debt payment lookup by debt_id:YYYY-MM for per-month amounts
+    const sdpLookup = new Map<string, number>();
+    if (scheduledDebtPaymentInfos) {
+      for (const sp of scheduledDebtPaymentInfos) {
+        sdpLookup.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
+      }
+    }
+
     // Get the effective amount for a debt-linked recurring transaction
-    const getDebtAmount = (rt: RecurringTransaction, debt: DebtInfo): number => {
+    // dateStr is YYYY-MM-DD so we can look up the scheduled amount for that specific month
+    const getDebtAmount = (rt: RecurringTransaction, debt: DebtInfo, dateStr?: string): number => {
+      if (dateStr && scheduledDebtPaymentInfos) {
+        const monthKey = dateStr.substring(0, 7);
+        const scheduled = sdpLookup.get(`${debt.id}:${monthKey}`);
+        if (scheduled !== undefined) return scheduled;
+      }
       if (scheduledDebtPaymentInfos) {
-        // Find next unpaid scheduled payment
         const nextUnpaid = scheduledDebtPaymentInfos.find(sp => sp.debt_id === debt.id && !sp.is_paid);
         if (nextUnpaid) return nextUnpaid.scheduled_amount;
       }
@@ -681,9 +696,12 @@ export const useReportsData = (
     // Mirrors the calendar logic: past occurrences before next_due_date are counted,
     // future occurrences start from next_due_date and are capped by installment/debt limits
     const getOccurrencesInPeriod = (rt: RecurringTransaction): { total: number; past: number; future: number; details: PeriodOccurrenceDetail[] } => {
+      if (!rt.start_date || !rt.next_due_date) return { total: 0, past: 0, future: 0, details: [] };
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
+      if (isNaN(sy) || isNaN(sm) || isNaN(sd)) return { total: 0, past: 0, future: 0, details: [] };
       let current = new Date(sy, sm - 1, sd);
-      const endDate = rt.end_date ? new Date(rt.end_date) : null;
+      const endDate = rt.end_date && rt.end_date.length >= 10 ? new Date(rt.end_date) : null;
+      if (endDate && isNaN(endDate.getTime())) return { total: 0, past: 0, future: 0, details: [] };
       const maxIterations = 500;
       let iterations = 0;
 
@@ -728,8 +746,15 @@ export const useReportsData = (
           if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
             effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
           }
-        } else if (linkedDebt.payment_amount > 0) {
-          const maxFuture = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
+        } else {
+          // Use count of unpaid scheduled payments if available (more accurate for variable schedules)
+          let maxFuture = 0;
+          if (scheduledDebtPaymentInfos) {
+            maxFuture = scheduledDebtPaymentInfos.filter(sp => sp.debt_id === linkedDebt.id && !sp.is_paid).length;
+          }
+          if (maxFuture === 0 && linkedDebt.payment_amount > 0) {
+            maxFuture = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
+          }
           if (maxFuture <= 0) {
             if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
               effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
@@ -765,7 +790,7 @@ export const useReportsData = (
           if (isPast) past++;
           else future++;
           const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-          details.push({ date: dateStr, amount: getEffectiveAmount(rt), isFuture });
+          details.push({ date: dateStr, amount: getEffectiveAmount(rt, dateStr), isFuture });
         }
         current = advanceDate(current, rt.recurrence_type);
         iterations++;
@@ -776,9 +801,9 @@ export const useReportsData = (
 
     // Monthly/yearly sums (kept for evolution tab projections)
     // Helper to get effective display amount for a recurring transaction
-    const getEffectiveAmount = (rt: RecurringTransaction): number => {
+    const getEffectiveAmount = (rt: RecurringTransaction, dateStr?: string): number => {
       const debt = resolveDebt(rt);
-      if (debt) return getDebtAmount(rt, debt);
+      if (debt) return getDebtAmount(rt, debt, dateStr);
       if (rt.installment_payment_id) {
         const ip = installmentMap.get(rt.installment_payment_id);
         if (ip) return ip.installment_amount;
