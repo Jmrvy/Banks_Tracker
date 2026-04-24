@@ -3,12 +3,15 @@ import { fr, enUS } from 'date-fns/locale';
 
 const LOCALES: Record<string, Locale> = { fr, en: enUS };
 
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export function resolveNamePlaceholders(template: string, date: Date, lang = 'fr'): string {
   const locale = LOCALES[lang] || fr;
+  const month = capitalize(format(date, 'MMMM', { locale }));
 
   return template
-    .replace(/\{MOIS\}/gi, format(date, 'MMMM', { locale }))
-    .replace(/\{MONTH\}/gi, format(date, 'MMMM', { locale }))
+    .replace(/\{MOIS\}/gi, month)
+    .replace(/\{MONTH\}/gi, month)
     .replace(/\{MM\}/g, format(date, 'MM'))
     .replace(/\{ANNEE\}/gi, format(date, 'yyyy'))
     .replace(/\{YEAR\}/gi, format(date, 'yyyy'))
