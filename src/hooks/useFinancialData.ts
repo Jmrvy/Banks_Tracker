@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
+import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
 
 
 // Query keys for React Query cache
@@ -686,7 +687,7 @@ function useFinancialDataInternal() {
       .insert([{
         account_id: rt.account_id,
         category_id: rt.category_id,
-        description: rt.description,
+        description: resolveNamePlaceholders(rt.description, new Date(executionDate)),
         amount: transactionAmount,
         type: transactionType,
         transaction_date: executionDate,
@@ -1012,7 +1013,7 @@ function useFinancialDataInternal() {
               .insert([{
                 account_id: rt.account_id,
                 category_id: rt.category_id,
-                description: `${rt.description} (Récurrence automatique)`,
+                description: `${resolveNamePlaceholders(rt.description, new Date(currentDueDateString))} (Récurrence automatique)`,
                 amount: occurrenceAmount,
                 type: txType,
                 transaction_date: currentDueDateString,

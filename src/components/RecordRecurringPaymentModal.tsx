@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Check, Plus, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
 
 interface RecordRecurringPaymentModalProps {
   open: boolean;
@@ -79,7 +80,7 @@ export const RecordRecurringPaymentModal = ({
             user_id: user.id,
             account_id: recurringTransaction.account_id,
             category_id: recurringTransaction.category_id,
-            description: recurringTransaction.description,
+            description: resolveNamePlaceholders(recurringTransaction.description, new Date()),
             amount: paymentAmount,
             type: recurringTransaction.type,
             transaction_date: todayStr,

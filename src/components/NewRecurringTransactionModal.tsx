@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, MinusCircle, Repeat, Calendar, Clock, Target } from 'lucide-react';
+import { PlusCircle, MinusCircle, Repeat, Calendar, Clock, Target, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
+import { AVAILABLE_PLACEHOLDERS, resolveNamePlaceholders, hasPlaceholders } from '@/utils/namePlaceholders';
 
 interface NewRecurringTransactionModalProps {
   open: boolean;
@@ -173,14 +175,43 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="description">Description *</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px] text-xs">
+                    Utilisez les variables ci-dessous pour insérer automatiquement le mois ou l'année dans le nom de la transaction.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Textarea
               id="description"
-              placeholder="Ex: Salaire mensuel, Loyer, Abonnement Netflix..."
+              placeholder="Ex: Loyer - {MOIS} {ANNEE}"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
             />
+            <div className="flex flex-wrap gap-1.5">
+              {AVAILABLE_PLACEHOLDERS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, description: formData.description + p.key })}
+                  className="text-[11px] px-2 py-0.5 rounded-md border border-border/60 bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {p.key} <span className="text-muted-foreground/60 ml-0.5">{p.example}</span>
+                </button>
+              ))}
+            </div>
+            {hasPlaceholders(formData.description) && (
+              <p className="text-xs text-primary">
+                Aperçu : {resolveNamePlaceholders(formData.description, formData.start_date ? new Date(formData.start_date) : new Date())}
+              </p>
+            )}
           </div>
 
           {/* Amount */}
