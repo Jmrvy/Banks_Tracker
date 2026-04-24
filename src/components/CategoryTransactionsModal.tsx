@@ -146,22 +146,12 @@ export const CategoryTransactionsModal = ({
     let running = 0;
     const today = format(new Date(), "yyyy-MM-dd");
 
-    const chartPoints: Array<{ date: string; spent: number; budget: number; isFuture: boolean }> = [];
-
-    // Start with a zero point so the chart line always begins at 0
-    if (days.length > 0) {
-      chartPoints.push({
-        date: format(days[0], isMobile ? "dd" : "dd MMM", { locale: fr }),
-        spent: 0,
-        budget: Number(categoryData.budget),
-        isFuture: format(days[0], "yyyy-MM-dd") > today,
-      });
-    }
+    // Build one entry per day, tracking cumulative spend from real transactions
+    const dayPoints: Array<{ dayStr: string; label: string; spent: number; budget: number; isFuture: boolean }> = [];
 
     for (let i = 0; i < days.length; i++) {
       const day = days[i];
       const dayStr = format(day, "yyyy-MM-dd");
-      // Use NET amounts (amount - refunded_amount) for each transaction
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
         .reduce((s, t) => {
@@ -171,11 +161,9 @@ export const CategoryTransactionsModal = ({
         }, 0);
       running += dayTotal;
 
-      // Skip duplicating the first day's zero point when nothing was spent
-      if (i === 0 && running === 0) continue;
-
-      chartPoints.push({
-        date: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
+      dayPoints.push({
+        dayStr,
+        label: format(day, isMobile ? "dd" : "dd MMM", { locale: fr }),
         spent: running,
         budget: Number(categoryData.budget),
         isFuture: dayStr > today,
@@ -184,7 +172,6 @@ export const CategoryTransactionsModal = ({
 
     // If includeUpcoming, add projected recurring amounts to future days
     if (includeUpcoming && upcomingItems && upcomingItems.length > 0) {
-      // Compute future occurrence dates for each upcoming item using per-occurrence calendar amounts
       const futureAdditions = new Map<string, number>();
       for (const item of upcomingItems) {
         const futureDetails = (item.occurrenceDetails || []).filter(d => d.isFuture);
@@ -194,18 +181,32 @@ export const CategoryTransactionsModal = ({
           }
         }
       }
-      
-      // Re-accumulate with projections
+
       if (futureAdditions.size > 0) {
         let projRunning = 0;
-        for (let i = 0; i < chartPoints.length; i++) {
-          const dayStr = format(days[i], "yyyy-MM-dd");
-          const projected = futureAdditions.get(dayStr) || 0;
+        for (const dp of dayPoints) {
+          const projected = futureAdditions.get(dp.dayStr) || 0;
           projRunning += projected;
           if (projRunning > 0) {
-            chartPoints[i].spent += projRunning;
+            dp.spent += projRunning;
           }
         }
+      }
+    }
+
+    // Build final chart points, prepending a zero-point so the line always starts at 0
+    const chartPoints: Array<{ date: string; spent: number; budget: number; isFuture: boolean }> = [];
+    if (dayPoints.length > 0) {
+      const first = dayPoints[0];
+      if (first.spent > 0) {
+        chartPoints.push({ date: first.label, spent: 0, budget: first.budget, isFuture: first.isFuture });
+      }
+      for (const dp of dayPoints) {
+        if (chartPoints.length === 0 && dp.spent === 0) continue;
+        chartPoints.push({ date: dp.label, spent: dp.spent, budget: dp.budget, isFuture: dp.isFuture });
+      }
+      if (chartPoints.length === 0) {
+        chartPoints.push({ date: first.label, spent: 0, budget: first.budget, isFuture: first.isFuture });
       }
     }
 
