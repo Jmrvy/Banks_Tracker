@@ -74,24 +74,9 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
     );
   }
 
-  // Calculer le total réel à partir des données
-  const calculatedTotal = incomeAnalysis.reduce((sum, cat) => sum + cat.totalAmount, 0);
-  // Utiliser le total calculé pour éviter les erreurs de pourcentage
-  const totalForPercentage = calculatedTotal > 0 ? calculatedTotal : totalIncome;
-
-  // Données pour le graphique circulaire
-  const pieChartData = incomeAnalysis
-    .sort((a, b) => b.totalAmount - a.totalAmount)
-    .map((cat, index) => ({
-      name: cat.category,
-      value: cat.totalAmount,
-      count: cat.count,
-      color: COLORS[index % COLORS.length]
-    }));
-
   // Compute projected upcoming income by category
   const upcomingByCategory = includeUpcoming && upcomingItems ? (() => {
-    const map = new Map<string, { amount: number; count: number }>();
+    const map = new Map<string, { amount: number; count: number; items: typeof upcomingItems }>();
     for (const pi of upcomingItems) {
       if (pi.futureOccurrences <= 0) continue;
       const catName = pi.recurring.category?.name || 'Sans catégorie';
@@ -99,8 +84,9 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
       if (existing) {
         existing.amount += pi.futurePeriodAmount;
         existing.count += pi.futureOccurrences;
+        existing.items.push(pi);
       } else {
-        map.set(catName, { amount: pi.futurePeriodAmount, count: pi.futureOccurrences });
+        map.set(catName, { amount: pi.futurePeriodAmount, count: pi.futureOccurrences, items: [pi] });
       }
     }
     return map;
@@ -110,6 +96,63 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
     ? upcomingItems.reduce((sum, pi) => sum + pi.futurePeriodAmount, 0)
     : 0;
   const grandTotal = totalIncome + totalProjected;
+
+  // Build combined categories: real + projected
+  interface CombinedCategory {
+    name: string;
+    realAmount: number;
+    projectedAmount: number;
+    totalAmount: number;
+    realCount: number;
+    projectedCount: number;
+    totalCount: number;
+  }
+  const combinedCategories: CombinedCategory[] = (() => {
+    const map = new Map<string, CombinedCategory>();
+    for (const cat of incomeAnalysis) {
+      map.set(cat.category, {
+        name: cat.category,
+        realAmount: cat.totalAmount,
+        projectedAmount: 0,
+        totalAmount: cat.totalAmount,
+        realCount: cat.count,
+        projectedCount: 0,
+        totalCount: cat.count,
+      });
+    }
+    if (includeUpcoming && upcomingByCategory) {
+      upcomingByCategory.forEach((val, catName) => {
+        const existing = map.get(catName);
+        if (existing) {
+          existing.projectedAmount = val.amount;
+          existing.totalAmount += val.amount;
+          existing.projectedCount = val.count;
+          existing.totalCount += val.count;
+        } else {
+          map.set(catName, {
+            name: catName,
+            realAmount: 0,
+            projectedAmount: val.amount,
+            totalAmount: val.amount,
+            realCount: 0,
+            projectedCount: val.count,
+            totalCount: val.count,
+          });
+        }
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+  })();
+
+  const totalForPercentage = grandTotal > 0 ? grandTotal : 1;
+
+  // Données pour le graphique circulaire
+  const pieChartData = combinedCategories.map((cat, index) => ({
+    name: cat.name,
+    value: cat.totalAmount,
+    count: cat.totalCount,
+    color: COLORS[index % COLORS.length]
+  }));
 
   return (
     <div className="space-y-3">
@@ -244,7 +287,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
               </ResponsiveContainer>
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-lg sm:text-xl font-bold text-success">{formatCurrency(totalIncome)}</span>
+                <span className="text-lg sm:text-xl font-bold text-success">{formatCurrency(includeUpcoming ? grandTotal : totalIncome)}</span>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Total</span>
               </div>
             </div>
@@ -284,32 +327,36 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
       <div className="space-y-2">
         <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">Détail par catégorie</h3>
         <div className="space-y-1.5">
-          {incomeAnalysis
-            .sort((a, b) => b.totalAmount - a.totalAmount)
-            .map((category, index) => {
+          {combinedCategories.map((category, index) => {
               const percentage = (category.totalAmount / totalForPercentage) * 100;
               const color = COLORS[index % COLORS.length];
-              
+
               return (
                 <button
-                  key={category.category}
-                  onClick={() => handleCategoryClick(category.category)}
+                  key={category.name}
+                  onClick={() => category.realCount > 0 ? handleCategoryClick(category.name) : undefined}
                   className={cn(
                     "w-full p-2.5 sm:p-3 rounded-xl transition-all duration-300 text-left",
                     "bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.10]",
-                    "active:scale-[0.99] backdrop-blur-sm"
+                    "active:scale-[0.99] backdrop-blur-sm",
+                    category.projectedAmount > 0 && category.realAmount === 0 && "border-dashed border-primary/30"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0" 
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="font-medium text-xs sm:text-sm truncate">{category.category}</span>
+                      <span className="font-medium text-xs sm:text-sm truncate">{category.name}</span>
+                      {category.projectedAmount > 0 && (
+                        <Badge variant="outline" className="text-[8px] sm:text-[9px] px-1 py-0 h-3.5 border-primary/40 text-primary">
+                          +{formatCurrency(category.projectedAmount)} projeté
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <Badge 
+                      <Badge
                         variant="secondary"
                         className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 sm:h-5 bg-success/10 text-success border-0"
                       >
@@ -320,17 +367,20 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-1.5">
                     <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                      <div 
+                      <div
                         className="h-full rounded-full transition-all duration-500 bg-success"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
-                      <span>{category.count} transaction{category.count > 1 ? 's' : ''}</span>
-                      <span>Moy: {formatCurrency(category.totalAmount / category.count)}</span>
+                      <span>
+                        {category.realCount} transaction{category.realCount > 1 ? 's' : ''}
+                        {category.projectedCount > 0 && ` + ${category.projectedCount} projetée${category.projectedCount > 1 ? 's' : ''}`}
+                      </span>
+                      <span>Moy: {formatCurrency(category.totalAmount / category.totalCount)}</span>
                     </div>
                   </div>
                 </button>
