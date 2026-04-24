@@ -596,7 +596,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
                       />
                       <div className="min-w-0">
-                        <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
+                        <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, new Date(item.recurring.next_due_date))}</span>
                         <span className="text-[9px] text-muted-foreground">
                           {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
                         </span>
