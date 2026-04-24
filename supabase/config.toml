@@ -14,3 +14,18 @@ verify_jwt = false
 
 [functions.get-investment-transactions]
 verify_jwt = false
+
+[functions.api-auth]
+verify_jwt = false
+
+[functions.get-accounts]
+verify_jwt = false
+
+[functions.get-categories]
+verify_jwt = false
+
+[functions.get-recurring]
+verify_jwt = false
+
+[functions.get-summary]
+verify_jwt = false
