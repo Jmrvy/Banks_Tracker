@@ -74,6 +74,7 @@ export interface RecurringData {
   periodIncomeCount: number;
   periodExpenseCount: number;
   periodByCategory: { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }[];
+  gapBalance: number;
 }
 
 export interface SpendingPatternsData {
@@ -381,7 +382,7 @@ export const useReportsData = (
     yearlyIncome: 0, yearlyExpenses: 0, yearlyNet: 0, byCategory: [],
     incomeCount: 0, expenseCount: 0, periodItems: [], periodIncome: 0,
     periodExpenses: 0, periodNet: 0, periodIncomeCount: 0, periodExpenseCount: 0,
-    periodByCategory: [],
+    periodByCategory: [], gapBalance: 0,
   };
 
   const recurringData = useMemo<RecurringData>(() => {
@@ -673,6 +674,38 @@ export const useReportsData = (
       }
     }
 
+    // For future periods, compute net impact of recurring transactions between today and period.from
+    let gapBalance = 0;
+    const todayGap = new Date();
+    todayGap.setHours(0, 0, 0, 0);
+    if (period.from > todayGap) {
+      for (const rt of activeRecurring) {
+        if (!rt.next_due_date) continue;
+        const [gny, gnm, gnd] = rt.next_due_date.split('-').map(Number);
+        if (isNaN(gny) || isNaN(gnm) || isNaN(gnd)) continue;
+
+        if (rt.installment_payment_id) {
+          const ip = installmentMap.get(rt.installment_payment_id);
+          if (!ip || !ip.is_active || ip.remaining_amount <= 0) continue;
+        }
+        const linkedDebt = resolveDebt(rt);
+        if (linkedDebt && (linkedDebt.status === 'completed' || linkedDebt.remaining_amount <= 0)) continue;
+
+        let cur = new Date(gny, gnm - 1, gnd);
+        const effectiveType = getEffectiveType(rt);
+        let gapIter = 0;
+        while (cur < period.from && gapIter < 500) {
+          if (cur > todayGap) {
+            const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+            const amt = getEffectiveAmount(rt, ds);
+            gapBalance += effectiveType === 'income' ? amt : -amt;
+          }
+          cur = advanceDate(cur, rt.recurrence_type);
+          gapIter++;
+        }
+      }
+    }
+
     return {
       activeRecurring,
       monthlyIncome,
@@ -692,10 +725,12 @@ export const useReportsData = (
       periodIncomeCount,
       periodExpenseCount,
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
+      gapBalance,
     };
   }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos, transactions, activeDateType]);
 
   // Augment balance evolution with projections from recurringData.periodItems
+  // For future periods, adjust starting balance with gapBalance (projected recurring between today and period start)
   const balanceEvolutionWithProjection = useMemo<BalanceDataPoint[]>(() => {
     if (skipHeavy || balanceEvolutionData.length === 0) return balanceEvolutionData;
 
@@ -705,6 +740,17 @@ export const useReportsData = (
     periodEnd.setHours(0, 0, 0, 0);
 
     if (periodEnd < today) return balanceEvolutionData;
+
+    const gap = recurringData.gapBalance;
+
+    // Adjust base data points by gapBalance for future periods
+    const adjustedBase = gap !== 0
+      ? balanceEvolutionData.map(d => ({
+          ...d,
+          solde: d.solde !== null ? d.solde + gap : null,
+          soldeProjecte: d.soldeProjecte + gap,
+        }))
+      : balanceEvolutionData;
 
     const futureItems: Array<{ date: Date; amount: number; type: 'income' | 'expense' }> = [];
     for (const pi of recurringData.periodItems) {
@@ -719,11 +765,11 @@ export const useReportsData = (
       }
     }
 
-    if (futureItems.length === 0) return balanceEvolutionData;
+    if (futureItems.length === 0) return adjustedBase;
 
     futureItems.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    const lastPoint = balanceEvolutionData[balanceEvolutionData.length - 1];
+    const lastPoint = adjustedBase[adjustedBase.length - 1];
     let currentProjected = lastPoint?.soldeProjecte ?? lastPoint?.solde ?? 0;
 
     const projectionPoints: BalanceDataPoint[] = futureItems.map(ft => {
@@ -738,8 +784,8 @@ export const useReportsData = (
       };
     });
 
-    return [...balanceEvolutionData, ...projectionPoints];
-  }, [balanceEvolutionData, recurringData.periodItems, period, skipHeavy]);
+    return [...adjustedBase, ...projectionPoints];
+  }, [balanceEvolutionData, recurringData.periodItems, recurringData.gapBalance, period, skipHeavy]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {
