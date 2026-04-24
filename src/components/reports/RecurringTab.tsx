@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { RecurringData, SpendingPatternsData, ReportsPeriod } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface RecurringTabProps {
   recurringData: RecurringData;
@@ -329,7 +330,7 @@ export const RecurringTab = ({
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: recurring.category.color }} />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-medium truncate">{recurring.description}</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">{resolveNamePlaceholders(recurring.description, new Date(recurring.next_due_date))}</p>
                       <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                         <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4">
                           {recurrenceLabel(recurring.recurrence_type)}

@@ -9,6 +9,7 @@ import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModa
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PeriodRecurringItem } from "@/hooks/useReportsData";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface IncomeTabProps {
   incomeAnalysis: IncomeCategory[];
@@ -60,7 +61,9 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
   const totalTransactions = incomeAnalysis.reduce((sum, cat) => sum + cat.count, 0);
   const avgPerTransaction = totalTransactions > 0 ? totalIncome / totalTransactions : 0;
 
-  if (incomeAnalysis.length === 0) {
+  const hasUpcomingIncome = includeUpcoming && upcomingItems && upcomingItems.some(pi => pi.futureOccurrences > 0);
+
+  if (incomeAnalysis.length === 0 && !hasUpcomingIncome) {
     return (
       <Card className="border-border">
         <CardContent className="text-center py-12">
@@ -359,7 +362,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                         style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
                       />
                       <div className="min-w-0">
-                        <span className="text-xs font-medium truncate block">{item.recurring.description}</span>
+                        <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, new Date(item.recurring.next_due_date))}</span>
                         <span className="text-[9px] text-muted-foreground">
                           {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
                         </span>
