@@ -21,6 +21,7 @@ interface ScheduledDebtPayment {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -805,7 +806,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           {/* Info */}
           <div className="flex-1 min-w-0">
             <p className={`text-sm sm:text-base font-semibold truncate ${dimmed ? 'text-muted-foreground' : ''}`}>
-              {transaction.description}
+              {resolveNamePlaceholders(transaction.description, occDate)}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               {isOverdue ? (

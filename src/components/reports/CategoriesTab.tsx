@@ -12,6 +12,7 @@ import { Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { TrendingDown, Target, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
@@ -81,7 +82,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         futureDetails.forEach((occ, idx) => {
           realTxs.push({
             id: `projected-${rt.id}-${idx}`,
-            description: rt.description,
+            description: resolveNamePlaceholders(rt.description, new Date(occ.date)),
             amount: occ.amount,
             netAmount: occ.amount,
             refundedAmount: 0,
