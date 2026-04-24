@@ -57,7 +57,7 @@ export const BudgetAlertsCard = () => {
     if (!selectedCategory) return [];
     const dateType = preferences.dateType;
     return filteredTransactions
-      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory)
+      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory && t.include_in_stats !== false)
       .map(t => ({
         id: t.id,
         description: t.description,

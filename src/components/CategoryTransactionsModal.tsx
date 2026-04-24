@@ -200,9 +200,11 @@ export const CategoryTransactionsModal = ({
   const chartFinalSpent = budgetChartData.length > 0 ? budgetChartData[budgetChartData.length - 1].spent : 0;
   const effectiveSpent = hasBudget && budgetChartData.length > 0 ? chartFinalSpent : Number(categoryData?.spent || 0);
   
-  const yMax = hasBudget
+  const yMaxRaw = hasBudget
     ? Math.max(Number(categoryData.budget) * 1.15, effectiveSpent * 1.05, 100)
     : 100;
+  const step = yMaxRaw <= 200 ? 10 : yMaxRaw <= 1000 ? 50 : yMaxRaw <= 5000 ? 100 : 500;
+  const yMax = Math.ceil(yMaxRaw / step) * step;
   const isOverBudget = hasBudget && effectiveSpent > Number(categoryData.budget);
   const percentUsed = hasBudget
     ? Math.round((effectiveSpent / Number(categoryData.budget)) * 100)
@@ -315,7 +317,7 @@ export const CategoryTransactionsModal = ({
                     />
                     <YAxis
                       domain={[0, yMax]}
-                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`)}
+                      tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${Math.round(v)}`)}
                       tick={{ fontSize: isMobile ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
                       tickLine={false}
                       axisLine={false}
