@@ -261,67 +261,39 @@ export const EvolutionTab = ({
       {/* Projections mensuelles - Composant dédié */}
       <MonthlyProjections />
 
-      {/* Projection récurrents vs patterns */}
+      {/* Projection récurrents */}
       <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
           <CardTitle className="text-sm sm:text-base">
             Projection mensuelle
           </CardTitle>
           <CardDescription className="text-[10px] sm:text-xs">
-            Basée sur {useSpendingPatterns ? 'les patterns de dépenses' : 'les transactions récurrentes'}
+            Basée sur les transactions récurrentes
           </CardDescription>
         </CardHeader>
         <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {useSpendingPatterns && spendingPatternsData ? (
-              <>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-success/5 border border-success/10">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Revenus projetés</span>
-                  <span className="text-sm sm:text-lg font-bold text-success">
-                    {formatCurrency(spendingPatternsData.projectedMonthlyIncome)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Dépenses projetées</span>
-                  <span className="text-sm sm:text-lg font-bold text-destructive">
-                    {formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-primary/5 border border-primary/10">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Net mensuel</span>
-                  <span className={cn(
-                    "text-sm sm:text-lg font-bold",
-                    spendingPatternsData.projectedMonthlyNet >= 0 ? "text-success" : "text-destructive"
-                  )}>
-                    {spendingPatternsData.projectedMonthlyNet >= 0 ? "+" : ""}{formatCurrency(spendingPatternsData.projectedMonthlyNet)}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-success/5 border border-success/10">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Revenus récurrents</span>
-                  <span className="text-sm sm:text-lg font-bold text-success">
-                    {formatCurrency(recurringData.monthlyIncome)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Dépenses récurrentes</span>
-                  <span className="text-sm sm:text-lg font-bold text-destructive">
-                    {formatCurrency(recurringData.monthlyExpenses)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-primary/5 border border-primary/10">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Net récurrent</span>
-                  <span className={cn(
-                    "text-sm sm:text-lg font-bold",
-                    recurringData.monthlyNet >= 0 ? "text-success" : "text-destructive"
-                  )}>
-                    {recurringData.monthlyNet >= 0 ? "+" : ""}{formatCurrency(recurringData.monthlyNet)}
-                  </span>
-                </div>
-              </>
-            )}
+            <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-success/5 border border-success/10">
+              <span className="text-xs sm:text-sm text-muted-foreground">Revenus récurrents</span>
+              <span className="text-sm sm:text-lg font-bold text-success">
+                {formatCurrency(recurringData.monthlyIncome)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+              <span className="text-xs sm:text-sm text-muted-foreground">Dépenses récurrentes</span>
+              <span className="text-sm sm:text-lg font-bold text-destructive">
+                {formatCurrency(recurringData.monthlyExpenses)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 sm:p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <span className="text-xs sm:text-sm text-muted-foreground">Net récurrent</span>
+              <span className={cn(
+                "text-sm sm:text-lg font-bold",
+                recurringData.monthlyNet >= 0 ? "text-success" : "text-destructive"
+              )}>
+                {recurringData.monthlyNet >= 0 ? "+" : ""}{formatCurrency(recurringData.monthlyNet)}
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
