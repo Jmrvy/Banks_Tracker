@@ -13,6 +13,7 @@ import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMo
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
+import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface ScheduledDebtPayment {
   debt_id: string;
@@ -285,7 +286,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                   >
                     <div className="flex flex-col min-w-0 flex-1 mr-2">
                       <span className="text-xs sm:text-sm font-medium truncate">
-                        {transaction.description}
+                        {resolveNamePlaceholders(transaction.description, parseLocalDate(transaction.next_due_date))}
                       </span>
                       <span className="text-[10px] sm:text-xs text-muted-foreground">
                         {format(parseLocalDate(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
