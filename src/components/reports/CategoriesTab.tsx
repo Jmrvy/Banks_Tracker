@@ -154,10 +154,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   const getEffectiveSpent = (cat: CategoryData) => cat.spent + (projectedByCategory.get(cat.name) || 0);
   const overBudgetCategories = categoriesWithBudget
     .filter(c => includeUpcoming ? getEffectiveSpent(c) > c.budget : c.spent > c.budget)
-    .sort((a, b) => (a.budget - getEffectiveSpent(a)) - (b.budget - getEffectiveSpent(b)));
+    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget));
   const underBudgetCategories = categoriesWithBudget
     .filter(c => includeUpcoming ? getEffectiveSpent(c) <= c.budget : c.spent <= c.budget)
-    .sort((a, b) => (a.budget - getEffectiveSpent(a)) - (b.budget - getEffectiveSpent(b)));
+    .sort((a, b) => (getEffectiveSpent(b) / b.budget) - (getEffectiveSpent(a) / a.budget));
 
   const hasAnyData = chartData.length > 0 || (includeUpcoming && totalProjected > 0);
 
