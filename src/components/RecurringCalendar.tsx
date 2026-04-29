@@ -517,7 +517,21 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         
         // Only add once per installment per month (use the first day we encounter)
         matchedInstallmentMonths.add(matchKey);
-        
+
+        // Remove any scheduled occurrence for this recurring transaction on a
+        // different day (actual date takes precedence over computed schedule)
+        for (const [existingDayKey, entries] of map) {
+          if (existingDayKey === dayKey) continue;
+          const filtered = entries.filter(e => e.transaction.id !== recurringTx.id);
+          if (filtered.length < entries.length) {
+            if (filtered.length === 0) {
+              map.delete(existingDayKey);
+            } else {
+              map.set(existingDayKey, filtered);
+            }
+          }
+        }
+
         const existing = map.get(dayKey) || [];
         map.set(dayKey, [...existing, {
           transaction: recurringTx,
@@ -546,6 +560,21 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       dayEntries.forEach(({ recurringTx, amount }) => {
         const matchKey = `${recurringTx.id}:${dayKey}`;
         if (matchedRecurringDays.has(matchKey)) return; // Already shown on this exact day
+
+        // Remove any scheduled occurrence for this recurring transaction on a
+        // different day — the actual recorded date takes precedence over the
+        // computed schedule (handles accounting date ≠ value date scenarios).
+        for (const [existingDayKey, entries] of map) {
+          if (existingDayKey === dayKey) continue;
+          const filtered = entries.filter(e => e.transaction.id !== recurringTx.id);
+          if (filtered.length < entries.length) {
+            if (filtered.length === 0) {
+              map.delete(existingDayKey);
+            } else {
+              map.set(existingDayKey, filtered);
+            }
+          }
+        }
 
         matchedRecurringDays.add(matchKey);
         const existing = map.get(dayKey) || [];
