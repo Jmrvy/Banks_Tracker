@@ -19,7 +19,7 @@ interface AccountTransactionsListProps {
 
 export function AccountTransactionsList({ accountId, transactions, initialBalance, startDate, endDate }: AccountTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
-  const { t, i18n } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
@@ -118,11 +118,11 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'income':
-        return t('transactions.income');
+        return tr('transactions.income');
       case 'expense':
-        return t('transactions.expense');
+        return tr('transactions.expense');
       case 'transfer':
-        return t('transactions.transfer');
+        return tr('transactions.transfer');
       default:
         return type;
     }
@@ -222,7 +222,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                     )}
                   </div>
                   <div className="text-right w-32">
-                    <p className="text-xs text-muted-foreground">{t('dashboard.balanceAfter')}</p>
+                    <p className="text-xs text-muted-foreground">{tr('dashboard.balanceAfter')}</p>
                     <p className={`font-bold text-sm ${
                       t.balanceAfter >= 0 ? 'text-success' : 'text-destructive'
                     }`}>
