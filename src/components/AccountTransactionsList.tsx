@@ -5,8 +5,9 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { TransactionDetailModal } from "./TransactionDetailModal";
+import { useTranslation } from "react-i18next";
 
 interface AccountTransactionsListProps {
   accountId: string;
@@ -18,6 +19,8 @@ interface AccountTransactionsListProps {
 
 export function AccountTransactionsList({ accountId, transactions, initialBalance, startDate, endDate }: AccountTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   const transactionsWithBalance = useMemo(() => {
@@ -115,11 +118,11 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'income':
-        return 'Revenu';
+        return t('transactions.income');
       case 'expense':
-        return 'Dépense';
+        return t('transactions.expense');
       case 'transfer':
-        return 'Virement';
+        return t('transactions.transfer');
       default:
         return type;
     }
@@ -151,7 +154,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{t.description}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                      {format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale })}
                       {t.category && (
                         <span className="ml-1">• {t.category.name}</span>
                       )}
@@ -183,7 +186,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{t.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
                       <span>•</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(t.type)}
@@ -219,7 +222,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                     )}
                   </div>
                   <div className="text-right w-32">
-                    <p className="text-xs text-muted-foreground">Solde après</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.balanceAfter')}</p>
                     <p className={`font-bold text-sm ${
                       t.balanceAfter >= 0 ? 'text-success' : 'text-destructive'
                     }`}>

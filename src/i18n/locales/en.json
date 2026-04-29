@@ -78,7 +78,9 @@
     "expense": "Expense",
     "search": "Search",
     "searchPlaceholder": "Search...",
-    "today2": "Today"
+    "today2": "Today",
+    "noAccountsAvailable": "No accounts available",
+    "transfers": "Transfers"
   },
   "navigation": {
     "home": "Home",
@@ -208,7 +210,11 @@
     "partialRefund": "Partial",
     "transactionFailed": "Transaction creation failed",
     "selectAccountSearch": "Search by description, amount, date, account...",
-    "transferDifferentAccounts": "Source and destination accounts must be different."
+    "transferDifferentAccounts": "Source and destination accounts must be different.",
+    "incomingTransfer": "Incoming transfer",
+    "outgoingTransfer": "Outgoing transfer",
+    "refund": "Refund",
+    "showMore": "Show more (25)"
   },
   "categories": {
     "title": "Categories",
@@ -473,7 +479,12 @@
     "incomePerCategory": "Income/category",
     "budgetTracking": "Budget tracking",
     "recurringTransactions": "Recurring transactions",
-    "totalLabel": "Total"
+    "totalLabel": "Total",
+    "outgoingRecurringByCategory": "Outgoing recurring by category",
+    "projectedIncoming": "Projected incoming:",
+    "projectedOutgoing": "Projected outgoing:",
+    "recurringOutgoing": "Recurring outgoing:",
+    "projectedRealOutgoing": "Projected real outgoing:"
   },
   "settings": {
     "title": "Settings",
@@ -571,12 +582,42 @@
     "available": "Available",
     "balance": "Balance",
     "recurring": "Recurring",
-    "sevenDays": "7 days"
+    "sevenDays": "7 days",
+    "cashflow": "Cashflow",
+    "balanceEvolutionSubtitle": "Evolution of your balance",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "net": "Net",
+    "projectedBalance": "Projected balance:",
+    "balanceLabel": "Balance:",
+    "globalBalanceEvolution": "Global balance evolution",
+    "noTransactions": "No transactions",
+    "balanceAfter": "Balance after",
+    "distribution": "Distribution",
+    "noExpensesThisPeriod": "No expenses this period",
+    "amountLabel": "Amount:",
+    "shareLabel": "Share:",
+    "othersMore": "+{{count}} others",
+    "title": "Dashboard",
+    "projectedBalanceShort": "Projected balance"
   },
   "budgetAlerts": {
     "exceeded_one": "{{count}} budget exceeded",
     "exceeded_other": "{{count}} budgets exceeded",
     "approaching_one": "{{count}} budget nearly reached",
     "approaching_other": "{{count}} budgets nearly reached"
+  },
+  "quickPreview": {
+    "hide": "Hide",
+    "show": "Show",
+    "totalBalance": "Total balance",
+    "myAccounts": "My accounts",
+    "viewAll": "View all",
+    "otherAccounts_one": "+{{count}} other account",
+    "otherAccounts_other": "+{{count}} other accounts",
+    "noAccountsConfigured": "No accounts configured",
+    "upcoming7d": "Upcoming (7d)",
+    "noUpcomingTransactions": "No scheduled transactions",
+    "fullDashboard": "Full dashboard"
   }
 }

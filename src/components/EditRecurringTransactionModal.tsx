@@ -289,7 +289,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               disabled={isLinked.any}
             >
               <PlusCircle className="h-4 w-4 mr-1" />
-              Revenus
+              {t('common.income')}
             </Button>
             <Button
               type="button"
@@ -300,7 +300,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               disabled={isLinked.any}
             >
               <MinusCircle className="h-4 w-4 mr-1" />
-              Dépense
+              {t('common.expense')}
             </Button>
           </div>
 
@@ -345,7 +345,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               <SelectContent>
                 {accounts.length === 0 ? (
                   <SelectItem value="no-accounts" disabled>
-                    Aucun compte disponible
+                    {t('common.noAccountsAvailable')}
                   </SelectItem>
                 ) : (
                   accounts.map((account) => (
@@ -479,7 +479,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <strong>Type:</strong> {formData.type === 'income' ? 'Revenus' : 'Dépense'}
+                    <strong>Type:</strong> {formData.type === 'income' ? t('common.income') : t('common.expense')}
                   </div>
                   <div>
                     <strong>Montant:</strong> {formatCurrency(parseFloat(formData.amount) || 0)}

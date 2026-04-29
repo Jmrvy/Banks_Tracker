@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ export function ExcludedTransactionsModal({
   transactions,
   period
 }: ExcludedTransactionsModalProps) {
+  const { t: tr } = useTranslation();
   const { formatCurrency } = useUserPreferences();
   const isMobile = useIsMobile();
 
@@ -40,11 +42,11 @@ export function ExcludedTransactionsModal({
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'income':
-        return 'Revenu';
+        return tr('transactions.income');
       case 'expense':
-        return 'Dépense';
+        return tr('transactions.expense');
       case 'transfer':
-        return 'Transfert';
+        return tr('transactions.transfer');
       default:
         return type;
     }

@@ -7,7 +7,7 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft, X, Info, CalendarClock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, isSameDay, isSameWeek, addDays } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { AccountTransactionsList } from "./AccountTransactionsList";
 import { Button } from "./ui/button";
 import { ValueDateDifferenceModal } from "./ValueDateDifferenceModal";
@@ -25,7 +25,8 @@ interface AccountDetailsProps {
 
 export function AccountDetails({ accountId, transactions, balance, startDate, endDate, periodLabel }: AccountDetailsProps) {
   const { formatCurrency, preferences } = useUserPreferences();
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [selectedPeriod, setSelectedPeriod] = useState<{ date: Date; type: 'day' | 'week' | 'month'; label: string } | null>(null);
   const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
   const [showTransactionTypeModal, setShowTransactionTypeModal] = useState<'income' | 'expense' | null>(null);
@@ -151,7 +152,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     if (daysDiff <= 31) {
       const days = eachDayOfInterval({ start: startDate, end: endDate });
       const data = days.map(day => ({
-        label: format(day, 'dd', { locale: fr }),
+        label: format(day, 'dd', { locale: dateLocale }),
         fullDate: day,
         income: 0,
         expenses: 0,
@@ -170,7 +171,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     
     // 2-3 months: group by week
     if (daysDiff <= 93) {
-      const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { locale: fr });
+      const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { locale: dateLocale });
       const data = weeks.map((week, index) => ({
         label: `S${index + 1}`,
         fullDate: week,
@@ -183,7 +184,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           ? new Date(t.value_date || t.transaction_date)
           : new Date(t.transaction_date);
         const weekIndex = data.findIndex(w => 
-          isSameWeek(w.fullDate, transactionDate, { locale: fr })
+          isSameWeek(w.fullDate, transactionDate, { locale: dateLocale })
         );
         addTransactionToData(data, weekIndex, t);
       });
@@ -200,7 +201,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     
     while (currentMonth <= endMonth) {
       months.push({
-        label: format(currentMonth, 'MMM', { locale: fr }),
+        label: format(currentMonth, 'MMM', { locale: dateLocale }),
         fullDate: currentMonth,
         income: 0,
         expenses: 0,
@@ -234,8 +235,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       periodStart = selectedPeriod.date;
       periodEnd = addDays(selectedPeriod.date, 1);
     } else if (selectedPeriod.type === 'week') {
-      periodStart = startOfWeek(selectedPeriod.date, { locale: fr });
-      periodEnd = endOfWeek(selectedPeriod.date, { locale: fr });
+      periodStart = startOfWeek(selectedPeriod.date, { locale: dateLocale });
+      periodEnd = endOfWeek(selectedPeriod.date, { locale: dateLocale });
     } else {
       periodStart = startOfMonth(selectedPeriod.date);
       periodEnd = endOfMonth(selectedPeriod.date);
@@ -278,10 +279,10 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
         date: payload.fullDate,
         type: periodChartData.type,
         label: periodChartData.type === 'day' 
-          ? format(payload.fullDate, 'EEEE d MMMM yyyy', { locale: fr })
+          ? format(payload.fullDate, 'EEEE d MMMM yyyy', { locale: dateLocale })
           : periodChartData.type === 'week'
-          ? `Semaine du ${format(startOfWeek(payload.fullDate, { locale: fr }), 'd MMMM', { locale: fr })}`
-          : format(payload.fullDate, 'MMMM yyyy', { locale: fr })
+          ? `Semaine du ${format(startOfWeek(payload.fullDate, { locale: dateLocale }), 'd MMMM', { locale: dateLocale })}`
+          : format(payload.fullDate, 'MMMM yyyy', { locale: dateLocale })
       });
     }
   };
@@ -293,7 +294,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
     if (sortedTransactions.length === 0) {
       return [{
-        date: format(new Date(), 'dd/MM', { locale: fr }),
+        date: format(new Date(), 'dd/MM', { locale: dateLocale }),
         balance: balance,
       }];
     }
@@ -336,7 +337,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       }
 
       evolution.push({
-        date: format(new Date(t.transaction_date), 'dd/MM', { locale: fr }),
+        date: format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale }),
         balance: runningBalance,
       });
     });
@@ -421,7 +422,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
           <CardContent className="p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">Virements</p>
+                <p className="text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">{tr('common.transfers')}</p>
                 <p className="text-sm sm:text-2xl font-bold">{stats.transfers}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 hidden sm:flex">
@@ -452,7 +453,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       {/* Balance Evolution Chart */}
       <Card className="border-border bg-card">
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
+          <CardTitle className="text-sm sm:text-base">{tr('reports.balanceEvolution')}</CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
           <ResponsiveContainer width="100%" height={200} className="sm:hidden">
@@ -646,16 +647,16 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                               <>
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-[10px] sm:text-xs">
                                   <CalendarClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                  {format(displayDate, 'dd/MM/yyyy', { locale: fr })}
+                                  {format(displayDate, 'dd/MM/yyyy', { locale: dateLocale })}
                                 </span>
                                 <span className="text-[10px] sm:text-xs text-muted-foreground">
                                   <span className="hidden sm:inline">Comptable:</span>
                                   <span className="sm:hidden">C:</span>
-                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale })}
                                 </span>
                               </>
                             ) : (
-                              <span>{format(displayDate, 'dd/MM/yyyy', { locale: fr })}</span>
+                              <span>{format(displayDate, 'dd/MM/yyyy', { locale: dateLocale })}</span>
                             )}
                             {t.category && (
                               <>
@@ -669,7 +670,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                             {t.type === 'transfer' && (
                               <>
                                 <span>•</span>
-                                <Badge variant="outline" className="text-[10px] sm:text-xs">Virement entrant</Badge>
+                                <Badge variant="outline" className="text-[10px] sm:text-xs">{tr('transactions.incomingTransfer')}</Badge>
                               </>
                             )}
                           </div>
@@ -705,16 +706,16 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                               <>
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-[10px] sm:text-xs">
                                   <CalendarClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                  {format(displayDate, 'dd/MM/yyyy', { locale: fr })}
+                                  {format(displayDate, 'dd/MM/yyyy', { locale: dateLocale })}
                                 </span>
                                 <span className="text-[10px] sm:text-xs text-muted-foreground">
                                   <span className="hidden sm:inline">Comptable:</span>
                                   <span className="sm:hidden">C:</span>
-                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale })}
                                 </span>
                               </>
                             ) : (
-                              <span>{format(displayDate, 'dd/MM/yyyy', { locale: fr })}</span>
+                              <span>{format(displayDate, 'dd/MM/yyyy', { locale: dateLocale })}</span>
                             )}
                             {t.category && (
                               <>
@@ -728,7 +729,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                             {t.type === 'transfer' && (
                               <>
                                 <span>•</span>
-                                <Badge variant="outline" className="text-[10px] sm:text-xs">Virement sortant</Badge>
+                                <Badge variant="outline" className="text-[10px] sm:text-xs">{tr('transactions.outgoingTransfer')}</Badge>
                               </>
                             )}
                           </div>

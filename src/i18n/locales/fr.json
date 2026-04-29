@@ -78,7 +78,9 @@
     "expense": "Dépense",
     "search": "Rechercher",
     "searchPlaceholder": "Rechercher...",
-    "today2": "Auj."
+    "today2": "Auj.",
+    "noAccountsAvailable": "Aucun compte disponible",
+    "transfers": "Virements"
   },
   "navigation": {
     "home": "Accueil",
@@ -208,7 +210,11 @@
     "partialRefund": "Partiel",
     "transactionFailed": "La création de la transaction a échoué",
     "selectAccountSearch": "Rechercher par description, montant, date, compte...",
-    "transferDifferentAccounts": "Le compte source et le compte de destination doivent être différents."
+    "transferDifferentAccounts": "Le compte source et le compte de destination doivent être différents.",
+    "incomingTransfer": "Virement entrant",
+    "outgoingTransfer": "Virement sortant",
+    "refund": "Remboursement",
+    "showMore": "Afficher plus (25)"
   },
   "categories": {
     "title": "Catégories",
@@ -473,7 +479,12 @@
     "incomePerCategory": "Revenus/catégorie",
     "budgetTracking": "Suivi budgets",
     "recurringTransactions": "Transactions récurrentes",
-    "totalLabel": "Total"
+    "totalLabel": "Total",
+    "outgoingRecurringByCategory": "Sortants récurrents par catégorie",
+    "projectedIncoming": "Entrants projetés :",
+    "projectedOutgoing": "Sortants projetés :",
+    "recurringOutgoing": "Sortants récurrents :",
+    "projectedRealOutgoing": "Sortants réels projetés :"
   },
   "settings": {
     "title": "Paramètres",
@@ -571,12 +582,42 @@
     "available": "Disponible",
     "balance": "Solde",
     "recurring": "Récurrent",
-    "sevenDays": "7 jours"
+    "sevenDays": "7 jours",
+    "cashflow": "Cashflow",
+    "balanceEvolutionSubtitle": "Évolution de votre solde",
+    "incoming": "Entrants",
+    "outgoing": "Sortants",
+    "net": "Net",
+    "projectedBalance": "Solde projeté :",
+    "balanceLabel": "Solde :",
+    "globalBalanceEvolution": "Évolution du solde global",
+    "noTransactions": "Aucune transaction",
+    "balanceAfter": "Solde après",
+    "distribution": "Distribution",
+    "noExpensesThisPeriod": "Aucune dépense ce mois-ci",
+    "amountLabel": "Montant :",
+    "shareLabel": "Part :",
+    "othersMore": "+{{count}} autres",
+    "title": "Tableau de bord",
+    "projectedBalanceShort": "Solde projeté"
   },
   "budgetAlerts": {
     "exceeded_one": "{{count}} budget dépassé",
     "exceeded_other": "{{count}} budgets dépassés",
     "approaching_one": "{{count}} budget bientôt atteint",
     "approaching_other": "{{count}} budgets bientôt atteints"
+  },
+  "quickPreview": {
+    "hide": "Masquer",
+    "show": "Afficher",
+    "totalBalance": "Solde total",
+    "myAccounts": "Mes comptes",
+    "viewAll": "Voir tout",
+    "otherAccounts_one": "+{{count}} autre compte",
+    "otherAccounts_other": "+{{count}} autres comptes",
+    "noAccountsConfigured": "Aucun compte configuré",
+    "upcoming7d": "À venir (7j)",
+    "noUpcomingTransactions": "Aucune transaction prévue",
+    "fullDashboard": "Tableau de bord complet"
   }
 }

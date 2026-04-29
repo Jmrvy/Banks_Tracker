@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ export const InstallmentTransactionsModal = ({
   onOpenChange,
   installmentPayment,
 }: InstallmentTransactionsModalProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { accounts, categories } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
@@ -68,7 +70,7 @@ export const InstallmentTransactionsModal = ({
 
   const getAccountName = (accountId: string) => {
     const account = accounts.find((a) => a.id === accountId);
-    return account?.name || "Compte inconnu";
+    return account?.name || t('common.unknownAccount');
   };
 
   const getCategoryInfo = (categoryId: string | null) => {

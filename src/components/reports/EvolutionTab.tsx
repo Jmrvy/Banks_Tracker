@@ -7,8 +7,10 @@ import { BalanceDataPoint, ReportsStats, RecurringData } from "@/hooks/useReport
 import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
@@ -36,6 +38,8 @@ export const EvolutionTab = ({
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const isMobile = useIsMobile();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
   // Process chart data: smart sampling + adaptive date labels
   const chartData = useMemo(() => {
@@ -58,7 +62,7 @@ export const EvolutionTab = ({
     if (data.length <= maxPoints) {
       return data.map(d => ({
         ...d,
-        date: format(d.dateObj, labelFmt, { locale: fr }),
+        date: format(d.dateObj, labelFmt, { locale: dateLocale }),
       }));
     }
 
@@ -77,7 +81,7 @@ export const EvolutionTab = ({
       if (isFirst || isLast || isSamplePoint || isTransition) {
         sampled.push({
           ...data[i],
-          date: format(data[i].dateObj, labelFmt, { locale: fr }),
+          date: format(data[i].dateObj, labelFmt, { locale: dateLocale }),
         });
       }
     }
@@ -221,7 +225,7 @@ export const EvolutionTab = ({
       <Card className="animate-glass-slide-up">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
           <div>
-            <CardTitle className="text-sm sm:text-base">Évolution du solde</CardTitle>
+            <CardTitle className="text-sm sm:text-base">{t('reports.balanceEvolution')}</CardTitle>
             <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
               Projection basée sur les transactions récurrentes
             </CardDescription>
@@ -318,7 +322,7 @@ export const EvolutionTab = ({
                 <p className="text-xs sm:text-sm font-bold text-destructive">-{formatCurrency(projectedExpenses)}</p>
               </div>
               <div className="p-2 sm:p-2.5 rounded-xl bg-primary/5 border border-primary/10 text-center">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Solde projeté</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.projectedBalanceShort')}</p>
                 <p className={cn(
                   "text-xs sm:text-sm font-bold",
                   projectedFinalBalance >= 0 ? "text-success" : "text-destructive"
@@ -348,7 +352,7 @@ export const EvolutionTab = ({
                     <div className="min-w-0 flex-1">
                       <p className="text-xs sm:text-sm font-medium truncate">{tx.description}</p>
                       <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
-                        <span>{format(new Date(tx.date), 'dd MMM', { locale: fr })}</span>
+                        <span>{format(new Date(tx.date), 'dd MMM', { locale: dateLocale })}</span>
                         {tx.account && (
                           <>
                             <span>•</span>

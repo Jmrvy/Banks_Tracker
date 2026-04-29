@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ export const RegularizeOverdueTransactionsModal = ({
   onOpenChange,
   overdueTransactions,
 }: RegularizeOverdueTransactionsModalProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { refetch, fetchRecurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
@@ -67,7 +69,7 @@ export const RegularizeOverdueTransactionsModal = ({
           type: rt.type,
           accountId: rt.account_id,
           categoryId: rt.category_id,
-          accountName: rt.account?.name || 'Compte inconnu',
+          accountName: rt.account?.name || t('common.unknownAccount'),
         });
 
         // Move to next occurrence based on recurrence type

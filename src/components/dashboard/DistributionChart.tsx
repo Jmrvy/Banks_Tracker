@@ -15,7 +15,7 @@ interface DistributionChartProps {
 }
 
 export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { transactions, categories } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
@@ -95,11 +95,11 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
           </div>
           <div className="space-y-1 text-[10px] sm:text-xs">
             <div className="flex items-center justify-between gap-2 sm:gap-4">
-              <span className="text-muted-foreground">Montant:</span>
+              <span className="text-muted-foreground">{t('dashboard.amountLabel')}</span>
               <span className="font-bold text-foreground">{formatCurrency(payload[0].value)}</span>
             </div>
             <div className="flex items-center justify-between gap-2 sm:gap-4">
-              <span className="text-muted-foreground">Part:</span>
+              <span className="text-muted-foreground">{t('dashboard.shareLabel')}</span>
               <span className="font-medium">{data.percentage}%</span>
             </div>
           </div>
@@ -114,8 +114,8 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       <Card>
         <CardContent className="p-3 sm:p-4 md:p-6">
           <div className="text-center py-8 sm:py-12">
-            <h3 className="text-base sm:text-lg font-semibold mb-2">Distribution</h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">Aucune dépense ce mois-ci</p>
+            <h3 className="text-base sm:text-lg font-semibold mb-2">{t('dashboard.distribution')}</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">{t('dashboard.noExpensesThisPeriod')}</p>
           </div>
         </CardContent>
       </Card>
@@ -132,7 +132,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         )}>
           <div className="mb-2.5 sm:mb-4">
-            <h3 className="text-sm sm:text-lg font-semibold">Distribution</h3>
+            <h3 className="text-sm sm:text-lg font-semibold">{t('dashboard.distribution')}</h3>
           </div>
           
           <div className="flex flex-col items-center">
@@ -233,7 +233,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
               {chartData.length > 4 && (
                 <div className="text-center">
                   <span className="text-[9px] sm:text-xs text-muted-foreground">
-                    +{chartData.length - 4} autres
+                    {t('dashboard.othersMore', { count: chartData.length - 4 })}
                   </span>
                 </div>
               )}

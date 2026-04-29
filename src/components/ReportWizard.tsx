@@ -817,22 +817,22 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     // Transactions sheet
     if (config.sections.includes('transactions')) {
       let runningBalance = stats.initialBalance;
-      const txRows = filteredTransactions.map(t => {
-        const amount = Number(t.amount);
-        if (t.type === 'income') runningBalance += amount;
-        else if (t.type === 'expense') runningBalance -= amount;
+      const txRows = filteredTransactions.map(tx => {
+        const amount = Number(tx.amount);
+        if (tx.type === 'income') runningBalance += amount;
+        else if (tx.type === 'expense') runningBalance -= amount;
 
         const displayDate = config.dateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
+          ? new Date(tx.value_date || tx.transaction_date)
+          : new Date(tx.transaction_date);
 
         return [
           format(displayDate, 'dd/MM/yyyy'),
-          accounts.find(a => a.id === t.account_id)?.name || '',
-          t.description,
-          t.category?.name || '',
-          t.type === 'income' ? 'Revenu' : t.type === 'expense' ? 'Depense' : 'Virement',
-          t.type === 'expense' ? -amount : amount,
+          accounts.find(a => a.id === tx.account_id)?.name || '',
+          tx.description,
+          tx.category?.name || '',
+          tx.type === 'income' ? t('transactions.income') : tx.type === 'expense' ? t('transactions.expense') : t('transactions.transfer'),
+          tx.type === 'expense' ? -amount : amount,
           formatNum(runningBalance)
         ];
       });

@@ -109,8 +109,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         variant: "destructive",
       });
     } else {
-      const typeLabel = formData.type === 'income' ? 'Revenus' : 
-                       formData.type === 'transfer' ? 'Transfert' : 'Dépense';
+      const typeLabel = formData.type === 'income' ? t('transactions.income') :
+                       formData.type === 'transfer' ? t('transactions.transfer') : t('transactions.expense');
       toast({
         title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
         description: `${typeLabel} de ${formatCurrency(parseFloat(formData.amount) || 0)} ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
@@ -145,7 +145,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
               <PlusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-              <span className="hidden xs:inline">Revenus</span>
+              <span className="hidden xs:inline">{t('transactions.income')}</span>
               <span className="xs:hidden">+</span>
             </Button>
             <Button
@@ -156,7 +156,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
               <MinusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-              <span className="hidden xs:inline">Dépense</span>
+              <span className="hidden xs:inline">{t('transactions.expense')}</span>
               <span className="xs:hidden">-</span>
             </Button>
             <Button
@@ -167,7 +167,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               className="flex-1 h-9 sm:h-10 text-xs sm:text-sm px-2 sm:px-3"
             >
               <ArrowRightLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-              <span className="hidden xs:inline">Transfert</span>
+              <span className="hidden xs:inline">{t('transactions.transfer')}</span>
               <span className="xs:hidden">⇄</span>
             </Button>
           </div>
@@ -225,7 +225,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <SelectContent>
                 {accounts.length === 0 ? (
                   <SelectItem value="no-accounts" disabled>
-                    Aucun compte disponible
+                    {t('common.noAccountsAvailable')}
                   </SelectItem>
                 ) : (
                   accounts.map((account) => (

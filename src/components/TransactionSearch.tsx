@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ interface TransactionSearchProps {
 }
 
 export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount }: TransactionSearchProps) => {
+  const { t } = useTranslation();
   const { categories, accounts, transactions } = useFinancialData();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -61,7 +63,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
     { value: 'all', label: 'Tout' },
     { value: 'expense', label: 'Dépenses' },
     { value: 'income', label: 'Revenus' },
-    { value: 'transfer', label: 'Virements' },
+    { value: 'transfer', label: t('common.transfers') },
   ];
 
   // Count active advanced filters (excluding search + type which are always visible)
