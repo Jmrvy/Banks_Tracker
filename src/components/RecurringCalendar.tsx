@@ -132,7 +132,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   }, [currentMonth]);
 
   // Build a lookup of actual transactions linked to installment payments
-  // Uses the user's preferred date type (accounting or value date) for month matching
+  // Uses the user's preferred date type (accounting or value date) for month matching.
+  // Also registers under the other date's month to handle cross-month splits.
   const installmentActualAmounts = useMemo(() => {
     const map = new Map<string, number>();
     actualTransactions.forEach((tx) => {
@@ -141,6 +142,14 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         const monthKey = txDate.substring(0, 7);
         const key = `${tx.installment_payment_id}:${monthKey}`;
         map.set(key, (map.get(key) || 0) + tx.amount);
+
+        const otherField: DateField = dateField === 'value_date' ? 'transaction_date' : 'value_date';
+        const otherDate = getTxDate(tx, otherField);
+        const otherMonthKey = otherDate.substring(0, 7);
+        if (otherMonthKey !== monthKey) {
+          const otherKey = `${tx.installment_payment_id}:${otherMonthKey}`;
+          map.set(otherKey, (map.get(otherKey) || 0) + tx.amount);
+        }
       }
     });
     return map;
@@ -170,17 +179,30 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
   // Build a month-level lookup of actual linked transactions for recurring transactions (by recurring_transaction_id)
   // Key: "rtId:YYYY-MM" → array of { date: string, amount: number }
+  // When transaction_date and value_date fall in different months, register under
+  // BOTH months so the occurrence-skip logic always finds the linked transaction.
   const recurringActualByMonth = useMemo(() => {
     const map = new Map<string, { date: string; amount: number }[]>();
     actualTransactions.forEach((tx) => {
       const rtId = tx.recurring_transaction_id;
-      if (!rtId || tx.installment_payment_id) return; // installments handled separately
+      if (!rtId || tx.installment_payment_id) return;
       const txDate = getTxDate(tx, dateField);
       const monthKey = txDate.substring(0, 7);
       const key = `${rtId}:${monthKey}`;
       const existing = map.get(key) || [];
       existing.push({ date: txDate, amount: tx.amount });
       map.set(key, existing);
+
+      // Also register under the other date's month if it differs
+      const otherField: DateField = dateField === 'value_date' ? 'transaction_date' : 'value_date';
+      const otherDate = getTxDate(tx, otherField);
+      const otherMonthKey = otherDate.substring(0, 7);
+      if (otherMonthKey !== monthKey) {
+        const otherKey = `${rtId}:${otherMonthKey}`;
+        const otherExisting = map.get(otherKey) || [];
+        otherExisting.push({ date: txDate, amount: tx.amount });
+        map.set(otherKey, otherExisting);
+      }
     });
     return map;
   }, [actualTransactions, dateField]);
