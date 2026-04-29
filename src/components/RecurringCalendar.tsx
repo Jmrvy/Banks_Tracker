@@ -142,14 +142,6 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
         const monthKey = txDate.substring(0, 7);
         const key = `${tx.installment_payment_id}:${monthKey}`;
         map.set(key, (map.get(key) || 0) + tx.amount);
-
-        const otherField: DateField = dateField === 'value_date' ? 'transaction_date' : 'value_date';
-        const otherDate = getTxDate(tx, otherField);
-        const otherMonthKey = otherDate.substring(0, 7);
-        if (otherMonthKey !== monthKey) {
-          const otherKey = `${tx.installment_payment_id}:${otherMonthKey}`;
-          map.set(otherKey, (map.get(otherKey) || 0) + tx.amount);
-        }
       }
     });
     return map;
