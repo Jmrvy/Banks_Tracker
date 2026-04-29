@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -28,6 +29,7 @@ export const RecordRecurringPaymentModal = ({
   recurringTransactionId,
   onPaymentRecorded
 }: RecordRecurringPaymentModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useAuth();
   const { transactions, recurringTransactions, refetch } = useFinancialData();
@@ -66,7 +68,7 @@ export const RecordRecurringPaymentModal = ({
       if (mode === 'new') {
         const paymentAmount = parseFloat(amount);
         if (!paymentAmount || paymentAmount <= 0) {
-          toast({ title: "Montant invalide", description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          toast({ title: t('common.invalidAmount'), description: "Veuillez saisir un montant valide.", variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -90,14 +92,14 @@ export const RecordRecurringPaymentModal = ({
           }]);
 
         if (txError) {
-          toast({ title: "Erreur", description: txError.message, variant: "destructive" });
+          toast({ title: t('common.error'), description: txError.message, variant: "destructive" });
           setLoading(false);
           return;
         }
       } else {
         // Link existing transaction
         if (!selectedTransactionId) {
-          toast({ title: "Transaction non sélectionnée", description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
+          toast({ title: t('common.transactionNotSelected'), description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -109,7 +111,7 @@ export const RecordRecurringPaymentModal = ({
           .eq('user_id', user.id);
 
         if (linkError) {
-          toast({ title: "Erreur", description: linkError.message, variant: "destructive" });
+          toast({ title: t('common.error'), description: linkError.message, variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -117,8 +119,8 @@ export const RecordRecurringPaymentModal = ({
 
       await refetch();
       toast({
-        title: "Paiement enregistré",
-        description: mode === 'new' ? "La transaction a été créée et liée." : "La transaction a été liée à la récurrence.",
+        title: t('common.paymentRecorded'),
+        description: mode === 'new' ? t('recurring.createdAndLinked') : t('recurring.linked'),
       });
 
       setAmount('');

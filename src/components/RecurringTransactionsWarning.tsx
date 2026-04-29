@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { RegularizeOverdueTransactionsModal } from './RegularizeOverdueTransactionsModal';
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from '@/lib/recurringAmount';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
+import { useTranslation } from 'react-i18next';
 
 interface ScheduledDebtPayment {
   debt_id: string;
@@ -30,6 +31,7 @@ export const RecurringTransactionsWarning = () => {
   const { user } = useAuth();
   const { formatCurrency } = useUserPreferences();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [showRegularizeModal, setShowRegularizeModal] = useState(false);
 
   const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
@@ -110,8 +112,8 @@ export const RecurringTransactionsWarning = () => {
     const diffTime = date.getTime() - todayLocal.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Aujourd'hui";
-    if (diffDays === 1) return "Demain";
+    if (diffDays === 0) return t('common.today');
+    if (diffDays === 1) return t('common.tomorrow');
     if (diffDays < 0) return `Il y a ${Math.abs(diffDays)} jour${Math.abs(diffDays) > 1 ? 's' : ''}`;
     return `Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
   };

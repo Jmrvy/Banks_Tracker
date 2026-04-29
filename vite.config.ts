@@ -17,9 +17,9 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Gestion des comptes CB',
-        short_name: 'Finance Tracker',
-        description: 'Application de suivi des dépenses mensuelles pour vos comptes bancaires',
+        name: 'Spending Tracker',
+        short_name: 'Spending Tracker',
+        description: 'Personal finance management application',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

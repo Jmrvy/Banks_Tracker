@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -37,6 +38,7 @@ const getNextDate = (current: Date, frequency: string): Date => {
 };
 
 export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmentPaymentModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { createInstallmentPayment } = useInstallmentPayments();
   const { accounts, categories } = useFinancialData();
@@ -202,8 +204,8 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
 
     if (calculationMode === 'manual' && !manualIsValid) {
       toast({
-        title: "Échéancier invalide",
-        description: "Le total des échéances doit être égal au montant total.",
+        title: t('installments.scheduleInvalid'),
+        description: t('installments.scheduleTotalMismatch'),
         variant: "destructive",
       });
       return;
@@ -232,14 +234,14 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
 
     if (error) {
       toast({
-        title: "Erreur lors de la création",
+        title: t('transactions.createError'),
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Paiement créé",
-        description: "Le paiement en plusieurs fois a été créé avec succès.",
+        title: t('installments.ipCreated'),
+        description: t('installments.ipCreatedDesc'),
       });
       resetForm();
       onOpenChange(false);
@@ -301,8 +303,8 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
               <Label>Description *</Label>
               <Textarea
                 placeholder={formData.payment_type === 'payment'
-                  ? "Ex: Achat ordinateur portable via Klarna"
-                  : "Ex: Abonnement Netflix avancé pour coloc"
+                  ? t('installments.examplePlaceholder')
+                  : t('installments.exampleAdvanced')
                 }
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -346,9 +348,9 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {calculationMode === 'auto_count' && "Entrez le montant total et le nombre d'échéances, le montant par échéance sera calculé automatiquement."}
-                {calculationMode === 'auto_amount' && "Entrez le montant total et le montant par échéance, le nombre d'échéances sera calculé automatiquement."}
-                {calculationMode === 'manual' && "Définissez chaque échéance individuellement avec un montant personnalisé par échéance."}
+                {calculationMode === 'auto_count' && t('installments.modeAutoCount')}
+                {calculationMode === 'auto_amount' && t('installments.modeAutoAmount')}
+                {calculationMode === 'manual' && t('installments.modeManual')}
               </p>
             </div>
 
@@ -571,7 +573,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 onValueChange={(value) => setFormData({ ...formData, account_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un compte" />
+                  <SelectValue placeholder={t('common.selectAccount')} />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map((account) => (
@@ -590,7 +592,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 onValueChange={(value) => setFormData({ ...formData, category_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Optionnel" />
+                  <SelectValue placeholder={t('common.selectCategoryOptional')} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
@@ -675,7 +677,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                     toast({
                       title: "Informations manquantes",
                       description: calculationMode === 'manual' && !manualIsValid
-                        ? "Le total des échéances doit correspondre au montant total."
+                        ? t('installments.scheduleMismatchDesc')
                         : "Veuillez remplir tous les champs obligatoires.",
                       variant: "destructive",
                     });

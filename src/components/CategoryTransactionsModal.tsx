@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock, CalendarClock } from "lucide-react";
@@ -90,6 +91,7 @@ export const CategoryTransactionsModal = ({
   includeUpcoming,
   upcomingItems,
 }: CategoryTransactionsModalProps) => {
+  const { t } = useTranslation();
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
   const activeDateType = dateType || preferences.dateType;
@@ -475,7 +477,7 @@ export const CategoryTransactionsModal = ({
                                     isFullyRefunded ? "bg-muted text-muted-foreground" : "border-amber-500 text-amber-600"
                                   )}
                                 >
-                                  {isFullyRefunded ? "Remboursé" : "Partiel"}
+                                  {isFullyRefunded ? t('transactions.refunded') : t('transactions.partialRefund')}
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">

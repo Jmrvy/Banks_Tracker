@@ -25,11 +25,13 @@ import DebtCard from '@/components/DebtCard';
 import { useDebts, Debt, DebtPayment } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { useTranslation } from 'react-i18next';
 
 
 const Debts = () => {
   const { debts, payments, loading, deleteDebt, getDebtDeletionImpact, getNextScheduledAmount, getNextScheduledPayment } = useDebts();
   const { formatCurrency } = useUserPreferences();
+  const { t } = useTranslation();
   const [newDebtModalOpen, setNewDebtModalOpen] = useState(false);
   const [editDebtModalOpen, setEditDebtModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -105,7 +107,7 @@ const Debts = () => {
   });
 
   if (loading) {
-    return <LoadingSpinner text="Chargement..." />;
+    return <LoadingSpinner text={t('common.loading')} />;
   }
 
   return (

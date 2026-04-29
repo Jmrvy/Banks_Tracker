@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,7 @@ const DebtCard = React.memo(({
   onViewDetails,
   onDelete,
 }: DebtCardProps) => {
+  const { t } = useTranslation();
   const isActive = debt.status === 'active';
   const progress = debt.total_amount > 0
     ? Math.min(100, Math.round(((debt.total_amount - debt.remaining_amount) / debt.total_amount) * 1000) / 10)
@@ -76,8 +78,8 @@ const DebtCard = React.memo(({
     const today = startOfDay(new Date());
     const days = differenceInDays(endDate, today);
     if (days < 0) daysInfo = 'Échu';
-    else if (days === 0) daysInfo = "Échéance auj.";
-    else if (days === 1) daysInfo = 'Demain';
+    else if (days === 0) daysInfo = t('common.dueToday');
+    else if (days === 1) daysInfo = t('common.tomorrow');
     else daysInfo = `${days}j restants`;
   }
 

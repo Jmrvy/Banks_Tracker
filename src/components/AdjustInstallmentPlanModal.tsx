@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ export const AdjustInstallmentPlanModal = ({
   paymentAmount,
   newRemainingAmount
 }: AdjustInstallmentPlanModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
   const { adjustInstallmentPlan } = useInstallmentPayments();
@@ -107,7 +109,7 @@ export const AdjustInstallmentPlanModal = ({
         if (customAmountNum <= 0 || customAmountNum > newRemainingAmount) {
           toast({
             title: "Montant invalide",
-            description: "Le montant doit être supérieur à 0 et inférieur ou égal au montant restant.",
+            description: t('installments.amountMustBe'),
             variant: "destructive",
           });
           setLoading(false);
@@ -125,14 +127,14 @@ export const AdjustInstallmentPlanModal = ({
 
     if (error) {
       toast({
-        title: "Erreur lors de l'ajustement",
+        title: t('installments.planAdjustError'),
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Plan ajusté",
-        description: "Le plan de paiement a été ajusté avec succès.",
+        title: t('installments.planAdjusted'),
+        description: t('installments.planAdjustedDesc'),
       });
       onOpenChange(false);
     }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -19,6 +20,7 @@ interface NewCategoryModalProps {
 }
 
 export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { createCategory } = useFinancialData();
   
@@ -34,7 +36,7 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
     
     if (!formData.name) {
       toast({
-        title: "Informations manquantes",
+        title: t('common.missingInfo'),
         description: "Veuillez saisir un nom de catégorie.",
         variant: "destructive",
       });
@@ -51,13 +53,13 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
 
     if (error) {
       toast({
-        title: "Erreur lors de la création",
+        title: t('transactions.createError'),
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Catégorie créée",
+        title: t('categories.newCategory'),
         description: `La catégorie ${formData.name} a été créée avec succès.`,
       });
       

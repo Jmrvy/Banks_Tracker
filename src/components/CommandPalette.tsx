@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   CommandDialog,
@@ -44,6 +45,7 @@ const pages = [
 ];
 
 export const CommandPalette = () => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { accounts, transactions, categories } = useFinancialData();
@@ -109,7 +111,7 @@ export const CommandPalette = () => {
         {accounts.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Comptes">
+            <CommandGroup heading={t('navigation.accounts')}>
               {accounts.map((account) => (
                 <CommandItem
                   key={account.id}
@@ -147,7 +149,7 @@ export const CommandPalette = () => {
         {goals && goals.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Objectifs d'épargne">
+            <CommandGroup heading={t('savings.goalsTitle')}>
               {goals.map((goal) => (
                 <CommandItem
                   key={goal.id}
@@ -168,7 +170,7 @@ export const CommandPalette = () => {
         {recentTransactions.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Transactions récentes">
+            <CommandGroup heading={t('transactions.recent')}>
               {recentTransactions.map((tx) => (
                 <CommandItem
                   key={tx.id}

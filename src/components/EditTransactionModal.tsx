@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ interface EditTransactionModalProps {
 }
 
 export function EditTransactionModal({ open, onOpenChange, transaction }: EditTransactionModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { accounts, categories, updateTransaction } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
@@ -92,7 +94,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     
     if (!validation.success) {
       toast({
-        title: "Erreur de validation",
+        title: t('common.validationError'),
         description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
@@ -125,15 +127,15 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la modification de la transaction",
+        title: t('common.error'),
+        description: error.message || t('transactions.updateError'),
         variant: "destructive",
       });
       setLoading(false);
     } else {
       toast({
-        title: "Succès",
-        description: "Transaction modifiée avec succès",
+        title: t('common.success'),
+        description: t('transactions.updateSuccess'),
       });
       
       // If amount changed and transaction is linked to an installment payment, show adjustment modal
@@ -230,7 +232,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
               onValueChange={(value) => setFormData(prev => ({ ...prev, account_id: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un compte" />
+                <SelectValue placeholder={t('common.selectAccount')} />
               </SelectTrigger>
               <SelectContent>
                 {accounts.map(account => (
@@ -251,7 +253,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   onValueChange={(value) => setFormData(prev => ({ ...prev, transfer_to_account_id: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un compte" />
+                    <SelectValue placeholder={t('common.selectAccount')} />
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.filter(account => account.id !== formData.account_id).map(account => (
@@ -282,7 +284,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                 onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une catégorie" />
+                  <SelectValue placeholder={t('common.selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
@@ -314,7 +316,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
                 }));
               }}
-              placeholder="Sélectionner la date comptable"
+              placeholder={t('common.selectAccountingDate')}
             />
           </div>
 
@@ -323,7 +325,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
             <DatePicker
               date={formData.value_date ? new Date(formData.value_date) : undefined}
               onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
-              placeholder="Sélectionner la date valeur"
+              placeholder={t('common.selectValueDate')}
             />
             <p className="text-xs text-muted-foreground">
               Date effective de la transaction

@@ -21,8 +21,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PeriodRecurringItem } from "@/hooks/useReportsData";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useTranslation } from "react-i18next";
 
 const Reports = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [periodType, setPeriodType] = useState<"month" | "year" | "custom">("month");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -122,7 +124,7 @@ const Reports = () => {
   );
 
   if (loading) {
-    return <LoadingSpinner text="Chargement..." />;
+    return <LoadingSpinner text={t('common.loading')} />;
   }
 
   return (
@@ -174,16 +176,16 @@ const Reports = () => {
         <Tabs defaultValue="evolution" className="space-y-3 w-full">
           <TabsList className="w-full grid grid-cols-4 h-9 sm:h-10 p-0.5 sm:p-1">
             <TabsTrigger value="evolution" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              Évolution
+              {t('reports.evolutionTab')}
             </TabsTrigger>
             <TabsTrigger value="income" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              Revenus
+              {t('reports.incomeTab')}
             </TabsTrigger>
             <TabsTrigger value="categories" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              Dépenses
+              {t('reports.expensesTab')}
             </TabsTrigger>
             <TabsTrigger value="recurring" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              Récurrents
+              {t('reports.recurringTab')}
             </TabsTrigger>
           </TabsList>
 

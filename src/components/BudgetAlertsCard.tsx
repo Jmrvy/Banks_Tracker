@@ -7,6 +7,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useReportsData, type CategoryData } from '@/hooks/useReportsData';
 import { CategoryTransactionsModal, type CategoryTransaction } from '@/components/CategoryTransactionsModal';
 import { usePeriod } from '@/contexts/PeriodContext';
+import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -14,6 +15,7 @@ export const BudgetAlertsCard = () => {
   const { transactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { selectedPeriod, dateRange, periodLabel } = usePeriod();
+  const { t } = useTranslation();
 
   const now = useMemo(() => new Date(), []);
 
@@ -115,7 +117,7 @@ export const BudgetAlertsCard = () => {
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <AlertDescription className="text-foreground">
               <p className="text-xs sm:text-sm font-medium mb-2">
-                {exceeded.length} budget{exceeded.length > 1 ? 's' : ''} dépassé{exceeded.length > 1 ? 's' : ''}
+                {t('budgetAlerts.exceeded', { count: exceeded.length })}
                 {selectedPeriod !== '1m' && (
                   <span className="font-normal text-destructive/80"> ({periodLabel})</span>
                 )}
@@ -130,7 +132,7 @@ export const BudgetAlertsCard = () => {
             <AlertTriangle className="h-4 w-4 text-orange-500" />
             <AlertDescription className="text-foreground">
               <p className="text-xs sm:text-sm font-medium mb-2">
-                {approaching.length} budget{approaching.length > 1 ? 's' : ''} bientôt atteint{approaching.length > 1 ? 's' : ''}
+                {t('budgetAlerts.approaching', { count: approaching.length })}
                 {selectedPeriod !== '1m' && (
                   <span className="font-normal text-orange-600/80 dark:text-orange-400/80"> ({periodLabel})</span>
                 )}

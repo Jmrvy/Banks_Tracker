@@ -19,7 +19,7 @@ export function AppSidebar() {
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar/80 backdrop-blur-2xl border-r border-white/[0.06] flex flex-col shadow-[inset_-0.5px_0_0_0_hsl(210_20%_98%/0.04)]">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-white/[0.06]">
-        <span className="text-2xl font-bold text-primary drop-shadow-[0_0_12px_hsl(38_70%_68%/0.3)]">JMRVY CB</span>
+        <span className="text-2xl font-bold text-primary drop-shadow-[0_0_12px_hsl(38_70%_68%/0.3)]">Spending Tracker</span>
       </div>
 
       {/* Search shortcut */}
@@ -29,7 +29,7 @@ export function AppSidebar() {
           className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground/70 hover:bg-white/[0.04] transition-colors border border-white/[0.06]"
         >
           <Search className="h-4 w-4" />
-          <span className="flex-1 text-left">Rechercher...</span>
+          <span className="flex-1 text-left">{t('common.searchPlaceholder')}</span>
           <kbd className="text-[10px] bg-white/[0.06] px-1.5 py-0.5 rounded border border-white/[0.08]">⌘K</kbd>
         </button>
       </div>
