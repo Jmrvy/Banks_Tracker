@@ -46,7 +46,7 @@ export function ExcludedTransactionsModal({
       case 'expense':
         return tr('transactions.expense');
       case 'transfer':
-        return 'Transfert';
+        return tr('transactions.transfer');
       default:
         return type;
     }

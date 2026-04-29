@@ -218,8 +218,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="expense">Dépense</SelectItem>
-                <SelectItem value="income">Revenu</SelectItem>
+                <SelectItem value="expense">{t('transactions.expense')}</SelectItem>
+                <SelectItem value="income">{t('transactions.income')}</SelectItem>
                 <SelectItem value="transfer">{t('transactions.transfer')}</SelectItem>
               </SelectContent>
             </Select>
