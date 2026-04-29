@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 
 export const AggregatedBalanceEvolution = () => {
-  const { t, i18n } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const { accounts, transactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
@@ -92,27 +92,27 @@ export const AggregatedBalanceEvolution = () => {
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'income': return t('transactions.income');
-      case 'expense': return t('transactions.expense');
-      case 'transfer': return t('transactions.transfer');
+      case 'income': return tr('transactions.income');
+      case 'expense': return tr('transactions.expense');
+      case 'transfer': return tr('transactions.transfer');
       default: return type;
     }
   };
 
   const getAccountName = (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
-    return account?.name || t('common.unknownAccount');
+    return account?.name || tr('common.unknownAccount');
   };
 
   if (transactionsWithBalance.length === 0) {
     return (
       <Card className="animate-glass-fade-in">
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">{t('dashboard.globalBalanceEvolution')}</CardTitle>
+          <CardTitle className="text-sm sm:text-base">{tr('dashboard.globalBalanceEvolution')}</CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
           <p className="text-muted-foreground text-sm text-center py-4">
-            {t('dashboard.noTransactions')}
+            {tr('dashboard.noTransactions')}
           </p>
         </CardContent>
       </Card>
@@ -123,7 +123,7 @@ export const AggregatedBalanceEvolution = () => {
     <>
       <Card className="animate-glass-fade-in">
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">{t('dashboard.globalBalanceEvolution')}</CardTitle>
+          <CardTitle className="text-sm sm:text-base">{tr('dashboard.globalBalanceEvolution')}</CardTitle>
         </CardHeader>
         <CardContent className={`p-3 sm:p-6 pt-0 ${isPrivacyMode ? 'blur-md select-none' : ''}`}>
           <div className="space-y-2">
@@ -187,7 +187,7 @@ export const AggregatedBalanceEvolution = () => {
                     {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
                   </p>
                   <div className="text-right min-w-[100px]">
-                    <p className="text-xs text-muted-foreground">{t('dashboard.balanceAfter')}</p>
+                    <p className="text-xs text-muted-foreground">{tr('dashboard.balanceAfter')}</p>
                     <p className={`font-semibold ${
                       balanceAfter >= 0 ? 'text-success' : 'text-destructive'
                     }`}>
