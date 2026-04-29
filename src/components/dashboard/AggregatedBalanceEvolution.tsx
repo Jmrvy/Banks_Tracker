@@ -1,15 +1,18 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 
 export const AggregatedBalanceEvolution = () => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const { accounts, transactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
@@ -89,27 +92,27 @@ export const AggregatedBalanceEvolution = () => {
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'income': return 'Revenu';
-      case 'expense': return 'Dépense';
-      case 'transfer': return 'Virement';
+      case 'income': return t('transactions.income');
+      case 'expense': return t('transactions.expense');
+      case 'transfer': return t('transactions.transfer');
       default: return type;
     }
   };
 
   const getAccountName = (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
-    return account?.name || 'Compte inconnu';
+    return account?.name || t('common.unknownAccount');
   };
 
   if (transactionsWithBalance.length === 0) {
     return (
       <Card className="animate-glass-fade-in">
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">Évolution du solde global</CardTitle>
+          <CardTitle className="text-sm sm:text-base">{t('dashboard.globalBalanceEvolution')}</CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
           <p className="text-muted-foreground text-sm text-center py-4">
-            Aucune transaction
+            {t('dashboard.noTransactions')}
           </p>
         </CardContent>
       </Card>
@@ -120,7 +123,7 @@ export const AggregatedBalanceEvolution = () => {
     <>
       <Card className="animate-glass-fade-in">
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">Évolution du solde global</CardTitle>
+          <CardTitle className="text-sm sm:text-base">{t('dashboard.globalBalanceEvolution')}</CardTitle>
         </CardHeader>
         <CardContent className={`p-3 sm:p-6 pt-0 ${isPrivacyMode ? 'blur-md select-none' : ''}`}>
           <div className="space-y-2">
@@ -138,7 +141,7 @@ export const AggregatedBalanceEvolution = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-sm">{t.description}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(t.transaction_date), 'dd MMM', { locale: fr })} • {getAccountName(t.account_id)}
+                      {format(new Date(t.transaction_date), 'dd MMM', { locale: dateLocale })} • {getAccountName(t.account_id)}
                     </p>
                   </div>
                 </div>
@@ -165,7 +168,7 @@ export const AggregatedBalanceEvolution = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{t.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
                       <span>•</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(t.type)}
@@ -184,7 +187,7 @@ export const AggregatedBalanceEvolution = () => {
                     {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
                   </p>
                   <div className="text-right min-w-[100px]">
-                    <p className="text-xs text-muted-foreground">Solde après</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.balanceAfter')}</p>
                     <p className={`font-semibold ${
                       balanceAfter >= 0 ? 'text-success' : 'text-destructive'
                     }`}>

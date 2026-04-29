@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Wallet, Calendar, ArrowRight, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight } from "lucide-react";
@@ -10,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMonth } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
@@ -27,6 +28,8 @@ interface QuickPreviewProps {
 }
 
 export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [isRevealed, setIsRevealed] = useState(true);
   const { accounts, recurringTransactions, transactions } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
@@ -110,7 +113,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
     </span>
   );
 
-  const currentMonth = format(new Date(), 'MMMM yyyy', { locale: fr });
+  const currentMonth = format(new Date(), 'MMMM yyyy', { locale: dateLocale });
 
   return (
     <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-5 md:space-y-6 max-w-5xl mx-auto">
@@ -123,9 +126,9 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
           className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 sm:px-3"
         >
           {isRevealed ? (
-            <><EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="text-xs sm:text-sm">Masquer</span></>
+            <><EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="text-xs sm:text-sm">{t('quickPreview.hide')}</span></>
           ) : (
-            <><Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="text-xs sm:text-sm">Afficher</span></>
+            <><Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="text-xs sm:text-sm">{t('quickPreview.show')}</span></>
           )}
         </Button>
       </div>
@@ -134,7 +137,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       <div className="hero-card glass-shimmer p-5 sm:p-6 md:p-8 animate-glass-fade-in">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-xs sm:text-sm text-muted-foreground/80 font-medium">Solde total</p>
+            <p className="text-xs sm:text-sm text-muted-foreground/80 font-medium">{t('quickPreview.totalBalance')}</p>
             <BlurredAmount
               amount={formatCurrency(totalBalance)}
               className={`text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight ${isPositive ? "text-success" : "text-destructive"}`}
@@ -160,7 +163,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 <ArrowDownRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success" />
               </div>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Revenus</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t('common.income')}</p>
             <BlurredAmount
               amount={formatCurrency(monthlyStats.income)}
               className="text-sm sm:text-base md:text-lg font-bold text-success"
@@ -173,7 +176,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive" />
               </div>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Depenses</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t('common.expenses')}</p>
             <BlurredAmount
               amount={formatCurrency(monthlyStats.expenses)}
               className="text-sm sm:text-base md:text-lg font-bold text-destructive"
@@ -186,7 +189,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
               </div>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Net</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t('dashboard.net')}</p>
             <BlurredAmount
               amount={formatCurrency(monthlyStats.net)}
               className={`text-sm sm:text-base md:text-lg font-bold ${monthlyStats.net >= 0 ? 'text-success' : 'text-destructive'}`}
@@ -203,7 +206,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                <span className="font-semibold text-xs sm:text-sm">Mes comptes</span>
+                <span className="font-semibold text-xs sm:text-sm">{t('quickPreview.myAccounts')}</span>
               </div>
               <Button
                 variant="ghost"
@@ -211,7 +214,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 className="text-[10px] sm:text-xs h-6 sm:h-7 px-1.5 sm:px-2"
                 onClick={() => navigate('/accounts')}
               >
-                Voir tout
+                {t('quickPreview.viewAll')}
                 <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
               </Button>
             </div>
@@ -237,12 +240,12 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               ))}
               {accounts.length > 4 && (
                 <p className="text-[10px] sm:text-xs text-muted-foreground text-center pt-1">
-                  +{accounts.length - 4} autre{accounts.length - 4 > 1 ? 's' : ''} compte{accounts.length - 4 > 1 ? 's' : ''}
+                  {t('quickPreview.otherAccounts', { count: accounts.length - 4 })}
                 </p>
               )}
               {accounts.length === 0 && (
                 <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
-                  Aucun compte configure
+                  {t('quickPreview.noAccountsConfigured')}
                 </p>
               )}
             </div>
@@ -255,7 +258,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                <span className="font-semibold text-xs sm:text-sm">A venir (7j)</span>
+                <span className="font-semibold text-xs sm:text-sm">{t('quickPreview.upcoming7d')}</span>
               </div>
               <Button
                 variant="ghost"
@@ -263,7 +266,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                 className="text-[10px] sm:text-xs h-6 sm:h-7 px-1.5 sm:px-2"
                 onClick={() => navigate('/recurring-transactions')}
               >
-                Voir tout
+                {t('quickPreview.viewAll')}
                 <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
               </Button>
             </div>
@@ -289,7 +292,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
                         {resolveNamePlaceholders(transaction.description, parseLocalDate(transaction.next_due_date))}
                       </span>
                       <span className="text-[10px] sm:text-xs text-muted-foreground">
-                        {format(parseLocalDate(transaction.next_due_date), 'EEE d MMM', { locale: fr })}
+                        {format(parseLocalDate(transaction.next_due_date), 'EEE d MMM', { locale: dateLocale })}
                       </span>
                     </div>
                     <BlurredAmount
@@ -303,7 +306,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               })}
               {upcomingTransactions.length === 0 && (
                 <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
-                  Aucune transaction prevue
+                  {t('quickPreview.noUpcomingTransactions')}
                 </p>
               )}
             </div>
@@ -318,7 +321,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
           className="w-full md:w-auto md:min-w-[280px] h-10 sm:h-11 md:h-12 rounded-2xl"
           size="lg"
         >
-          <span className="text-xs sm:text-sm md:text-base">Tableau de bord complet</span>
+          <span className="text-xs sm:text-sm md:text-base">{t('quickPreview.fullDashboard')}</span>
           <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5 sm:ml-2" />
         </Button>
       </div>

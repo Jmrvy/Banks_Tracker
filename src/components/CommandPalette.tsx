@@ -31,21 +31,21 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-const pages = [
-  { name: 'Tableau de bord', path: '/', icon: Home, keywords: 'accueil dashboard home' },
-  { name: 'Comptes', path: '/accounts', icon: Wallet, keywords: 'banque account' },
-  { name: 'Transactions', path: '/transactions', icon: History, keywords: 'historique dépenses revenus' },
-  { name: 'Nouvelle transaction', path: '/new-transaction', icon: Plus, keywords: 'ajouter créer' },
-  { name: 'Transactions récurrentes', path: '/recurring-transactions', icon: Receipt, keywords: 'abonnements' },
-  { name: 'Paiements échelonnés', path: '/installment-payments', icon: CreditCard, keywords: 'mensualités' },
-  { name: 'Dettes & Prêts', path: '/debts', icon: Scale, keywords: 'emprunts loans' },
-  { name: 'Épargne', path: '/savings', icon: PiggyBank, keywords: 'objectifs goals' },
-  { name: 'Rapports', path: '/analyse', icon: BarChart3, keywords: 'analytics statistiques' },
-  { name: 'Paramètres', path: '/settings', icon: Settings, keywords: 'préférences profil' },
-];
-
 export const CommandPalette = () => {
   const { t } = useTranslation();
+
+  const pages = [
+    { name: t('dashboard.title'), path: '/', icon: Home, keywords: 'accueil dashboard home' },
+    { name: 'Comptes', path: '/accounts', icon: Wallet, keywords: 'banque account' },
+    { name: 'Transactions', path: '/transactions', icon: History, keywords: 'historique dépenses revenus' },
+    { name: 'Nouvelle transaction', path: '/new-transaction', icon: Plus, keywords: 'ajouter créer' },
+    { name: 'Transactions récurrentes', path: '/recurring-transactions', icon: Receipt, keywords: 'abonnements' },
+    { name: 'Paiements échelonnés', path: '/installment-payments', icon: CreditCard, keywords: 'mensualités' },
+    { name: 'Dettes & Prêts', path: '/debts', icon: Scale, keywords: 'emprunts loans' },
+    { name: 'Épargne', path: '/savings', icon: PiggyBank, keywords: 'objectifs goals' },
+    { name: 'Rapports', path: '/analyse', icon: BarChart3, keywords: 'analytics statistiques' },
+    { name: 'Paramètres', path: '/settings', icon: Settings, keywords: 'préférences profil' },
+  ];
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { accounts, transactions, categories } = useFinancialData();

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Repeat, BarChart3, TrendingUp, TrendingDown, ArrowRight, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { RecurringData, SpendingPatternsData, ReportsPeriod } from "@/hooks/useReportsData";
@@ -28,6 +30,8 @@ export const RecurringTab = ({
 }: RecurringTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const [showAllItems, setShowAllItems] = useState(false);
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
   const {
     periodItems,
@@ -92,7 +96,7 @@ export const RecurringTab = ({
               <div className="icon-badge icon-badge-sm bg-success/10">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Entrants</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.incoming')}</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success">+{formatCurrency(periodIncome)}</p>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{periodIncomeCount} récurrence{periodIncomeCount > 1 ? 's' : ''}</p>
@@ -105,7 +109,7 @@ export const RecurringTab = ({
               <div className="icon-badge icon-badge-sm bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Sortants</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.outgoing')}</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive">-{formatCurrency(periodExpenses)}</p>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{periodExpenseCount} récurrence{periodExpenseCount > 1 ? 's' : ''}</p>
@@ -148,7 +152,7 @@ export const RecurringTab = ({
             <CardContent className="p-3 sm:p-4">
               <h3 className="text-xs sm:text-sm font-semibold mb-3 flex items-center gap-1.5">
                 <TrendingDown className="h-3.5 w-3.5 text-destructive" />
-                Sortants récurrents par catégorie
+                {t('reports.outgoingRecurringByCategory')}
               </h3>
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <div className="relative w-full sm:w-1/2 h-[160px] sm:h-[180px]">
@@ -249,11 +253,11 @@ export const RecurringTab = ({
                   <h4 className="text-[10px] sm:text-xs font-medium">Projection mensuelle</h4>
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Entrants projetés:</span>
+                      <span className="text-muted-foreground">{t('reports.projectedIncoming')}</span>
                       <span className="font-medium text-success">+{formatCurrency(spendingPatternsData.projectedMonthlyIncome)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sortants projetés:</span>
+                      <span className="text-muted-foreground">{t('reports.projectedOutgoing')}</span>
                       <span className="font-medium text-destructive">-{formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}</span>
                     </div>
                     <div className="flex justify-between border-t border-border pt-1.5">
@@ -270,11 +274,11 @@ export const RecurringTab = ({
                   <h4 className="text-[10px] sm:text-xs font-medium mb-2">Récurrents vs Réalité</h4>
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sortants récurrents:</span>
+                      <span className="text-muted-foreground">{t('reports.recurringOutgoing')}</span>
                       <span className="font-medium">{formatCurrency(recurringData.monthlyExpenses)}/mois</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sortants réels projetés:</span>
+                      <span className="text-muted-foreground">{t('reports.projectedRealOutgoing')}</span>
                       <span className="font-medium">{formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}/mois</span>
                     </div>
                     {spendingPatternsData.projectedMonthlyExpenses > 0 && (

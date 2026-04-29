@@ -7,8 +7,9 @@ import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag
 import { type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useTranslation } from "react-i18next";
 
 interface TransactionDetailModalProps {
   open: boolean;
@@ -35,6 +36,8 @@ interface OriginalTransaction {
 
 export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund }: TransactionDetailModalProps) {
   const { formatCurrency } = useUserPreferences();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [refunds, setRefunds] = useState<RefundTransaction[]>([]);
   const [originalTransaction, setOriginalTransaction] = useState<OriginalTransaction | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,11 +101,11 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
   const getTypeLabel = () => {
     switch (transaction.type) {
       case 'income':
-        return transaction.refund_of_transaction_id ? 'Remboursement' : 'Revenu';
+        return transaction.refund_of_transaction_id ? t('transactions.refund') : t('transactions.income');
       case 'expense':
-        return 'Dépense';
+        return t('transactions.expense');
       case 'transfer':
-        return 'Virement';
+        return t('transactions.transfer');
     }
   };
 
@@ -178,7 +181,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                 <div className="ml-6 space-y-1">
                   <p className="text-sm font-medium">{originalTransaction.description}</p>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{format(new Date(originalTransaction.transaction_date), "d MMM yyyy", { locale: fr })}</span>
+                    <span>{format(new Date(originalTransaction.transaction_date), "d MMM yyyy", { locale: dateLocale })}</span>
                     <span className="font-medium text-red-600">-{formatCurrency(originalTransaction.amount)}</span>
                   </div>
                 </div>
@@ -229,7 +232,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                           <div>
                             <p className="text-sm font-medium">{refund.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(refund.transaction_date), "d MMM yyyy", { locale: fr })}
+                              {format(new Date(refund.transaction_date), "d MMM yyyy", { locale: dateLocale })}
                             </p>
                           </div>
                         </div>
@@ -255,13 +258,13 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               <div className="flex-1">
                 <p className="text-sm font-medium">Date comptable</p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(transaction.transaction_date), "EEEE d MMMM yyyy", { locale: fr })}
+                  {format(new Date(transaction.transaction_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
                 </p>
                 {transaction.value_date && transaction.value_date !== transaction.transaction_date && (
                   <>
                     <p className="text-sm font-medium mt-2">Date de valeur</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(transaction.value_date), "EEEE d MMMM yyyy", { locale: fr })}
+                      {format(new Date(transaction.value_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
                     </p>
                   </>
                 )}

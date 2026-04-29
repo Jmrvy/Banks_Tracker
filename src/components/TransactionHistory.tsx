@@ -485,7 +485,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
               onClick={() => setDisplayCount(prev => prev + 25)}
               className="w-full sm:w-auto"
             >
-              Afficher plus (25)
+              {t('transactions.showMore')}
             </Button>
           </div>
         )}

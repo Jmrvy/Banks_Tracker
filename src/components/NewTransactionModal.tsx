@@ -109,8 +109,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         variant: "destructive",
       });
     } else {
-      const typeLabel = formData.type === 'income' ? 'Revenus' : 
-                       formData.type === 'transfer' ? 'Transfert' : 'Dépense';
+      const typeLabel = formData.type === 'income' ? t('transactions.income') :
+                       formData.type === 'transfer' ? t('transactions.transfer') : t('transactions.expense');
       toast({
         title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
         description: `${typeLabel} de ${formatCurrency(parseFloat(formData.amount) || 0)} ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
@@ -225,7 +225,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               <SelectContent>
                 {accounts.length === 0 ? (
                   <SelectItem value="no-accounts" disabled>
-                    Aucun compte disponible
+                    {t('common.noAccountsAvailable')}
                   </SelectItem>
                 ) : (
                   accounts.map((account) => (

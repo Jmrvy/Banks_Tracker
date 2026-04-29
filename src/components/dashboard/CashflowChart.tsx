@@ -1,11 +1,12 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { eachDayOfInterval, format, isSameDay, isBefore, addWeeks, addMonths, addQuarters, addYears } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, formatAxisValue } from "@/lib/chartConfig";
 
@@ -15,6 +16,8 @@ interface CashflowChartProps {
 }
 
 export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
@@ -66,7 +69,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
       }
 
       return {
-        date: format(day, 'd MMM', { locale: fr }),
+        date: format(day, 'd MMM', { locale: dateLocale }),
         dateObj: day,
         balance: isInPast ? runningBalance : null,
         projectedBalance: null as number | null,
@@ -174,7 +177,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           <div className="space-y-1 text-xs">
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">
-                {isProjection ? 'Solde projeté:' : 'Solde:'}
+                {isProjection ? t('dashboard.projectedBalance') : t('dashboard.balanceLabel')}
               </span>
               <span className={`font-semibold ${isProjection ? 'text-primary/70' : ''}`}>
                 {formatCurrency(balance)}
@@ -182,13 +185,13 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
             </div>
             {data.income > 0 && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-success">Entrants:</span>
+                <span className="text-success">{t('dashboard.incoming')}:</span>
                 <span className="font-semibold text-success">+{formatCurrency(data.income)}</span>
               </div>
             )}
             {data.expense > 0 && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-destructive">Sortants:</span>
+                <span className="text-destructive">{t('dashboard.outgoing')}:</span>
                 <span className="font-semibold text-destructive">-{formatCurrency(data.expense)}</span>
               </div>
             )}
@@ -253,8 +256,8 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     <Card className="animate-glass-slide-up">
       <CardContent className="p-3 sm:p-4 md:p-6">
         <div className="mb-3 sm:mb-4">
-          <h3 className="text-base sm:text-lg font-semibold">Cashflow</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground">Évolution de votre solde</p>
+          <h3 className="text-base sm:text-lg font-semibold">{t('dashboard.cashflow')}</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t('dashboard.balanceEvolutionSubtitle')}</p>
         </div>
 
         {/* Period summary stats */}
@@ -262,21 +265,21 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
           <div className="p-2 sm:p-3 rounded-xl bg-success/5 border border-success/10">
             <div className="flex items-center gap-1 mb-0.5">
               <TrendingUp className="h-3 w-3 text-success" />
-              <span className="text-[10px] sm:text-xs text-success font-medium">Entrants</span>
+              <span className="text-[10px] sm:text-xs text-success font-medium">{t('dashboard.incoming')}</span>
             </div>
             <p className="text-xs sm:text-sm font-bold text-success">+{formatCurrency(periodStats.totalIncome)}</p>
           </div>
           <div className="p-2 sm:p-3 rounded-xl bg-destructive/5 border border-destructive/10">
             <div className="flex items-center gap-1 mb-0.5">
               <TrendingDown className="h-3 w-3 text-destructive" />
-              <span className="text-[10px] sm:text-xs text-destructive font-medium">Sortants</span>
+              <span className="text-[10px] sm:text-xs text-destructive font-medium">{t('dashboard.outgoing')}</span>
             </div>
             <p className="text-xs sm:text-sm font-bold text-destructive">-{formatCurrency(periodStats.totalExpense)}</p>
           </div>
           <div className={`p-2 sm:p-3 rounded-xl border ${periodStats.net >= 0 ? 'bg-success/5 border-success/10' : 'bg-destructive/5 border-destructive/10'}`}>
             <div className="flex items-center gap-1 mb-0.5">
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">Net</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">{t('dashboard.net')}</span>
             </div>
             <p className={`text-xs sm:text-sm font-bold ${periodStats.net >= 0 ? 'text-success' : 'text-destructive'}`}>
               {periodStats.net >= 0 ? '+' : ''}{formatCurrency(periodStats.net)}

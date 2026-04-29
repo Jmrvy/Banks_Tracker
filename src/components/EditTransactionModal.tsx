@@ -220,7 +220,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
               <SelectContent>
                 <SelectItem value="expense">Dépense</SelectItem>
                 <SelectItem value="income">Revenu</SelectItem>
-                <SelectItem value="transfer">Virement</SelectItem>
+                <SelectItem value="transfer">{t('transactions.transfer')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
