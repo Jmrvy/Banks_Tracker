@@ -7,6 +7,7 @@ import { YearPicker } from "@/components/ui/year-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 
 interface PeriodSelectorProps {
   periodType: "month" | "year" | "custom";
@@ -25,6 +26,7 @@ export const PeriodSelector = ({
   dateRange,
   setDateRange
 }: PeriodSelectorProps) => {
+  const { t } = useTranslation();
   // Fix timezone issue: create date at noon local time
   const fixTimezone = (date: Date) => new Date(
     date.getFullYear(),
@@ -69,7 +71,7 @@ export const PeriodSelector = ({
               <YearPicker
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
-                placeholder="Année"
+                placeholder={t('common.year')}
               />
             </div>
           )}

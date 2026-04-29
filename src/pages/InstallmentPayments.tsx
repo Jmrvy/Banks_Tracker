@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { useSearchParams } from "react-router-dom";
 import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock, ChevronDown, ChevronRight } from "lucide-react";
@@ -31,6 +32,7 @@ import { differenceInDays, startOfDay } from "date-fns";
 
 
 const InstallmentPayments = () => {
+  const { t } = useTranslation();
   const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions, detectOrphanedTransactions, deleteOrphanedTransactions } = useInstallmentPayments();
   const { accounts, categories, transactions, refetch } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
@@ -139,8 +141,8 @@ const InstallmentPayments = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de recalculer le paiement échelonné.",
+        title: t('common.error'),
+        description: t('installments.cannotRecalc'),
         variant: "destructive",
       });
     } else if (result) {
@@ -169,8 +171,8 @@ const InstallmentPayments = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer le paiement échelonné.",
+        title: t('common.error'),
+        description: t('installments.ipCannotDelete'),
         variant: "destructive",
       });
     } else {
@@ -197,8 +199,8 @@ const InstallmentPayments = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de marquer le paiement comme terminé.",
+        title: t('common.error'),
+        description: t('installments.ipCannotMarkDone'),
         variant: "destructive",
       });
     } else {
@@ -723,8 +725,8 @@ const InstallmentPayments = () => {
                 const { error } = await deleteOrphanedTransactions(ids);
                 if (error) {
                   toast({
-                    title: "Erreur",
-                    description: "Impossible de supprimer les transactions orphelines.",
+                    title: t('common.error'),
+                    description: t('recurring.cannotDeleteOrphans'),
                     variant: "destructive",
                   });
                 } else {

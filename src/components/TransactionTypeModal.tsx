@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -40,6 +41,7 @@ export const TransactionTypeModal = ({
   type,
   period
 }: TransactionTypeModalProps) => {
+  const { t } = useTranslation();
   const { preferences, formatCurrency } = useUserPreferences();
   const activeDateType = preferences.dateType;
 
@@ -191,7 +193,7 @@ export const TransactionTypeModal = ({
                                       variant={refundInfo.isFullyRefunded ? "secondary" : "outline"}
                                       className="text-[9px] sm:text-xs px-2 py-0.5"
                                     >
-                                      {refundInfo.isFullyRefunded ? "Remboursé" : "Partiel"}
+                                      {refundInfo.isFullyRefunded ? t('transactions.refunded') : t('transactions.partialRefund')}
                                     </Badge>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" className="text-xs">

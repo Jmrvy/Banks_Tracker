@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ interface EditInstallmentPaymentModalProps {
 }
 
 export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPayment }: EditInstallmentPaymentModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { updateInstallmentPayment } = useInstallmentPayments();
   const { accounts, categories } = useFinancialData();
@@ -197,7 +199,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
               onValueChange={(value) => setFormData({ ...formData, account_id: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un compte" />
+                <SelectValue placeholder={t('common.selectAccount')} />
               </SelectTrigger>
               <SelectContent>
                 {accounts.map((account) => (

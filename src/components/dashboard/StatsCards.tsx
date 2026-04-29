@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, Repeat, Info } from "lucide-react";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
@@ -17,6 +18,7 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick, onAvailableClick, onTransactionsFiltered, onExcludedTransactionsFiltered }: StatsCardsProps) {
+  const { t } = useTranslation();
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
@@ -110,28 +112,32 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
 
   const cards = [
     {
-      label: "Revenus",
+      id: "income",
+      label: t('common.income'),
       value: stats.moneyIn,
       icon: TrendingUp,
       color: "text-success",
       bgColor: "bg-success/10"
     },
     {
-      label: "Dépenses",
+      id: "expenses",
+      label: t('common.expenses'),
       value: stats.moneyOut,
       icon: TrendingDown,
       color: "text-destructive",
       bgColor: "bg-destructive/10"
     },
     {
-      label: "Disponible",
+      id: "available",
+      label: t('reports.available'),
       value: stats.available,
       icon: Wallet,
       color: "text-primary",
       bgColor: "bg-primary/10"
     },
     {
-      label: "Récurrents",
+      id: "recurring",
+      label: t('dashboard.recurring'),
       value: stats.recurring,
       icon: Repeat,
       color: "text-muted-foreground",
@@ -140,12 +146,12 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
     }
   ];
 
-  const handleCardClick = (label: string) => {
-    if (label === "Revenus" && onIncomeClick) {
+  const handleCardClick = (id: string) => {
+    if (id === "income" && onIncomeClick) {
       onIncomeClick();
-    } else if (label === "Dépenses" && onExpensesClick) {
+    } else if (id === "expenses" && onExpensesClick) {
       onExpensesClick();
-    } else if (label === "Disponible" && onAvailableClick) {
+    } else if (id === "available" && onAvailableClick) {
       onAvailableClick();
     }
   };
@@ -155,18 +161,18 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {cards.map((card) => (
           <Card
-            key={card.label}
+            key={card.id}
             className={`glass-hover ${
-              (card.label === "Revenus" || card.label === "Dépenses" || card.label === "Disponible") ? "cursor-pointer" : ""
+              (card.id === "income" || card.id === "expenses" || card.id === "available") ? "cursor-pointer" : ""
             }`}
-            onClick={() => handleCardClick(card.label)}
+            onClick={() => handleCardClick(card.id)}
           >
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1 min-w-0 mb-0.5 sm:mb-1">
                     <p className="text-xs sm:text-sm text-muted-foreground truncate min-w-0">{card.label}</p>
-                    {card.label === "Disponible" && hasDateDifference && (
+                    {card.id === "available" && hasDateDifference && (
                       <button
                         type="button"
                         onClick={(e) => {

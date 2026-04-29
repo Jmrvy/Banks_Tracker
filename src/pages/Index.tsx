@@ -4,6 +4,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
@@ -24,6 +25,7 @@ const Index = () => {
   const { loading } = useFinancialData();
   const { needsOnboarding } = useOnboarding();
   const { selectedPeriod, setSelectedPeriod, dateRange, periodLabel } = usePeriod();
+  const { t } = useTranslation();
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExcludedModal, setShowExcludedModal] = useState(false);
@@ -41,7 +43,7 @@ const Index = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner text="Chargement de vos données financières..." />;
+    return <LoadingSpinner text={t('dashboard.loadingData')} />;
   }
 
   // Redirect new users to onboarding setup
@@ -55,8 +57,8 @@ const Index = () => {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
         <div className="p-4 md:p-6 lg:p-8 border-b">
           <div className="max-w-5xl mx-auto">
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Aperçu rapide</h1>
-            <p className="text-sm md:text-base text-muted-foreground">Vue d'ensemble de vos finances</p>
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">{t('dashboard.quickPreview')}</h1>
+            <p className="text-sm md:text-base text-muted-foreground">{t('dashboard.quickPreviewSubtitle')}</p>
           </div>
         </div>
         <QuickPreview onShowFullDashboard={handleShowFullDashboard} />
@@ -80,7 +82,7 @@ const Index = () => {
           className="gap-2 text-xs md:text-sm"
         >
           <LayoutDashboard className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          Aperçu rapide
+          {t('dashboard.quickPreview')}
         </Button>
       </div>
 

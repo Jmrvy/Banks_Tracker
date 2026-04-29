@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ interface TransactionRowProps {
 }
 
 const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onView, onEdit, onDelete, onRefund }: TransactionRowProps) => {
+  const { t } = useTranslation();
   const displayDate = dateType === 'value'
     ? new Date(transaction.value_date || transaction.transaction_date)
     : new Date(transaction.transaction_date);
@@ -100,7 +102,7 @@ const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onVi
                     }`}
                   >
                     <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
-                    {transaction.refunded_amount === transaction.amount ? 'Remboursé' : 'Partiel'}
+                    {transaction.refunded_amount === transaction.amount ? t('transactions.refunded') : t('transactions.partialRefund')}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -179,14 +181,14 @@ const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onVi
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  aria-label="Créer un remboursement"
+                  aria-label={t('transactions.addRefund')}
                   onClick={(e) => { e.stopPropagation(); onRefund(transaction); }}
                 >
                   <RotateCcw className="h-4 w-4 text-muted-foreground hover:text-green-600" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Créer un remboursement</p>
+                <p>{t('transactions.addRefund')}</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -194,7 +196,7 @@ const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onVi
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            aria-label="Modifier la transaction"
+            aria-label={t('transactions.editTransaction')}
             onClick={(e) => { e.stopPropagation(); onEdit(transaction); }}
           >
             <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
@@ -203,7 +205,7 @@ const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onVi
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            aria-label="Supprimer la transaction"
+            aria-label={t('transactions.deleteTransaction')}
             onClick={(e) => { e.stopPropagation(); onDelete(transaction); }}
           >
             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
@@ -219,6 +221,7 @@ interface TransactionHistoryProps {
 }
 
 export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
+  const { t } = useTranslation();
   const { transactions, loading, deleteTransaction } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { toast } = useToast();
@@ -341,14 +344,14 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la suppression",
+        title: t('common.error'),
+        description: error.message || t('transactions.deleteError'),
         variant: "destructive",
       });
     } else {
       toast({
         title: "Succès",
-        description: "Transaction supprimée avec succès",
+        description: t('transactions.deleteSuccess'),
       });
     }
 

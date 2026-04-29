@@ -72,8 +72,8 @@ const Settings = () => {
                     <BookOpen className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Guide de l'application</p>
-                    <p className="text-xs text-muted-foreground">Revoir la presentation des fonctionnalites</p>
+                    <p className="text-sm font-medium">{t('settings.guideTitle')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.guideSubtitle')}</p>
                   </div>
                 </div>
                 <Button
@@ -82,7 +82,7 @@ const Settings = () => {
                   onClick={handleReviewGuide}
                   className="text-xs sm:text-sm"
                 >
-                  Revoir le guide
+                  {t('settings.reviewGuide')}
                 </Button>
               </div>
             </CardContent>

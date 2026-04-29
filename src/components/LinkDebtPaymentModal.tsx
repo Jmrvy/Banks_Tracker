@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -46,6 +47,7 @@ export const LinkDebtPaymentModal = ({
   scheduledPayment,
   onPaymentRecorded,
 }: LinkDebtPaymentModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useAuth();
   const { formatCurrency } = useUserPreferences();
@@ -99,12 +101,12 @@ export const LinkDebtPaymentModal = ({
       if (mode === 'new') {
         paymentAmount = parseFloat(amount);
         if (!paymentAmount || paymentAmount <= 0) {
-          toast({ title: "Montant invalide", description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          toast({ title: t('common.invalidAmount'), description: "Veuillez saisir un montant valide.", variant: "destructive" });
           setLoading(false);
           return;
         }
         if (!selectedAccountId) {
-          toast({ title: "Compte requis", description: "Veuillez sélectionner un compte.", variant: "destructive" });
+          toast({ title: t('common.accountRequired'), description: "Veuillez sélectionner un compte.", variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -129,13 +131,13 @@ export const LinkDebtPaymentModal = ({
           }]);
 
         if (txError) {
-          toast({ title: "Erreur", description: txError.message, variant: "destructive" });
+          toast({ title: t('common.error'), description: txError.message, variant: "destructive" });
           setLoading(false);
           return;
         }
       } else {
         if (!selectedTransactionId || !selectedTransaction) {
-          toast({ title: "Transaction non sélectionnée", description: "Veuillez sélectionner une transaction.", variant: "destructive" });
+          toast({ title: t('common.transactionNotSelected'), description: "Veuillez sélectionner une transaction.", variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -174,7 +176,7 @@ export const LinkDebtPaymentModal = ({
       await refetch();
 
       toast({
-        title: "Paiement enregistré",
+        title: t('common.paymentRecorded'),
         description: `Échéance marquée comme payée. Restant: ${formatCurrency(result?.newRemaining ?? 0)}`,
       });
 
@@ -184,7 +186,7 @@ export const LinkDebtPaymentModal = ({
       onPaymentRecorded?.();
     } catch (error) {
       console.error('Error recording payment:', error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer le paiement", variant: "destructive" });
+      toast({ title: t('common.error'), description: "Impossible d'enregistrer le paiement", variant: "destructive" });
     } finally {
       setLoading(false);
     }

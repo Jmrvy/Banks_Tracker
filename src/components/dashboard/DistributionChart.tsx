@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
@@ -14,6 +15,7 @@ interface DistributionChartProps {
 }
 
 export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
+  const { t } = useTranslation();
   const { transactions, categories } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
@@ -190,7 +192,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
               </ResponsiveContainer>
               
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="text-[9px] sm:text-xs text-muted-foreground">Dépenses</div>
+                <div className="text-[9px] sm:text-xs text-muted-foreground">{t('common.expenses')}</div>
                 <div className={`text-sm sm:text-xl font-bold ${isPrivacyMode ? "blur-md select-none" : ""}`}>
                   {formatCurrency(totalExpenses)}
                 </div>
@@ -243,7 +245,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
             <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50">
               <CategoryCumulativeChart
                 data={cumulativeData}
-                title="Cumul des dépenses"
+                title={t('reports.cumulativeExpenses')}
                 formatCurrency={formatCurrency}
                 showCard={false}
               />

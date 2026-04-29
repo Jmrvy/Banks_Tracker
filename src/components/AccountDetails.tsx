@@ -12,6 +12,7 @@ import { AccountTransactionsList } from "./AccountTransactionsList";
 import { Button } from "./ui/button";
 import { ValueDateDifferenceModal } from "./ValueDateDifferenceModal";
 import { TransactionTypeModal } from "./TransactionTypeModal";
+import { useTranslation } from "react-i18next";
 
 interface AccountDetailsProps {
   accountId: string;
@@ -24,6 +25,7 @@ interface AccountDetailsProps {
 
 export function AccountDetails({ accountId, transactions, balance, startDate, endDate, periodLabel }: AccountDetailsProps) {
   const { formatCurrency, preferences } = useUserPreferences();
+  const { t: tr } = useTranslation();
   const [selectedPeriod, setSelectedPeriod] = useState<{ date: Date; type: 'day' | 'week' | 'month'; label: string } | null>(null);
   const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
   const [showTransactionTypeModal, setShowTransactionTypeModal] = useState<'income' | 'expense' | null>(null);
@@ -359,7 +361,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1 mb-0.5 sm:mb-1">
-                  <p className="text-[10px] sm:text-sm text-muted-foreground">Revenus</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">{tr('common.income')}</p>
                   {hasDateDifference && (
                     <button
                       type="button"
@@ -391,7 +393,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1 mb-0.5 sm:mb-1">
-                  <p className="text-[10px] sm:text-sm text-muted-foreground">Dépenses</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">{tr('common.expenses')}</p>
                   {hasDateDifference && (
                     <button
                       type="button"
@@ -520,7 +522,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       <Card className="border-border bg-card">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">
-            Revenus vs Dépenses
+            {tr('reports.incomeVsExpenses')}
             <span className="text-xs font-normal text-muted-foreground ml-2">
               ({periodChartData.type === 'day' ? 'par jour' : periodChartData.type === 'week' ? 'par semaine' : 'par mois'})
             </span>
@@ -550,8 +552,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[2, 2, 0, 0]} cursor="pointer" />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[2, 2, 0, 0]} cursor="pointer" />
+              <Bar dataKey="income" fill="hsl(var(--success))" name={tr('common.income')} radius={[2, 2, 0, 0]} cursor="pointer" />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name={tr('common.expenses')} radius={[2, 2, 0, 0]} cursor="pointer" />
             </BarChart>
           </ResponsiveContainer>
           <ResponsiveContainer width="100%" height={300} className="hidden sm:block">
@@ -576,8 +578,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" name="Revenus" radius={[4, 4, 0, 0]} cursor="pointer" />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Dépenses" radius={[4, 4, 0, 0]} cursor="pointer" />
+              <Bar dataKey="income" fill="hsl(var(--success))" name={tr('common.income')} radius={[4, 4, 0, 0]} cursor="pointer" />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name={tr('common.expenses')} radius={[4, 4, 0, 0]} cursor="pointer" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -610,12 +612,12 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-                <p className="text-xs text-muted-foreground mb-1">Revenus</p>
+                <p className="text-xs text-muted-foreground mb-1">{tr('common.income')}</p>
                 <p className="text-lg font-bold text-success">{formatCurrency(selectedPeriodTransactions.totalIncome)}</p>
                 <p className="text-xs text-muted-foreground">{selectedPeriodTransactions.income.length} transaction(s)</p>
               </div>
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-xs text-muted-foreground mb-1">Dépenses</p>
+                <p className="text-xs text-muted-foreground mb-1">{tr('common.expenses')}</p>
                 <p className="text-lg font-bold text-destructive">{formatCurrency(selectedPeriodTransactions.totalExpenses)}</p>
                 <p className="text-xs text-muted-foreground">{selectedPeriodTransactions.expenses.length} transaction(s)</p>
               </div>
@@ -626,7 +628,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
               <div>
                 <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-success" />
-                  Revenus
+                  {tr('common.income')}
                 </h4>
                 <div className="space-y-2">
                   {selectedPeriodTransactions.income.map(t => {
@@ -685,7 +687,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
               <div>
                 <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                   <TrendingDown className="h-4 w-4 text-destructive" />
-                  Dépenses
+                  {tr('common.expenses')}
                 </h4>
                 <div className="space-y-2">
                   {selectedPeriodTransactions.expenses.map(t => {

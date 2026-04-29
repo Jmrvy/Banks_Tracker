@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +21,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import RecurringListCard from "@/components/RecurringListCard";
 
 const RecurringTransactions = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
@@ -66,13 +68,13 @@ const RecurringTransactions = () => {
 
     if (result?.error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de modifier le statut de la transaction récurrente.",
+        title: t('common.error'),
+        description: t('recurring.cannotChangeStatus'),
         variant: "destructive"
       });
     } else {
       toast({
-        title: currentStatus ? "Transaction désactivée" : "Transaction activée",
+        title: currentStatus ? t('recurring.transactionDeactivated') : t('recurring.transactionActivated'),
         description: `La transaction récurrente a été ${currentStatus ? 'désactivée' : 'activée'}.`,
       });
       fetchRecurringTransactions();
@@ -88,14 +90,14 @@ const RecurringTransactions = () => {
 
     if (result?.error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer la transaction récurrente.",
+        title: t('common.error'),
+        description: t('recurring.cannotDelete'),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Transaction supprimée",
-        description: "La transaction récurrente a été supprimée définitivement.",
+        title: t('recurring.transactionDeleted'),
+        description: t('recurring.deletedDescription'),
       });
       fetchRecurringTransactions();
     }
@@ -106,14 +108,14 @@ const RecurringTransactions = () => {
 
     if (result?.error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de passer la transaction.",
+        title: t('common.error'),
+        description: t('recurring.cannotPass'),
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Transaction passée",
-        description: "La transaction a été enregistrée et la prochaine échéance a été avancée.",
+        title: t('recurring.transactionPassed'),
+        description: t('recurring.passedDescription'),
       });
     }
     return result;

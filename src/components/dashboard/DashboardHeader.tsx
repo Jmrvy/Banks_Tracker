@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Calendar, Plus, Eye, EyeOff, CalendarIcon } from "lucide-react";
 import {
@@ -32,6 +33,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
   const navigate = useNavigate();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { customDateRange, setCustomDateRange } = usePeriod();
+  const { t } = useTranslation();
 
   const periods = [
     { label: "1M", value: "1m" },
@@ -97,7 +99,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {isPrivacyMode ? "Afficher les montants" : "Masquer les montants"}
+                {isPrivacyMode ? t('common.showAmounts') : t('common.hideAmounts')}
               </TooltipContent>
             </Tooltip>
 
@@ -108,24 +110,24 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-2 md:px-4"
             >
               <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Nouvelle Transaction</span>
+              <span className="hidden md:inline">{t('dashboard.newTransaction')}</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 px-2 md:px-4 hidden lg:flex">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create
+                  {t('common.createMenu')}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 bg-popover border-border z-50">
                 <DropdownMenuItem onClick={() => setShowAccountModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  New Account
+                  {t('common.newAccount')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowCategoryModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  New Category
+                  {t('common.newCategory')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -141,7 +143,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
                   <CalendarIcon className="h-3.5 w-3.5" />
-                  <span>Du {format(customDateRange.from, "dd/MM/yy", { locale: fr })}</span>
+                  <span>{t('common.from')} {format(customDateRange.from, "dd/MM/yy", { locale: fr })}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -158,7 +160,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
                   <CalendarIcon className="h-3.5 w-3.5" />
-                  <span>Au {format(customDateRange.to, "dd/MM/yy", { locale: fr })}</span>
+                  <span>{t('common.until')} {format(customDateRange.to, "dd/MM/yy", { locale: fr })}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">

@@ -13,6 +13,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { TrendingDown, Target, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
+import { useTranslation } from "react-i18next";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
@@ -36,6 +37,7 @@ const getUpcomingForCategory = (catName: string, upcomingItems?: PeriodRecurring
 export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses, dateType }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
+  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -166,7 +168,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       <Card className="border-border">
         <CardContent className="text-center py-12">
           <TrendingDown className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">Aucune dépense trouvée pour cette période</p>
+          <p className="text-sm text-muted-foreground">{t('reports.noExpensesFound')}</p>
         </CardContent>
       </Card>
     );
@@ -182,7 +184,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               <div className="icon-badge icon-badge-sm bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses réelles</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.realExpenses')}</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalRealSpent)}</p>
           </CardContent>
@@ -195,10 +197,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                 <div className="icon-badge icon-badge-sm bg-primary/10">
                   <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
                 </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Projeté</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.projected')}</span>
               </div>
               <p className="text-sm sm:text-base font-bold text-primary">{formatCurrency(totalProjected)}</p>
-              <p className="text-[9px] text-muted-foreground">Total prévu: {formatCurrency(grandTotal)}</p>
+              <p className="text-[9px] text-muted-foreground">{t('reports.totalExpected')}: {formatCurrency(grandTotal)}</p>
             </CardContent>
           </Card>
         )}
@@ -209,7 +211,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               <div className="icon-badge icon-badge-sm bg-primary/10">
                 <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Budget total</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.totalBudget')}</span>
             </div>
             <p className="text-sm sm:text-base font-bold">{formatCurrency(totalBudget)}</p>
           </CardContent>
@@ -223,7 +225,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                   <div className="icon-badge icon-badge-sm bg-orange-500/10">
                     <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
                   </div>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">Dépassés</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.exceeded')}</span>
                 </div>
                 <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
               </CardContent>
@@ -235,7 +237,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                   <div className="icon-badge icon-badge-sm bg-success/10">
                     <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
                   </div>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">Sous budget</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.underBudget')}</span>
                 </div>
                 <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
               </CardContent>
@@ -292,7 +294,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                                 {formatCurrency(data.value)}
                               </div>
                               <div className="text-muted-foreground text-[10px]">
-                                {percentage}% du total
+                                {percentage}% {t('reports.ofTotal')}
                               </div>
                             </div>
                           </div>
@@ -307,7 +309,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-lg sm:text-xl font-bold">{formatCurrency(totalSpent)}</span>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">
-                  {includeUpcoming ? "Total prévu" : "Total"}
+                  {includeUpcoming ? t('reports.totalExpected') : t('reports.totalLabel')}
                 </span>
               </div>
             </div>
@@ -335,7 +337,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               })}
               {chartData.length > 8 && (
                 <div className="col-span-2 text-center py-1">
-                  <span className="text-[10px] text-muted-foreground">+{chartData.length - 8} autres catégories</span>
+                  <span className="text-[10px] text-muted-foreground">+{chartData.length - 8} {t('reports.otherCategories')}</span>
                 </div>
               )}
             </div>
@@ -351,7 +353,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           color: item.color,
           percentage: totalSpent > 0 ? (item.value / totalSpent) * 100 : 0
         }))}
-        title="Cumul des dépenses par catégorie"
+        title={t('reports.cumulativeByCategory')}
         formatCurrency={formatCurrency}
         showCard={true}
       />
@@ -362,7 +364,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           <CardContent className="p-3 sm:p-4 space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
               <Target className="w-3.5 h-3.5 text-primary" />
-              Analyse des budgets
+              {t('reports.budgetAnalysis')}
             </h3>
 
             {/* Always over budget */}
@@ -370,7 +372,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               <div className="space-y-1.5">
                 <p className="text-[10px] sm:text-xs text-destructive font-medium flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />
-                  Budgets dépassés
+                  {t('reports.budgetsExceeded')}
                 </p>
                 <div className="space-y-1">
                   {overBudgetCategories
@@ -409,7 +411,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               <div className="space-y-1.5">
                 <p className="text-[10px] sm:text-xs text-success font-medium flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  Budgets respectés
+                  {t('reports.budgetsRespected')}
                 </p>
                 <div className="space-y-1">
                   {underBudgetCategories
@@ -429,7 +431,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                             <span className="text-xs font-medium truncate">{cat.name}</span>
                             {isUnderUsed && (
                               <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 text-muted-foreground border-muted-foreground/30">
-                                Peu utilisé
+                                {t('reports.littleUsed')}
                               </Badge>
                             )}
                           </div>
@@ -438,7 +440,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                               {pct}%
                             </Badge>
                             <span className="text-[10px] sm:text-xs text-success font-medium">
-                              {formatCurrency(remaining)} restant
+                              {formatCurrency(remaining)} {t('reports.remaining')}
                             </span>
                           </div>
                         </button>
@@ -455,10 +457,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
             }).length > 0 && (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Target className="w-3 h-3" />
-                {categoryChartData.filter(c => {
-                  const effective = includeUpcoming ? getEffectiveSpent(c) : c.spent;
-                  return effective > 0 && !c.budget;
-                }).length} catégorie(s) sans budget défini
+                {t('reports.categoriesWithoutBudget', {
+                  count: categoryChartData.filter(c => {
+                    const effective = includeUpcoming ? getEffectiveSpent(c) : c.spent;
+                    return effective > 0 && !c.budget;
+                  }).length
+                })}
               </p>
             )}
           </CardContent>
@@ -467,7 +471,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
 
       {/* Categories List */}
       <div className="space-y-2">
-        <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">Détail par catégorie</h3>
+        <h3 className="text-xs sm:text-sm font-semibold text-foreground px-1">{t('reports.categoryDetail')}</h3>
         <div className="space-y-1.5">
           {categoryChartData
             .filter(c => c.spent > 0 || (includeUpcoming && (projectedByCategory.get(c.name) || 0) > 0))
@@ -526,7 +530,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         </span>
                         {includeUpcoming && projected > 0 && (
                           <span className="text-[9px] text-primary block">
-                            dont {formatCurrency(projected)} projeté
+                            {t('reports.ofWhichProjected', { amount: formatCurrency(projected) })}
                           </span>
                         )}
                       </div>
@@ -545,12 +549,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         />
                       </div>
                       <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
-                        <span>Budget: {formatCurrency(category.budget)}</span>
+                        <span>{t('reports.budget')}: {formatCurrency(category.budget)}</span>
                         <span className={cn(
                           "font-medium",
                           remaining > 0 ? "text-success" : "text-destructive"
                         )}>
-                          {remaining >= 0 ? 'Reste' : 'Dépassement'}: {formatCurrency(Math.abs(remaining))}
+                          {remaining >= 0 ? t('reports.remains') : t('reports.overage')}: {formatCurrency(Math.abs(remaining))}
                         </span>
                       </div>
                     </div>
@@ -559,7 +563,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                   {!category.budget && (
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Target className="w-3 h-3" />
-                      <span>Aucun budget défini</span>
+                      <span>{t('reports.noBudgetDefined')}</span>
                     </div>
                   )}
                 </button>
@@ -574,7 +578,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           <CardContent className="p-3 sm:p-4 space-y-2">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-primary" />
-              Dépenses récurrentes à venir
+              {t('reports.upcomingRecurring')}
             </h3>
             <div className="space-y-1">
               {upcomingItems
@@ -593,7 +597,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                       <div className="min-w-0">
                         <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, new Date(item.occurrenceDetails?.find(d => d.isFuture)?.date || item.recurring.next_due_date))}</span>
                         <span className="text-[9px] text-muted-foreground">
-                          {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
+                          {item.futureOccurrences}x • {item.recurring.category?.name || t('common.uncategorized')}
                         </span>
                       </div>
                     </div>

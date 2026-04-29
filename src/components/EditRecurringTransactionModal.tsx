@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ interface EditRecurringTransactionModalProps {
 }
 
 export function EditRecurringTransactionModal({ open, onOpenChange, transaction }: EditRecurringTransactionModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
   const { accounts, categories, updateRecurringTransaction } = useFinancialData();
@@ -142,7 +144,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
     
     if (!transaction || !formData.description || !formData.amount || !formData.account_id) {
       toast({
-        title: "Informations manquantes",
+        title: t('common.missingInfo'),
         description: "Veuillez remplir tous les champs obligatoires.",
         variant: "destructive",
       });
@@ -169,7 +171,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
 
     if (result?.error) {
       toast({
-        title: "Erreur lors de la modification",
+        title: t('transactions.updateError'),
         description: result.error.message,
         variant: "destructive",
       });
@@ -338,7 +340,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
               onValueChange={(value) => setFormData({ ...formData, account_id: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un compte" />
+                <SelectValue placeholder={t('common.selectAccount')} />
               </SelectTrigger>
               <SelectContent>
                 {accounts.length === 0 ? (
@@ -375,7 +377,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                 onValueChange={(value) => setFormData({ ...formData, category_id: value === 'none' ? '' : value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                  <SelectValue placeholder={t('common.selectCategoryOptional')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucune catégorie</SelectItem>
@@ -440,7 +442,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                     const d = String(date.getDate()).padStart(2, '0');
                     setFormData({ ...formData, start_date: `${y}-${m}-${d}` });
                   }}
-                  placeholder="Sélectionner la date de début"
+                  placeholder={t('common.selectStartDate')}
                 />
               </div>
 
@@ -456,7 +458,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                     const d = String(date.getDate()).padStart(2, '0');
                     setFormData({ ...formData, end_date: `${y}-${m}-${d}` });
                   }}
-                  placeholder="Sélectionner la date de fin"
+                  placeholder={t('common.selectEndDate')}
                 />
                 <div className="text-xs text-muted-foreground">
                   Laissez vide pour une récurrence sans fin

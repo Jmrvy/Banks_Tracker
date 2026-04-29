@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ interface CreateRefundModalProps {
 }
 
 export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRefundModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { accounts, categories, createRefund } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
@@ -74,7 +76,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
     const amount = parseFloat(formData.amount);
     if (isNaN(amount) || amount <= 0) {
       toast({
-        title: "Montant invalide",
+        title: t('common.invalidAmount'),
         description: "Veuillez entrer un montant valide.",
         variant: "destructive",
       });
@@ -83,7 +85,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
     if (!formData.account_id) {
       toast({
-        title: "Compte requis",
+        title: t('common.accountRequired'),
         description: "Veuillez sélectionner un compte pour le remboursement.",
         variant: "destructive",
       });
@@ -106,7 +108,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
     if (result.error) {
       toast({
-        title: "Erreur",
+        title: t('common.error'),
         description: result.error.message || "Une erreur est survenue lors de la création du remboursement.",
         variant: "destructive",
       });
@@ -250,7 +252,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
                 onValueChange={(value) => setFormData({ ...formData, account_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un compte" />
+                  <SelectValue placeholder={t('common.selectAccount')} />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map((account) => (

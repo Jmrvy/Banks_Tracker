@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -29,6 +30,7 @@ export const RecordInstallmentPaymentModal = ({
   installmentPaymentId,
   onPaymentRecorded
 }: RecordInstallmentPaymentModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useAuth();
   const { formatCurrency } = useUserPreferences();
@@ -69,7 +71,7 @@ export const RecordInstallmentPaymentModal = ({
       if (mode === 'new') {
         const paymentAmount = parseFloat(amount);
         if (!paymentAmount || paymentAmount <= 0) {
-          toast({ title: "Montant invalide", description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          toast({ title: t('common.invalidAmount'), description: "Veuillez saisir un montant valide.", variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -94,14 +96,14 @@ export const RecordInstallmentPaymentModal = ({
           }]);
 
         if (txError) {
-          toast({ title: "Erreur", description: txError.message, variant: "destructive" });
+          toast({ title: t('common.error'), description: txError.message, variant: "destructive" });
           setLoading(false);
           return;
         }
       } else {
         // Link existing transaction
         if (!selectedTransactionId) {
-          toast({ title: "Transaction non sélectionnée", description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
+          toast({ title: t('common.transactionNotSelected'), description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -113,7 +115,7 @@ export const RecordInstallmentPaymentModal = ({
           .eq('user_id', user.id);
 
         if (linkError) {
-          toast({ title: "Erreur", description: linkError.message, variant: "destructive" });
+          toast({ title: t('common.error'), description: linkError.message, variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -127,8 +129,8 @@ export const RecordInstallmentPaymentModal = ({
         toast({ title: "Erreur de recalcul", description: recalcError.message, variant: "destructive" });
       } else {
         toast({
-          title: "Paiement enregistré",
-          description: result ? `Restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}` : "Le paiement a été enregistré.",
+          title: t('common.paymentRecorded'),
+          description: result ? `Restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}` : t('installments.paymentRecordedDesc'),
         });
       }
 

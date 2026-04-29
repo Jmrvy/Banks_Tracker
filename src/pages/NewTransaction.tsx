@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 
 const NewTransaction = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { formatCurrency, preferences } = useUserPreferences();
@@ -48,7 +50,7 @@ const NewTransaction = () => {
 
     if (formData.type === 'transfer' && !formData.to_account_id) {
       toast({
-        title: "Compte de destination requis",
+        title: t('common.destinationAccountRequired'),
         description: "Veuillez sélectionner un compte de destination pour le transfert.",
         variant: "destructive",
       });
@@ -57,7 +59,7 @@ const NewTransaction = () => {
 
     if (formData.type === 'transfer' && formData.account_id === formData.to_account_id) {
       toast({
-        title: "Comptes identiques",
+        title: t('common.sameAccounts'),
         description: "Le compte source et le compte de destination doivent être différents.",
         variant: "destructive",
       });
@@ -96,7 +98,7 @@ const NewTransaction = () => {
 
       if (error) {
         toast({
-          title: "Erreur lors de la création",
+          title: t('transactions.createError'),
           description: error.message,
           variant: "destructive",
         });
@@ -125,7 +127,7 @@ const NewTransaction = () => {
     } catch (err) {
       console.error("Transaction failed:", err);
       toast({
-        title: "Erreur inattendue",
+        title: t('common.unexpectedError'),
         description: "Une erreur inattendue s'est produite. Veuillez réessayer.",
         variant: "destructive",
       });
@@ -242,7 +244,7 @@ const NewTransaction = () => {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un compte" />
+                    <SelectValue placeholder={t('common.selectAccount')} />
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.length === 0 ? (
@@ -335,7 +337,7 @@ const NewTransaction = () => {
                     onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                      <SelectValue placeholder={t('common.selectCategoryOptional')} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (

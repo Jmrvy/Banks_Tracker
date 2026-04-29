@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ export const InstallmentPaymentDetailsModal = ({
   onOpenChange,
   installmentPayment,
 }: InstallmentPaymentDetailsModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
   const { recalculateInstallmentPayment, fetchPaymentHistory, deleteHistoryEntry } = useInstallmentPayments();
@@ -66,8 +68,8 @@ export const InstallmentPaymentDetailsModal = ({
 
     if (error) {
       toast({
-        title: 'Erreur',
-        description: 'Impossible de recalculer le paiement échelonné.',
+        title: t('common.error'),
+        description: t('installments.cannotRecalc'),
         variant: 'destructive',
       });
     } else if (result) {
@@ -236,7 +238,7 @@ export const InstallmentPaymentDetailsModal = ({
                               }
                             }}
                             className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
-                            title="Supprimer cette entrée"
+                            title={t('installments.deleteEntry')}
                           >
                             <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
                           </button>

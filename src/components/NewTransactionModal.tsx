@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -21,6 +22,7 @@ interface NewTransactionModalProps {
 }
 
 export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { formatCurrency, preferences } = useUserPreferences();
   const { accounts, categories, createTransaction, createTransfer } = useFinancialData();
@@ -65,7 +67,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     
     if (!validation.success) {
       toast({
-        title: "Erreur de validation",
+        title: t('common.validationError'),
         description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
@@ -102,7 +104,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
 
     if (error) {
       toast({
-        title: "Erreur lors de la création",
+        title: t('transactions.createError'),
         description: error.message,
         variant: "destructive",
       });
@@ -218,7 +220,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un compte" />
+                <SelectValue placeholder={t('common.selectAccount')} />
               </SelectTrigger>
               <SelectContent>
                 {accounts.length === 0 ? (
@@ -265,7 +267,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner le compte de destination" />
+                  <SelectValue placeholder={t('common.selectDestinationAccount')} />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
@@ -310,7 +312,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                 onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une catégorie (optionnel)" />
+                  <SelectValue placeholder={t('common.selectCategoryOptional')} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
