@@ -158,7 +158,7 @@ export const useInstallmentPayments = () => {
 
     const descriptionSuffix = data.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
 
-    const recurringType = data.payment_type === 'reimbursement' ? 'income' : 'expense';
+    const recurringType = 'expense';
 
     const { error: recurringError } = await supabase
       .from('recurring_transactions')
@@ -366,7 +366,7 @@ export const useInstallmentPayments = () => {
     const descSuffix = effectivePaymentType === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
 
     const recurringUpdates: Record<string, string | number | boolean | null> = {
-      type: effectivePaymentType === 'reimbursement' ? 'income' : 'expense',
+      type: 'expense' as const,
       description: `${effectiveDescription} (${descSuffix})`,
       amount: updatedRow.installment_amount,
       account_id: updatedRow.account_id,
@@ -564,7 +564,7 @@ export const useInstallmentPayments = () => {
     // Sync recurring transaction: update amount, type + deactivate if complete
     const recurringUpdate: Record<string, unknown> = {
       amount: newInstallmentAmount,
-      type: currentInstallment.payment_type === 'reimbursement' ? 'income' : 'expense',
+      type: 'expense' as const,
       updated_at: new Date().toISOString(),
     };
     if (isComplete) {
@@ -692,7 +692,7 @@ export const useInstallmentPayments = () => {
       const rt = recurringByInstallmentId.get(ip.id);
       if (!rt) continue;
 
-      const expectedType = ip.payment_type === 'reimbursement' ? 'income' : 'expense';
+      const expectedType = 'expense';
       const expectedSuffix = ip.payment_type === 'reimbursement' ? 'Remboursement échelonné' : 'Paiement échelonné';
       const expectedDesc = `${ip.description} (${expectedSuffix})`;
 
