@@ -671,8 +671,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return { upcomingOccurrences: upcoming, pastOccurrences: past };
   }, [transactionsByDay]);
 
-  // Helper to get effective type: installment reimbursements are income in the DB
-  // but represent an expense (money going into savings/repayment)
+  // Helper to get effective type: ensures installment reimbursements are always treated as expenses
   const getEffectiveType = useCallback((transaction: RecurringTransaction): 'income' | 'expense' => {
     if (transaction.installment_payment_id) {
       const ip = installmentPaymentsById.get(transaction.installment_payment_id);

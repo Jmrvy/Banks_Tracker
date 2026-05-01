@@ -69,8 +69,7 @@ export function getRecurringDisplayAmount(
 
 /**
  * Returns the effective type (income/expense) for a recurring transaction.
- * Installment reimbursements (type=income in DB) are treated as expenses
- * because they represent money going into savings/repayment.
+ * Ensures installment reimbursements are always treated as expenses.
  */
 export function getRecurringEffectiveType(
   rt: RecurringTransaction,

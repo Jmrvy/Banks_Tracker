@@ -646,7 +646,7 @@ function useFinancialDataInternal() {
       if (ipFetchErr) console.error('Error fetching installment for early execution:', ipFetchErr);
       if (ipData) {
         transactionAmount = ipData.installment_amount;
-        transactionType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
+        transactionType = ipData.payment_type === 'reimbursement' ? 'expense' : rt.type;
       }
     }
 
@@ -982,7 +982,7 @@ function useFinancialDataInternal() {
         if (rt.installment_payment_id) {
           installmentData = installmentMap.get(rt.installment_payment_id) || null;
           if (installmentData) {
-            txType = installmentData.payment_type === 'reimbursement' ? 'income' : 'expense';
+            txType = installmentData.payment_type === 'reimbursement' ? 'expense' : rt.type;
             txAmount = installmentData.installment_amount;
           }
         }

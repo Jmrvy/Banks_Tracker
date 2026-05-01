@@ -62,7 +62,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
   }, [transactions, startDate, endDate]);
 
   // In savings context: expense = deposit (money going into savings), income = withdrawal (money coming out)
-  // But reimbursement transactions (linked to installment payments) are income type and should show as positive savings
+  // Reimbursement installment transactions are expenses and show as positive savings
   const isReimbursement = (tx: Transaction) => !!tx.installment_payment_id;
 
   const getTransactionIcon = (type: string, tx: Transaction) => {
