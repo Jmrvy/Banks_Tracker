@@ -7,6 +7,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { TrendingUp, TrendingDown, ArrowLeftRight, EyeOff } from "lucide-react";
 
 interface ExcludedTransactionsModalProps {
@@ -104,7 +105,7 @@ export function ExcludedTransactionsModal({
                 <div className="min-w-0 flex-1">
                   <p className="font-medium truncate text-xs">{t.description}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                    {format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: fr })}
                     <span className="ml-1">• {getTypeLabel(t.type)}</span>
                   </p>
                 </div>
@@ -121,7 +122,7 @@ export function ExcludedTransactionsModal({
                 <div className="min-w-0 flex-1">
                   <p className="font-medium truncate text-sm">{t.description}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                    <span>{format(parseLocalDate(t.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
                     <span>•</span>
                     <Badge variant="outline" className="text-xs">
                       {getTypeLabel(t.type)}

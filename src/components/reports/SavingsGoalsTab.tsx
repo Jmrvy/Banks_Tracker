@@ -14,6 +14,7 @@ import type { SavingsGoal } from '@/hooks/useSavingsGoals';
 import type { ReportsPeriod } from '@/hooks/useReportsData';
 import { differenceInDays, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { useTranslation } from 'react-i18next';
 
@@ -52,7 +53,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     // Calculate monthly breakdown
     const monthlyMap = new Map<string, number>();
     investmentTransactions.forEach(tx => {
-      const month = format(new Date(tx.value_date), 'yyyy-MM');
+      const month = format(parseLocalDate(tx.value_date), 'yyyy-MM');
       monthlyMap.set(month, (monthlyMap.get(month) || 0) + tx.amount);
     });
 
@@ -85,13 +86,13 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     let cumulative = 0;
 
     const sortedTransactions = [...investmentTransactions].sort(
-      (a, b) => new Date(a.value_date).getTime() - new Date(b.value_date).getTime()
+      (a, b) => parseLocalDate(a.value_date).getTime() - parseLocalDate(b.value_date).getTime()
     );
 
     sortedTransactions.forEach(tx => {
       cumulative += tx.amount;
       evolutionData.push({
-        date: format(new Date(tx.value_date), 'dd/MM/yyyy'),
+        date: format(parseLocalDate(tx.value_date), 'dd/MM/yyyy'),
         amount: tx.amount,
         cumulative
       });
@@ -113,7 +114,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     }
 
     const today = new Date();
-    const targetDate = new Date(goal.target_date);
+    const targetDate = parseLocalDate(goal.target_date);
     const daysRemaining = differenceInDays(targetDate, today);
 
     if (daysRemaining <= 0) {
@@ -390,7 +391,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
                       {goal.target_date && (
                         <>
                           <div className="text-[10px] sm:text-xs text-muted-foreground">
-                            {t('savings.deadlineOn', { date: format(new Date(goal.target_date), 'dd MMMM yyyy', { locale: fr }) })}
+                            {t('savings.deadlineOn', { date: format(parseLocalDate(goal.target_date), 'dd MMMM yyyy', { locale: fr }) })}
                           </div>
                           {projection.daysRemaining > 0 && (
                             <div className="text-[10px] sm:text-xs space-y-0.5">

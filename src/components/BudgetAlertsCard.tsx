@@ -8,6 +8,7 @@ import { useReportsData, type CategoryData } from '@/hooks/useReportsData';
 import { CategoryTransactionsModal, type CategoryTransaction } from '@/components/CategoryTransactionsModal';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useTranslation } from 'react-i18next';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -80,7 +81,7 @@ export const BudgetAlertsCard = () => {
         valueDate: t.value_date,
         type: t.type,
       }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
   }, [selectedCategory, filteredTransactions, preferences.dateType]);
 
   if (alerts.length === 0) return null;

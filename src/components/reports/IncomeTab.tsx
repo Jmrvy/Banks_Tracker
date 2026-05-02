@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PeriodRecurringItem } from "@/hooks/useReportsData";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface IncomeTabProps {
   incomeAnalysis: IncomeCategory[];
@@ -416,7 +417,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                         style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
                       />
                       <div className="min-w-0">
-                        <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, new Date(item.occurrenceDetails?.find(d => d.isFuture)?.date || item.recurring.next_due_date))}</span>
+                        <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, parseLocalDate(item.occurrenceDetails?.find(d => d.isFuture)?.date || item.recurring.next_due_date))}</span>
                         <span className="text-[9px] text-muted-foreground">
                           {item.futureOccurrences}x • {item.recurring.category?.name || 'Sans catégorie'}
                         </span>

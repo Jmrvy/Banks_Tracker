@@ -8,6 +8,7 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 import { cn } from "@/lib/utils";
 import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface DistributionChartProps {
   startDate: Date;
@@ -35,8 +36,8 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     
     const monthTransactions = transactions.filter(t => {
       const date = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       return date >= monthStart && date <= monthEnd && t.type === 'expense' && t.include_in_stats !== false;
     });
 

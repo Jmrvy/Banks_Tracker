@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 
 // Query keys for React Query cache
@@ -687,7 +688,7 @@ function useFinancialDataInternal() {
       .insert([{
         account_id: rt.account_id,
         category_id: rt.category_id,
-        description: resolveNamePlaceholders(rt.description, new Date(executionDate)),
+        description: resolveNamePlaceholders(rt.description, parseLocalDate(executionDate)),
         amount: transactionAmount,
         type: transactionType,
         transaction_date: executionDate,
@@ -1007,6 +1008,21 @@ function useFinancialDataInternal() {
         while (currentDueDateString <= todayString && occurrencesProcessed < maxOccurrences) {
           if (rt.end_date && currentDueDateString > rt.end_date) break;
 
+          // Deduplication: skip if transaction already exists for this recurring + date
+          const { data: existingTx } = await supabase
+            .from('transactions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('recurring_transaction_id', rt.id)
+            .eq('transaction_date', currentDueDateString)
+            .limit(1);
+
+          if (existingTx && existingTx.length > 0) {
+            occurrencesProcessed++;
+            currentDueDateString = safeAdvanceDate(currentDueDateString, rt.recurrence_type);
+            continue;
+          }
+
           // For debt-linked recurring, check if this occurrence was already paid
           // via the debt schedule (confirm button or link modal)
           let skipTransaction = false;
@@ -1016,7 +1032,6 @@ function useFinancialDataInternal() {
             const matchingScheduled = debtScheduledPayments.find(sp => sp.scheduled_date.substring(0, 7) === monthKey);
             if (matchingScheduled) {
               if (matchingScheduled.is_paid) {
-                // Already paid - skip creating transaction, just advance
                 skipTransaction = true;
               } else {
                 occurrenceAmount = matchingScheduled.scheduled_amount;
@@ -1025,13 +1040,12 @@ function useFinancialDataInternal() {
           }
 
           if (!skipTransaction) {
-            // Insert transaction directly to avoid per-insert refetches
             const { error: txError } = await supabase
               .from('transactions')
               .insert([{
                 account_id: rt.account_id,
                 category_id: rt.category_id,
-                description: `${resolveNamePlaceholders(rt.description, new Date(currentDueDateString))} (Récurrence automatique)`,
+                description: `${resolveNamePlaceholders(rt.description, parseLocalDate(currentDueDateString))} (Récurrence automatique)`,
                 amount: occurrenceAmount,
                 type: txType,
                 transaction_date: currentDueDateString,

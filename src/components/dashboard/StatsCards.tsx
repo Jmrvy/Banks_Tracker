@@ -6,6 +6,7 @@ import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { ValueDateDifferenceModal } from "@/components/ValueDateDifferenceModal";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface StatsCardsProps {
   startDate: Date;
@@ -30,8 +31,8 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
     if (activeDateType !== "value") return false;
 
     return transactions.some((t) => {
-      const transactionDate = new Date(t.transaction_date);
-      const valueDate = new Date(t.value_date || t.transaction_date);
+      const transactionDate = parseLocalDate(t.transaction_date);
+      const valueDate = parseLocalDate(t.value_date || t.transaction_date);
 
       const inPeriodByTransactionDate = transactionDate >= startDate && transactionDate <= endDate;
       const inPeriodByValueDate = valueDate >= startDate && valueDate <= endDate;
@@ -43,8 +44,8 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
   const { stats, filteredTransactions, excludedTransactions } = useMemo(() => {
     const filtered = transactions.filter(t => {
       const dateToUse = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
 
       return dateToUse >= startDate && dateToUse <= endDate;
     });

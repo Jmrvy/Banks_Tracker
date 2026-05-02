@@ -8,6 +8,7 @@ import { type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTranslation } from "react-i18next";
 
@@ -181,7 +182,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                 <div className="ml-6 space-y-1">
                   <p className="text-sm font-medium">{originalTransaction.description}</p>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{format(new Date(originalTransaction.transaction_date), "d MMM yyyy", { locale: dateLocale })}</span>
+                    <span>{format(parseLocalDate(originalTransaction.transaction_date), "d MMM yyyy", { locale: dateLocale })}</span>
                     <span className="font-medium text-red-600">-{formatCurrency(originalTransaction.amount)}</span>
                   </div>
                 </div>
@@ -232,7 +233,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                           <div>
                             <p className="text-sm font-medium">{refund.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(refund.transaction_date), "d MMM yyyy", { locale: dateLocale })}
+                              {format(parseLocalDate(refund.transaction_date), "d MMM yyyy", { locale: dateLocale })}
                             </p>
                           </div>
                         </div>
@@ -258,13 +259,13 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               <div className="flex-1">
                 <p className="text-sm font-medium">Date comptable</p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(transaction.transaction_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
+                  {format(parseLocalDate(transaction.transaction_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
                 </p>
                 {transaction.value_date && transaction.value_date !== transaction.transaction_date && (
                   <>
                     <p className="text-sm font-medium mt-2">Date de valeur</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(transaction.value_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
+                      {format(parseLocalDate(transaction.value_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
                     </p>
                   </>
                 )}

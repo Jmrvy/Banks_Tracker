@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { TrendingUp, TrendingDown, ArrowLeftRight, Calendar, CalendarCheck } from "lucide-react";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface ValueDateDifferenceModalProps {
   open: boolean;
@@ -26,9 +27,9 @@ export function ValueDateDifferenceModal({
   // Calculer les transactions qui ont une différence entre date comptable et date valeur
   // (présentes dans une période mais pas l'autre)
   const transactionsWithDifference = transactions.filter(t => {
-    const transactionDate = new Date(t.transaction_date);
-    const valueDate = new Date(t.value_date);
-    
+    const transactionDate = parseLocalDate(t.transaction_date);
+    const valueDate = parseLocalDate(t.value_date);
+
     const inPeriodByTransactionDate = isWithinInterval(transactionDate, { start: period.from, end: period.to });
     const inPeriodByValueDate = isWithinInterval(valueDate, { start: period.from, end: period.to });
     
@@ -39,16 +40,16 @@ export function ValueDateDifferenceModal({
 
   // Calculer l'impact: transactions incluses par date comptable mais pas par date valeur
   const includedByAccountingOnly = transactionsWithDifference.filter(t => {
-    const transactionDate = new Date(t.transaction_date);
-    const valueDate = new Date(t.value_date);
+    const transactionDate = parseLocalDate(t.transaction_date);
+    const valueDate = parseLocalDate(t.value_date);
     return isWithinInterval(transactionDate, { start: period.from, end: period.to }) &&
            !isWithinInterval(valueDate, { start: period.from, end: period.to });
   });
 
   // Transactions incluses par date valeur mais pas par date comptable
   const includedByValueOnly = transactionsWithDifference.filter(t => {
-    const transactionDate = new Date(t.transaction_date);
-    const valueDate = new Date(t.value_date);
+    const transactionDate = parseLocalDate(t.transaction_date);
+    const valueDate = parseLocalDate(t.value_date);
     return !isWithinInterval(transactionDate, { start: period.from, end: period.to }) &&
            isWithinInterval(valueDate, { start: period.from, end: period.to });
   });
@@ -152,9 +153,9 @@ export function ValueDateDifferenceModal({
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate text-[10px] sm:text-xs">{t.description}</p>
                           <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                            Comptable: {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                            Comptable: {format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: fr })}
                             {' → '}
-                            Valeur: {format(new Date(t.value_date), 'dd/MM', { locale: fr })}
+                            Valeur: {format(parseLocalDate(t.value_date), 'dd/MM', { locale: fr })}
                           </p>
                         </div>
                       </div>
@@ -189,9 +190,9 @@ export function ValueDateDifferenceModal({
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate text-[10px] sm:text-xs">{t.description}</p>
                           <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                            Comptable: {format(new Date(t.transaction_date), 'dd/MM', { locale: fr })}
+                            Comptable: {format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: fr })}
                             {' → '}
-                            Valeur: {format(new Date(t.value_date), 'dd/MM', { locale: fr })}
+                            Valeur: {format(parseLocalDate(t.value_date), 'dd/MM', { locale: fr })}
                           </p>
                         </div>
                       </div>

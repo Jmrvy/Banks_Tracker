@@ -9,6 +9,7 @@ import { eachDayOfInterval, format, isSameDay, isBefore, addWeeks, addMonths, ad
 import { fr, enUS } from "date-fns/locale";
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, formatAxisValue } from "@/lib/chartConfig";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface CashflowChartProps {
   startDate: Date;
@@ -31,9 +32,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     const days = eachDayOfInterval({ start: periodStart, end: periodEnd });
 
     const getTransactionDate = (t: any) => {
-      const d = new Date(t.transaction_date);
-      d.setHours(0, 0, 0, 0);
-      return d;
+      return parseLocalDate(t.transaction_date);
     };
 
     // Calculate initial balance: current total balance minus ALL transactions from periodStart onwards
@@ -47,6 +46,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
     const netFromPeriodStart = transactionsFromPeriodStart.reduce((sum, t) => {
       if (t.type === 'income') return sum + t.amount;
       if (t.type === 'expense') return sum - t.amount;
+      if (t.type === 'transfer') return sum - Number(t.transfer_fee || 0);
       return sum;
     }, 0);
 
@@ -63,9 +63,12 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
       const dayExpense = isInPast
         ? transactions.filter(t => t.type === 'expense' && isSameDay(getTransactionDate(t), day)).reduce((sum, t) => sum + t.amount, 0)
         : 0;
+      const dayTransferFees = isInPast
+        ? transactions.filter(t => t.type === 'transfer' && isSameDay(getTransactionDate(t), day)).reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0)
+        : 0;
 
       if (isInPast) {
-        runningBalance += (dayIncome - dayExpense);
+        runningBalance += (dayIncome - dayExpense - dayTransferFees);
       }
 
       return {

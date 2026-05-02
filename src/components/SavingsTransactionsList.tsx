@@ -6,6 +6,7 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { useTranslation } from "react-i18next";
 
 interface SavingsTransactionsListProps {
@@ -20,12 +21,12 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
 
   const transactionsWithBalance = useMemo(() => {
     const sortedTransactions = [...transactions].sort(
-      (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
+      (a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime()
     );
 
     const periodTransactions = startDate && endDate
       ? sortedTransactions.filter(tx => {
-          const transactionDate = new Date(tx.transaction_date);
+          const transactionDate = parseLocalDate(tx.transaction_date);
           return isWithinInterval(transactionDate, { start: startDate, end: endDate });
         })
       : sortedTransactions;
@@ -132,7 +133,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{tx.description}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(tx.transaction_date), 'dd/MM', { locale: fr })}
+                      {format(parseLocalDate(tx.transaction_date), 'dd/MM', { locale: fr })}
                       <span className="ml-1">&bull; {getTypeLabel(tx.type, tx)}</span>
                     </p>
                   </div>
@@ -158,7 +159,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{tx.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(tx.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span>{format(parseLocalDate(tx.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
                       <span>&bull;</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(tx.type, tx)}

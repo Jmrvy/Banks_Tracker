@@ -16,6 +16,7 @@ import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AVAILABLE_PLACEHOLDERS, resolveNamePlaceholders, hasPlaceholders } from '@/utils/namePlaceholders';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 interface NewRecurringTransactionModalProps {
   open: boolean;
@@ -113,7 +114,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
   const getNextExecutionDate = () => {
     if (!formData.start_date) return null;
     
-    const startDate = new Date(formData.start_date);
+    const startDate = parseLocalDate(formData.start_date);
     const nextDate = new Date(startDate);
     
     switch (formData.recurrence_type) {
@@ -211,7 +212,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
             </div>
             {hasPlaceholders(formData.description) && (
               <p className="text-xs text-primary">
-                Aperçu : {resolveNamePlaceholders(formData.description, formData.start_date ? new Date(formData.start_date) : new Date())}
+                Aperçu : {resolveNamePlaceholders(formData.description, formData.start_date ? parseLocalDate(formData.start_date) : new Date())}
               </p>
             )}
           </div>
@@ -330,7 +331,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
               <div className="space-y-2">
                 <Label>Date de début *</Label>
                 <DatePicker
-                  date={formData.start_date ? new Date(formData.start_date) : undefined}
+                  date={formData.start_date ? parseLocalDate(formData.start_date) : undefined}
                   onDateChange={(date) => setFormData({ ...formData, start_date: date ? date.toISOString().split('T')[0] : '' })}
                   placeholder={t('common.selectStartDate')}
                 />
@@ -340,7 +341,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
               <div className="space-y-2">
                 <Label>Date de fin (optionnel)</Label>
                 <DatePicker
-                  date={formData.end_date ? new Date(formData.end_date) : undefined}
+                  date={formData.end_date ? parseLocalDate(formData.end_date) : undefined}
                   onDateChange={(date) => setFormData({ ...formData, end_date: date ? date.toISOString().split('T')[0] : '' })}
                   placeholder={t('common.selectEndDate')}
                 />
@@ -372,7 +373,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                     <strong>Fréquence:</strong> {getRecurrenceLabel(formData.recurrence_type)}
                   </div>
                   <div>
-                    <strong>Date de début:</strong> {new Date(formData.start_date).toLocaleDateString('fr-FR')}
+                    <strong>Date de début:</strong> {parseLocalDate(formData.start_date).toLocaleDateString('fr-FR')}
                   </div>
                   {nextExecution && (
                     <div className="col-span-2">
@@ -381,7 +382,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                   )}
                   {formData.end_date && (
                     <div className="col-span-2">
-                      <strong>Fin de récurrence:</strong> {new Date(formData.end_date).toLocaleDateString('fr-FR')}
+                      <strong>Fin de récurrence:</strong> {parseLocalDate(formData.end_date).toLocaleDateString('fr-FR')}
                     </div>
                   )}
                 </div>

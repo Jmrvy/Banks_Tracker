@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { format, addDays, addWeeks, addMonths, addYears, isBefore, isEqual, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 interface RegularizeOverdueTransactionsModalProps {
   open: boolean;
@@ -56,7 +57,7 @@ export const RegularizeOverdueTransactionsModal = ({
     const today = startOfDay(new Date());
 
     for (const rt of overdueTransactions) {
-      const startDate = startOfDay(new Date(rt.start_date));
+      const startDate = startOfDay(parseLocalDate(rt.start_date));
       let currentDate = startDate;
 
       // Generate all occurrences from start date until today
@@ -154,7 +155,7 @@ export const RegularizeOverdueTransactionsModal = ({
 
         // Calculate next due date after today
         const today = startOfDay(new Date());
-        let nextDate = startOfDay(new Date(rt.start_date));
+        let nextDate = startOfDay(parseLocalDate(rt.start_date));
 
         while (isBefore(nextDate, today) || isEqual(nextDate, today)) {
           switch (rt.recurrence_type) {

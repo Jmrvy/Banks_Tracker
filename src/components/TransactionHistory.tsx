@@ -13,6 +13,7 @@ import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { useToast } from "@/hooks/use-toast";
 import { TransactionFilters } from "./TransactionSearch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 const bankColors = {
   societe_generale: 'bg-red-500',
@@ -39,8 +40,8 @@ interface TransactionRowProps {
 const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onView, onEdit, onDelete, onRefund }: TransactionRowProps) => {
   const { t } = useTranslation();
   const displayDate = dateType === 'value'
-    ? new Date(transaction.value_date || transaction.transaction_date)
-    : new Date(transaction.transaction_date);
+    ? parseLocalDate(transaction.value_date || transaction.transaction_date)
+    : parseLocalDate(transaction.transaction_date);
 
   const refundedAmount = transaction.refunded_amount || 0;
   const isFullyRefunded = transaction.type === 'expense' && refundedAmount >= transaction.amount;
@@ -267,22 +268,22 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
       // Filtre par date
       if (filters.dateFrom) {
-        const fromDate = new Date(filters.dateFrom);
+        const fromDate = parseLocalDate(filters.dateFrom);
         filtered = filtered.filter(t => {
           const transDate = preferences.dateType === 'value'
-            ? new Date(t.value_date || t.transaction_date)
-            : new Date(t.transaction_date);
+            ? parseLocalDate(t.value_date || t.transaction_date)
+            : parseLocalDate(t.transaction_date);
           return transDate >= fromDate;
         });
       }
 
       if (filters.dateTo) {
-        const toDate = new Date(filters.dateTo);
+        const toDate = parseLocalDate(filters.dateTo);
         toDate.setHours(23, 59, 59, 999);
         filtered = filtered.filter(t => {
           const transDate = preferences.dateType === 'value'
-            ? new Date(t.value_date || t.transaction_date)
-            : new Date(t.transaction_date);
+            ? parseLocalDate(t.value_date || t.transaction_date)
+            : parseLocalDate(t.transaction_date);
           return transDate <= toDate;
         });
       }
@@ -301,12 +302,12 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
     // Trier par date
     return filtered.sort((a, b) => {
-      const dateA = preferences.dateType === 'value' 
-        ? new Date(a.value_date || a.transaction_date)
-        : new Date(a.transaction_date);
+      const dateA = preferences.dateType === 'value'
+        ? parseLocalDate(a.value_date || a.transaction_date)
+        : parseLocalDate(a.transaction_date);
       const dateB = preferences.dateType === 'value'
-        ? new Date(b.value_date || b.transaction_date)
-        : new Date(b.transaction_date);
+        ? parseLocalDate(b.value_date || b.transaction_date)
+        : parseLocalDate(b.transaction_date);
       return dateB.getTime() - dateA.getTime();
     });
   }, [transactions, preferences.dateType, filters]);

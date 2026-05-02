@@ -14,6 +14,7 @@ import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
 import { ReimbursementDetailModal } from "@/components/ReimbursementDetailModal";
 import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { fr } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -52,7 +53,7 @@ const Savings = () => {
     return transactions.filter(tx => {
       if (!tx.installment_payment_id) return false;
       if (!reimbursementInstallmentIds.has(tx.installment_payment_id)) return false;
-      const transactionDate = new Date(tx.transaction_date);
+      const transactionDate = parseLocalDate(tx.transaction_date);
       return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
     });
   }, [transactions, reimbursementInstallmentIds, dateRange]);
@@ -74,7 +75,7 @@ const Savings = () => {
   const periodTransactions = useMemo(() => {
     if (!investmentCategory) return [];
     return transactions.filter(tx => {
-      const transactionDate = new Date(tx.transaction_date);
+      const transactionDate = parseLocalDate(tx.transaction_date);
       return tx.category?.id === investmentCategory.id &&
              isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
     });
@@ -119,11 +120,11 @@ const Savings = () => {
 
     const allSavingsTransactions = [
       ...periodTransactions.map(tx => ({
-        date: new Date(tx.transaction_date),
+        date: parseLocalDate(tx.transaction_date),
         amount: tx.type === 'expense' ? tx.amount : -tx.amount,
       })),
       ...reimbursementTransactions.map(tx => ({
-        date: new Date(tx.transaction_date),
+        date: parseLocalDate(tx.transaction_date),
         amount: tx.amount,
       }))
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -160,7 +161,7 @@ const Savings = () => {
 
       const monthTotal = allInvestmentTransactions
         .filter(tx => {
-          const d = new Date(tx.transaction_date);
+          const d = parseLocalDate(tx.transaction_date);
           return d >= monthStart && d <= monthEnd;
         })
         .reduce((sum, tx) => {
@@ -194,7 +195,7 @@ const Savings = () => {
       return { progress, monthsToGoal, onTrack: null, remainingDays: null, monthlyRequired: 0, dailyRequired: 0 };
     }
 
-    const targetDate = new Date(goal.target_date);
+    const targetDate = parseLocalDate(goal.target_date);
     const today = new Date();
     const remainingDays = differenceInDays(targetDate, today);
 
@@ -427,7 +428,7 @@ const Savings = () => {
                           <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border/50 mt-1">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              Prochain: {format(new Date(installment.next_payment_date), 'dd/MM/yyyy', { locale: fr })}
+                              Prochain: {format(parseLocalDate(installment.next_payment_date), 'dd/MM/yyyy', { locale: fr })}
                             </span>
                             {installment.installment_amount > 0 && (
                               <span>

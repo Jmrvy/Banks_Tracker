@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, ArrowRightLeft } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface Transaction {
   id: string;
@@ -31,7 +32,7 @@ export const AccountTransactionsModal = ({
 }: AccountTransactionsModalProps) => {
   const { formatCurrency } = useUserPreferences();
   const sortedTransactions = transactions.sort((a, b) =>
-    new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+    parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime()
   );
 
   // Calculate running balance for each transaction
@@ -115,7 +116,7 @@ export const AccountTransactionsModal = ({
                         </Badge>
                       )}
                       <span className="text-[10px] sm:text-xs text-muted-foreground">
-                        {new Date(transaction.transaction_date).toLocaleDateString('fr-FR')}
+                        {parseLocalDate(transaction.transaction_date).toLocaleDateString('fr-FR')}
                       </span>
                     </div>
                   </div>

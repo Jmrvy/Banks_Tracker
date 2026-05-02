@@ -6,6 +6,7 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { TransactionDetailModal } from "./TransactionDetailModal";
 import { useTranslation } from "react-i18next";
 
@@ -27,7 +28,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
     // Get ALL account transactions sorted chronologically
     const allAccountTransactions = transactions
       .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId)
-      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
+      .sort((a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime());
 
     // Calculate balance at the BEGINNING of the period by reversing ALL transactions from current balance
     let balanceAtPeriodStart = initialBalance;
@@ -48,7 +49,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
     // Now replay transactions up to the start of the period to get the correct starting balance
     let runningBalance = balanceAtPeriodStart;
     allAccountTransactions.forEach(t => {
-      const transactionDate = new Date(t.transaction_date);
+      const transactionDate = parseLocalDate(t.transaction_date);
       // Only process transactions BEFORE the period starts
       if (startDate && transactionDate < startDate) {
         if (t.account_id === accountId) {
@@ -68,7 +69,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
     // Filter transactions within the period
     const periodTransactions = startDate && endDate
       ? allAccountTransactions.filter(t => {
-          const transactionDate = new Date(t.transaction_date);
+          const transactionDate = parseLocalDate(t.transaction_date);
           return isWithinInterval(transactionDate, { start: startDate, end: endDate });
         })
       : allAccountTransactions;
@@ -154,7 +155,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{t.description}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale })}
+                      {format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: dateLocale })}
                       {t.category && (
                         <span className="ml-1">• {t.category.name}</span>
                       )}
@@ -186,7 +187,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{t.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
+                      <span>{format(parseLocalDate(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
                       <span>•</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(t.type)}

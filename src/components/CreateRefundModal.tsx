@@ -13,6 +13,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Loader2, RotateCcw, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 interface CreateRefundModalProps {
   open: boolean;
@@ -175,7 +176,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
           </div>
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <span>
-              {format(new Date(transaction.transaction_date), 'dd MMMM yyyy', { locale: fr })}
+              {format(parseLocalDate(transaction.transaction_date), 'dd MMMM yyyy', { locale: fr })}
             </span>
             {transaction.category && (
               <span 
