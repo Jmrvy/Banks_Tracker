@@ -14,6 +14,7 @@ import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
 import { AdjustInstallmentPlanModal } from '@/components/AdjustInstallmentPlanModal';
 import { supabase } from '@/integrations/supabase/client';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -306,11 +307,11 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           <div className="space-y-2">
             <Label>Date Comptable *</Label>
             <DatePicker
-              date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+              date={formData.transaction_date ? parseLocalDate(formData.transaction_date) : undefined}
               onDateChange={(date) => {
                 const newDate = date ? date.toISOString().split('T')[0] : '';
-                setFormData(prev => ({ 
-                  ...prev, 
+                setFormData(prev => ({
+                  ...prev,
                   transaction_date: newDate,
                   // Mettre à jour value_date seulement si elle est égale à l'ancienne transaction_date
                   value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
@@ -323,7 +324,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           <div className="space-y-2">
             <Label>Date Valeur *</Label>
             <DatePicker
-              date={formData.value_date ? new Date(formData.value_date) : undefined}
+              date={formData.value_date ? parseLocalDate(formData.value_date) : undefined}
               onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
               placeholder={t('common.selectValueDate')}
             />

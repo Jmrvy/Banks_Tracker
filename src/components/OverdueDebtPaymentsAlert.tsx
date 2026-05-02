@@ -7,6 +7,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 export const OverdueDebtPaymentsAlert = () => {
   const { debts, scheduledPayments, loading } = useDebts();
@@ -52,7 +53,7 @@ export const OverdueDebtPaymentsAlert = () => {
                 <span>
                   {' — '}
                   {overduePayments.slice(0, 3).map(p =>
-                    format(new Date(p.scheduled_date + 'T00:00:00'), 'dd MMM', { locale: fr })
+                    format(parseLocalDate(p.scheduled_date), 'dd MMM', { locale: fr })
                   ).join(', ')}
                 </span>
               )}

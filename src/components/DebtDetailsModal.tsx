@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DebtAmortizationChart } from '@/components/DebtAmortizationChart';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 import {
   DollarSign,
   TrendingUp,
@@ -122,7 +123,7 @@ export const DebtDetailsModal = ({
         interest_amount: sp.interest_amount,
         insurance_amount: sp.insurance_amount || 0,
         payment_date: paymentDate,
-        notes: `Échéance confirmée: ${format(new Date(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
+        notes: `Échéance confirmée: ${format(parseLocalDate(paymentDate), 'dd MMM yyyy', { locale: fr })}`,
       });
 
       await recalculateDebtRemaining(debt.id, user.id);
@@ -320,7 +321,7 @@ export const DebtDetailsModal = ({
                   Début
                 </span>
                 <span className="text-[11px] sm:text-sm font-medium">
-                  {format(new Date(debt.start_date), 'dd MMM yyyy', { locale: fr })}
+                  {format(parseLocalDate(debt.start_date), 'dd MMM yyyy', { locale: fr })}
                 </span>
               </div>
               {debt.end_date && (
@@ -330,7 +331,7 @@ export const DebtDetailsModal = ({
                     Fin
                   </span>
                   <span className="text-[11px] sm:text-sm font-medium">
-                    {format(new Date(debt.end_date), 'dd MMM yyyy', { locale: fr })}
+                    {format(parseLocalDate(debt.end_date), 'dd MMM yyyy', { locale: fr })}
                   </span>
                 </div>
               )}
@@ -354,7 +355,7 @@ export const DebtDetailsModal = ({
                 <p className="text-[10px] sm:text-xs text-muted-foreground uppercase mb-1.5">Prochaine échéance</p>
                 <div className="flex items-center justify-between">
                   <span className="text-sm sm:text-base font-semibold">
-                    {format(new Date(nextScheduled.scheduled_date), 'dd MMM yyyy', { locale: fr })}
+                    {format(parseLocalDate(nextScheduled.scheduled_date), 'dd MMM yyyy', { locale: fr })}
                   </span>
                   <span className="text-sm sm:text-base font-bold text-primary">
                     {formatCurrency(nextScheduled.scheduled_amount)}
@@ -452,7 +453,7 @@ export const DebtDetailsModal = ({
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs sm:text-sm font-medium">
-                            {format(new Date(payment.payment_date), 'dd MMM yyyy', { locale: fr })}
+                            {format(parseLocalDate(payment.payment_date), 'dd MMM yyyy', { locale: fr })}
                           </p>
                           {payment.notes && (
                             <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{payment.notes}</p>
@@ -512,7 +513,7 @@ export const DebtDetailsModal = ({
                 <div className="space-y-1.5">
                   {scheduledPayments.map((sp, index) => {
                     const isPaid = sp.is_paid;
-                    const isPast = new Date(sp.scheduled_date) < new Date() && !isPaid;
+                    const isPast = parseLocalDate(sp.scheduled_date) < new Date() && !isPaid;
                     const isNext = sp.id === nextScheduled?.id;
 
                     return (
@@ -538,7 +539,7 @@ export const DebtDetailsModal = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-[11px] sm:text-xs font-medium ${isPaid ? 'line-through' : ''}`}>
-                            {format(new Date(sp.scheduled_date), 'dd MMM yyyy', { locale: fr })}
+                            {format(parseLocalDate(sp.scheduled_date), 'dd MMM yyyy', { locale: fr })}
                           </p>
                           {(sp.principal_amount > 0 || sp.interest_amount > 0 || (sp.insurance_amount || 0) > 0) && (
                             <p className="text-[9px] sm:text-[10px] text-muted-foreground">

@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { Check, Plus, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
@@ -52,7 +53,7 @@ export const RecordRecurringPaymentModal = ({
         if (t.installment_payment_id) return false; // Part of an installment
         return true;
       })
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+      .sort((a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime())
       .slice(0, 50);
   }, [transactions, recurringTransaction]);
 
@@ -197,7 +198,7 @@ export const RecordRecurringPaymentModal = ({
                               "text-xs",
                               selectedTransactionId === t.id ? "text-primary-foreground/80" : "text-muted-foreground"
                             )}>
-                              {format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}
+                              {format(parseLocalDate(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}
                               {t.category?.name && ` • ${t.category.name}`}
                             </p>
                           </div>

@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 export const CommandPalette = () => {
   const { t } = useTranslation();
@@ -72,7 +73,7 @@ export const CommandPalette = () => {
   const recentTransactions = useMemo(() => {
     return transactions
       .slice()
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+      .sort((a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime())
       .slice(0, 5);
   }, [transactions]);
 
@@ -181,7 +182,7 @@ export const CommandPalette = () => {
                   <div className="flex-1 min-w-0">
                     <span className="truncate block">{tx.description}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {format(new Date(tx.transaction_date), 'dd MMM', { locale: fr })}
+                      {format(parseLocalDate(tx.transaction_date), 'dd MMM', { locale: fr })}
                       {tx.account && ` · ${tx.account.name}`}
                     </span>
                   </div>

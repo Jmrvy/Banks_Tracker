@@ -12,6 +12,7 @@ import {
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, CHART_SEMANTIC, formatAxisValue } from '@/lib/chartConfig';
 
 interface ScheduledPayment {
@@ -39,7 +40,7 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
       remaining = Math.max(0, remaining - sp.principal_amount);
       return {
         date: sp.scheduled_date,
-        label: format(new Date(sp.scheduled_date + 'T00:00:00'), 'MMM yy', { locale: fr }),
+        label: format(parseLocalDate(sp.scheduled_date), 'MMM yy', { locale: fr }),
         remaining,
         principal: sp.principal_amount,
         interest: sp.interest_amount,
@@ -73,7 +74,7 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
     return (
       <div className={TOOLTIP_CLASS + " space-y-1"}>
         <p className="font-medium">
-          {format(new Date(data.date + 'T00:00:00'), 'dd MMM yyyy', { locale: fr })}
+          {format(parseLocalDate(data.date), 'dd MMM yyyy', { locale: fr })}
           {data.isPaid && <span className="text-success ml-1.5">Payé</span>}
         </p>
         <div className="space-y-0.5 text-muted-foreground">

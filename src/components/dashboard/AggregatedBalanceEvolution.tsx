@@ -6,6 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
@@ -26,7 +27,7 @@ export const AggregatedBalanceEvolution = () => {
   // Get all transactions sorted by date (most recent first for display)
   const allTransactionsSorted = useMemo(() => {
     return [...transactions].sort(
-      (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+      (a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime()
     );
   }, [transactions]);
 
@@ -141,7 +142,7 @@ export const AggregatedBalanceEvolution = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-sm">{t.description}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(t.transaction_date), 'dd MMM', { locale: dateLocale })} • {getAccountName(t.account_id)}
+                      {format(parseLocalDate(t.transaction_date), 'dd MMM', { locale: dateLocale })} • {getAccountName(t.account_id)}
                     </p>
                   </div>
                 </div>
@@ -168,7 +169,7 @@ export const AggregatedBalanceEvolution = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{t.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
+                      <span>{format(parseLocalDate(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
                       <span>•</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(t.type)}

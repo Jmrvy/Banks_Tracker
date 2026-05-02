@@ -14,6 +14,7 @@ import { TrendingDown, Target, AlertTriangle, CheckCircle2, Clock } from "lucide
 import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { useTranslation } from "react-i18next";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
@@ -82,7 +83,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         futureDetails.forEach((occ, idx) => {
           realTxs.push({
             id: `projected-${rt.id}-${idx}`,
-            description: resolveNamePlaceholders(rt.description, new Date(occ.date)),
+            description: resolveNamePlaceholders(rt.description, parseLocalDate(occ.date)),
             amount: occ.amount,
             netAmount: occ.amount,
             refundedAmount: 0,
@@ -98,7 +99,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       }
     }
 
-    return realTxs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return realTxs.sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
   }, [selectedCategory, dateType, preferences.dateType, transactions, includeUpcoming, upcomingItems]);
 
   // Build chart data: include projected amounts when upcoming is active
@@ -595,7 +596,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
                       />
                       <div className="min-w-0">
-                        <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, new Date(item.occurrenceDetails?.find(d => d.isFuture)?.date || item.recurring.next_due_date))}</span>
+                        <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, parseLocalDate(item.occurrenceDetails?.find(d => d.isFuture)?.date || item.recurring.next_due_date))}</span>
                         <span className="text-[9px] text-muted-foreground">
                           {item.futureOccurrences}x • {item.recurring.category?.name || t('common.uncategorized')}
                         </span>

@@ -41,6 +41,7 @@ import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/dateUtils";
 import {
   CategoryPieChart,
   BalanceEvolutionChart,
@@ -150,16 +151,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const date = config.dateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       return date >= actualDates.start && date <= actualDates.end;
     }).sort((a, b) => {
       const dateA = config.dateType === 'value'
-        ? new Date(a.value_date || a.transaction_date)
-        : new Date(a.transaction_date);
+        ? parseLocalDate(a.value_date || a.transaction_date)
+        : parseLocalDate(a.transaction_date);
       const dateB = config.dateType === 'value'
-        ? new Date(b.value_date || b.transaction_date)
-        : new Date(b.transaction_date);
+        ? parseLocalDate(b.value_date || b.transaction_date)
+        : parseLocalDate(b.transaction_date);
       return dateA.getTime() - dateB.getTime();
     });
   }, [transactions, actualDates, config.dateType]);
@@ -172,8 +173,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     return days.map(day => {
       const dayTransactions = filteredTransactions.filter(t => {
         const date = config.dateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
+          ? parseLocalDate(t.value_date || t.transaction_date)
+          : parseLocalDate(t.transaction_date);
         return isSameDay(date, day);
       });
 
@@ -654,8 +655,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         else if (t.type === 'expense') runningBalance -= amount;
 
         const displayDate = config.dateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
+          ? parseLocalDate(t.value_date || t.transaction_date)
+          : parseLocalDate(t.transaction_date);
 
         return [
           format(displayDate, 'dd/MM/yy'),
@@ -823,8 +824,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         else if (tx.type === 'expense') runningBalance -= amount;
 
         const displayDate = config.dateType === 'value'
-          ? new Date(tx.value_date || tx.transaction_date)
-          : new Date(tx.transaction_date);
+          ? parseLocalDate(tx.value_date || tx.transaction_date)
+          : parseLocalDate(tx.transaction_date);
 
         return [
           format(displayDate, 'dd/MM/yyyy'),

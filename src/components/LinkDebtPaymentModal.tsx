@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { Input } from '@/components/ui/input';
 import { Check, Plus, Link, Loader2, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -71,7 +72,7 @@ export const LinkDebtPaymentModal = ({
         if (t.installment_payment_id) return false;
         return true;
       })
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      .sort((a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime());
   }, [transactions, expectedType]);
 
   const filteredTransactions = useMemo(() => {
@@ -80,7 +81,7 @@ export const LinkDebtPaymentModal = ({
     return linkableTransactions.filter(t => {
       const description = (t.description || '').toLowerCase();
       const amount = t.amount.toString();
-      const date = format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr });
+      const date = format(parseLocalDate(t.transaction_date), 'dd/MM/yyyy', { locale: fr });
       const accountName = (t.account?.name || '').toLowerCase();
       return description.includes(query) || amount.includes(query) || date.includes(query) || accountName.includes(query);
     });
@@ -205,7 +206,7 @@ export const LinkDebtPaymentModal = ({
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
               <span className="font-medium">
-                {format(new Date(scheduledPayment.scheduled_date), 'dd MMM yyyy', { locale: fr })}
+                {format(parseLocalDate(scheduledPayment.scheduled_date), 'dd MMM yyyy', { locale: fr })}
               </span>
             </div>
             <div className="flex justify-between">
@@ -276,7 +277,7 @@ export const LinkDebtPaymentModal = ({
                                 "text-xs",
                                 selectedTransactionId === t.id ? "text-primary-foreground/80" : "text-muted-foreground"
                               )}>
-                                {format(new Date(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}
+                                {format(parseLocalDate(t.transaction_date), 'dd/MM/yyyy', { locale: fr })}
                                 {t.account && ` • ${t.account.name}`}
                               </p>
                             </div>

@@ -13,6 +13,7 @@ import { Button } from "./ui/button";
 import { ValueDateDifferenceModal } from "./ValueDateDifferenceModal";
 import { TransactionTypeModal } from "./TransactionTypeModal";
 import { useTranslation } from "react-i18next";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface AccountDetailsProps {
   accountId: string;
@@ -43,8 +44,8 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     if (activeDateType !== "value") return false;
 
     return allAccountTransactionsUnfiltered.some((t) => {
-      const transactionDate = new Date(t.transaction_date);
-      const valueDate = new Date(t.value_date || t.transaction_date);
+      const transactionDate = parseLocalDate(t.transaction_date);
+      const valueDate = parseLocalDate(t.value_date || t.transaction_date);
 
       const inPeriodByTransactionDate = transactionDate >= startDate && transactionDate <= endDate;
       const inPeriodByValueDate = valueDate >= startDate && valueDate <= endDate;
@@ -59,14 +60,14 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       .filter(t => {
         const isAccountMatch = t.account_id === accountId || t.transfer_to_account_id === accountId;
         const dateToUse = activeDateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
+          ? parseLocalDate(t.value_date || t.transaction_date)
+          : parseLocalDate(t.transaction_date);
         const isInPeriod = isWithinInterval(dateToUse, { start: startDate, end: endDate });
         return isAccountMatch && isInPeriod;
       })
       .sort((a, b) => {
-        const dateA = activeDateType === 'value' ? new Date(a.value_date || a.transaction_date) : new Date(a.transaction_date);
-        const dateB = activeDateType === 'value' ? new Date(b.value_date || b.transaction_date) : new Date(b.transaction_date);
+        const dateA = activeDateType === 'value' ? parseLocalDate(a.value_date || a.transaction_date) : parseLocalDate(a.transaction_date);
+        const dateB = activeDateType === 'value' ? parseLocalDate(b.value_date || b.transaction_date) : parseLocalDate(b.transaction_date);
         return dateB.getTime() - dateA.getTime();
       });
   }, [transactions, accountId, startDate, endDate, activeDateType]);
@@ -75,7 +76,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
   const allAccountTransactions = useMemo(() => {
     return transactions
       .filter(t => t.account_id === accountId || t.transfer_to_account_id === accountId)
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      .sort((a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime());
   }, [transactions, accountId]);
 
   const stats = useMemo(() => {
@@ -160,15 +161,15 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
       accountTransactions.forEach(t => {
         const transactionDate = activeDateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
+          ? parseLocalDate(t.value_date || t.transaction_date)
+          : parseLocalDate(t.transaction_date);
         const dayIndex = data.findIndex(d => isSameDay(d.fullDate, transactionDate));
         addTransactionToData(data, dayIndex, t);
       });
 
       return { data, type: 'day' as const };
     }
-    
+
     // 2-3 months: group by week
     if (daysDiff <= 93) {
       const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { locale: dateLocale });
@@ -181,9 +182,9 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
       accountTransactions.forEach(t => {
         const transactionDate = activeDateType === 'value'
-          ? new Date(t.value_date || t.transaction_date)
-          : new Date(t.transaction_date);
-        const weekIndex = data.findIndex(w => 
+          ? parseLocalDate(t.value_date || t.transaction_date)
+          : parseLocalDate(t.transaction_date);
+        const weekIndex = data.findIndex(w =>
           isSameWeek(w.fullDate, transactionDate, { locale: dateLocale })
         );
         addTransactionToData(data, weekIndex, t);
@@ -211,11 +212,11 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
     accountTransactions.forEach(t => {
       const transactionDate = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       const transactionMonth = startOfMonth(transactionDate);
-      
-      const monthIndex = months.findIndex(m => 
+
+      const monthIndex = months.findIndex(m =>
         m.fullDate.getTime() === transactionMonth.getTime()
       );
       addTransactionToData(months, monthIndex, t);
@@ -244,17 +245,17 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
     
     const incomeTransactions = accountTransactions.filter(t => {
       const transactionDate = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       const isInPeriod = transactionDate >= periodStart && transactionDate <= periodEnd;
       const isIncome = t.type === 'income' || (t.type === 'transfer' && t.transfer_to_account_id === accountId);
       return isInPeriod && isIncome && t.include_in_stats;
     });
-    
+
     const expenseTransactions = accountTransactions.filter(t => {
       const transactionDate = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       const isInPeriod = transactionDate >= periodStart && transactionDate <= periodEnd;
       const isExpense = t.type === 'expense' || (t.type === 'transfer' && t.account_id === accountId);
       return isInPeriod && isExpense && t.include_in_stats;
@@ -289,7 +290,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
   const balanceEvolution = useMemo(() => {
     const sortedTransactions = [...allAccountTransactions].sort(
-      (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
+      (a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime()
     );
 
     if (sortedTransactions.length === 0) {
@@ -337,7 +338,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       }
 
       evolution.push({
-        date: format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale }),
+        date: format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: dateLocale }),
         balance: runningBalance,
       });
     });
@@ -633,11 +634,11 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 </h4>
                 <div className="space-y-2">
                   {selectedPeriodTransactions.income.map(t => {
-                    const hasDiff = t.value_date && new Date(t.transaction_date).toDateString() !== new Date(t.value_date).toDateString();
-                    const displayDate = activeDateType === 'value' && t.value_date 
-                      ? new Date(t.value_date) 
-                      : new Date(t.transaction_date);
-                    
+                    const hasDiff = t.value_date && parseLocalDate(t.transaction_date).toDateString() !== parseLocalDate(t.value_date).toDateString();
+                    const displayDate = activeDateType === 'value' && t.value_date
+                      ? parseLocalDate(t.value_date)
+                      : parseLocalDate(t.transaction_date);
+
                     return (
                       <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
                         <div className="min-w-0 flex-1">
@@ -652,7 +653,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                                 <span className="text-[10px] sm:text-xs text-muted-foreground">
                                   <span className="hidden sm:inline">Comptable:</span>
                                   <span className="sm:hidden">C:</span>
-                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale })}
+                                  {format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: dateLocale })}
                                 </span>
                               </>
                             ) : (
@@ -692,11 +693,11 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                 </h4>
                 <div className="space-y-2">
                   {selectedPeriodTransactions.expenses.map(t => {
-                    const hasDiff = t.value_date && new Date(t.transaction_date).toDateString() !== new Date(t.value_date).toDateString();
-                    const displayDate = activeDateType === 'value' && t.value_date 
-                      ? new Date(t.value_date) 
-                      : new Date(t.transaction_date);
-                    
+                    const hasDiff = t.value_date && parseLocalDate(t.transaction_date).toDateString() !== parseLocalDate(t.value_date).toDateString();
+                    const displayDate = activeDateType === 'value' && t.value_date
+                      ? parseLocalDate(t.value_date)
+                      : parseLocalDate(t.transaction_date);
+
                     return (
                       <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-card">
                         <div className="min-w-0 flex-1">
@@ -711,7 +712,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
                                 <span className="text-[10px] sm:text-xs text-muted-foreground">
                                   <span className="hidden sm:inline">Comptable:</span>
                                   <span className="sm:hidden">C:</span>
-                                  {format(new Date(t.transaction_date), 'dd/MM', { locale: dateLocale })}
+                                  {format(parseLocalDate(t.transaction_date), 'dd/MM', { locale: dateLocale })}
                                 </span>
                               </>
                             ) : (

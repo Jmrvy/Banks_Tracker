@@ -13,6 +13,7 @@ import { fr } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
@@ -130,7 +131,7 @@ export const EvolutionTab = ({
       futureDetails.forEach((occ, idx) => {
         items.push({
           id: `${pi.recurring.id}-${idx}`,
-          description: resolveNamePlaceholders(pi.recurring.description, new Date(occ.date)),
+          description: resolveNamePlaceholders(pi.recurring.description, parseLocalDate(occ.date)),
           amount: occ.amount,
           date: occ.date,
           type: pi.effectiveType,
@@ -352,7 +353,7 @@ export const EvolutionTab = ({
                     <div className="min-w-0 flex-1">
                       <p className="text-xs sm:text-sm font-medium truncate">{tx.description}</p>
                       <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
-                        <span>{format(new Date(tx.date), 'dd MMM', { locale: dateLocale })}</span>
+                        <span>{format(parseLocalDate(tx.date), 'dd MMM', { locale: dateLocale })}</span>
                         {tx.account && (
                           <>
                             <span>•</span>

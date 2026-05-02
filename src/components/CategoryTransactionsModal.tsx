@@ -21,6 +21,7 @@ import {
 import { eachDayOfInterval, differenceInDays, format, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 /** View-model for transactions displayed in the category modal */
 export interface CategoryTransaction {
@@ -109,8 +110,8 @@ export const CategoryTransactionsModal = ({
   // Vérifier si une transaction a une date valeur différente de la date comptable
   const hasValueDateDifference = (t: CategoryTransaction) => {
     if (!t.valueDate) return false;
-    const accountingDate = new Date(t.date).toDateString();
-    const valueDate = new Date(t.valueDate).toDateString();
+    const accountingDate = parseLocalDate(t.date).toDateString();
+    const valueDate = parseLocalDate(t.valueDate).toDateString();
     return accountingDate !== valueDate;
   };
 
@@ -141,8 +142,8 @@ export const CategoryTransactionsModal = ({
       )
       .sort(
         (a, b) =>
-          new Date(getTransactionDate(a)).getTime() -
-          new Date(getTransactionDate(b)).getTime()
+          parseLocalDate(getTransactionDate(a)).getTime() -
+          parseLocalDate(getTransactionDate(b)).getTime()
       );
 
     let running = 0;
@@ -495,14 +496,14 @@ export const CategoryTransactionsModal = ({
                             {bankNames[transaction.bank] || transaction.bank}
                           </Badge>
                           <span className="text-[10px] sm:text-sm text-muted-foreground">
-                            {new Date(transaction.date).toLocaleDateString('fr-FR')}
+                            {parseLocalDate(transaction.date).toLocaleDateString('fr-FR')}
                           </span>
                           {showValueDate && transaction.valueDate && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span className="flex items-center gap-0.5 text-[9px] sm:text-xs text-primary">
                                   <CalendarDays className="w-3 h-3" />
-                                  {new Date(transaction.valueDate).toLocaleDateString('fr-FR')}
+                                  {parseLocalDate(transaction.valueDate).toLocaleDateString('fr-FR')}
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">

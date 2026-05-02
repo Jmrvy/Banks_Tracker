@@ -4,6 +4,7 @@ import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 export interface ReportsPeriod {
   from: Date;
@@ -171,9 +172,9 @@ export const useReportsData = (
   // Utiliser la préférence de date (comptable ou valeur)
   const filteredTransactions = useMemo(() => {
     return transactions.filter(transaction => {
-      const dateToUse = activeDateType === 'value' 
-        ? new Date(transaction.value_date || transaction.transaction_date)
-        : new Date(transaction.transaction_date);
+      const dateToUse = activeDateType === 'value'
+        ? parseLocalDate(transaction.value_date || transaction.transaction_date)
+        : parseLocalDate(transaction.transaction_date);
       return isWithinInterval(dateToUse, { start: period.from, end: period.to });
     });
   }, [transactions, period, activeDateType]);
@@ -181,42 +182,40 @@ export const useReportsData = (
   // Shared initial balance calculation (used by stats and balance evolution)
   // O(n) approach: single pass through transactions, accumulate per-account net changes
   const initialBalance = useMemo(() => {
-    // Build a set of account names for fast lookup
-    const accountNames = new Set(accounts.map(a => a.name));
+    const accountIds = new Set(accounts.map(a => a.id));
 
-    // Single pass: accumulate net change per account name
     const netChangeByAccount = new Map<string, number>();
     for (const t of transactions) {
       const transactionDate = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       if (transactionDate < period.from) continue;
 
-      const srcName = t.account?.name;
-      const dstName = t.transfer_to_account?.name;
+      const srcId = t.account_id;
+      const dstId = t.transfer_to_account_id;
 
-      if (srcName && accountNames.has(srcName)) {
-        const prev = netChangeByAccount.get(srcName) || 0;
+      if (srcId && accountIds.has(srcId)) {
+        const prev = netChangeByAccount.get(srcId) || 0;
         switch (t.type) {
           case 'income':
-            netChangeByAccount.set(srcName, prev - Number(t.amount));
+            netChangeByAccount.set(srcId, prev - Number(t.amount));
             break;
           case 'expense':
-            netChangeByAccount.set(srcName, prev + Number(t.amount));
+            netChangeByAccount.set(srcId, prev + Number(t.amount));
             break;
           case 'transfer':
-            netChangeByAccount.set(srcName, prev + Number(t.amount) + Number(t.transfer_fee || 0));
+            netChangeByAccount.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0));
             break;
         }
       }
-      if (dstName && accountNames.has(dstName)) {
-        const prev = netChangeByAccount.get(dstName) || 0;
-        netChangeByAccount.set(dstName, prev - Number(t.amount));
+      if (dstId && accountIds.has(dstId)) {
+        const prev = netChangeByAccount.get(dstId) || 0;
+        netChangeByAccount.set(dstId, prev - Number(t.amount));
       }
     }
 
     return accounts.reduce((sum, account) => {
-      const netChange = netChangeByAccount.get(account.name) || 0;
+      const netChange = netChangeByAccount.get(account.id) || 0;
       return sum + Number(account.balance) + netChange;
     }, 0);
   }, [accounts, transactions, period, activeDateType]);
@@ -262,7 +261,7 @@ export const useReportsData = (
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     if (skipHeavy) return [];
     // Always use transaction_date (accounting date) for the evolution chart
-    const getAccountingDate = (t: Transaction) => new Date(t.transaction_date);
+    const getAccountingDate = (t: Transaction) => parseLocalDate(t.transaction_date);
     
     // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
     // Puis trier par date comptable pour l'affichage
@@ -295,7 +294,7 @@ export const useReportsData = (
     // Créer les points pour chaque jour de transaction
     const sortedDates = Array.from(transactionsByDate.keys()).sort();
     sortedDates.forEach(dateStr => {
-      const dateObj = new Date(dateStr);
+      const dateObj = parseLocalDate(dateStr);
       const dayTransactions = transactionsByDate.get(dateStr);
       
       const dayBalance = dayTransactions.reduce((sum: number, t: Transaction) => {
@@ -491,7 +490,7 @@ export const useReportsData = (
       const [sy, sm, sd] = rt.start_date.split('-').map(Number);
       if (isNaN(sy) || isNaN(sm) || isNaN(sd)) return { total: 0, past: 0, future: 0, details: [] };
       let current = new Date(sy, sm - 1, sd);
-      const endDate = rt.end_date && rt.end_date.length >= 10 ? new Date(rt.end_date) : null;
+      const endDate = rt.end_date && rt.end_date.length >= 10 ? parseLocalDate(rt.end_date) : null;
       if (endDate && isNaN(endDate.getTime())) return { total: 0, past: 0, future: 0, details: [] };
       const maxIterations = 500;
       let iterations = 0;
@@ -761,7 +760,7 @@ export const useReportsData = (
       for (const occ of pi.occurrenceDetails) {
         if (occ.isFuture) {
           futureItems.push({
-            date: new Date(occ.date),
+            date: parseLocalDate(occ.date),
             amount: occ.amount,
             type: pi.effectiveType,
           });
@@ -824,37 +823,37 @@ export const useReportsData = (
     if (!useSecondary) return filteredTransactions;
     return transactions.filter(transaction => {
       const dateToUse = secondaryDateType === 'value'
-        ? new Date(transaction.value_date || transaction.transaction_date)
-        : new Date(transaction.transaction_date);
+        ? parseLocalDate(transaction.value_date || transaction.transaction_date)
+        : parseLocalDate(transaction.transaction_date);
       return isWithinInterval(dateToUse, { start: period.from, end: period.to });
     });
   }, [useSecondary, filteredTransactions, transactions, period, secondaryDateType]);
 
   const secondaryInitialBalance = useMemo(() => {
     if (!useSecondary) return initialBalance;
-    const accountNames = new Set(accounts.map(a => a.name));
+    const accountIds = new Set(accounts.map(a => a.id));
     const netChangeByAccount = new Map<string, number>();
     for (const t of transactions) {
       const transactionDate = secondaryDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       if (transactionDate < period.from) continue;
-      const srcName = t.account?.name;
-      const dstName = t.transfer_to_account?.name;
-      if (srcName && accountNames.has(srcName)) {
-        const prev = netChangeByAccount.get(srcName) || 0;
+      const srcId = t.account_id;
+      const dstId = t.transfer_to_account_id;
+      if (srcId && accountIds.has(srcId)) {
+        const prev = netChangeByAccount.get(srcId) || 0;
         switch (t.type) {
-          case 'income': netChangeByAccount.set(srcName, prev - Number(t.amount)); break;
-          case 'expense': netChangeByAccount.set(srcName, prev + Number(t.amount)); break;
-          case 'transfer': netChangeByAccount.set(srcName, prev + Number(t.amount) + Number(t.transfer_fee || 0)); break;
+          case 'income': netChangeByAccount.set(srcId, prev - Number(t.amount)); break;
+          case 'expense': netChangeByAccount.set(srcId, prev + Number(t.amount)); break;
+          case 'transfer': netChangeByAccount.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0)); break;
         }
       }
-      if (dstName && accountNames.has(dstName)) {
-        const prev = netChangeByAccount.get(dstName) || 0;
-        netChangeByAccount.set(dstName, prev - Number(t.amount));
+      if (dstId && accountIds.has(dstId)) {
+        const prev = netChangeByAccount.get(dstId) || 0;
+        netChangeByAccount.set(dstId, prev - Number(t.amount));
       }
     }
-    return accounts.reduce((sum, account) => sum + Number(account.balance) + (netChangeByAccount.get(account.name) || 0), 0);
+    return accounts.reduce((sum, account) => sum + Number(account.balance) + (netChangeByAccount.get(account.id) || 0), 0);
   }, [useSecondary, initialBalance, accounts, transactions, period, secondaryDateType]);
 
   const secondaryStats = useMemo<ReportsStats>(() => {

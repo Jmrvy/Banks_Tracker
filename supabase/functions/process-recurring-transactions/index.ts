@@ -100,25 +100,18 @@ serve(async (req) => {
         // Check if end_date has passed
         if (recurring.end_date && recurring.end_date < today) {
           console.log(`Deactivating expired recurring transaction: ${recurring.description}`);
-          
-          // Deactivate the recurring transaction
           await supabase
             .from('recurring_transactions')
             .update({ is_active: false })
             .eq('id', recurring.id);
-          
           continue;
         }
 
         console.log(`Processing recurring transaction: ${recurring.description}`);
 
-        // Resolve effective amount/type for debt- or installment-linked recurrings
+        // Resolve effective amount/type for installment-linked
         let effectiveAmount = Number(recurring.amount);
         let effectiveType = recurring.type;
-        let scheduledPrincipal = 0;
-        let scheduledInterest = 0;
-        let matchingScheduledDebtPayment: any = null;
-        let skipTransaction = false;
 
         if (recurring.installment_payment_id) {
           const { data: ipData } = await supabase
@@ -130,114 +123,134 @@ serve(async (req) => {
             effectiveType = 'expense';
             effectiveAmount = Number(ipData.installment_amount);
           }
-        } else if (recurring.debt_id) {
-          // Use the scheduled_debt_payment matching this month's amount + principal/interest split
-          const monthKey = String(recurring.next_due_date).substring(0, 7);
+        }
+
+        // Fetch debt scheduled payments once (used for all occurrences)
+        let debtScheduledPayments: any[] = [];
+        let debtPaymentAmount = 0;
+        if (recurring.debt_id) {
           const { data: spData } = await supabase
             .from('scheduled_debt_payments')
             .select('*')
             .eq('debt_id', recurring.debt_id)
             .eq('user_id', recurring.user_id)
             .order('scheduled_date', { ascending: true });
-          const scheduled = (spData || []).find(
-            (sp: any) => String(sp.scheduled_date).substring(0, 7) === monthKey
-          );
-          if (scheduled) {
-            if (scheduled.is_paid) {
-              skipTransaction = true;
-            } else {
-              effectiveAmount = Number(scheduled.scheduled_amount);
-              scheduledPrincipal = Number(scheduled.principal_amount) || 0;
-              scheduledInterest = Number(scheduled.interest_amount) || 0;
-              matchingScheduledDebtPayment = scheduled;
-            }
-          } else {
-            const { data: debtData } = await supabase
-              .from('debts')
-              .select('payment_amount')
-              .eq('id', recurring.debt_id)
-              .single();
-            if (debtData?.payment_amount) {
-              effectiveAmount = Number(debtData.payment_amount);
-            }
-          }
+          debtScheduledPayments = spData || [];
+
+          const { data: debtData } = await supabase
+            .from('debts')
+            .select('payment_amount')
+            .eq('id', recurring.debt_id)
+            .single();
+          if (debtData?.payment_amount) debtPaymentAmount = Number(debtData.payment_amount);
         }
 
-        // Deduplication: check if a transaction already exists for this recurring + date
-        const { data: existingTx } = await supabase
-          .from('transactions')
-          .select('id')
-          .eq('user_id', recurring.user_id)
-          .eq('recurring_transaction_id', recurring.id)
-          .eq('transaction_date', recurring.next_due_date)
-          .limit(1);
+        // Multi-occurrence catch-up loop: process all overdue occurrences
+        let currentDueDate = recurring.next_due_date;
+        let occurrencesProcessed = 0;
+        const maxOccurrences = 12;
 
-        if (existingTx && existingTx.length > 0) {
-          console.log(`Skipping duplicate: transaction already exists for ${recurring.description} on ${recurring.next_due_date}`);
-          const skipNextDate = advanceDate(recurring.next_due_date, recurring.recurrence_type);
-          await supabase
-            .from('recurring_transactions')
-            .update({ next_due_date: skipNextDate })
-            .eq('id', recurring.id);
-          continue;
-        }
+        while (currentDueDate <= today && occurrencesProcessed < maxOccurrences) {
+          if (recurring.end_date && currentDueDate > recurring.end_date) break;
 
-        if (!skipTransaction) {
-          // Create the actual transaction
-          const { error: transactionError } = await supabase
+          // Deduplication: skip if transaction already exists
+          const { data: existingTx } = await supabase
             .from('transactions')
-            .insert({
-              description: `${resolveNamePlaceholders(recurring.description, new Date(recurring.next_due_date + 'T12:00:00'))} (Récurrence automatique)`,
-              amount: effectiveAmount,
-              type: effectiveType,
-              account_id: recurring.account_id,
-              category_id: recurring.category_id,
-              transaction_date: recurring.next_due_date,
-              value_date: recurring.next_due_date,
-              user_id: recurring.user_id,
-              installment_payment_id: recurring.installment_payment_id || null,
-              recurring_transaction_id: recurring.id,
-            });
+            .select('id')
+            .eq('user_id', recurring.user_id)
+            .eq('recurring_transaction_id', recurring.id)
+            .eq('transaction_date', currentDueDate)
+            .limit(1);
 
-          if (transactionError) {
-            console.error(`Error creating transaction for recurring ${recurring.id}:`, transactionError);
-            errorCount++;
+          if (existingTx && existingTx.length > 0) {
+            occurrencesProcessed++;
+            currentDueDate = advanceDate(currentDueDate, recurring.recurrence_type);
             continue;
           }
 
-          // For debt-linked: mark scheduled payment as paid + record debt_payment
-          if (recurring.debt_id && matchingScheduledDebtPayment) {
-            await supabase
-              .from('scheduled_debt_payments')
-              .update({
-                is_paid: true,
-                paid_date: recurring.next_due_date,
-                actual_amount: effectiveAmount,
-              })
-              .eq('id', matchingScheduledDebtPayment.id)
-              .eq('user_id', recurring.user_id);
+          // Resolve debt-linked amount per occurrence
+          let occurrenceAmount = effectiveAmount;
+          let skipTransaction = false;
+          let scheduledPrincipal = 0;
+          let scheduledInterest = 0;
+          let matchingScheduledDebtPayment: any = null;
 
-            await supabase
-              .from('debt_payments')
-              .insert({
-                debt_id: recurring.debt_id,
-                user_id: recurring.user_id,
-                amount: effectiveAmount,
-                principal_amount: scheduledPrincipal,
-                interest_amount: scheduledInterest,
-                payment_date: recurring.next_due_date,
-                notes: `Récurrence automatique: ${recurring.description}`,
-              });
+          if (recurring.debt_id && debtScheduledPayments.length > 0) {
+            const monthKey = currentDueDate.substring(0, 7);
+            const scheduled = debtScheduledPayments.find(
+              (sp: any) => String(sp.scheduled_date).substring(0, 7) === monthKey
+            );
+            if (scheduled) {
+              if (scheduled.is_paid) {
+                skipTransaction = true;
+              } else {
+                occurrenceAmount = Number(scheduled.scheduled_amount);
+                scheduledPrincipal = Number(scheduled.principal_amount) || 0;
+                scheduledInterest = Number(scheduled.interest_amount) || 0;
+                matchingScheduledDebtPayment = scheduled;
+              }
+            } else if (debtPaymentAmount > 0) {
+              occurrenceAmount = debtPaymentAmount;
+            }
           }
+
+          if (!skipTransaction) {
+            const { error: transactionError } = await supabase
+              .from('transactions')
+              .insert({
+                description: `${resolveNamePlaceholders(recurring.description, new Date(currentDueDate + 'T12:00:00'))} (Récurrence automatique)`,
+                amount: occurrenceAmount,
+                type: effectiveType,
+                account_id: recurring.account_id,
+                category_id: recurring.category_id,
+                transaction_date: currentDueDate,
+                value_date: currentDueDate,
+                user_id: recurring.user_id,
+                installment_payment_id: recurring.installment_payment_id || null,
+                recurring_transaction_id: recurring.id,
+              });
+
+            if (transactionError) {
+              console.error(`Error creating transaction for recurring ${recurring.id} on ${currentDueDate}:`, transactionError);
+              errorCount++;
+              break;
+            }
+
+            // For debt-linked: mark scheduled payment as paid + record debt_payment
+            if (recurring.debt_id && matchingScheduledDebtPayment) {
+              await supabase
+                .from('scheduled_debt_payments')
+                .update({
+                  is_paid: true,
+                  paid_date: currentDueDate,
+                  actual_amount: occurrenceAmount,
+                })
+                .eq('id', matchingScheduledDebtPayment.id)
+                .eq('user_id', recurring.user_id);
+              matchingScheduledDebtPayment.is_paid = true;
+
+              await supabase
+                .from('debt_payments')
+                .insert({
+                  debt_id: recurring.debt_id,
+                  user_id: recurring.user_id,
+                  amount: occurrenceAmount,
+                  principal_amount: scheduledPrincipal,
+                  interest_amount: scheduledInterest,
+                  payment_date: currentDueDate,
+                  notes: `Récurrence automatique: ${recurring.description}`,
+                });
+            }
+          }
+
+          occurrencesProcessed++;
+          currentDueDate = advanceDate(currentDueDate, recurring.recurrence_type);
         }
 
-        // Calculate next due date using date-fns (timezone-safe)
-        const nextDueDateStr = advanceDate(recurring.next_due_date, recurring.recurrence_type);
-
-        // Update the next due date
+        // Update next_due_date to the next unprocessed occurrence
         const { error: updateError } = await supabase
           .from('recurring_transactions')
-          .update({ next_due_date: nextDueDateStr })
+          .update({ next_due_date: currentDueDate })
           .eq('id', recurring.id);
 
         if (updateError) {
@@ -246,50 +259,53 @@ serve(async (req) => {
           continue;
         }
 
-        // If this recurring transaction is linked to an installment payment, update the remaining amount
-        if (recurring.installment_payment_id && !skipTransaction) {
-          console.log(`Updating installment payment ${recurring.installment_payment_id} for recurring ${recurring.id}`);
-
-          // Get current installment payment
+        // Update installment payment remaining amount + deactivate if fully paid
+        if (recurring.installment_payment_id && occurrencesProcessed > 0) {
           const { data: installmentPayment, error: fetchInstallmentError } = await supabase
             .from('installment_payments')
-            .select('remaining_amount, is_active')
+            .select('remaining_amount, total_amount, is_active')
             .eq('id', recurring.installment_payment_id)
             .single();
 
           if (fetchInstallmentError) {
             console.error(`Error fetching installment payment ${recurring.installment_payment_id}:`, fetchInstallmentError);
           } else if (installmentPayment) {
-            // Calculate new remaining amount
-            const newRemainingAmount = installmentPayment.remaining_amount - Math.abs(effectiveAmount);
+            // Recalculate from actual linked transactions
+            const { data: linkedTxs } = await supabase
+              .from('transactions')
+              .select('amount')
+              .eq('installment_payment_id', recurring.installment_payment_id)
+              .eq('user_id', recurring.user_id);
 
-            // Update installment payment (remaining amount + next_payment_date)
+            const totalPaid = (linkedTxs || []).reduce(
+              (sum: number, tx: any) => sum + Number(tx.amount), 0
+            );
+            const newRemaining = Math.max(0, Number(installmentPayment.total_amount) - totalPaid);
+
             const installmentUpdate: any = {
-              remaining_amount: Math.max(0, newRemainingAmount),
-              next_payment_date: nextDueDateStr,
+              remaining_amount: newRemaining,
+              next_payment_date: currentDueDate,
             };
 
-            // If fully paid, deactivate the installment payment
-            if (newRemainingAmount <= 0) {
+            if (newRemaining <= 0) {
               installmentUpdate.is_active = false;
               console.log(`Installment payment ${recurring.installment_payment_id} is now fully paid`);
+              // H6: Deactivate the recurring transaction when installment is fully paid
+              await supabase
+                .from('recurring_transactions')
+                .update({ is_active: false })
+                .eq('id', recurring.id);
             }
 
-            const { error: updateInstallmentError } = await supabase
+            await supabase
               .from('installment_payments')
               .update(installmentUpdate)
               .eq('id', recurring.installment_payment_id);
-
-            if (updateInstallmentError) {
-              console.error(`Error updating installment payment ${recurring.installment_payment_id}:`, updateInstallmentError);
-            } else {
-              console.log(`Successfully updated installment payment ${recurring.installment_payment_id}, new remaining: ${Math.max(0, newRemainingAmount)}`);
-            }
           }
         }
 
-        // If debt-linked, recalculate debt.remaining_amount from the sum of principal_amount on debt_payments
-        if (recurring.debt_id && !skipTransaction) {
+        // Recalculate debt remaining if linked
+        if (recurring.debt_id && occurrencesProcessed > 0) {
           const { data: debtPaymentsData } = await supabase
             .from('debt_payments')
             .select('principal_amount')
@@ -324,16 +340,19 @@ serve(async (req) => {
           }
         }
 
-        processedCount++;
-        processedTransactions.push({
-          id: recurring.id,
-          description: recurring.description,
-          amount: recurring.amount,
-          type: recurring.type,
-          nextDueDate: nextDueDateStr
-        });
+        processedCount += occurrencesProcessed;
+        if (occurrencesProcessed > 0) {
+          processedTransactions.push({
+            id: recurring.id,
+            description: recurring.description,
+            amount: recurring.amount,
+            type: recurring.type,
+            occurrences: occurrencesProcessed,
+            nextDueDate: currentDueDate,
+          });
+        }
 
-        console.log(`Successfully processed recurring transaction: ${recurring.description}`);
+        console.log(`Successfully processed ${occurrencesProcessed} occurrence(s) for: ${recurring.description}`);
 
       } catch (error) {
         console.error(`Error processing recurring transaction ${recurring.id}:`, error);

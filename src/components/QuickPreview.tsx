@@ -63,8 +63,8 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
     const monthTransactions = transactions.filter(t => {
       const date = activeDateType === 'value'
-        ? new Date(t.value_date || t.transaction_date)
-        : new Date(t.transaction_date);
+        ? parseLocalDate(t.value_date || t.transaction_date)
+        : parseLocalDate(t.transaction_date);
       return date >= monthStart && date <= monthEnd && t.include_in_stats !== false;
     });
 

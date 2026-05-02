@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, CalendarClock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface Transaction {
   id: string;
@@ -68,24 +69,24 @@ export const TransactionTypeModal = ({
   // Check if transaction has different dates
   const hasDateDifference = (t: Transaction) => {
     if (!t.value_date) return false;
-    const transactionDate = new Date(t.transaction_date).toDateString();
-    const valueDate = new Date(t.value_date).toDateString();
+    const transactionDate = parseLocalDate(t.transaction_date).toDateString();
+    const valueDate = parseLocalDate(t.value_date).toDateString();
     return transactionDate !== valueDate;
   };
 
   // Get the display date based on preference
   const getDisplayDate = (t: Transaction) => {
-    const dateToUse = activeDateType === 'value' && t.value_date 
-      ? new Date(t.value_date) 
-      : new Date(t.transaction_date);
+    const dateToUse = activeDateType === 'value' && t.value_date
+      ? parseLocalDate(t.value_date)
+      : parseLocalDate(t.transaction_date);
     return format(dateToUse, "d MMM yyyy", { locale: fr });
   };
 
   // Get the other date for tooltip
   const getOtherDate = (t: Transaction) => {
-    const otherDate = activeDateType === 'value' 
-      ? new Date(t.transaction_date)
-      : new Date(t.value_date || t.transaction_date);
+    const otherDate = activeDateType === 'value'
+      ? parseLocalDate(t.transaction_date)
+      : parseLocalDate(t.value_date || t.transaction_date);
     return format(otherDate, "d MMM yyyy", { locale: fr });
   };
 
@@ -161,7 +162,7 @@ export const TransactionTypeModal = ({
                                   <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-muted rounded text-muted-foreground text-[9px] sm:text-xs">
                                     <span className="hidden sm:inline">Comptable:</span>
                                     <span className="sm:hidden">C:</span>
-                                    {format(new Date(transaction.transaction_date), "d MMM", { locale: fr })}
+                                    {format(parseLocalDate(transaction.transaction_date), "d MMM", { locale: fr })}
                                   </span>
                                 </div>
                               ) : (
