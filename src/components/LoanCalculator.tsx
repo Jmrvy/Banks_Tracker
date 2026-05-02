@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { calculateLoanWithFrequency, LoanCalculation } from '@/utils/loanCalculator';
 import { DollarSign, TrendingUp, Calendar, Percent } from 'lucide-react';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 interface LoanCalculatorProps {
   onCalculationChange?: (calculation: LoanCalculation | null, params: LoanParams) => void;
@@ -153,7 +154,7 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
               id="startDate"
               type="date"
               value={params.startDate.toISOString().split('T')[0]}
-              onChange={(e) => updateParam('startDate', new Date(e.target.value))}
+              onChange={(e) => updateParam('startDate', parseLocalDate(e.target.value))}
             />
           </div>
         </CardContent>
