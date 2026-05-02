@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import {
+  InstallmentScheduleTimeline,
+  InstallmentMiniCard,
+} from "@/components/InstallmentScheduleTimeline";
 import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentModal";
 import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
 import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
@@ -51,6 +55,7 @@ const InstallmentPayments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [featuredPlanId, setFeaturedPlanId] = useState<string | null>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [adjustmentData, setAdjustmentData] = useState<{
@@ -497,56 +502,71 @@ const InstallmentPayments = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground whitespace-nowrap">Total dû</p>
-                  <div className="icon-badge icon-badge-sm bg-orange-500/10 flex-shrink-0 flex">
-                    <Wallet className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-orange-500" />
-                  </div>
-                </div>
-                <p className="text-sm sm:text-2xl font-bold break-all leading-tight">
-                  {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Actifs</p>
-                  <p className="text-base sm:text-2xl font-bold">
-                    {installmentPayments.filter(p => p.is_active).length}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
-                  <CreditCard className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Terminés</p>
-                  <p className="text-base sm:text-2xl font-bold">
-                    {installmentPayments.filter(p => !p.is_active).length}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 flex">
-                  <Clock className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* KPIs */}
+        <div className="grid grid-cols-3 gap-3 md:gap-4">
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon warn"><Wallet className="h-4 w-4" /></div>
+              <span className="ft-kpi-label">{t('installments.totalDue', { defaultValue: 'Total due' })}</span>
+            </div>
+            <div className="ft-kpi-value truncate">
+              {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
+            </div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon pos"><CreditCard className="h-4 w-4" /></div>
+              <span className="ft-kpi-label">{t('installments.active', { defaultValue: 'Active' })}</span>
+            </div>
+            <div className="ft-kpi-value">{installmentPayments.filter(p => p.is_active).length}</div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon"><Clock className="h-4 w-4 text-muted-foreground" /></div>
+              <span className="ft-kpi-label">{t('installments.completed', { defaultValue: 'Completed' })}</span>
+            </div>
+            <div className="ft-kpi-value">{installmentPayments.filter(p => !p.is_active).length}</div>
+          </div>
         </div>
+
+        {/* Featured plan deep-dive (timeline + other plans rail) */}
+        {(() => {
+          const activePlans = installmentPayments.filter((p) => p.is_active);
+          if (activePlans.length === 0) return null;
+          // Prefer the user-selected plan, else the one furthest from completion
+          const featured =
+            activePlans.find((p) => p.id === featuredPlanId) ||
+            [...activePlans].sort((a, b) => b.remaining_amount - a.remaining_amount)[0];
+          if (!featured) return null;
+          const others = activePlans.filter((p) => p.id !== featured.id);
+          const accountFor = (id: string) =>
+            accounts.find((a) => a.id === id)?.name ?? null;
+          return (
+            <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_1fr] gap-4">
+              <InstallmentScheduleTimeline
+                plan={featured}
+                accountName={accountFor(featured.account_id)}
+              />
+              {others.length > 0 && (
+                <div className="flex flex-col gap-3 min-h-0">
+                  <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground pl-1">
+                    {t("installments.otherActivePlans", {
+                      defaultValue: "Other active plans",
+                    })}
+                  </div>
+                  {others.slice(0, 4).map((p) => (
+                    <InstallmentMiniCard
+                      key={p.id}
+                      plan={p}
+                      accountName={accountFor(p.account_id)}
+                      onClick={() => setFeaturedPlanId(p.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
@@ -559,21 +579,19 @@ const InstallmentPayments = () => {
 
         {/* Payments List */}
         {filteredPayments.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 sm:p-12 text-center">
-              <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
-                <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-base sm:text-lg font-medium mb-2">Aucun paiement échelonné</h3>
-              <p className="text-muted-foreground text-xs sm:text-sm mb-4">
-                Créez votre premier paiement en plusieurs fois pour commencer
-              </p>
-              <Button onClick={() => setShowNewModal(true)} className="h-9 text-sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Créer un paiement
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="ft-card p-8 sm:p-12 text-center">
+            <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 sm:mb-4 grid place-items-center">
+              <CreditCard className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="text-base sm:text-lg font-medium mb-2">{t('installments.empty', { defaultValue: 'No installment plans' })}</h3>
+            <p className="text-muted-foreground text-xs sm:text-sm mb-4">
+              {t('installments.emptyHint', { defaultValue: 'Create your first multi-payment plan to get started' })}
+            </p>
+            <Button onClick={() => setShowNewModal(true)} size="sm" className="h-8 text-sm gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              {t('installments.newPlan', { defaultValue: 'New plan' })}
+            </Button>
+          </div>
         ) : (
           <div className="space-y-2">
             {filteredPayments.map(renderPaymentCard)}

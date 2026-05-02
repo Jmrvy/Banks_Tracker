@@ -142,25 +142,34 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-3 sm:p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center p-4 sm:p-6">
-          <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
-            {t('auth.welcome')}
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm mt-1.5">
-            {t('auth.welcomeSubtitle')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
-              <TabsTrigger value="signin" className="text-xs sm:text-sm">{t('auth.signInTab')}</TabsTrigger>
-              <TabsTrigger value="signup" className="text-xs sm:text-sm">{t('auth.signUpTab')}</TabsTrigger>
-            </TabsList>
+    <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4 relative overflow-hidden">
+      {/* Subtle accent glow */}
+      <div className="pointer-events-none absolute inset-0 opacity-60"
+        style={{ background: 'radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.10), transparent 60%)' }}
+      />
+      <div className="ft-card w-full max-w-md p-6 sm:p-8 relative">
+        {/* Brand mark */}
+        <div className="flex items-center justify-center gap-2.5 mb-5">
+          <div className="h-9 w-9 rounded-xl bg-foreground text-background dark:bg-primary dark:text-primary-foreground grid place-items-center font-bold text-base tracking-tight">
+            S
+          </div>
+          <div className="leading-tight">
+            <div className="text-base font-semibold tracking-tight">Spending</div>
+            <div className="text-[11px] text-muted-foreground -mt-0.5">Tracker</div>
+          </div>
+        </div>
+        <div className="text-center mb-5">
+          <div className="ft-eyebrow mb-1">{t('auth.welcome')}</div>
+          <h1 className="ft-page-title text-xl sm:text-2xl">{t('auth.welcomeSubtitle')}</h1>
+        </div>
+        <Tabs defaultValue="signin" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
+            <TabsTrigger value="signin" className="text-xs sm:text-sm">{t('auth.signInTab')}</TabsTrigger>
+            <TabsTrigger value="signup" className="text-xs sm:text-sm">{t('auth.signUpTab')}</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+          <TabsContent value="signin">
+            <form onSubmit={handleSignIn} className="space-y-3 sm:space-y-4 mt-4">
                 <div className="space-y-1.5 sm:space-y-2">
                   <Label htmlFor="signin-email" className="text-xs sm:text-sm">{t('auth.email')}</Label>
                   <Input
@@ -238,9 +247,8 @@ export default function Auth() {
                 </Button>
               </form>
             </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+        </Tabs>
+      </div>
     </div>
   );
 }

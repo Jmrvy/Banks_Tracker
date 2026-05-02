@@ -141,21 +141,18 @@ const NewTransaction = () => {
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-24">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="mb-2">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-            <Plus className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            Nouvelle Transaction
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Ajouter une transaction
-          </p>
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page max-w-2xl">
+        {/* Page head */}
+        <div className="ft-page-head">
+          <div>
+            <div className="ft-eyebrow">{t('navigation.transactions')}</div>
+            <h1 className="ft-page-title">{t('newTransaction.title', { defaultValue: 'New transaction' })}</h1>
+            <div className="ft-page-sub">{t('newTransaction.subtitle', { defaultValue: 'Add expense, income, or transfer' })}</div>
+          </div>
         </div>
 
-
-        <div className="space-y-3 sm:space-y-4">
+        <div className="ft-card p-5 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Transaction Type Toggle */}
               <div className="flex gap-1.5 sm:gap-2">

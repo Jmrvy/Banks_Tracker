@@ -65,39 +65,34 @@ const Settings = () => {
           />
 
           {/* Guide */}
-          <Card>
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{t('settings.guideTitle')}</p>
-                    <p className="text-xs text-muted-foreground">{t('settings.guideSubtitle')}</p>
-                  </div>
+          <div className="ft-card p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-lg bg-primary/12 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="h-4 w-4 text-primary" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleReviewGuide}
-                  className="text-xs sm:text-sm"
-                >
-                  {t('settings.reviewGuide')}
-                </Button>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{t('settings.guideTitle')}</p>
+                  <p className="text-xs text-muted-foreground truncate">{t('settings.guideSubtitle')}</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+              <Button variant="outline" size="sm" onClick={handleReviewGuide} className="h-8 text-xs flex-shrink-0">
+                {t('settings.reviewGuide')}
+              </Button>
+            </div>
+          </div>
 
-          {/* Sign Out */}
-          <div className="pt-2">
-            <Button
-              variant="destructive"
-              onClick={signOut}
-              className="w-full h-10 text-sm"
-            >
-              {t('auth.signOut')}
-            </Button>
+          {/* Danger zone — sign out */}
+          <div className="ft-card p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="ft-card-title">{t('settings.dangerZone', { defaultValue: 'Danger zone' })}</h3>
+                <p className="ft-card-sub mt-0.5">{t('settings.dangerZoneDesc', { defaultValue: 'Sign out of your account' })}</p>
+              </div>
+              <Button variant="outline" onClick={signOut} size="sm" className="h-8 text-sm border-destructive/40 text-destructive hover:bg-destructive/10">
+                {t('auth.signOut')}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

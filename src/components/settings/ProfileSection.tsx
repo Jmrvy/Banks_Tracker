@@ -47,41 +47,41 @@ export const ProfileSection = ({ user }: ProfileSectionProps) => {
   };
 
   return (
-    <Card>
-      <CardHeader className="p-3 sm:p-6">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 sm:h-5 sm:w-5" />
-          <CardTitle className="text-sm sm:text-base">{t('settings.profile')}</CardTitle>
-        </div>
-        <CardDescription className="text-xs sm:text-sm hidden sm:block">
-          {t('settings.modifyInfo')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="fullName" className="text-xs sm:text-sm">{t('settings.fullName')}</Label>
-            <Input
-              id="fullName"
-              value={profile.fullName}
-              onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
-              className="h-8 sm:h-10 text-xs sm:text-sm"
-            />
+    <div className="ft-card p-5 sm:p-6">
+      <div className="ft-card-head">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
+              <User className="h-3.5 w-3.5" />
+            </div>
+            <h3 className="ft-card-title text-base">{t('settings.profile')}</h3>
           </div>
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="email" className="text-xs sm:text-sm">{t('settings.email')}</Label>
-            <Input
-              id="email"
-              value={profile.email}
-              disabled
-              className="bg-muted h-8 sm:h-10 text-xs sm:text-sm"
-            />
-          </div>
+          <p className="ft-card-sub mt-1">{t('settings.modifyInfo')}</p>
         </div>
-        <Button onClick={updateProfile} disabled={updateLoading} className="w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm">
-          {updateLoading ? t('settings.updating') : t('settings.updateProfile')}
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 mt-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="fullName" className="text-xs">{t('settings.fullName')}</Label>
+          <Input
+            id="fullName"
+            value={profile.fullName}
+            onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
+            className="h-9 text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-xs">{t('settings.email')}</Label>
+          <Input
+            id="email"
+            value={profile.email}
+            disabled
+            className="bg-bg-subtle h-9 text-sm"
+          />
+        </div>
+      </div>
+      <Button onClick={updateProfile} disabled={updateLoading} size="sm" className="mt-4 h-8 text-sm">
+        {updateLoading ? t('settings.updating') : t('settings.updateProfile')}
+      </Button>
+    </div>
   );
 };

@@ -100,17 +100,19 @@ export const CategoriesSection = ({ categories, refetch, formatCurrency }: Categ
 
   return (
     <>
-      <Card>
-        <CardHeader className="p-3 sm:p-6">
-          <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 sm:h-5 sm:w-5" />
-            <CardTitle className="text-sm sm:text-base">{t('settings.myCategories')}</CardTitle>
+      <div className="ft-card p-5 sm:p-6">
+        <div className="ft-card-head">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
+                <Database className="h-3.5 w-3.5" />
+              </div>
+              <h3 className="ft-card-title text-base">{t('settings.myCategories')}</h3>
+            </div>
+            <p className="ft-card-sub mt-1">{t('settings.manageCategories')}</p>
           </div>
-          <CardDescription className="text-xs sm:text-sm hidden sm:block">
-            {t('settings.manageCategories')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-6">
+        </div>
+        <div className="mt-4">
           <div className="space-y-2 sm:space-y-3">
             {categories.map((category) => (
               <div key={category.id} className="p-3 border rounded-lg bg-muted/30 dark:bg-muted/20">
@@ -182,8 +184,8 @@ export const CategoriesSection = ({ categories, refetch, formatCurrency }: Categ
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <ConfirmDialog
         open={confirmOpen}

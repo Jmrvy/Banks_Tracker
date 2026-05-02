@@ -247,89 +247,45 @@ const Savings = () => {
         </div>
 
         {/* Investment Statistics for Period */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.netSavings')}</p>
-                  <p className={`text-base sm:text-2xl font-bold truncate ${investmentStats.netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm flex-shrink-0 flex">
-                  <PiggyBank className="h-4 w-4 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.deposits')}</p>
-                  <p className="text-base sm:text-2xl font-bold text-success truncate">
-                    +{formatCurrency(investmentStats.expenseTotal)}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm flex-shrink-0 flex">
-                  <TrendingDown className="h-4 w-4 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.withdrawals')}</p>
-                  <p className="text-base sm:text-2xl font-bold text-destructive truncate">
-                    -{formatCurrency(investmentStats.incomeTotal)}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm flex-shrink-0 flex">
-                  <TrendingUp className="h-4 w-4 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card border-l-4 border-l-success">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.reimbursements')}</p>
-                  <p className="text-base sm:text-2xl font-bold text-success truncate">
-                    +{formatCurrency(reimbursementStats.total)}
-                  </p>
-                  <p className="text-xs sm:text-xs text-muted-foreground">
-                    {reimbursementStats.count} tx
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm flex-shrink-0 flex">
-                  <CreditCard className="h-4 w-4 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">{t('savings.transactions')}</p>
-                  <p className="text-base sm:text-2xl font-bold">
-                    {investmentStats.transactionCount}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm flex-shrink-0 flex">
-                  <Target className="h-4 w-4 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon acc"><PiggyBank className="h-4 w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('savings.netSavings')}</span>
+            </div>
+            <div className={`ft-kpi-value truncate ${investmentStats.netTotal >= 0 ? 'text-pos' : 'text-destructive'}`}>
+              {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
+            </div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon pos"><TrendingDown className="h-4 w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('savings.deposits')}</span>
+            </div>
+            <div className="ft-kpi-value truncate text-pos">+{formatCurrency(investmentStats.expenseTotal)}</div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon neg"><TrendingUp className="h-4 w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('savings.withdrawals')}</span>
+            </div>
+            <div className="ft-kpi-value truncate text-destructive">-{formatCurrency(investmentStats.incomeTotal)}</div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon pos"><CreditCard className="h-4 w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('savings.reimbursements')}</span>
+            </div>
+            <div className="ft-kpi-value truncate text-pos">+{formatCurrency(reimbursementStats.total)}</div>
+            <div className="text-xs text-muted-foreground">{reimbursementStats.count} tx</div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon acc"><Target className="h-4 w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('savings.transactions')}</span>
+            </div>
+            <div className="ft-kpi-value">{investmentStats.transactionCount}</div>
+          </div>
         </div>
 
         {/* Evolution Chart */}
@@ -374,10 +330,8 @@ const Savings = () => {
         {/* Reimbursement Installments */}
         {reimbursementInstallments.length > 0 && (
           <div>
-            <h2 className="section-header flex items-center gap-2 mb-3 sm:mb-4">
-              <div className="icon-badge icon-badge-sm">
-                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
-              </div>
+            <h2 className="ft-eyebrow flex items-center gap-2 mb-2">
+              <CreditCard className="h-3.5 w-3.5 text-pos" />
               {t('savings.reimbursementInstallments')} ({reimbursementInstallments.length})
             </h2>
             <p className="text-xs text-muted-foreground mb-3">
@@ -389,51 +343,44 @@ const Savings = () => {
                 const amountReceived = installment.total_amount - installment.remaining_amount;
 
                 return (
-                  <Card
+                  <button
                     key={installment.id}
-                    className="glass-hover border-l-4 border-l-success cursor-pointer"
+                    type="button"
+                    className="ft-card p-4 sm:p-5 text-left flex flex-col gap-2.5 hover:border-line-strong transition-colors"
                     onClick={() => setSelectedReimbursement(installment)}
                   >
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base sm:text-lg truncate">{installment.description}</h3>
-                          <Badge variant={installment.is_active ? "default" : "secondary"} className="text-xs mt-1">
-                            {installment.is_active ? t('savings.inProgress') : t('savings.completed')}
-                          </Badge>
-                        </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base truncate">{installment.description}</h3>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium mt-1 ${installment.is_active ? 'bg-pos/12 text-pos' : 'bg-bg-subtle text-muted-foreground'}`}>
+                          {installment.is_active ? t('savings.inProgress') : t('savings.completed')}
+                        </span>
                       </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-muted-foreground">{t('savings.progress')}</span>
-                          <span className="font-medium">{Math.min(progress, 100).toFixed(0)}%</span>
-                        </div>
-                        <Progress value={Math.min(progress, 100)} className="h-2" />
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="font-medium text-success">+{formatCurrency(amountReceived)}</span>
-                          <span className="text-muted-foreground">/ {formatCurrency(installment.total_amount)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                          <span>{t('savings.monthly')}: {formatCurrency(installment.installment_amount)}</span>
-                          <span>{t('savings.remaining')}: {formatCurrency(installment.remaining_amount)}</span>
-                        </div>
-                        {installment.is_active && (
-                          <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border/50 mt-1">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Prochain: {format(parseLocalDate(installment.next_payment_date), 'dd/MM/yyyy', { locale: fr })}
-                            </span>
-                            {installment.installment_amount > 0 && (
-                              <span>
-                                ~{Math.ceil(installment.remaining_amount / installment.installment_amount)} échéances
-                              </span>
-                            )}
-                          </div>
+                      <span className="font-mono text-xs text-muted-foreground">{Math.min(progress, 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="ft-progress-track">
+                      <div className="ft-progress-fill bg-pos" style={{ width: `${Math.min(progress, 100)}%` }} />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="font-mono font-medium text-pos">+{formatCurrency(amountReceived)}</span>
+                      <span className="font-mono text-muted-foreground">/ {formatCurrency(installment.total_amount)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-fg-dim">
+                      <span>{t('savings.monthly')}: <span className="font-mono">{formatCurrency(installment.installment_amount)}</span></span>
+                      <span>{t('savings.remaining')}: <span className="font-mono">{formatCurrency(installment.remaining_amount)}</span></span>
+                    </div>
+                    {installment.is_active && (
+                      <div className="flex justify-between text-[11px] text-fg-dim pt-2 border-t border-line">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(parseLocalDate(installment.next_payment_date), 'dd/MM/yyyy', { locale: fr })}
+                        </span>
+                        {installment.installment_amount > 0 && (
+                          <span>~{Math.ceil(installment.remaining_amount / installment.installment_amount)} {t('savings.installments', { defaultValue: 'left' })}</span>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -442,107 +389,100 @@ const Savings = () => {
 
         {/* Savings Goals */}
         <div>
-          <h2 className="section-header flex items-center gap-2 mb-3 sm:mb-4">
-            <div className="icon-badge icon-badge-sm">
-              <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-            </div>
+          <h2 className="ft-eyebrow flex items-center gap-2 mb-3">
+            <Target className="h-3.5 w-3.5 text-primary" />
             {t('savings.goalsTitle')} ({goals.length})
           </h2>
 
           {goals.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 sm:p-12 text-center">
-                <div className="icon-badge icon-badge-lg mx-auto mb-3">
-                  <Target className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {t('savings.noGoals')}
-                </p>
-                <Button onClick={() => setShowNewGoalModal(true)} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('savings.createGoal')}
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="ft-card p-8 sm:p-12 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 grid place-items-center">
+                <Target className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                {t('savings.noGoals')}
+              </p>
+              <Button onClick={() => setShowNewGoalModal(true)} size="sm" className="h-8 text-sm gap-1.5">
+                <Plus className="h-3.5 w-3.5" />
+                {t('savings.createGoal')}
+              </Button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {goals.map((goal) => {
                 const projection = calculateProjection(goal);
                 const progressPct = Math.min(projection.progress, 100);
                 const isComplete = goal.current_amount >= goal.target_amount;
+                const goalColor = goal.color || 'hsl(var(--primary))';
 
                 return (
-                  <Card
+                  <button
                     key={goal.id}
-                    className="glass-hover transition-colors cursor-pointer"
+                    type="button"
+                    className="ft-card p-4 sm:p-5 text-left flex flex-col gap-3 hover:border-line-strong transition-colors"
                     onClick={() => setSelectedGoal(goal)}
                   >
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-base sm:text-lg truncate">{goal.name}</h3>
-                            {isComplete && (
-                              <Badge variant="default" className="text-[10px] bg-success text-white flex-shrink-0">
-                                {t('savings.goalReached')}
-                              </Badge>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-base truncate">{goal.name}</h3>
+                          {isComplete && (
+                            <span className="ft-tag pos">{t('savings.goalReached')}</span>
+                          )}
+                        </div>
+                        {goal.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            {goal.description}
+                          </p>
+                        )}
+                      </div>
+                      <div
+                        className="h-2.5 w-2.5 rounded-sm flex-shrink-0 mt-1"
+                        style={{ backgroundColor: goalColor }}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-baseline justify-between text-xs">
+                        <span className="text-muted-foreground">{t('savings.progress')}</span>
+                        <span className="font-mono font-medium">{progressPct.toFixed(0)}%</span>
+                      </div>
+                      <div className="ft-progress-track">
+                        <div className="ft-progress-fill" style={{ width: `${progressPct}%`, background: goalColor }} />
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="font-mono font-medium">{formatCurrency(goal.current_amount)}</span>
+                        <span className="font-mono text-muted-foreground">/ {formatCurrency(goal.target_amount)}</span>
+                      </div>
+                    </div>
+
+                    {!isComplete && (
+                      <div className="flex flex-col gap-1 pt-3 border-t border-line">
+                        {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {t('savings.monthsToGoal', { count: projection.monthsToGoal })}
+                            </span>
+                            {projection.onTrack !== null && (
+                              <span className={`ft-tag ${projection.onTrack ? 'pos' : 'neg'}`}>
+                                {projection.onTrack ? t('savings.onTrack') : t('savings.behind')}
+                              </span>
                             )}
                           </div>
-                          {goal.description && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {goal.description}
-                            </p>
-                          )}
-                        </div>
-                        <div
-                          className="h-3 w-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: goal.color || 'hsl(var(--primary))' }}
-                        />
+                        )}
+                        {goal.target_date && projection.remainingDays !== null && projection.remainingDays > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {t('savings.daysRemaining', { count: projection.remainingDays })}
+                            </span>
+                            <span className={`font-mono ${projection.onTrack ? 'text-pos' : 'text-destructive'}`}>
+                              {t('savings.monthlyRequired', { amount: formatCurrency(projection.monthlyRequired) })}
+                            </span>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-muted-foreground">{t('savings.progress')}</span>
-                          <span className="font-medium">{progressPct.toFixed(0)}%</span>
-                        </div>
-                        <Progress value={progressPct} className="h-2" />
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="font-medium">{formatCurrency(goal.current_amount)}</span>
-                          <span className="text-muted-foreground">/ {formatCurrency(goal.target_amount)}</span>
-                        </div>
-                      </div>
-
-                      {/* Projection footer */}
-                      {!isComplete && (
-                        <div className="mt-3 pt-3 border-t border-border space-y-1">
-                          {/* Months-to-goal estimate (always show if we have average) */}
-                          {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                {t('savings.monthsToGoal', { count: projection.monthsToGoal })}
-                              </span>
-                              {projection.onTrack !== null && (
-                                <Badge variant="outline" className={`text-[10px] ${projection.onTrack ? 'border-success text-success' : 'border-destructive text-destructive'}`}>
-                                  {projection.onTrack ? t('savings.onTrack') : t('savings.behind')}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                          {/* Days remaining + monthly required (only if target_date set) */}
-                          {goal.target_date && projection.remainingDays !== null && projection.remainingDays > 0 && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                {t('savings.daysRemaining', { count: projection.remainingDays })}
-                              </span>
-                              <span className={projection.onTrack ? 'text-success' : 'text-destructive'}>
-                                {t('savings.monthlyRequired', { amount: formatCurrency(projection.monthlyRequired) })}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    )}
+                  </button>
                 );
               })}
             </div>

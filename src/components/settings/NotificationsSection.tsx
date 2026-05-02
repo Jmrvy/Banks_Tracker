@@ -100,38 +100,40 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
   };
 
   return (
-    <Card>
-      <CardHeader className="p-3 sm:p-6">
-        <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-          <CardTitle className="text-sm sm:text-base">{t('settings.emailNotifications')}</CardTitle>
+    <div className="ft-card p-5 sm:p-6">
+      <div className="ft-card-head">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
+              <Bell className="h-3.5 w-3.5" />
+            </div>
+            <h3 className="ft-card-title text-base">{t('settings.emailNotifications')}</h3>
+          </div>
+          <p className="ft-card-sub mt-1">{t('settings.configureAlerts')}</p>
         </div>
-        <CardDescription className="text-xs sm:text-sm hidden sm:block">
-          {t('settings.configureAlerts')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
-        <div className="space-y-2">
-          <Label htmlFor="notif-email" className="text-xs sm:text-sm">{t('settings.notificationEmail')}</Label>
+      </div>
+      <div className="space-y-4 mt-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="notif-email" className="text-xs">{t('settings.notificationEmail')}</Label>
           <Input
             id="notif-email"
             type="email"
             value={user?.email || ""}
             disabled
-            className="h-8 sm:h-10 text-xs sm:text-sm bg-muted"
+            className="h-9 text-sm bg-bg-subtle"
           />
           <p className="text-xs text-muted-foreground">
             {t('settings.notificationEmailHint')}
           </p>
         </div>
 
-        <Separator />
+        <div className="border-t border-line" />
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-xs sm:text-sm">{t('settings.budgetAlerts')}</Label>
-              <p className="text-xs text-muted-foreground">{t('settings.budgetAlertsDesc')}</p>
+              <Label className="text-sm">{t('settings.budgetAlerts')}</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('settings.budgetAlertsDesc')}</p>
             </div>
             <Switch
               checked={notificationPrefs.budgetAlerts}
@@ -141,8 +143,8 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-xs sm:text-sm">{t('settings.monthlyReports')}</Label>
-              <p className="text-xs text-muted-foreground">{t('settings.monthlyReportsDesc')}</p>
+              <Label className="text-sm">{t('settings.monthlyReports')}</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('settings.monthlyReportsDesc')}</p>
             </div>
             <Switch
               checked={notificationPrefs.monthlyReports}
@@ -152,26 +154,17 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            onClick={saveNotificationPreferences}
-            disabled={notifLoading}
-            className="w-full sm:w-auto"
-          >
+          <Button onClick={saveNotificationPreferences} disabled={notifLoading} size="sm" className="h-8 text-sm">
             {notifLoading ? t('settings.saving') : t('settings.saveNotifications')}
           </Button>
-          <Button
-            onClick={testBudgetCheck}
-            disabled={testBudgetLoading}
-            variant="outline"
-            className="w-full sm:w-auto"
-          >
+          <Button onClick={testBudgetCheck} disabled={testBudgetLoading} variant="outline" size="sm" className="h-8 text-sm">
             {testBudgetLoading ? t('settings.testing') : t('settings.testBudgetCheck')}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
           {t('settings.testBudgetHint')}
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

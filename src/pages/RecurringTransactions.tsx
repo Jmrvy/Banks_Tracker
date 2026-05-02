@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
 import RecurringCalendar from "@/components/RecurringCalendar";
+import { RecurringMonthlySummary } from "@/components/RecurringMonthlySummary";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { DebtDetailsModal } from "@/components/DebtDetailsModal";
 import { startOfDay } from "date-fns";
@@ -254,54 +255,28 @@ const RecurringTransactions = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Active</p>
-                  <p className="text-base sm:text-2xl font-bold">
-                    {activeTransactions.length}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0 flex">
-                  <Play className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">Inactive</p>
-                  <p className="text-base sm:text-2xl font-bold">
-                    {inactiveTransactions.length}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm bg-muted/20 flex-shrink-0 flex">
-                  <Pause className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardContent className="p-2.5 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p className="section-header text-[10px] sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 whitespace-nowrap">7 jours</p>
-                  <p className="text-base sm:text-2xl font-bold">
-                    {dueInSevenDaysCount}
-                  </p>
-                </div>
-                <div className="icon-badge icon-badge-sm bg-warning/10 flex-shrink-0 flex">
-                  <Calendar className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-3 gap-3 md:gap-4">
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon pos"><Play className="h-4 w-4" /></div>
+              <span className="ft-kpi-label">{t('recurring.active', { defaultValue: 'Active' })}</span>
+            </div>
+            <div className="ft-kpi-value">{activeTransactions.length}</div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon"><Pause className="h-4 w-4 text-muted-foreground" /></div>
+              <span className="ft-kpi-label">{t('recurring.inactive', { defaultValue: 'Inactive' })}</span>
+            </div>
+            <div className="ft-kpi-value">{inactiveTransactions.length}</div>
+          </div>
+          <div className="ft-kpi">
+            <div className="flex items-center gap-2.5">
+              <div className="ft-kpi-icon warn"><Calendar className="h-4 w-4" /></div>
+              <span className="ft-kpi-label">{t('recurring.next7Days', { defaultValue: 'Next 7 days' })}</span>
+            </div>
+            <div className="ft-kpi-value">{dueInSevenDaysCount}</div>
+          </div>
         </div>
 
         {/* Tabs: Calendar / List */}
@@ -333,38 +308,39 @@ const RecurringTransactions = () => {
                 </CardContent>
               </Card>
             ) : recurringTransactions.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 sm:p-12">
-                  <div className="text-center">
-                    <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
+              <div className="ft-card p-8 sm:p-12">
+                <div className="text-center">
+                  <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 sm:mb-4 grid place-items-center">
                       <CalendarDays className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-base sm:text-lg font-medium mb-2">Aucune récurrente</h3>
                     <p className="text-muted-foreground text-xs sm:text-sm mb-4">
                       Créez votre première transaction récurrente.
                     </p>
-                    <Button onClick={() => setShowNewRecurring(true)} className="h-9 text-sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Créer une Récurrente
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  <Button onClick={() => setShowNewRecurring(true)} size="sm" className="h-8 text-sm gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    Créer une Récurrente
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <RecurringCalendar
-                transactions={recurringTransactions}
-                actualTransactions={transactions}
-                installmentPayments={installmentPayments}
-                debts={debts}
-                debtPayments={debtPayments}
-                scheduledDebtPayments={scheduledDebtPayments}
-                onEdit={setEditingTransaction}
-                onToggleActive={handleToggleActive}
-                onDelete={handleDelete}
-                onExecuteEarly={handleExecuteEarly}
-                onRecordPayment={(id) => setRecordPaymentForId(id)}
-                onManageDebtPayment={(debtId) => setManagingDebtId(debtId)}
-              />
+              <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+                <RecurringCalendar
+                  transactions={recurringTransactions}
+                  actualTransactions={transactions}
+                  installmentPayments={installmentPayments}
+                  debts={debts}
+                  debtPayments={debtPayments}
+                  scheduledDebtPayments={scheduledDebtPayments}
+                  onEdit={setEditingTransaction}
+                  onToggleActive={handleToggleActive}
+                  onDelete={handleDelete}
+                  onExecuteEarly={handleExecuteEarly}
+                  onRecordPayment={(id) => setRecordPaymentForId(id)}
+                  onManageDebtPayment={(debtId) => setManagingDebtId(debtId)}
+                />
+                <RecurringMonthlySummary />
+              </div>
             )}
           </TabsContent>
 
@@ -379,23 +355,21 @@ const RecurringTransactions = () => {
                 ))}
               </div>
             ) : recurringTransactions.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 sm:p-12">
-                  <div className="text-center">
-                    <div className="icon-badge icon-badge-lg bg-muted/50 mx-auto mb-3 sm:mb-4">
+              <div className="ft-card p-8 sm:p-12">
+                <div className="text-center">
+                  <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 sm:mb-4 grid place-items-center">
                       <Repeat className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-base sm:text-lg font-medium mb-2">Aucune récurrente</h3>
                     <p className="text-muted-foreground text-xs sm:text-sm mb-4">
                       Créez votre première transaction récurrente.
                     </p>
-                    <Button onClick={() => setShowNewRecurring(true)} className="h-9 text-sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Créer une Récurrente
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  <Button onClick={() => setShowNewRecurring(true)} size="sm" className="h-8 text-sm gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    Créer une Récurrente
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
                 {/* Active transactions */}

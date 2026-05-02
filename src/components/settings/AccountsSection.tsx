@@ -200,43 +200,30 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
 
   return (
     <>
-      <Card>
-        <CardHeader className="p-3 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Database className="h-4 w-4 sm:h-5 sm:w-5" />
-                <CardTitle className="text-sm sm:text-base">{t('settings.myAccounts')}</CardTitle>
+      <div className="ft-card p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
+                <Database className="h-3.5 w-3.5" />
               </div>
-              <CardDescription className="text-xs sm:text-sm hidden sm:block mt-1.5">
-                {t('settings.manageAccounts')}
-              </CardDescription>
+              <h3 className="ft-card-title text-base">{t('settings.myAccounts')}</h3>
             </div>
-            <div className="flex gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openHistory}
-                className="h-8 text-xs gap-1.5"
-              >
-                <History className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Historique</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={recalculateBalances}
-                disabled={recalculating}
-                className="h-8 text-xs gap-1.5"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${recalculating ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{recalculating ? 'Recalcul...' : 'Recalculer les soldes'}</span>
-                <span className="sm:hidden">{recalculating ? '...' : 'Recalculer'}</span>
-              </Button>
-            </div>
+            <p className="ft-card-sub mt-1">{t('settings.manageAccounts')}</p>
           </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-6">
+          <div className="flex gap-1.5 flex-shrink-0">
+            <Button size="sm" variant="outline" onClick={openHistory} className="h-8 text-xs gap-1.5">
+              <History className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Historique</span>
+            </Button>
+            <Button size="sm" variant="outline" onClick={recalculateBalances} disabled={recalculating} className="h-8 text-xs gap-1.5">
+              <RefreshCw className={`h-3.5 w-3.5 ${recalculating ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{recalculating ? 'Recalcul...' : 'Recalculer'}</span>
+              <span className="sm:hidden">{recalculating ? '...' : 'Recalc'}</span>
+            </Button>
+          </div>
+        </div>
+        <div>
           <div className="space-y-2 sm:space-y-3">
             {accounts.map((account) => (
               <div key={account.id} className="p-3 border rounded-lg bg-muted/30 dark:bg-muted/20">
@@ -312,8 +299,8 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <ConfirmDialog
         open={confirmOpen}
