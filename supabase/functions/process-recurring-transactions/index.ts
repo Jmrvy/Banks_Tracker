@@ -1,10 +1,25 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { addWeeks, addMonths, addYears } from "https://esm.sh/date-fns@3.6.0";
+import { addWeeks, addMonths, addYears, format } from "https://esm.sh/date-fns@3.6.0";
+import { fr } from "https://esm.sh/date-fns@3.6.0/locale";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function resolveNamePlaceholders(template: string, date: Date): string {
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const month = capitalize(format(date, 'MMMM', { locale: fr }));
+  return template
+    .replace(/\{MOIS\}/gi, month)
+    .replace(/\{MONTH\}/gi, month)
+    .replace(/\{MM\}/g, format(date, 'MM'))
+    .replace(/\{ANNEE\}/gi, format(date, 'yyyy'))
+    .replace(/\{YEAR\}/gi, format(date, 'yyyy'))
+    .replace(/\{YY\}/g, format(date, 'yy'))
+    .replace(/\{JOUR\}/gi, format(date, 'dd'))
+    .replace(/\{DAY\}/gi, format(date, 'dd'));
 }
 
 serve(async (req) => {
@@ -112,7 +127,7 @@ serve(async (req) => {
             .eq('id', recurring.installment_payment_id)
             .single();
           if (ipData) {
-            effectiveType = ipData.payment_type === 'reimbursement' ? 'income' : 'expense';
+            effectiveType = 'expense';
             effectiveAmount = Number(ipData.installment_amount);
           }
         } else if (recurring.debt_id) {
@@ -153,10 +168,8 @@ serve(async (req) => {
           .from('transactions')
           .select('id')
           .eq('user_id', recurring.user_id)
-          .eq('account_id', recurring.account_id)
+          .eq('recurring_transaction_id', recurring.id)
           .eq('transaction_date', recurring.next_due_date)
-          .eq('amount', effectiveAmount)
-          .ilike('description', `${recurring.description} (Récurrence automatique)`)
           .limit(1);
 
         if (existingTx && existingTx.length > 0) {
@@ -174,7 +187,7 @@ serve(async (req) => {
           const { error: transactionError } = await supabase
             .from('transactions')
             .insert({
-              description: `${recurring.description} (Récurrence automatique)`,
+              description: `${resolveNamePlaceholders(recurring.description, new Date(recurring.next_due_date + 'T12:00:00'))} (Récurrence automatique)`,
               amount: effectiveAmount,
               type: effectiveType,
               account_id: recurring.account_id,
