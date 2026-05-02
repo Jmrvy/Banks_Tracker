@@ -1,155 +1,125 @@
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, Wrench, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAuth } from "@/contexts/AuthContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { mainNavigation, accountsGroup, toolsGroup, settingsItem } from "@/config/navigation";
+import {
+  mainNavigation,
+  accountsGroup,
+  toolsGroup,
+  settingsItem,
+  type NavigationItem,
+} from "@/config/navigation";
 
 export function AppSidebar() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { user } = useAuth();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
   };
 
+  const initials = (user?.user_metadata?.full_name || user?.email || "U")
+    .split(/\s+|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s: string) => s[0]?.toUpperCase())
+    .join("");
+
+  const NavLink = ({ item }: { item: NavigationItem }) => {
+    const active = isActive(item.path);
+    return (
+      <Link
+        to={item.path}
+        className={cn("ft-nav-item", active && "active")}
+      >
+        <item.icon className="ft-nav-icon" />
+        <span>{t(item.nameKey)}</span>
+      </Link>
+    );
+  };
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar/80 backdrop-blur-2xl border-r border-white/[0.06] flex flex-col shadow-[inset_-0.5px_0_0_0_hsl(210_20%_98%/0.04)]">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-white/[0.06]">
-        <span className="text-2xl font-bold text-primary drop-shadow-[0_0_12px_hsl(38_70%_68%/0.3)]">Spending Tracker</span>
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+        <div className="h-7 w-7 rounded-lg bg-foreground text-background dark:bg-primary dark:text-primary-foreground grid place-items-center font-bold text-sm tracking-tight">
+          S
+        </div>
+        <div className="leading-tight">
+          <div className="text-[15px] font-semibold tracking-tight">Spending</div>
+          <div className="text-[11px] text-muted-foreground -mt-0.5">Tracker</div>
+        </div>
       </div>
 
       {/* Search shortcut */}
-      <div className="px-3 pt-3">
+      <div className="px-3 pb-3">
         <button
-          onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground/70 hover:bg-white/[0.04] transition-colors border border-white/[0.06]"
+          onClick={() =>
+            document.dispatchEvent(
+              new KeyboardEvent("keydown", { key: "k", metaKey: true })
+            )
+          }
+          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
         >
-          <Search className="h-4 w-4" />
-          <span className="flex-1 text-left">{t('common.searchPlaceholder')}</span>
-          <kbd className="text-[10px] bg-white/[0.06] px-1.5 py-0.5 rounded border border-white/[0.08]">⌘K</kbd>
+          <Search className="h-3.5 w-3.5" />
+          <span className="flex-1">{t("common.searchPlaceholder")}</span>
+          <kbd className="text-[10px] font-mono bg-bg-elev border border-line-strong text-fg-dim px-1 py-px rounded">
+            ⌘K
+          </kbd>
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4">
-        <div className="space-y-1 px-3">
-          {/* Main Navigation */}
-          {mainNavigation.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                  "hover:bg-white/[0.06] hover:text-sidebar-accent-foreground",
-                  active
-                    ? "bg-white/[0.08] text-sidebar-accent-foreground shadow-[inset_0_0.5px_0_0_hsl(210_20%_98%/0.06),0_1px_4px_-1px_hsl(220_20%_4%/0.3)]"
-                    : "text-sidebar-foreground/70"
-                )}
-              >
-                <item.icon className={cn("h-5 w-5 transition-colors", active && "text-primary")} />
-                <span>{t(item.nameKey)}</span>
-              </Link>
-            );
-          })}
+      <nav className="flex-1 overflow-y-auto px-3 pb-3">
+        {/* Main */}
+        <div className="flex flex-col gap-px">
+          {mainNavigation.map((item) => (
+            <NavLink key={item.path} item={item} />
+          ))}
+        </div>
 
-          {/* Comptes Group */}
-          <Collapsible defaultOpen className="mt-4">
-            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
-              <div className="flex items-center gap-2">
-                <accountsGroup.icon className="h-4 w-4" />
-                <span>{t(accountsGroup.labelKey)}</span>
-              </div>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1">
-              {accountsGroup.items.map((item) => {
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 ml-6 rounded-xl text-sm font-medium transition-all duration-200",
-                      "hover:bg-white/[0.06] hover:text-sidebar-accent-foreground",
-                      active
-                        ? "bg-white/[0.08] text-sidebar-accent-foreground shadow-[inset_0_0.5px_0_0_hsl(210_20%_98%/0.06),0_1px_4px_-1px_hsl(220_20%_4%/0.3)]"
-                        : "text-sidebar-foreground/70"
-                    )}
-                  >
-                    <item.icon className={cn("h-4 w-4 transition-colors", active && "text-primary")} />
-                    <span>{t(item.nameKey)}</span>
-                  </Link>
-                );
-              })}
-            </CollapsibleContent>
-          </Collapsible>
+        {/* Accounts group */}
+        <div className="flex flex-col gap-px mt-2">
+          <div className="ft-nav-label">{t(accountsGroup.labelKey)}</div>
+          {accountsGroup.items.map((item) => (
+            <NavLink key={item.path} item={item} />
+          ))}
+        </div>
 
-          {/* Outils Group */}
-          <Collapsible defaultOpen className="mt-2">
-            <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors">
-              <div className="flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                <span>{t(toolsGroup.labelKey)}</span>
-              </div>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1">
-              {toolsGroup.items.map((item) => {
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 ml-6 rounded-xl text-sm font-medium transition-all duration-200",
-                      "hover:bg-white/[0.06] hover:text-sidebar-accent-foreground",
-                      active
-                        ? "bg-white/[0.08] text-sidebar-accent-foreground shadow-[inset_0_0.5px_0_0_hsl(210_20%_98%/0.06),0_1px_4px_-1px_hsl(220_20%_4%/0.3)]"
-                        : "text-sidebar-foreground/70"
-                    )}
-                  >
-                    <item.icon className={cn("h-4 w-4 transition-colors", active && "text-primary")} />
-                    <span>{t(item.nameKey)}</span>
-                  </Link>
-                );
-              })}
-            </CollapsibleContent>
-          </Collapsible>
+        {/* Tools group */}
+        <div className="flex flex-col gap-px mt-2">
+          <div className="ft-nav-label">{t(toolsGroup.labelKey)}</div>
+          {toolsGroup.items.map((item) => (
+            <NavLink key={item.path} item={item} />
+          ))}
+        </div>
 
+        {/* Settings */}
+        <div className="flex flex-col gap-px mt-2">
+          <NavLink item={settingsItem} />
         </div>
       </nav>
 
       {/* Language selector */}
-      <div className="px-4 pb-2">
+      <div className="px-3 pb-2">
         <LanguageSelector />
       </div>
 
-      {/* User section - links to settings */}
-      <div className="p-4 border-t border-white/[0.06]">
-        <Link
-          to={settingsItem.path}
-          className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200",
-            "hover:bg-white/[0.06] hover:text-sidebar-accent-foreground",
-            isActive(settingsItem.path)
-              ? "bg-white/[0.08] text-sidebar-accent-foreground"
-              : ""
-          )}
-        >
-          <div className="h-8 w-8 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center text-sm font-semibold shadow-[0_0_12px_0_hsl(38_70%_68%/0.25)]">
-            JM
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">Joris</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">{t(settingsItem.nameKey)}</p>
-          </div>
-        </Link>
+      {/* User footer */}
+      <div className="flex items-center gap-2.5 px-3 py-3 border-t border-line">
+        <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground grid place-items-center text-xs font-semibold flex-shrink-0">
+          {initials || "JM"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-foreground truncate">
+            {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
+          </p>
+          <p className="text-[11px] text-fg-dim truncate">Personal · Pro</p>
+        </div>
       </div>
     </aside>
   );

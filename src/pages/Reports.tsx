@@ -128,29 +128,25 @@ const Reports = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24 overflow-x-hidden">
-      <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 max-w-[1600px] mx-auto w-full overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-1 sm:mb-2 animate-glass-fade-in">
+    <div className="min-h-screen bg-background pb-20 md:pb-12 overflow-x-hidden">
+      <div className="ft-page w-full overflow-hidden">
+        {/* Page head */}
+        <div className="ft-page-head">
           <div>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-              <div className="icon-badge icon-badge-sm bg-primary/10">
-                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              </div>
-              Analyse
-            </h1>
-            <p className="text-xs sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
-              {period.label}
-            </p>
+            <div className="ft-eyebrow">{t('navigation.analyse')}</div>
+            <h1 className="ft-page-title">{t('reports.pageTitle', { defaultValue: 'Financial analysis' })}</h1>
+            <div className="ft-page-sub">
+              {t('reports.subtitle', { defaultValue: 'Deep insights across categories, merchants, and time' })} · {period.label}
+            </div>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowExportModal(true)}
-            className="gap-2"
+            className="h-8 px-3 gap-1.5"
           >
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exporter</span>
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('common.export', { defaultValue: 'Export PDF' })}</span>
           </Button>
         </div>
 

@@ -36,27 +36,30 @@ const Accounts = () => {
   // If an account is selected, show its details
   if (selectedAccountId && selectedAccount) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-        <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
+      <div className="min-h-screen bg-background pb-20 md:pb-12">
+        <div className="ft-page">
           {/* Header with back button */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setSelectedAccountId(null)}
-              className="h-8 w-8 sm:h-10 sm:w-10"
-            >
-              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{selectedAccount.name}</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                {getBankLabel(selectedAccount.bank, t)} • {getAccountTypeLabel(selectedAccount.account_type, t)}
-              </p>
+          <div className="ft-page-head">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedAccountId(null)}
+                className="h-8 w-8 flex-shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0">
+                <div className="ft-eyebrow">{getBankLabel(selectedAccount.bank, t)}</div>
+                <h1 className="ft-page-title truncate">{selectedAccount.name}</h1>
+                <div className="ft-page-sub">
+                  {getAccountTypeLabel(selectedAccount.account_type, t)}
+                </div>
+              </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-xs sm:text-sm text-muted-foreground">Solde</p>
-              <p className={`text-base sm:text-xl md:text-2xl font-bold ${selectedAccount.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+              <p className="ft-eyebrow">{t('accounts.balance', { defaultValue: 'Balance' })}</p>
+              <p className={`font-mono text-2xl md:text-3xl font-medium tracking-tight ${selectedAccount.balance >= 0 ? 'text-foreground' : 'text-destructive'}`}>
                 {formatCurrency(selectedAccount.balance)}
               </p>
             </div>
@@ -77,80 +80,124 @@ const Accounts = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-              <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
-              <span className="truncate">Comptes</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">
-              Gérez vos comptes et transactions
-            </p>
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page">
+        {/* Page head */}
+        <div className="ft-page-head">
+          <div>
+            <div className="ft-eyebrow">{t('navigation.accounts')}</div>
+            <h1 className="ft-page-title">{t('accounts.allAccounts', { defaultValue: 'All accounts' })}</h1>
+            <div className="ft-page-sub">
+              {accounts.length} {t('accounts.linkedAccounts', { defaultValue: 'linked accounts' })}
+              {' · '}
+              <span className="font-mono">{formatCurrency(totalBalance)}</span> {t('accounts.totalBalance', { defaultValue: 'total balance' })}
+            </div>
           </div>
-          <Button 
+          <Button
             onClick={() => setShowNewAccountModal(true)}
             size="sm"
-            className="h-8 sm:h-9 px-2 sm:px-4 flex-shrink-0"
+            className="h-8 px-3 gap-1.5 font-semibold"
           >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nouveau compte</span>
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('accounts.linkAccount', { defaultValue: 'Link account' })}</span>
           </Button>
         </div>
 
-        {/* Total Balance Card */}
-        <div className="hero-card p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde total</p>
-              <p className="text-xl sm:text-2xl md:text-3xl font-bold">{formatCurrency(totalBalance)}</p>
+        {/* Balance tiles */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          <div className="rounded-2xl p-5 bg-bg-inverse text-background relative overflow-hidden">
+            <div className="text-[11px] uppercase tracking-[0.08em] font-semibold opacity-70">
+              {t('accounts.totalBalance', { defaultValue: 'Total balance' })}
             </div>
-            <div className="icon-badge icon-badge-lg">
-              <Wallet className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+            <div className="font-mono text-3xl font-medium tracking-tight mt-2">
+              {formatCurrency(totalBalance)}
+            </div>
+            <div className="text-xs opacity-80 mt-1">
+              {t('accounts.acrossNAccounts', { defaultValue: 'Across {{n}} accounts', n: accounts.length })}
+            </div>
+          </div>
+          <div className="ft-card p-5">
+            <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+              {t('accounts.checking', { defaultValue: 'Liquid (checking)' })}
+            </div>
+            <div className="font-mono text-3xl font-medium tracking-tight mt-2">
+              {formatCurrency(
+                accounts.filter((a) => a.account_type === 'checking').reduce((s, a) => s + a.balance, 0)
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {accounts.filter((a) => a.account_type === 'checking').length} {t('accounts.accounts', { defaultValue: 'accounts' })}
+            </div>
+          </div>
+          <div className="ft-card p-5">
+            <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+              {t('accounts.savings', { defaultValue: 'Savings & invest.' })}
+            </div>
+            <div className="font-mono text-3xl font-medium tracking-tight mt-2">
+              {formatCurrency(
+                accounts.filter((a) => a.account_type !== 'checking').reduce((s, a) => s + a.balance, 0)
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {accounts.filter((a) => a.account_type !== 'checking').length} {t('accounts.accounts', { defaultValue: 'accounts' })}
             </div>
           </div>
         </div>
 
-        {/* Accounts List */}
-        <div>
-          <h2 className="section-header mb-3 sm:mb-4">Tous les comptes ({accounts.length})</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {accounts.map((account) => (
-              <div
+        {/* Accounts grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          {accounts.map((account) => {
+            const initials = account.name
+              .split(' ')
+              .map((w) => w[0])
+              .filter(Boolean)
+              .slice(0, 2)
+              .join('')
+              .toUpperCase();
+            return (
+              <button
                 key={account.id}
-                className="stat-card glass-hover rounded-2xl p-4 sm:p-6 cursor-pointer active:scale-[0.98]"
+                type="button"
+                className="ft-card p-5 text-left hover:border-line-strong transition-colors"
                 onClick={() => setSelectedAccountId(account.id)}
               >
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base sm:text-lg truncate">{account.name}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{getBankLabel(account.bank, t)}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-lg bg-primary/15 text-primary grid place-items-center font-bold text-xs flex-shrink-0">
+                      {initials || 'A'}
                     </div>
-                    <Badge variant="outline" className="text-xs sm:text-xs flex-shrink-0">
-                      {getAccountTypeLabel(account.account_type, t)}
-                    </Badge>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm truncate">{account.name}</h3>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {getBankLabel(account.bank, t)}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="pt-2">
-                    <div className="glass-divider mb-2" />
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Solde</p>
-                    <p className={`text-lg sm:text-xl md:text-2xl font-bold ${account.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(account.balance)}
-                    </p>
-                  </div>
+                  <Badge variant="outline" className="text-[11px] flex-shrink-0">
+                    {getAccountTypeLabel(account.account_type, t)}
+                  </Badge>
                 </div>
-              </div>
-            ))}
-          </div>
+                <div className="mt-4 pt-4 border-t border-line">
+                  <p className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+                    {t('accounts.balance', { defaultValue: 'Balance' })}
+                  </p>
+                  <p
+                    className={`font-mono text-2xl font-medium tracking-tight mt-1 ${
+                      account.balance >= 0 ? 'text-foreground' : 'text-destructive'
+                    }`}
+                  >
+                    {formatCurrency(account.balance)}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <NewAccountModal 
-        open={showNewAccountModal} 
-        onOpenChange={setShowNewAccountModal} 
+      <NewAccountModal
+        open={showNewAccountModal}
+        onOpenChange={setShowNewAccountModal}
       />
     </div>
   );

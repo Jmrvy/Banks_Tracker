@@ -466,7 +466,7 @@ const InstallmentPayments = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
           <p className="text-sm text-muted-foreground">Chargement des paiements échelonnés...</p>
@@ -476,28 +476,24 @@ const InstallmentPayments = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page">
+        {/* Page head */}
+        <div className="ft-page-head">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold flex items-center gap-3">
-              <div className="icon-badge icon-badge-md bg-primary/10">
-                <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-              </div>
-              Paiements Échelonnés
-            </h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-2 ml-11 md:ml-13">
-              Gérez vos paiements échelonnés financés par votre épargne
-            </p>
+            <div className="ft-eyebrow">{t('navigation.tools')}</div>
+            <h1 className="ft-page-title">{t('navigation.installmentPayments')}</h1>
+            <div className="ft-page-sub">
+              {t('installments.subtitle', { defaultValue: 'Track your installment plans funded by savings' })}
+            </div>
           </div>
           <Button
             onClick={() => setShowNewModal(true)}
-            size="default"
-            className="w-full md:w-auto"
+            size="sm"
+            className="h-8 px-3 gap-1.5 font-semibold"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Paiement
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('installments.newPlan', { defaultValue: 'New plan' })}</span>
           </Button>
         </div>
 

@@ -14,7 +14,7 @@ type ThemeProviderState = {
 }
 
 const initialState: ThemeProviderState = {
-  theme: "system",
+  theme: "light",
   setTheme: () => null,
 }
 
@@ -22,7 +22,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
+  defaultTheme = "light",
   storageKey = "ui-theme",
   ...props
 }: ThemeProviderProps) {
@@ -42,10 +42,12 @@ export function ThemeProvider({
         : "light"
 
       root.classList.add(systemTheme)
+      root.setAttribute("data-theme", systemTheme)
       return
     }
 
     root.classList.add(theme)
+    root.setAttribute("data-theme", theme)
   }, [theme])
 
   const handleSetTheme = useCallback((theme: Theme) => {

@@ -2,85 +2,170 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
-All colors MUST be HSL.
-Liquid Glass UX Design System — Inspired by Apple's translucent material language.
-*/
+/* =========================================================================
+   Spending Tracker — Fintech Redesign
+   Clean, modern, accessible. Light + Dark themes.
+   Tokens stored as HSL components so Tailwind's hsl(var(--token)) wrappers
+   continue to work across the existing component library.
+   ========================================================================= */
 
 @layer base {
-  :root {
-    /* Finary-inspired Dark Theme - Primary palette */
-    --background: 220 18% 8%;          /* Very dark blue-black #111318 */
-    --foreground: 210 20% 98%;         /* Near white text */
+  :root,
+  .light {
+    /* ----- Surfaces ----- */
+    --background: 220 7% 98%;
+    --foreground: 220 14% 11%;
 
-    /* Card surfaces — translucent glass */
-    --card: 220 16% 12%;               /* Slightly lighter than background #1A1D24 */
-    --card-foreground: 210 20% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 14% 11%;
 
-    /* Popover surfaces */
-    --popover: 220 16% 14%;            /* #1E2229 */
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 14% 11%;
 
-    /* Primary accent - Golden/Beige like Finary */
-    --primary: 38 70% 68%;             /* Warm gold #E5B77E */
-    --primary-foreground: 220 18% 8%;  /* Dark text on gold */
+    /* Primary accent — electric green (oklch hue 152) */
+    --primary: 152 50% 38%;
+    --primary-foreground: 152 30% 14%;
 
-    /* Secondary surfaces */
-    --secondary: 220 14% 18%;          /* #252A33 */
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 220 6% 96%;
+    --secondary-foreground: 220 14% 11%;
 
-    /* Muted elements */
-    --muted: 220 14% 20%;              /* #2A2F38 */
-    --muted-foreground: 210 10% 65%;   /* #9BA3AF */
+    --muted: 220 6% 96%;
+    --muted-foreground: 220 8% 42%;
 
-    /* Accent colors */
-    --accent: 220 14% 18%;
-    --accent-foreground: 210 20% 98%;
+    --accent: 220 6% 94%;
+    --accent-foreground: 220 14% 11%;
 
-    /* Status colors */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 98%;
+    --destructive: 15 75% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 210 20% 98%;
+    --success: 152 50% 38%;
+    --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 220 18% 8%;
+    --warning: 38 80% 50%;
+    --warning-foreground: 220 14% 11%;
 
-    /* Borders — lighter for glass edge highlights */
-    --border: 220 14% 22%;             /* Subtle borders #2E333D */
-    --input: 220 14% 22%;
-    --ring: 38 70% 68%;                /* Gold ring on focus */
+    --info: 220 65% 50%;
+    --info-foreground: 0 0% 100%;
 
-    /* Banking colors */
-    --bank-sg: 0 84% 60%;
-    --bank-revolut: 231 48% 48%;
-    --bank-boursorama: 195 100% 39%;
+    --border: 220 5% 90%;
+    --input: 220 5% 88%;
+    --ring: 152 50% 38%;
 
-    /* Sidebar specific */
-    --sidebar-background: 220 18% 10%; /* Slightly darker sidebar #13161B */
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 38 70% 68%;
-    --sidebar-primary-foreground: 220 18% 8%;
-    --sidebar-accent: 220 14% 16%;     /* Hover state #222731 */
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 38 70% 68%;
+    /* Bank colors (kept for logos) */
+    --bank-sg: 0 84% 50%;
+    --bank-revolut: 220 90% 50%;
+    --bank-boursorama: 195 80% 42%;
 
-    /* Radius */
+    /* Sidebar */
+    --sidebar-background: 220 7% 98%;
+    --sidebar-foreground: 220 14% 11%;
+    --sidebar-primary: 152 50% 38%;
+    --sidebar-primary-foreground: 152 30% 14%;
+    --sidebar-accent: 220 6% 94%;
+    --sidebar-accent-foreground: 220 14% 11%;
+    --sidebar-border: 220 5% 90%;
+    --sidebar-ring: 152 50% 38%;
+
+    /* Extra fintech tokens */
+    --fg-mute: 220 8% 42%;
+    --fg-dim: 220 6% 58%;
+    --bg-elev: 0 0% 100%;
+    --bg-subtle: 220 6% 96%;
+    --bg-hover: 220 8% 94%;
+    --bg-inverse: 220 14% 18%;
+    --line: 220 5% 90%;
+    --line-strong: 220 6% 84%;
+    --pos: 152 50% 38%;
+    --pos-soft: 152 50% 38% / 0.12;
+    --neg: 15 75% 55%;
+    --neg-soft: 15 75% 55% / 0.12;
+
     --radius: 0.75rem;
 
-    /* Liquid Glass tokens */
-    --glass-bg: 220 16% 14%;
-    --glass-bg-opacity: 0.55;
-    --glass-border-opacity: 0.12;
-    --glass-blur: 20px;
-    --glass-blur-heavy: 40px;
-    --glass-highlight: 210 20% 98%;
-    --glass-shadow: 220 20% 4%;
+    /* Legacy glass tokens — kept as no-op so prior components don't break */
+    --glass-bg: 0 0% 100%;
+    --glass-bg-opacity: 1;
+    --glass-border-opacity: 1;
+    --glass-blur: 0px;
+    --glass-blur-heavy: 0px;
+    --glass-highlight: 220 14% 11%;
+    --glass-shadow: 220 14% 11%;
   }
 
-  /* Dark-first: .dark inherits :root tokens — no overrides needed */
+  /* ---------- DARK ---------- */
+  .dark {
+    --background: 220 14% 11%;
+    --foreground: 220 5% 96%;
+
+    --card: 220 12% 16%;
+    --card-foreground: 220 5% 96%;
+
+    --popover: 220 12% 18%;
+    --popover-foreground: 220 5% 96%;
+
+    --primary: 152 60% 60%;
+    --primary-foreground: 152 30% 14%;
+
+    --secondary: 220 10% 19%;
+    --secondary-foreground: 220 5% 96%;
+
+    --muted: 220 10% 19%;
+    --muted-foreground: 220 8% 70%;
+
+    --accent: 220 10% 22%;
+    --accent-foreground: 220 5% 96%;
+
+    --destructive: 15 75% 65%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 60%;
+    --success-foreground: 152 30% 14%;
+
+    --warning: 38 80% 65%;
+    --warning-foreground: 220 14% 11%;
+
+    --info: 220 65% 65%;
+    --info-foreground: 220 14% 11%;
+
+    --border: 220 8% 24%;
+    --input: 220 8% 26%;
+    --ring: 152 60% 60%;
+
+    --bank-sg: 0 80% 55%;
+    --bank-revolut: 220 90% 60%;
+    --bank-boursorama: 195 80% 50%;
+
+    --sidebar-background: 220 14% 11%;
+    --sidebar-foreground: 220 5% 96%;
+    --sidebar-primary: 152 60% 60%;
+    --sidebar-primary-foreground: 152 30% 14%;
+    --sidebar-accent: 220 10% 19%;
+    --sidebar-accent-foreground: 220 5% 96%;
+    --sidebar-border: 220 8% 24%;
+    --sidebar-ring: 152 60% 60%;
+
+    --fg-mute: 220 8% 70%;
+    --fg-dim: 220 8% 50%;
+    --bg-elev: 220 12% 16%;
+    --bg-subtle: 220 10% 19%;
+    --bg-hover: 220 10% 22%;
+    --bg-inverse: 220 5% 96%;
+    --line: 220 8% 24%;
+    --line-strong: 220 8% 32%;
+    --pos: 152 60% 60%;
+    --pos-soft: 152 60% 60% / 0.18;
+    --neg: 15 75% 65%;
+    --neg-soft: 15 75% 65% / 0.18;
+
+    /* Legacy glass tokens — kept so old classes degrade gracefully */
+    --glass-bg: 220 12% 16%;
+    --glass-bg-opacity: 1;
+    --glass-border-opacity: 1;
+    --glass-blur: 0px;
+    --glass-blur-heavy: 0px;
+    --glass-highlight: 220 5% 96%;
+    --glass-shadow: 220 14% 4%;
+  }
 }
 
 @layer base {
@@ -88,186 +173,334 @@ Liquid Glass UX Design System — Inspired by Apple's translucent material langu
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground font-inter antialiased;
-    overflow-x: hidden;
-    max-width: 100vw;
-  }
-
   html {
     overflow-x: hidden;
   }
 
-  /* Safe area for mobile devices */
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    overflow-x: hidden;
+    max-width: 100vw;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Tabular monospace numbers for amounts */
+  .num,
+  .font-mono {
+    font-family: "Geist Mono", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer components {
-  /* ─── Liquid Glass Surfaces ─── */
-
-  /* Base glass panel — translucent with backdrop blur and edge highlight */
-  .glass {
-    background: hsl(var(--glass-bg) / var(--glass-bg-opacity));
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid hsl(var(--glass-highlight) / var(--glass-border-opacity));
-    box-shadow:
-      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.08),
-      0 2px 12px -2px hsl(var(--glass-shadow) / 0.5);
+  /* =========================================================================
+     Fintech card — flat, bordered, elevated by background contrast
+     ========================================================================= */
+  .ft-card {
+    @apply rounded-2xl border bg-card text-card-foreground;
+    border-color: hsl(var(--line));
   }
+  .ft-card-flush { @apply rounded-2xl border bg-card overflow-hidden; border-color: hsl(var(--line)); }
 
-  /* Elevated glass — heavier blur, more prominent glow */
-  .glass-elevated {
-    background: hsl(var(--glass-bg) / 0.65);
-    backdrop-filter: blur(var(--glass-blur-heavy));
-    -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
-    border: 1px solid hsl(var(--glass-highlight) / 0.14);
-    box-shadow:
-      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.1),
-      0 8px 32px -4px hsl(var(--glass-shadow) / 0.6),
-      0 2px 8px -2px hsl(var(--glass-shadow) / 0.3);
+  .ft-card-head {
+    @apply flex items-start justify-between gap-4 mb-3;
+  }
+  .ft-card-title {
+    @apply text-sm font-semibold tracking-tight;
+  }
+  .ft-card-sub {
+    @apply text-xs text-muted-foreground mt-0.5;
   }
 
-  /* Subtle glass — very light effect for inline surfaces */
-  .glass-subtle {
-    background: hsl(var(--glass-bg) / 0.35);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--glass-highlight) / 0.08);
-    box-shadow: inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.05);
+  /* =========================================================================
+     Page chrome
+     ========================================================================= */
+  .ft-page {
+    @apply mx-auto w-full px-4 md:px-8 pb-20 md:pb-12 pt-4 md:pt-6 flex flex-col gap-5 md:gap-6;
+    max-width: 1320px;
+  }
+  .ft-page-head {
+    @apply flex items-end justify-between gap-4 flex-wrap;
+  }
+  .ft-eyebrow {
+    @apply text-[11px] uppercase tracking-[0.1em] font-semibold text-muted-foreground/80;
+  }
+  .ft-page-title {
+    @apply text-2xl md:text-3xl font-semibold tracking-tight leading-tight m-0;
+    font-family: "Geist", "Inter", sans-serif;
+  }
+  .ft-page-sub {
+    @apply text-sm text-muted-foreground mt-1;
   }
 
-  /* Glass with primary accent glow */
-  .glass-accent {
-    background: hsl(var(--glass-bg) / var(--glass-bg-opacity));
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid hsl(var(--primary) / 0.18);
-    box-shadow:
-      inset 0 0.5px 0 0 hsl(var(--primary) / 0.1),
-      0 0 20px -4px hsl(var(--primary) / 0.12),
-      0 2px 12px -2px hsl(var(--glass-shadow) / 0.5);
+  /* =========================================================================
+     Hero net-worth panel
+     ========================================================================= */
+  .ft-hero {
+    @apply relative overflow-hidden rounded-2xl border bg-card;
+    border-color: hsl(var(--line));
+    padding: 24px 24px 0;
   }
-
-  /* Hover state for glass surfaces */
-  .glass-hover {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .glass-hover:hover {
-    background: hsl(var(--glass-bg) / 0.7);
-    border-color: hsl(var(--glass-highlight) / 0.18);
-    box-shadow:
-      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.12),
-      0 4px 20px -4px hsl(var(--glass-shadow) / 0.6);
-  }
-
-  /* ─── Glass Shimmer Edge ─── */
-  .glass-shimmer {
-    position: relative;
-    overflow: hidden;
-  }
-  .glass-shimmer::before {
-    content: '';
+  .ft-hero::before {
+    content: "";
     position: absolute;
     inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--glass-highlight) / 0.15) 0%,
-      transparent 40%,
-      transparent 60%,
-      hsl(var(--glass-highlight) / 0.06) 100%
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    background: radial-gradient(80% 60% at 100% 0%, hsl(var(--primary) / 0.10), transparent 60%);
+    pointer-events: none;
+  }
+  .ft-hero-eyebrow {
+    @apply text-[11px] uppercase tracking-[0.1em] font-semibold text-muted-foreground flex items-center gap-2;
+  }
+  .ft-hero-eyebrow .live {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: hsl(var(--pos));
+    box-shadow: 0 0 0 4px hsl(var(--pos) / 0.18);
+    animation: ft-pulse 2s ease-in-out infinite;
+  }
+  @keyframes ft-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .ft-hero-value {
+    font-family: "Geist Mono", "JetBrains Mono", monospace;
+    font-size: 44px;
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    color: hsl(var(--foreground));
+  }
+  @media (min-width: 768px) {
+    .ft-hero-value { font-size: 56px; }
+  }
+  .ft-hero-value .cents {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.6em;
+    font-weight: 400;
+  }
+
+  /* =========================================================================
+     KPI tile
+     ========================================================================= */
+  .ft-kpi {
+    @apply relative overflow-hidden rounded-2xl border bg-card p-4 md:p-5 flex flex-col gap-2;
+    border-color: hsl(var(--line));
+    transition: border-color 0.12s;
+  }
+  .ft-kpi:hover { border-color: hsl(var(--line-strong)); }
+  .ft-kpi-icon {
+    @apply h-8 w-8 rounded-lg grid place-items-center;
+    background: hsl(var(--secondary));
+  }
+  .ft-kpi-icon.pos { background: hsl(var(--pos) / 0.12); color: hsl(var(--pos)); }
+  .ft-kpi-icon.neg { background: hsl(var(--neg) / 0.12); color: hsl(var(--neg)); }
+  .ft-kpi-icon.acc { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); }
+  .ft-kpi-icon.warn { background: hsl(var(--warning) / 0.15); color: hsl(var(--warning)); }
+  .ft-kpi-label {
+    @apply text-xs text-muted-foreground font-medium;
+  }
+  .ft-kpi-value {
+    font-family: "Geist Mono", "JetBrains Mono", monospace;
+    @apply text-2xl md:text-[26px] font-medium tracking-tight;
+  }
+
+  /* =========================================================================
+     Delta chips
+     ========================================================================= */
+  .ft-delta {
+    @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-medium;
+    font-family: "Geist Mono", "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .ft-delta.up { color: hsl(var(--pos)); background: hsl(var(--pos) / 0.12); }
+  .ft-delta.down { color: hsl(var(--neg)); background: hsl(var(--neg) / 0.12); }
+  .ft-delta.flat { color: hsl(var(--muted-foreground)); background: hsl(var(--muted)); }
+
+  /* =========================================================================
+     Segmented control
+     ========================================================================= */
+  .ft-seg {
+    @apply inline-flex p-0.5 rounded-lg border;
+    background: hsl(var(--secondary));
+    border-color: hsl(var(--line));
+  }
+  .ft-seg button {
+    @apply px-3 py-1 text-xs font-medium rounded-md text-muted-foreground transition-colors;
+    font-variant-numeric: tabular-nums;
+  }
+  .ft-seg button:hover { color: hsl(var(--foreground)); }
+  .ft-seg button.active {
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+  }
+
+  /* =========================================================================
+     Tabs (underline style)
+     ========================================================================= */
+  .ft-tabs {
+    @apply flex gap-0.5 border-b;
+    border-color: hsl(var(--line));
+  }
+  .ft-tabs button {
+    @apply text-sm text-muted-foreground px-3 py-2.5 font-medium border-b-2 border-transparent -mb-px transition-colors;
+  }
+  .ft-tabs button:hover { color: hsl(var(--foreground)); }
+  .ft-tabs button.active {
+    color: hsl(var(--foreground));
+    border-bottom-color: hsl(var(--primary));
+  }
+
+  /* =========================================================================
+     Table — dense fintech list
+     ========================================================================= */
+  .ft-tbl { @apply w-full text-sm; border-collapse: collapse; }
+  .ft-tbl th {
+    @apply text-left text-xs uppercase tracking-[0.06em] font-semibold text-muted-foreground py-2.5 px-4;
+    background: hsl(var(--secondary));
+    border-bottom: 1px solid hsl(var(--line));
+  }
+  .ft-tbl td {
+    @apply py-2.5 px-4 align-middle;
+    border-bottom: 1px solid hsl(var(--line));
+  }
+  .ft-tbl tr:hover td { background: hsl(var(--secondary)); }
+  .ft-tbl tr:last-child td { border-bottom: none; }
+  .ft-tbl .num { text-align: right; font-family: "Geist Mono", monospace; }
+
+  /* =========================================================================
+     Tag
+     ========================================================================= */
+  .ft-tag {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium;
+    background: hsl(var(--secondary));
+    border: 1px solid hsl(var(--line));
+    color: hsl(var(--muted-foreground));
+  }
+  .ft-tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .ft-tag.pos { background: hsl(var(--pos) / 0.12); color: hsl(var(--pos)); border-color: transparent; }
+  .ft-tag.neg { background: hsl(var(--neg) / 0.12); color: hsl(var(--neg)); border-color: transparent; }
+  .ft-tag.acc { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); border-color: transparent; }
+  .ft-tag.warn { background: hsl(var(--warning) / 0.18); color: hsl(var(--warning)); border-color: transparent; }
+
+  /* =========================================================================
+     List rows
+     ========================================================================= */
+  .ft-list-row {
+    @apply grid items-center gap-3 px-4 md:px-5 py-3 transition-colors;
+    grid-template-columns: 36px 1fr auto;
+    border-bottom: 1px solid hsl(var(--line));
+  }
+  .ft-list-row:last-child { border-bottom: none; }
+  .ft-list-row:hover { background: hsl(var(--secondary) / 0.5); }
+
+  /* =========================================================================
+     Goal/progress bar
+     ========================================================================= */
+  .ft-progress-track {
+    @apply h-1.5 rounded-full overflow-hidden;
+    background: hsl(var(--secondary));
+  }
+  .ft-progress-fill {
+    @apply h-full rounded-full transition-all duration-500;
+    background: hsl(var(--primary));
+  }
+
+  /* =========================================================================
+     Sidebar nav
+     ========================================================================= */
+  .ft-nav-item {
+    @apply flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors w-full;
+    color: hsl(var(--muted-foreground));
+  }
+  .ft-nav-item:hover {
+    background: hsl(var(--bg-hover));
+    color: hsl(var(--foreground));
+  }
+  .ft-nav-item.active {
+    background: hsl(var(--secondary));
+    color: hsl(var(--foreground));
+  }
+  .ft-nav-item.active .ft-nav-icon { color: hsl(var(--primary)); }
+  .ft-nav-icon {
+    @apply h-4 w-4 flex-shrink-0;
+    color: hsl(var(--fg-dim));
+    transition: color 0.12s;
+  }
+  .ft-nav-label {
+    @apply text-[10.5px] uppercase tracking-[0.08em] font-semibold px-2.5 pt-2.5 pb-1;
+    color: hsl(var(--fg-dim));
+  }
+
+  /* =========================================================================
+     Legacy glass classes — degraded to flat fintech surfaces.
+     Keeps existing components rendering until each is migrated.
+     ========================================================================= */
+  .glass,
+  .glass-elevated,
+  .glass-subtle,
+  .glass-accent {
+    @apply rounded-2xl border bg-card;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: hsl(var(--line));
+    box-shadow: none;
+  }
+  .glass-hover { transition: background 0.15s, border-color 0.15s; }
+  .glass-hover:hover {
+    background: hsl(var(--bg-hover));
+    border-color: hsl(var(--line-strong));
+  }
+  .glass-shimmer { position: relative; overflow: hidden; }
+  .glass-shimmer::before { content: none; }
+
+  .stat-card {
+    @apply rounded-2xl p-3 sm:p-4 border bg-card transition-colors;
+    border-color: hsl(var(--line));
+  }
+  .stat-card:hover {
+    border-color: hsl(var(--line-strong));
+    background: hsl(var(--bg-hover));
+  }
+
+  .hero-card {
+    @apply rounded-2xl sm:rounded-3xl overflow-hidden border bg-card relative;
+    border-color: hsl(var(--line));
+  }
+  .hero-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(80% 60% at 100% 0%, hsl(var(--primary) / 0.10), transparent 60%);
     pointer-events: none;
   }
 
-  /* ─── Stat Card (icon badge + label + value) ─── */
-  .stat-card {
-    @apply rounded-2xl p-3 sm:p-4;
-    background: hsl(var(--glass-bg) / 0.40);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--glass-highlight) / 0.07);
-    box-shadow:
-      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.06),
-      0 1px 6px -1px hsl(var(--glass-shadow) / 0.35);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .stat-card:hover {
-    background: hsl(var(--glass-bg) / 0.50);
-    border-color: hsl(var(--glass-highlight) / 0.12);
-    transform: translateY(-1px);
-    box-shadow:
-      inset 0 0.5px 0 0 hsl(var(--glass-highlight) / 0.08),
-      0 4px 16px -2px hsl(var(--glass-shadow) / 0.45);
-  }
-
-  /* ─── Hero Card (big balance display) ─── */
-  .hero-card {
-    @apply rounded-2xl sm:rounded-3xl overflow-hidden;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--glass-bg) / 0.60) 0%,
-      hsl(var(--glass-bg) / 0.45) 50%,
-      hsl(var(--primary) / 0.06) 100%
-    );
-    backdrop-filter: blur(var(--glass-blur-heavy));
-    -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
-    border: 1px solid hsl(var(--glass-highlight) / 0.10);
-    box-shadow:
-      inset 0 1px 0 0 hsl(var(--glass-highlight) / 0.08),
-      0 8px 40px -8px hsl(var(--glass-shadow) / 0.55),
-      0 2px 12px -2px hsl(var(--glass-shadow) / 0.25);
-  }
-
-  /* ─── Clickable Row (transaction list item) ─── */
   .glass-row {
-    @apply rounded-xl px-3 py-2.5;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    @apply rounded-xl px-3 py-2.5 transition-colors;
     border: 1px solid transparent;
   }
   .glass-row:hover {
-    background: hsl(var(--glass-highlight) / 0.04);
-    border-color: hsl(var(--glass-highlight) / 0.06);
-  }
-  .glass-row:active {
-    transform: scale(0.99);
+    background: hsl(var(--secondary) / 0.6);
+    border-color: hsl(var(--line));
   }
 
-  /* ─── Divider ─── */
   .glass-divider {
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsl(var(--glass-highlight) / 0.08) 20%,
-      hsl(var(--glass-highlight) / 0.08) 80%,
-      transparent 100%
-    );
+    background: hsl(var(--line));
   }
 
-  /* ─── Icon Badge (colored circle behind icon) ─── */
-  .icon-badge {
-    @apply flex items-center justify-center rounded-xl;
-    transition: all 0.25s ease;
-  }
-  .icon-badge-sm {
-    @apply h-8 w-8 sm:h-9 sm:w-9;
-  }
-  .icon-badge-md {
-    @apply h-10 w-10 sm:h-11 sm:w-11;
-  }
-  .icon-badge-lg {
-    @apply h-12 w-12 sm:h-14 sm:w-14;
-  }
+  .icon-badge { @apply flex items-center justify-center rounded-xl transition-colors; }
+  .icon-badge-sm { @apply h-8 w-8 sm:h-9 sm:w-9; }
+  .icon-badge-md { @apply h-10 w-10 sm:h-11 sm:w-11; }
+  .icon-badge-lg { @apply h-12 w-12 sm:h-14 sm:w-14; }
 
-  /* ─── Section Header ─── */
   .section-header {
     @apply text-[10px] sm:text-xs uppercase tracking-widest font-semibold text-muted-foreground;
     letter-spacing: 0.08em;
@@ -276,53 +509,18 @@ Liquid Glass UX Design System — Inspired by Apple's translucent material langu
 
 @layer utilities {
   /* Mobile-optimized text sizes */
-  .text-responsive-xs {
-    @apply text-xs sm:text-sm;
-  }
+  .text-responsive-xs { @apply text-xs sm:text-sm; }
+  .text-responsive-sm { @apply text-sm sm:text-base; }
+  .text-responsive-base { @apply text-sm sm:text-base lg:text-lg; }
+  .text-responsive-lg { @apply text-base sm:text-lg lg:text-xl; }
+  .text-responsive-xl { @apply text-lg sm:text-xl lg:text-2xl; }
+  .text-responsive-2xl { @apply text-xl sm:text-2xl lg:text-3xl; }
+  .text-responsive-3xl { @apply text-2xl sm:text-3xl lg:text-4xl; }
 
-  .text-responsive-sm {
-    @apply text-sm sm:text-base;
-  }
+  .p-responsive { @apply p-3 sm:p-4 md:p-6; }
+  .px-responsive { @apply px-3 sm:px-4 md:px-6; }
+  .py-responsive { @apply py-3 sm:py-4 md:py-6; }
 
-  .text-responsive-base {
-    @apply text-sm sm:text-base lg:text-lg;
-  }
-
-  .text-responsive-lg {
-    @apply text-base sm:text-lg lg:text-xl;
-  }
-
-  .text-responsive-xl {
-    @apply text-lg sm:text-xl lg:text-2xl;
-  }
-
-  .text-responsive-2xl {
-    @apply text-xl sm:text-2xl lg:text-3xl;
-  }
-
-  .text-responsive-3xl {
-    @apply text-2xl sm:text-3xl lg:text-4xl;
-  }
-
-  /* Compact padding for mobile */
-  .p-responsive {
-    @apply p-3 sm:p-4 md:p-6;
-  }
-
-  .px-responsive {
-    @apply px-3 sm:px-4 md:px-6;
-  }
-
-  .py-responsive {
-    @apply py-3 sm:py-4 md:py-6;
-  }
-
-  /* Compact spacing */
-  .space-y-responsive > * + * {
-    @apply mt-3 sm:mt-4 md:mt-6;
-  }
-
-  .gap-responsive {
-    @apply gap-3 sm:gap-4 md:gap-6;
-  }
+  .space-y-responsive > * + * { @apply mt-3 sm:mt-4 md:mt-6; }
+  .gap-responsive { @apply gap-3 sm:gap-4 md:gap-6; }
 }

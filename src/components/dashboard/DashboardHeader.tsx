@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus, Eye, EyeOff, CalendarIcon } from "lucide-react";
+import {
+  Plus,
+  Eye,
+  EyeOff,
+  CalendarIcon,
+  Bell,
+  Sun,
+  Moon,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +25,7 @@ import { NewTransactionModal } from "@/components/NewTransactionModal";
 import { useNavigate } from "react-router-dom";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { usePeriod } from "@/contexts/PeriodContext";
+import { useTheme } from "@/components/ThemeProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -33,124 +43,166 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
   const navigate = useNavigate();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { customDateRange, setCustomDateRange } = usePeriod();
+  const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
+  const location = useLocation();
 
   const periods = [
     { label: "1M", value: "1m" },
     { label: "3M", value: "3m" },
     { label: "YTD", value: "ytd" },
     { label: "1Y", value: "1y" },
-    { label: "Custom", value: "custom" },
+    { label: t("common.custom") || "Custom", value: "custom" },
   ];
 
-  const fixTimezone = (date: Date) => new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    12, 0, 0, 0
-  );
+  const fixTimezone = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+
+  const isDark = theme === "dark";
+  const here = (() => {
+    if (location.pathname === "/") return t("navigation.home");
+    if (location.pathname.startsWith("/accounts")) return t("navigation.accounts");
+    if (location.pathname.startsWith("/transactions")) return t("navigation.transactions");
+    if (location.pathname.startsWith("/savings")) return t("navigation.savings");
+    if (location.pathname.startsWith("/debts")) return t("navigation.debts");
+    if (location.pathname.startsWith("/analyse")) return t("navigation.analyse");
+    if (location.pathname.startsWith("/recurring")) return t("navigation.recurringTransactions");
+    if (location.pathname.startsWith("/installment")) return t("navigation.installmentPayments");
+    if (location.pathname.startsWith("/settings")) return t("navigation.settings");
+    return t("navigation.home");
+  })();
 
   return (
     <>
-      <div className="flex flex-col border-b border-white/[0.06]">
-        <div className="flex items-center justify-between py-3 px-4 md:py-4 md:px-6">
-          {/* Left: Period selector */}
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden md:flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              >
-                <Calendar className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-1 md:gap-2 bg-white/[0.04] backdrop-blur-md border border-white/[0.06] rounded-xl p-0.5 md:p-1">
-              {periods.map((period) => (
-                <Button
-                  key={period.value}
-                  variant={selectedPeriod === period.value ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => onPeriodChange(period.value)}
-                  className={`h-7 md:h-8 px-2 md:px-3 text-xs md:text-sm rounded-lg ${
-                    selectedPeriod === period.value
-                      ? "bg-primary text-primary-foreground shadow-[0_1px_4px_0_hsl(38_70%_68%/0.25)]"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
-                  }`}
-                >
-                  {period.label}
-                </Button>
-              ))}
-            </div>
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-line">
+        <div className="flex items-center justify-between gap-4 px-4 md:px-8 py-3 md:py-3.5">
+          {/* Crumbs */}
+          <div className="flex items-center gap-2 text-[13px] text-muted-foreground min-w-0">
+            <span className="hidden md:inline">Workspace</span>
+            <span className="hidden md:inline text-fg-dim">/</span>
+            <span className="hidden md:inline">Personal</span>
+            <span className="hidden md:inline text-fg-dim">/</span>
+            <span className="text-foreground font-medium truncate">{here}</span>
           </div>
 
-          {/* Right: Actions - simplified for mobile */}
-          <div className="flex items-center gap-1 md:gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Period segmented */}
+            <div className="ft-seg hidden md:inline-flex">
+              {periods.map((p) => (
+                <button
+                  key={p.value}
+                  className={selectedPeriod === p.value ? "active" : ""}
+                  onClick={() => onPeriodChange(p.value)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile period dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:hidden h-8 px-2.5 text-xs"
+                >
+                  {periods.find((p) => p.value === selectedPeriod)?.label || "1M"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                {periods.map((p) => (
+                  <DropdownMenuItem
+                    key={p.value}
+                    onClick={() => onPeriodChange(p.value)}
+                  >
+                    {p.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Privacy toggle */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={togglePrivacyMode}
-                  className="text-muted-foreground hover:text-foreground h-8 px-2"
+                  className="h-8 w-8"
                 >
-                  {isPrivacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {isPrivacyMode ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {isPrivacyMode ? t('common.showAmounts') : t('common.hideAmounts')}
+                {isPrivacyMode ? t("common.showAmounts") : t("common.hideAmounts")}
               </TooltipContent>
             </Tooltip>
 
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setShowTransactionModal(true)}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-2 md:px-4"
-            >
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">{t('dashboard.newTransaction')}</span>
+            {/* Theme toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                  className="h-8 w-8"
+                >
+                  {isDark ? (
+                    <Sun className="h-3.5 w-3.5" />
+                  ) : (
+                    <Moon className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{isDark ? "Light" : "Dark"}</TooltipContent>
+            </Tooltip>
+
+            {/* Notifications */}
+            <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+              <Bell className="h-3.5 w-3.5" />
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 px-2 md:px-4 hidden lg:flex">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('common.createMenu')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-popover border-border z-50">
-                <DropdownMenuItem onClick={() => setShowAccountModal(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('common.newAccount')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowCategoryModal(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('common.newCategory')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
+            {/* Primary CTA */}
+            <Button
+              size="sm"
+              onClick={() => setShowTransactionModal(true)}
+              className="h-8 px-2.5 md:px-3 gap-1.5 font-semibold"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{t("dashboard.newTransaction")}</span>
+            </Button>
           </div>
         </div>
 
-
         {/* Custom date range picker */}
         {selectedPeriod === "custom" && (
-          <div className="flex items-center gap-2 px-4 pb-3 md:px-6 md:pb-4">
+          <div className="flex items-center gap-2 px-4 md:px-8 pb-3">
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
                   <CalendarIcon className="h-3.5 w-3.5" />
-                  <span>{t('common.from')} {format(customDateRange.from, "dd/MM/yy", { locale: fr })}</span>
+                  <span>
+                    {t("common.from")}{" "}
+                    {format(customDateRange.from, "dd/MM/yy", { locale: fr })}
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   mode="single"
                   selected={customDateRange.from}
-                  onSelect={(date) => date && setCustomDateRange({ ...customDateRange, from: fixTimezone(date) })}
+                  onSelect={(date) =>
+                    date &&
+                    setCustomDateRange({
+                      ...customDateRange,
+                      from: fixTimezone(date),
+                    })
+                  }
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
                 />
@@ -160,14 +212,20 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
                   <CalendarIcon className="h-3.5 w-3.5" />
-                  <span>{t('common.until')} {format(customDateRange.to, "dd/MM/yy", { locale: fr })}</span>
+                  <span>
+                    {t("common.until")}{" "}
+                    {format(customDateRange.to, "dd/MM/yy", { locale: fr })}
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   mode="single"
                   selected={customDateRange.to}
-                  onSelect={(date) => date && setCustomDateRange({ ...customDateRange, to: fixTimezone(date) })}
+                  onSelect={(date) =>
+                    date &&
+                    setCustomDateRange({ ...customDateRange, to: fixTimezone(date) })
+                  }
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
                 />
@@ -179,7 +237,10 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
 
       <NewAccountModal open={showAccountModal} onOpenChange={setShowAccountModal} />
       <NewCategoryModal open={showCategoryModal} onOpenChange={setShowCategoryModal} />
-      <NewTransactionModal open={showTransactionModal} onOpenChange={setShowTransactionModal} />
+      <NewTransactionModal
+        open={showTransactionModal}
+        onOpenChange={setShowTransactionModal}
+      />
     </>
   );
 }

@@ -117,32 +117,28 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
       label: t('common.income'),
       value: stats.moneyIn,
       icon: TrendingUp,
-      color: "text-success",
-      bgColor: "bg-success/10"
+      iconClass: "pos",
     },
     {
       id: "expenses",
       label: t('common.expenses'),
       value: stats.moneyOut,
       icon: TrendingDown,
-      color: "text-destructive",
-      bgColor: "bg-destructive/10"
+      iconClass: "neg",
     },
     {
       id: "available",
       label: t('reports.available'),
       value: stats.available,
       icon: Wallet,
-      color: "text-primary",
-      bgColor: "bg-primary/10"
+      iconClass: "acc",
     },
     {
       id: "recurring",
       label: t('dashboard.recurring'),
       value: stats.recurring,
       icon: Repeat,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted",
+      iconClass: "warn",
       isCount: true
     }
   ];
@@ -160,45 +156,43 @@ export function StatsCards({ startDate, endDate, onIncomeClick, onExpensesClick,
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {cards.map((card) => (
-          <Card
-            key={card.id}
-            className={`glass-hover ${
-              (card.id === "income" || card.id === "expenses" || card.id === "available") ? "cursor-pointer" : ""
-            }`}
-            onClick={() => handleCardClick(card.id)}
-          >
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 min-w-0 mb-0.5 sm:mb-1">
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate min-w-0">{card.label}</p>
-                    {card.id === "available" && hasDateDifference && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDateDifferenceModal(true);
-                        }}
-                        className="p-0.5 rounded-lg hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                        aria-label="Voir les écarts entre date comptable et date valeur"
-                      >
-                        <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
-                      </button>
-                    )}
-                  </div>
-
-                  <p className={`text-base sm:text-2xl font-bold truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-                    {card.isCount ? card.value : formatCurrency(card.value)}
-                  </p>
+        {cards.map((card) => {
+          const clickable = card.id === "income" || card.id === "expenses" || card.id === "available";
+          return (
+            <button
+              key={card.id}
+              type="button"
+              onClick={() => clickable && handleCardClick(card.id)}
+              disabled={!clickable}
+              className={`ft-kpi text-left ${clickable ? "cursor-pointer" : "cursor-default"}`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={`ft-kpi-icon ${card.iconClass}`}>
+                  <card.icon className="h-4 w-4" />
                 </div>
-                <div className={`h-7 w-7 sm:h-10 sm:w-10 rounded-full ${card.bgColor} backdrop-blur-sm items-center justify-center flex-shrink-0 ml-1 flex`}>
-                  <card.icon className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${card.color}`} />
-                </div>
+                <span className="ft-kpi-label flex items-center gap-1">
+                  {card.label}
+                  {card.id === "available" && hasDateDifference && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDateDifferenceModal(true);
+                      }}
+                      className="p-0.5 rounded-md hover:bg-bg-hover"
+                    >
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </span>
+                  )}
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div className={`ft-kpi-value truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+                {card.isCount ? card.value : formatCurrency(card.value)}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <ValueDateDifferenceModal

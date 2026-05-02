@@ -9,6 +9,10 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
+import { HeroNetWorth } from "@/components/dashboard/HeroNetWorth";
+import { AccountsListCard } from "@/components/dashboard/AccountsListCard";
+import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
+import { SavingsGoalsCard } from "@/components/dashboard/SavingsGoalsCard";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
 import { OverdueDebtPaymentsAlert } from "@/components/OverdueDebtPaymentsAlert";
 import { BudgetAlertsCard } from "@/components/BudgetAlertsCard";
@@ -17,7 +21,7 @@ import { ExcludedTransactionsModal } from "@/components/ExcludedTransactionsModa
 import { QuickPreview } from "@/components/QuickPreview";
 import { AggregatedBalanceEvolution } from "@/components/dashboard/AggregatedBalanceEvolution";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Filter, Download } from "lucide-react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 const Index = () => {
@@ -54,11 +58,11 @@ const Index = () => {
   // Show quick preview on each login / page refresh
   if (showQuickPreview) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-        <div className="p-4 md:p-6 lg:p-8 border-b">
+      <div className="min-h-screen bg-background pb-20 md:pb-24">
+        <div className="px-4 md:px-8 py-6 md:py-8 border-b border-line">
           <div className="max-w-5xl mx-auto">
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">{t('dashboard.quickPreview')}</h1>
-            <p className="text-sm md:text-base text-muted-foreground">{t('dashboard.quickPreviewSubtitle')}</p>
+            <div className="ft-eyebrow mb-1.5">{t('dashboard.quickPreview')}</div>
+            <h1 className="ft-page-title">{t('dashboard.quickPreviewSubtitle')}</h1>
           </div>
         </div>
         <QuickPreview onShowFullDashboard={handleShowFullDashboard} />
@@ -66,34 +70,50 @@ const Index = () => {
     );
   }
 
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0]
+    || user?.email?.split("@")[0]
+    || "";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
       <DashboardHeader
         selectedPeriod={selectedPeriod}
         onPeriodChange={setSelectedPeriod}
       />
 
-      {/* Button to go back to quick preview */}
-      <div className="px-3 md:px-4 lg:px-6 pt-3 md:pt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowQuickPreview(true)}
-          className="gap-2 text-xs md:text-sm"
-        >
-          <LayoutDashboard className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          {t('dashboard.quickPreview')}
-        </Button>
-      </div>
+      <div className="ft-page">
+        {/* Page head */}
+        <div className="ft-page-head">
+          <div>
+            <div className="ft-eyebrow">{t('navigation.home')}</div>
+            <h1 className="ft-page-title">
+              {firstName
+                ? t('dashboard.greeting', { defaultValue: 'Good morning, {{name}}', name: firstName })
+                : t('dashboard.title', { defaultValue: 'Dashboard' })}
+            </h1>
+            <div className="ft-page-sub">
+              {t('dashboard.subtitle', { defaultValue: "Here's how your money moved this month." })}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowQuickPreview(true)}
+              className="gap-1.5 h-8 text-xs"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              {t('dashboard.quickPreview')}
+            </Button>
+          </div>
+        </div>
 
-      <div className="p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6">
-        <RecurringTransactionsWarning />
-        <OverdueDebtPaymentsAlert />
-        <BudgetAlertsCard />
+        {/* Hero net-worth */}
+        <HeroNetWorth />
 
-        {/* Stats cards */}
-        <StatsCards 
-          startDate={dateRange.start} 
+        {/* KPIs */}
+        <StatsCards
+          startDate={dateRange.start}
           endDate={dateRange.end}
           onIncomeClick={() => setShowIncomeModal(true)}
           onExpensesClick={() => setShowExpensesModal(true)}
@@ -102,14 +122,28 @@ const Index = () => {
           onExcludedTransactionsFiltered={setExcludedTransactions}
         />
 
-        {/* Aggregated balance evolution chart */}
+        {/* Alerts strip */}
+        <RecurringTransactionsWarning />
+        <OverdueDebtPaymentsAlert />
+        <BudgetAlertsCard />
+
+        {/* Balance evolution */}
         <AggregatedBalanceEvolution />
 
-        {/* Main content: Cashflow chart */}
-        <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
+        {/* Cashflow + categories two-up */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
+          <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
+          <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
+        </div>
 
-        {/* Distribution chart below */}
-        <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
+        {/* Accounts + Recent activity two-up */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
+          <AccountsListCard />
+          <RecentActivityCard />
+        </div>
+
+        {/* Savings goals */}
+        <SavingsGoalsCard />
       </div>
 
       <TransactionTypeModal

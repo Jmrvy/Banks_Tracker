@@ -27,15 +27,16 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page">
 
-        {/* Header */}
-        <div className="mb-2">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold">{t('settings.title')}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {t('navigation.manageProfile')}
-          </p>
+        {/* Page head */}
+        <div className="ft-page-head">
+          <div>
+            <div className="ft-eyebrow">{t('navigation.settings')}</div>
+            <h1 className="ft-page-title">{t('settings.title')}</h1>
+            <div className="ft-page-sub">{t('navigation.manageProfile')}</div>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:gap-4">

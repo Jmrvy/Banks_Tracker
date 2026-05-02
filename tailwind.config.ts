@@ -15,6 +15,9 @@ export default {
     extend: {
       fontFamily: {
         inter: ['Inter', 'sans-serif'],
+        sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['Geist Mono', 'JetBrains Mono', 'SF Mono', 'ui-monospace', 'monospace'],
+        display: ['Geist', 'Inter', 'sans-serif'],
       },
       fontSize: {
         xs: ['0.6875rem', { lineHeight: '1rem' }],    // 11px instead of 12px
@@ -57,6 +60,21 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        // Fintech extras
+        pos: "hsl(var(--pos))",
+        neg: "hsl(var(--neg))",
+        line: "hsl(var(--line))",
+        "line-strong": "hsl(var(--line-strong))",
+        "fg-mute": "hsl(var(--fg-mute))",
+        "fg-dim": "hsl(var(--fg-dim))",
+        "bg-elev": "hsl(var(--bg-elev))",
+        "bg-subtle": "hsl(var(--bg-subtle))",
+        "bg-hover": "hsl(var(--bg-hover))",
+        "bg-inverse": "hsl(var(--bg-inverse))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

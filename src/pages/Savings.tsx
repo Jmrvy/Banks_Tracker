@@ -221,33 +221,27 @@ const Savings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-                <div className="icon-badge icon-badge-md">
-                  <PiggyBank className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
-                </div>
-                <span className="truncate">{t('savings.pageTitle')}</span>
-              </h1>
-              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page">
+        {/* Page head */}
+        <div className="ft-page-head">
+          <div>
+            <div className="ft-eyebrow">{t('navigation.savings')}</div>
+            <h1 className="ft-page-title">{t('savings.pageTitle')}</h1>
+            <div className="ft-page-sub flex items-center gap-2">
+              <span>{t('savings.pageSubtitle')}</span>
+              <Badge variant="secondary" className="flex items-center gap-1 text-[11px] h-5">
                 <Calendar className="h-3 w-3" />
                 <span className="capitalize">{periodLabel}</span>
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">
-              {t('savings.pageSubtitle')}
-            </p>
           </div>
           <Button
             onClick={() => setShowNewGoalModal(true)}
             size="sm"
-            className="h-8 sm:h-9 px-2 sm:px-4 flex-shrink-0"
+            className="h-8 px-3 gap-1.5 font-semibold"
           >
-            <Plus className="h-4 w-4 sm:mr-2" />
+            <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{t('savings.newGoal')}</span>
           </Button>
         </div>

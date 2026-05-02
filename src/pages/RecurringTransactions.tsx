@@ -231,31 +231,26 @@ const RecurringTransactions = () => {
   }, [installmentPayments, transactions, debts, debtPayments, scheduledDebtPayments]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page">
 
-        {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3">
-                <div className="icon-badge icon-badge-md bg-primary/10">
-                  <Repeat className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                </div>
-                Transactions Récurrentes
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 ml-10 sm:ml-13">
-                Gérez vos transactions automatiques
-              </p>
+        {/* Page head */}
+        <div className="ft-page-head">
+          <div>
+            <div className="ft-eyebrow">{t('navigation.tools')}</div>
+            <h1 className="ft-page-title">{t('navigation.recurringTransactions')}</h1>
+            <div className="ft-page-sub">
+              {t('recurring.subtitle', { defaultValue: 'Manage your automatic transactions' })}
             </div>
-            <Button
-              onClick={() => setShowNewRecurring(true)}
-              className="h-8 sm:h-10 text-xs sm:text-sm"
-            >
-              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Nouvelle</span>
-            </Button>
           </div>
+          <Button
+            onClick={() => setShowNewRecurring(true)}
+            size="sm"
+            className="h-8 px-3 gap-1.5 font-semibold"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('recurring.newRecurring', { defaultValue: 'Add recurring' })}</span>
+          </Button>
         </div>
 
         {/* Stats Cards */}

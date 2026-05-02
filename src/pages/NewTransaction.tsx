@@ -141,7 +141,7 @@ const NewTransaction = () => {
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-20 md:pb-24">
+    <div className="min-h-screen bg-background pb-20 md:pb-24">
       <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="mb-2">
