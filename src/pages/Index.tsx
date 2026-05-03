@@ -122,9 +122,13 @@ const Index = () => {
           onExcludedTransactionsFiltered={setExcludedTransactions}
         />
 
-        {/* Alerts strip */}
-        <RecurringTransactionsWarning />
-        <OverdueDebtPaymentsAlert />
+        {/* Compact alerts (recurring warnings + overdue debt) — 2-up on desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 [&>*:empty]:hidden empty:hidden">
+          <RecurringTransactionsWarning />
+          <OverdueDebtPaymentsAlert />
+        </div>
+
+        {/* Budget breaches — full-width so per-category progress rows render legibly */}
         <BudgetAlertsCard />
 
         {/* Balance evolution */}
