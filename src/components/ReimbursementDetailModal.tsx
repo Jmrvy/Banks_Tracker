@@ -55,7 +55,7 @@ export const ReimbursementDetailModal = ({
       <DialogContent className="w-[95vw] sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
-            <div className="icon-badge icon-badge-sm bg-success/10 flex-shrink-0">
+            <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10 flex-shrink-0">
               <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success" />
             </div>
             <span className="truncate">{installment.description}</span>

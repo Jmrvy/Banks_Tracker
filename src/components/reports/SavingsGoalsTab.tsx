@@ -142,12 +142,12 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Investment Statistics Section */}
-      <Card className="animate-glass-fade-in">
+      <Card className="">
         <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm sm:text-base font-semibold flex items-center gap-2">
-                <div className="icon-badge icon-badge-sm bg-primary/10">
+                <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                   <PiggyBank className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                 </div>
                 {t('savings.accumulatedSavings')}
@@ -159,10 +159,10 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-primary/10">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                     <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.totalSaved')}</span>
@@ -173,10 +173,10 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
               </CardContent>
             </Card>
 
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-muted/50">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
                     <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.monthlyAverage')}</span>
@@ -187,10 +187,10 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
               </CardContent>
             </Card>
 
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-muted/50">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
                     <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">{t('savings.transactions')}</span>
@@ -201,10 +201,10 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
               </CardContent>
             </Card>
 
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={cn("icon-badge icon-badge-sm", investmentStats.trend >= 0 ? "bg-success/10" : "bg-destructive/10")}>
+                  <div className={cn("h-7 w-7 rounded-lg grid place-items-center", investmentStats.trend >= 0 ? "bg-success/10" : "bg-destructive/10")}>
                     {investmentStats.trend >= 0 ? (
                       <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
                     ) : (
@@ -293,7 +293,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
       </Card>
 
       {/* Savings Goals Section */}
-      <div className="flex justify-between items-center animate-glass-fade-in">
+      <div className="flex justify-between items-center ">
         <div>
           <h3 className="text-sm sm:text-base font-semibold">{t('savings.goalsTitle')}</h3>
           <p className="text-[10px] sm:text-xs text-muted-foreground">
@@ -307,7 +307,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
       </div>
 
       {goals.length === 0 ? (
-        <Card className="animate-glass-slide-up">
+        <Card className="">
           <CardContent className="text-center py-8">
             <p className="text-sm text-muted-foreground mb-4">
               {t('savings.noGoals')}
@@ -327,7 +327,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
             return (
               <Card
                 key={goal.id}
-                className="glass-hover animate-glass-scale-in cursor-pointer"
+                className="  cursor-pointer"
                 onClick={() => setEditingGoal(goal)}
               >
                 <CardContent className="p-3 sm:p-4 space-y-3">

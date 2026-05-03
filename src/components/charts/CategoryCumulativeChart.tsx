@@ -224,7 +224,7 @@ export function CategoryCumulativeChart({
   }
 
   return (
-    <Card className="glass-hover animate-glass-slide-up">
+    <Card className=" ">
       <CardContent className="p-3 sm:p-5">
         {chartContent}
       </CardContent>

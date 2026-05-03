@@ -195,7 +195,7 @@ const Reports = () => {
 
           <TabsContent value="income" className="mt-3 space-y-3">
             {/* Sélecteurs pour Revenus */}
-            <div className="flex items-center justify-between gap-2 animate-glass-fade-in flex-wrap">
+            <div className="flex items-center justify-between gap-2  flex-wrap">
               <div className="flex items-center gap-2">
                 <Switch
                   id="upcoming-income"
@@ -238,7 +238,7 @@ const Reports = () => {
 
           <TabsContent value="categories" className="mt-3 space-y-3">
             {/* Sélecteurs pour Dépenses */}
-            <div className="flex items-center justify-between gap-2 animate-glass-fade-in flex-wrap">
+            <div className="flex items-center justify-between gap-2  flex-wrap">
               <div className="flex items-center gap-2">
                 <Switch
                   id="upcoming-expenses"

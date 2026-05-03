@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Smartphone, Download, CheckCircle, Share } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,16 +10,13 @@ export default function Install() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Vérifier si l'app est déjà installée
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
     }
 
-    // Détecter iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     setIsIOS(iOS);
 
-    // Capturer l'événement beforeinstallprompt (Chrome/Edge/Android)
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -38,7 +34,7 @@ export default function Install() {
 
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    
+
     if (outcome === 'accepted') {
       setIsInstalled(true);
       setDeferredPrompt(null);
@@ -47,121 +43,120 @@ export default function Install() {
 
   if (isInstalled) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-secondary/10">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-            </div>
-            <CardTitle className="text-2xl">Application installée !</CardTitle>
-            <CardDescription>
-              L'application est déjà installée sur votre appareil
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate('/')} className="w-full">
-              Ouvrir l'application
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-60"
+          style={{ background: 'radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.10), transparent 60%)' }}
+        />
+        <div className="ft-card w-full max-w-md p-6 sm:p-8 relative text-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-pos/12 grid place-items-center">
+            <CheckCircle className="w-7 h-7 text-pos" />
+          </div>
+          <div className="ft-eyebrow mb-1">Installation</div>
+          <h1 className="ft-page-title text-xl sm:text-2xl">Application installée</h1>
+          <p className="text-sm text-muted-foreground mt-2 mb-5">
+            L'application est déjà installée sur votre appareil
+          </p>
+          <Button onClick={() => navigate('/')} className="w-full h-10 font-semibold">
+            Ouvrir l'application
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-secondary/10">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Smartphone className="w-8 h-8 text-primary" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{ background: 'radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.10), transparent 60%)' }}
+      />
+      <div className="ft-card w-full max-w-md p-6 sm:p-8 relative">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-primary/12 grid place-items-center">
+            <Smartphone className="w-7 h-7 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Installer l'application</CardTitle>
-          <CardDescription>
-            Installez Finance Tracker sur votre appareil pour un accès rapide et une expérience optimale
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Android/Chrome */}
+          <div className="ft-eyebrow mb-1">Installation</div>
+          <h1 className="ft-page-title text-xl sm:text-2xl">Installer l'application</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Installez Spending Tracker sur votre appareil pour un accès rapide et une expérience optimale
+          </p>
+        </div>
+
+        <div className="space-y-5 mt-6">
           {!isIOS && deferredPrompt && (
-            <div className="space-y-4">
-              <Button onClick={handleInstall} className="w-full" size="lg">
-                <Download className="mr-2 h-5 w-5" />
-                Installer maintenant
-              </Button>
-            </div>
+            <Button onClick={handleInstall} className="w-full h-11 font-semibold gap-2" size="lg">
+              <Download className="h-4 w-4" />
+              Installer maintenant
+            </Button>
           )}
 
-          {/* iOS */}
           {isIOS && (
-            <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                <p className="font-semibold text-sm">Pour installer sur iPhone :</p>
-                <ol className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">1.</span>
-                    <span>Ouvrez cette page dans Safari</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">2.</span>
-                    <span className="flex items-center">
-                      Appuyez sur le bouton <Share className="mx-1 h-4 w-4 inline" /> Partager
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">3.</span>
-                    <span>Sélectionnez "Sur l'écran d'accueil"</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">4.</span>
-                    <span>Appuyez sur "Ajouter"</span>
-                  </li>
-                </ol>
-              </div>
+            <div className="rounded-lg border border-line bg-bg-subtle p-4 space-y-3">
+              <p className="font-semibold text-sm">Pour installer sur iPhone :</p>
+              <ol className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span className="font-mono font-semibold text-foreground">1.</span>
+                  <span>Ouvrez cette page dans Safari</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-mono font-semibold text-foreground">2.</span>
+                  <span className="flex items-center">
+                    Appuyez sur le bouton <Share className="mx-1 h-4 w-4 inline" /> Partager
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-mono font-semibold text-foreground">3.</span>
+                  <span>Sélectionnez « Sur l'écran d'accueil »</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-mono font-semibold text-foreground">4.</span>
+                  <span>Appuyez sur « Ajouter »</span>
+                </li>
+              </ol>
             </div>
           )}
 
-          {/* Pas de support PWA détecté */}
           {!isIOS && !deferredPrompt && (
-            <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="space-y-3">
+              <div className="rounded-lg border border-line bg-bg-subtle p-4">
                 <p className="text-sm text-muted-foreground">
                   Pour installer l'application, utilisez un navigateur compatible comme Chrome, Edge ou Safari.
                 </p>
               </div>
-              <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+              <Button onClick={() => navigate('/')} variant="outline" className="w-full h-10">
                 Continuer dans le navigateur
               </Button>
             </div>
           )}
 
-          {/* Avantages */}
-          <div className="border-t pt-4 space-y-2">
-            <p className="font-semibold text-sm">Avantages de l'installation :</p>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              <li className="flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+          <div className="border-t border-line pt-4">
+            <p className="ft-eyebrow mb-2">Avantages</p>
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
                 Accès rapide depuis l'écran d'accueil
               </li>
-              <li className="flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+              <li className="flex items-center gap-2">
+                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
                 Fonctionne hors ligne
               </li>
-              <li className="flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+              <li className="flex items-center gap-2">
+                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
                 Expérience plein écran
               </li>
-              <li className="flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+              <li className="flex items-center gap-2">
+                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
                 Mises à jour automatiques
               </li>
             </ul>
           </div>
 
-          <Button onClick={() => navigate('/')} variant="ghost" className="w-full">
+          <Button onClick={() => navigate('/')} variant="ghost" className="w-full h-10">
             Plus tard
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

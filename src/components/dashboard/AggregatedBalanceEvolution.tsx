@@ -107,7 +107,7 @@ export const AggregatedBalanceEvolution = () => {
 
   if (transactionsWithBalance.length === 0) {
     return (
-      <Card className="animate-glass-fade-in">
+      <Card className="">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">{tr('dashboard.globalBalanceEvolution')}</CardTitle>
         </CardHeader>
@@ -122,7 +122,7 @@ export const AggregatedBalanceEvolution = () => {
 
   return (
     <>
-      <Card className="animate-glass-fade-in">
+      <Card className="">
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-sm sm:text-base">{tr('dashboard.globalBalanceEvolution')}</CardTitle>
         </CardHeader>

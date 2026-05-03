@@ -895,7 +895,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           <div
             className={cn(
               "relative cursor-pointer rounded-xl p-4 transition-all duration-200",
-              "border-2 bg-gradient-to-br",
+              "border bg-card",
               config.format === 'pdf'
                 ? "border-primary bg-primary/5 to-primary/10 shadow-lg shadow-primary/10"
                 : "border-border/50 from-muted/30 to-muted/10 hover:border-muted-foreground/30 hover:shadow-md"
@@ -921,7 +921,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           <div
             className={cn(
               "relative cursor-pointer rounded-xl p-4 transition-all duration-200",
-              "border-2 bg-gradient-to-br",
+              "border bg-card",
               config.format === 'excel'
                 ? "border-green-500 bg-green-500/5 to-green-500/10 shadow-lg shadow-green-500/10"
                 : "border-border/50 from-muted/30 to-muted/10 hover:border-muted-foreground/30 hover:shadow-md"
@@ -1026,7 +1026,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       </div>
 
       {/* Selected Period Display - Apple style card */}
-      <div className="p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border border-border/30">
+      <div className="p-4 bg-bg-subtle rounded-xl border border-line">
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">{t('reports.period')}:</span>
@@ -1290,7 +1290,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
             <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/20 my-3" />
             <DrawerHeader className="pb-2 px-6">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 backdrop-blur-sm">
+                <div className="p-2.5 rounded-xl bg-primary/12">
                   <Download className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -1319,7 +1319,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl">
           <DialogHeader className="pb-2">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 backdrop-blur-sm shadow-inner">
+              <div className="p-3 rounded-xl bg-primary/12">
                 <Download className="h-5 w-5 text-primary" />
               </div>
               <div>

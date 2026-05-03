@@ -60,7 +60,7 @@ const TransactionRow = React.memo(({ transaction, dateType, formatCurrency, onVi
           <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
             bankColors[transaction.account?.bank || 'other'] || 'bg-gray-500'
           }`} />
-          <div className={`icon-badge icon-badge-sm ${
+          <div className={`h-7 w-7 rounded-lg grid place-items-center ${
             transaction.type === 'income' ? 'bg-green-500/10' :
             transaction.type === 'transfer' ? 'bg-blue-500/10' :
             'bg-red-500/10'
@@ -367,7 +367,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <div className="icon-badge icon-badge-sm bg-primary/10">
+                <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                   <History className="h-5 w-5 text-primary" />
                 </div>
                 Historique des Transactions
@@ -404,7 +404,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
       <Card className="border-0 shadow-md">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <div className="icon-badge icon-badge-sm bg-primary/10">
+            <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
               <History className="h-5 w-5 text-primary" />
             </div>
             Historique des Transactions

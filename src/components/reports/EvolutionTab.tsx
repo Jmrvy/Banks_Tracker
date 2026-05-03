@@ -161,11 +161,11 @@ export const EvolutionTab = ({
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 animate-glass-fade-in">
-        <Card className="glass-hover">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 ">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-muted/50">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
                 <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Début</span>
@@ -176,10 +176,10 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-success/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
                 <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
@@ -190,10 +190,10 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-destructive/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-destructive/10">
                 <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
@@ -204,10 +204,10 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-primary/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                 <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Fin</span>
@@ -223,7 +223,7 @@ export const EvolutionTab = ({
       </div>
 
       {/* Balance evolution chart */}
-      <Card className="animate-glass-slide-up">
+      <Card className="">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
           <div>
             <CardTitle className="text-sm sm:text-base">{t('reports.balanceEvolution')}</CardTitle>
@@ -304,7 +304,7 @@ export const EvolutionTab = ({
 
       {/* Projected recurring summary + transaction breakdown */}
       {projectedTransactions.length > 0 && (
-        <Card className="animate-glass-slide-up">
+        <Card className="">
           <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
             <CardTitle className="text-sm sm:text-base">Projection récurrente</CardTitle>
             <CardDescription className="text-[10px] sm:text-xs">

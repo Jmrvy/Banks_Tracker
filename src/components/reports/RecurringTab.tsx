@@ -90,11 +90,11 @@ export const RecurringTab = ({
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-glass-fade-in">
-        <Card className="glass-hover">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 ">
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="icon-badge icon-badge-sm bg-success/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.incoming')}</span>
@@ -104,10 +104,10 @@ export const RecurringTab = ({
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="icon-badge icon-badge-sm bg-destructive/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.outgoing')}</span>
@@ -117,10 +117,10 @@ export const RecurringTab = ({
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="icon-badge icon-badge-sm bg-muted/50">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
                 <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Net</span>
@@ -131,10 +131,10 @@ export const RecurringTab = ({
           </CardContent>
         </Card>
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="icon-badge icon-badge-sm bg-primary/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                 <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Récurrences</span>
@@ -149,7 +149,7 @@ export const RecurringTab = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Donut chart by category (expenses) */}
         {expenseCategories.length > 0 && (
-          <Card className="glass-hover animate-glass-slide-up overflow-hidden">
+          <Card className="  overflow-hidden">
             <CardContent className="p-3 sm:p-4">
               <h3 className="text-xs sm:text-sm font-semibold mb-3 flex items-center gap-1.5">
                 <TrendingDown className="h-3.5 w-3.5 text-destructive" />
@@ -225,7 +225,7 @@ export const RecurringTab = ({
         )}
 
         {/* Spending patterns */}
-        <Card className="glass-hover animate-glass-slide-up">
+        <Card className=" ">
           <CardContent className="p-3 sm:p-4">
             <h3 className="text-xs sm:text-sm font-semibold mb-3 flex items-center gap-1.5">
               <BarChart3 className="h-3.5 w-3.5 text-primary" />

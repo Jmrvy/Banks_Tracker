@@ -178,11 +178,11 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className={cn("grid gap-2 animate-glass-fade-in", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
-        <Card className="glass-hover">
+      <div className={cn("grid gap-2 ", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-destructive/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-destructive/10">
                 <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.realExpenses')}</span>
@@ -192,10 +192,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
         </Card>
 
         {includeUpcoming && (
-          <Card className="glass-hover border-dashed border-primary/30">
+          <Card className=" border-dashed border-primary/30">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
-                <div className="icon-badge icon-badge-sm bg-primary/10">
+                <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                   <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
                 </div>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.projected')}</span>
@@ -206,10 +206,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           </Card>
         )}
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-primary/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                 <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.totalBudget')}</span>
@@ -220,10 +220,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
 
         {!includeUpcoming && (
           <>
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-orange-500/10">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-orange-500/10">
                     <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.exceeded')}</span>
@@ -232,10 +232,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
               </CardContent>
             </Card>
 
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-success/10">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
                     <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.underBudget')}</span>
@@ -248,7 +248,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       </div>
 
       {/* Main Content: Chart + Legend */}
-      <Card className="glass-hover animate-glass-slide-up overflow-hidden">
+      <Card className="  overflow-hidden">
         <CardContent className="p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Donut Chart */}
@@ -361,7 +361,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
 
       {/* Budget Analysis */}
       {categoriesWithBudget.length > 0 && (overBudgetCategories.length > 0 || underBudgetCategories.length > 0) && (
-        <Card className="glass-hover animate-glass-slide-up">
+        <Card className=" ">
           <CardContent className="p-3 sm:p-4 space-y-3">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
               <Target className="w-3.5 h-3.5 text-primary" />
@@ -575,7 +575,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
 
       {/* Upcoming Recurring Items */}
       {includeUpcoming && upcomingItems && upcomingItems.length > 0 && (
-        <Card className="glass-hover animate-glass-slide-up border-dashed border-primary/30">
+        <Card className="  border-dashed border-primary/30">
           <CardContent className="p-3 sm:p-4 space-y-2">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-primary" />

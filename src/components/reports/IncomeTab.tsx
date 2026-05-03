@@ -162,11 +162,11 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
   return (
     <div className="space-y-3">
       {/* Stats Cards */}
-      <div className={cn("grid gap-2 animate-glass-fade-in", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
-        <Card className="glass-hover">
+      <div className={cn("grid gap-2 ", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-success/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus réels</span>
@@ -176,10 +176,10 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
         </Card>
 
         {includeUpcoming && (
-          <Card className="glass-hover border-dashed border-primary/30">
+          <Card className=" border-dashed border-primary/30">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
-                <div className="icon-badge icon-badge-sm bg-primary/10">
+                <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                   <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
                 </div>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Projeté</span>
@@ -190,10 +190,10 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
           </Card>
         )}
 
-        <Card className="glass-hover">
+        <Card className="">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="icon-badge icon-badge-sm bg-primary/10">
+              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
                 <Hash className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
               </div>
               <span className="text-[10px] sm:text-xs text-muted-foreground">Catégories</span>
@@ -204,10 +204,10 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
 
         {!includeUpcoming && (
           <>
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-muted/50">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
                     <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">Transactions</span>
@@ -216,10 +216,10 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
               </CardContent>
             </Card>
 
-            <Card className="glass-hover">
+            <Card className="">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="icon-badge icon-badge-sm bg-success/10">
+                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
                     <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
                   </div>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">Moyenne/tx</span>
@@ -232,7 +232,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
       </div>
 
       {/* Main Content: Chart + Legend */}
-      <Card className="glass-hover animate-glass-slide-up overflow-hidden">
+      <Card className="  overflow-hidden">
         <CardContent className="p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Donut Chart */}
@@ -396,7 +396,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
 
       {/* Upcoming Recurring Items */}
       {includeUpcoming && upcomingItems && upcomingItems.length > 0 && (
-        <Card className="glass-hover animate-glass-slide-up border-dashed border-primary/30">
+        <Card className="  border-dashed border-primary/30">
           <CardContent className="p-3 sm:p-4 space-y-2">
             <h3 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-primary" />

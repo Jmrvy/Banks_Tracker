@@ -256,7 +256,7 @@ export function CashflowChart({ startDate, endDate }: CashflowChartProps) {
   );
 
   return (
-    <Card className="animate-glass-slide-up">
+    <Card className="">
       <CardContent className="p-3 sm:p-4 md:p-6">
         <div className="mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold">{t('dashboard.cashflow')}</h3>

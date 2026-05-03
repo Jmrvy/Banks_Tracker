@@ -75,7 +75,7 @@ const FeatureMockup = ({ id }: { id: string }) => {
       return (
         <div className={mockupWrapper}>
           {/* Hero balance card */}
-          <div className="p-3 bg-gradient-to-br from-card via-card to-primary/5 border-b">
+          <div className="p-3 bg-card border-b border-line">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-0.5">Solde total</p>
@@ -1172,7 +1172,7 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header with progress */}
       <div className="p-4 sm:p-6">
         <div className="max-w-2xl mx-auto">
