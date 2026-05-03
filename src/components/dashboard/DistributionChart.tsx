@@ -119,9 +119,10 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:gap-5 items-center">
-        {/* Donut with total in the center */}
-        <div className="relative mx-auto w-full max-w-[180px] sm:max-w-[200px] aspect-square">
+      <div className="grid grid-cols-1 sm:grid-cols-[200px_minmax(0,1fr)] gap-4 sm:gap-5 items-center">
+        {/* Donut with total in the center — fixed-width column avoids the
+            CSS-grid `auto` + `w-full` chicken-and-egg that collapsed to 0. */}
+        <div className="relative w-[180px] sm:w-[200px] h-[180px] sm:h-[200px] mx-auto">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -151,7 +152,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
             <div className="text-[10.5px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
               {t("common.expenses", { defaultValue: "Expenses" })}
             </div>
-            <div className={`font-mono text-lg font-medium tracking-tight mt-0.5 ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+            <div className={`font-mono text-lg font-medium tracking-tight mt-0.5 truncate max-w-full ${isPrivacyMode ? "blur-md select-none" : ""}`}>
               {formatCurrency(total)}
             </div>
           </div>

@@ -317,12 +317,18 @@ export function StatsCards({
               {showTrendCaption ? (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                   <span className={`ft-delta ${cls} whitespace-nowrap`}>
-                    {trendNull ? "—" : `${isUp ? "↑" : "↓"} ${Math.abs(trendVal).toFixed(1)}%`}
+                    {trendNull
+                      ? "—"
+                      : (() => {
+                          const v = Math.abs(trendVal);
+                          const formatted = v >= 100 ? Math.round(v).toString() : v.toFixed(1);
+                          return `${isUp ? "↑" : "↓"} ${formatted}%`;
+                        })()}
                   </span>
-                  <span className="hidden sm:inline truncate">
+                  <span className="hidden md:inline truncate">
                     {trendNull
                       ? t("dashboard.noPriorData", { defaultValue: "no prior data" })
-                      : t("dashboard.vsPriorPeriod", { defaultValue: "vs. prior period" })}
+                      : t("dashboard.vsPrior", { defaultValue: "vs. prior" })}
                   </span>
                 </div>
               ) : (
