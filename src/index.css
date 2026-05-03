@@ -305,9 +305,10 @@
   }
   .ft-kpi-value {
     font-family: "Geist Mono", "JetBrains Mono", monospace;
-    font-size: clamp(0.95rem, 3.2vw, 1.5rem); /* ~15px → 24px */
+    font-size: clamp(0.875rem, 2vw, 1.25rem); /* 14px → 20px */
     line-height: 1.15;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
     @apply font-medium;
   }
 

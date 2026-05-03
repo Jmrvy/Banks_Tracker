@@ -52,7 +52,7 @@ export function DashboardHeader({ selectedPeriod, onPeriodChange }: DashboardHea
     { label: "3M", value: "3m" },
     { label: "YTD", value: "ytd" },
     { label: "1Y", value: "1y" },
-    { label: t("common.custom") || "Custom", value: "custom" },
+    { label: t("common.custom", { defaultValue: "Custom" }), value: "custom" },
   ];
 
   const fixTimezone = (date: Date) =>

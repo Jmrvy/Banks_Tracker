@@ -59,11 +59,20 @@ export function StatsCards({
   onTransactionsFiltered,
   onExcludedTransactionsFiltered,
 }: StatsCardsProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { transactions, accounts, recurringTransactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
   const [showDateDifferenceModal, setShowDateDifferenceModal] = useState(false);
+
+  // KPI tiles show whole numbers — cents add no signal here and just eat
+  // horizontal room. Modeled on the deck design's `fmt.usd(v, { cents: false })`.
+  const formatKpi = (v: number) =>
+    v.toLocaleString(i18n.language === "fr" ? "fr-FR" : "en-US", {
+      style: "currency",
+      currency: preferences.currency,
+      maximumFractionDigits: 0,
+    });
 
   const activeDateType = preferences.dateType;
 
@@ -310,7 +319,7 @@ export function StatsCards({
                 className={`ft-kpi-value truncate min-w-0 ${isPrivacyMode ? "blur-md select-none" : ""}`}
                
               >
-                {card.isCount ? card.value : formatCurrency(card.value)}
+                {card.isCount ? card.value : formatKpi(card.value)}
               </div>
 
               {/* Delta + caption */}
