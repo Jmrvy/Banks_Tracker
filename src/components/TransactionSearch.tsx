@@ -1,14 +1,22 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Slider } from "@/components/ui/slider";
-import { Search, X, Filter, SlidersHorizontal, Calendar, CreditCard, Tag, DollarSign } from "lucide-react";
+import {
+  Search,
+  X,
+  Filter,
+  Calendar,
+  Wallet,
+  Tag,
+  DollarSign,
+  History,
+} from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -30,14 +38,14 @@ interface TransactionSearchProps {
 }
 
 export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount }: TransactionSearchProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { categories, accounts, transactions } = useFinancialData();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Compute max amount from transactions for slider range
   const maxAmount = useMemo(() => {
     if (transactions.length === 0) return 1000;
-    const max = Math.max(...transactions.map(t => Math.abs(t.amount)));
+    const max = Math.max(...transactions.map((t) => Math.abs(t.amount)));
     return Math.ceil(max) || 1000;
   }, [transactions]);
 
@@ -58,15 +66,15 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
     });
   };
 
-  // Quick filter chips for transaction type
-  const typeChips = [
-    { value: 'all', label: 'Tout' },
-    { value: 'expense', label: 'Dépenses' },
-    { value: 'income', label: 'Revenus' },
-    { value: 'transfer', label: t('common.transfers') },
+  // Type segmented control matching the deck's "All / Income / Expenses / Transfers"
+  const typeSegments = [
+    { value: 'all', label: t('common.all', { defaultValue: 'All' }) },
+    { value: 'income', label: t('common.income', { defaultValue: 'Income' }) },
+    { value: 'expense', label: t('common.expenses', { defaultValue: 'Expenses' }) },
+    { value: 'transfer', label: t('common.transfers', { defaultValue: 'Transfers' }) },
   ];
 
-  // Count active advanced filters (excluding search + type which are always visible)
+  // Active filter chips
   const advancedFiltersCount = [
     filters.categoryId !== 'all',
     filters.accountId !== 'all',
@@ -76,134 +84,184 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
     filters.amountMax,
   ].filter(Boolean).length;
 
+  const categoryFilterLabel = filters.categoryId !== 'all'
+    ? categories.find((c) => c.id === filters.categoryId)?.name
+    : null;
+  const accountFilterLabel = filters.accountId !== 'all'
+    ? accounts.find((a) => a.id === filters.accountId)?.name
+    : null;
+  const dateFilterLabel = filters.dateFrom || filters.dateTo
+    ? [
+        filters.dateFrom && format(parseISO(filters.dateFrom), 'd MMM', { locale: dateLocale }),
+        filters.dateTo && format(parseISO(filters.dateTo), 'd MMM', { locale: dateLocale }),
+      ]
+        .filter(Boolean)
+        .join(' → ')
+    : null;
+
   return (
     <>
-      <div className="space-y-3">
-        {/* Search bar + filter button */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Filter bar — single ft-card containing search + segmented type + filter buttons */}
+      <div className="ft-card p-3 sm:p-3.5 md:p-4 flex flex-col gap-2.5 sm:gap-3">
+        <div className="flex flex-col md:flex-row md:flex-wrap gap-2 items-stretch md:items-center">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Rechercher..."
+              placeholder={t('transactions.searchPlaceholder', {
+                defaultValue: 'Search merchant, amount, note…',
+              })}
               value={filters.searchText}
               onChange={(e) => updateFilter('searchText', e.target.value)}
-              className="pl-9 pr-8"
+              className="pl-8 pr-7 h-9 text-sm"
             />
             {filters.searchText && (
               <button
                 onClick={() => updateFilter('searchText', '')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-white/[0.06] transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-bg-hover transition-colors"
               >
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            className="relative h-10 w-10 flex-shrink-0"
-            onClick={() => setIsOpen(true)}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            {advancedFiltersCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 h-4 w-4 flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {advancedFiltersCount}
-              </span>
-            )}
-          </Button>
-        </div>
 
-        {/* Type chips - always visible */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
-          {typeChips.map((chip) => (
-            <button
-              key={chip.value}
-              onClick={() => updateFilter('type', chip.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-200 border ${
-                filters.type === chip.value
-                  ? 'bg-primary/15 text-primary border-primary/30'
-                  : 'bg-white/[0.03] text-muted-foreground border-white/[0.06] hover:bg-white/[0.06]'
-              }`}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Active filter tags */}
-        {advancedFiltersCount > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {filters.categoryId !== 'all' && (
-              <Badge variant="secondary" className="gap-1 pr-1 text-xs">
-                <Tag className="h-3 w-3" />
-                {categories.find(c => c.id === filters.categoryId)?.name || 'Catégorie'}
-                <button onClick={() => updateFilter('categoryId', 'all')} className="ml-0.5 p-0.5 rounded-full hover:bg-white/[0.1]">
-                  <X className="h-2.5 w-2.5" />
+          {/* Segmented type toggle — horizontal scroll on narrow screens */}
+          <div className="-mx-1 px-1 overflow-x-auto md:mx-0 md:px-0 md:overflow-visible">
+            <div className="ft-seg flex-shrink-0 w-fit">
+              {typeSegments.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={filters.type === s.value ? 'active' : ''}
+                  onClick={() => updateFilter('type', s.value)}
+                >
+                  {s.label}
                 </button>
-              </Badge>
-            )}
-            {filters.accountId !== 'all' && (
-              <Badge variant="secondary" className="gap-1 pr-1 text-xs">
-                <CreditCard className="h-3 w-3" />
-                {accounts.find(a => a.id === filters.accountId)?.name || 'Compte'}
-                <button onClick={() => updateFilter('accountId', 'all')} className="ml-0.5 p-0.5 rounded-full hover:bg-white/[0.1]">
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </Badge>
-            )}
-            {(filters.dateFrom || filters.dateTo) && (
-              <Badge variant="secondary" className="gap-1 pr-1 text-xs">
-                <Calendar className="h-3 w-3" />
-                {filters.dateFrom && format(parseISO(filters.dateFrom), 'dd MMM yyyy', { locale: fr })}
-                {filters.dateFrom && filters.dateTo && ' → '}
-                {filters.dateTo && format(parseISO(filters.dateTo), 'dd MMM yyyy', { locale: fr })}
-                <button onClick={() => { updateFilter('dateFrom', ''); updateFilter('dateTo', ''); }} className="ml-0.5 p-0.5 rounded-full hover:bg-white/[0.1]">
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </Badge>
-            )}
-            {(filters.amountMin || filters.amountMax) && (
-              <Badge variant="secondary" className="gap-1 pr-1 text-xs">
-                <DollarSign className="h-3 w-3" />
-                {filters.amountMin || '0'}€ – {filters.amountMax || '∞'}€
-                <button onClick={() => { updateFilter('amountMin', ''); updateFilter('amountMax', ''); }} className="ml-0.5 p-0.5 rounded-full hover:bg-white/[0.1]">
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </Badge>
-            )}
-            <button
-              onClick={clearFilters}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5"
-            >
-              Tout effacer
-            </button>
+              ))}
+            </div>
           </div>
-        )}
+
+          {/* Filter buttons */}
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOpen(true)}
+              className={`h-9 px-3 gap-1.5 text-xs ${filters.categoryId !== 'all' ? 'border-primary text-primary' : ''}`}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              {categoryFilterLabel || t('transactions.category', { defaultValue: 'Category' })}
+              {categoryFilterLabel && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); updateFilter('categoryId', 'all'); }}
+                  className="p-0.5 rounded-md hover:bg-bg-hover"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOpen(true)}
+              className={`h-9 px-3 gap-1.5 text-xs ${filters.accountId !== 'all' ? 'border-primary text-primary' : ''}`}
+            >
+              <Wallet className="h-3.5 w-3.5" />
+              {accountFilterLabel || t('transactions.account', { defaultValue: 'Account' })}
+              {accountFilterLabel && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); updateFilter('accountId', 'all'); }}
+                  className="p-0.5 rounded-md hover:bg-bg-hover"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOpen(true)}
+              className={`h-9 px-3 gap-1.5 text-xs ${(filters.dateFrom || filters.dateTo) ? 'border-primary text-primary' : ''}`}
+            >
+              <History className="h-3.5 w-3.5" />
+              {dateFilterLabel || t('transactions.dateRange', { defaultValue: 'Date range' })}
+              {dateFilterLabel && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFiltersChange({ ...filters, dateFrom: '', dateTo: '' });
+                  }}
+                  className="p-0.5 rounded-md hover:bg-bg-hover"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </Button>
+            {(filters.amountMin || filters.amountMax) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsOpen(true)}
+                className="h-9 px-3 gap-1.5 text-xs border-primary text-primary"
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                {filters.amountMin || '0'}€ – {filters.amountMax || '∞'}€
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFiltersChange({ ...filters, amountMin: '', amountMax: '' });
+                  }}
+                  className="p-0.5 rounded-md hover:bg-bg-hover"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </span>
+              </Button>
+            )}
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {t('transactions.clearAll', { defaultValue: 'Clear all' })}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Advanced filters modal */}
+      {/* Advanced filters dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-          <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Filter className="h-5 w-5 text-primary" />
-              Filtres avancés
+          <DialogHeader className="px-5 pt-5 pb-3 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Filter className="h-4 w-4 text-primary" />
+              {t('transactions.advancedFilters', { defaultValue: 'Advanced filters' })}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
             {/* Category */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5" />
-                Catégorie
+                {t('transactions.category', { defaultValue: 'Category' })}
               </label>
               <Select value={filters.categoryId} onValueChange={(value) => updateFilter('categoryId', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Toutes les catégories" />
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder={t('transactions.allCategories', { defaultValue: 'All categories' })} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toutes</SelectItem>
+                  <SelectItem value="all">{t('transactions.allCategories', { defaultValue: 'All categories' })}</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       <div className="flex items-center gap-2">
@@ -219,15 +277,15 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
             {/* Account */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <CreditCard className="h-3.5 w-3.5" />
-                Compte
+                <Wallet className="h-3.5 w-3.5" />
+                {t('transactions.account', { defaultValue: 'Account' })}
               </label>
               <Select value={filters.accountId} onValueChange={(value) => updateFilter('accountId', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tous les comptes" />
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder={t('transactions.allAccounts', { defaultValue: 'All accounts' })} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="all">{t('transactions.allAccounts', { defaultValue: 'All accounts' })}</SelectItem>
                   {accounts.map((acc) => (
                     <SelectItem key={acc.id} value={acc.id}>
                       {acc.name}
@@ -241,33 +299,27 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
-                Période
+                {t('transactions.period', { defaultValue: 'Period' })}
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">Du</span>
-                  <DatePicker
-                    date={filters.dateFrom ? parseISO(filters.dateFrom) : undefined}
-                    onDateChange={(date) => updateFilter('dateFrom', date ? format(date, 'yyyy-MM-dd') : '')}
-                    placeholder="Date début"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">Au</span>
-                  <DatePicker
-                    date={filters.dateTo ? parseISO(filters.dateTo) : undefined}
-                    onDateChange={(date) => updateFilter('dateTo', date ? format(date, 'yyyy-MM-dd') : '')}
-                    placeholder="Date fin"
-                  />
-                </div>
+                <DatePicker
+                  date={filters.dateFrom ? parseISO(filters.dateFrom) : undefined}
+                  onDateChange={(date) => updateFilter('dateFrom', date ? format(date, 'yyyy-MM-dd') : '')}
+                  placeholder={t('common.from', { defaultValue: 'From' })}
+                />
+                <DatePicker
+                  date={filters.dateTo ? parseISO(filters.dateTo) : undefined}
+                  onDateChange={(date) => updateFilter('dateTo', date ? format(date, 'yyyy-MM-dd') : '')}
+                  placeholder={t('common.until', { defaultValue: 'Until' })}
+                />
               </div>
             </div>
 
-            {/* Amount range slider */}
+            {/* Amount range */}
             <div className="space-y-3">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <DollarSign className="h-3.5 w-3.5" />
-                Montant
+                {t('transactions.amount', { defaultValue: 'Amount' })}
               </label>
               <Slider
                 min={0}
@@ -287,34 +339,34 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 className="py-2"
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">
+                <span className="font-mono font-medium text-foreground">
                   {filters.amountMin ? `${filters.amountMin} €` : '0 €'}
                 </span>
-                <span className="text-[10px]">Glisser pour ajuster</span>
-                <span className="font-medium text-foreground">
+                <span className="font-mono font-medium text-foreground">
                   {filters.amountMax ? `${filters.amountMax} €` : `${maxAmount} €`}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-2 flex-shrink-0 flex gap-2 border-t border-white/[0.06]">
+          <div className="px-5 pb-5 pt-3 flex-shrink-0 flex gap-2 border-t border-line">
             {activeFiltersCount > 0 && (
               <Button
                 variant="outline"
                 onClick={() => { clearFilters(); setIsOpen(false); }}
-                className="flex-1"
+                size="sm"
+                className="flex-1 h-9 gap-1.5"
               >
-                <X className="h-4 w-4 mr-1.5" />
-                Réinitialiser
+                <X className="h-3.5 w-3.5" />
+                {t('common.reset', { defaultValue: 'Reset' })}
               </Button>
             )}
             <Button
               onClick={() => setIsOpen(false)}
-              className="flex-1"
+              size="sm"
+              className="flex-1 h-9 font-semibold"
             >
-              Appliquer
+              {t('common.apply', { defaultValue: 'Apply' })}
             </Button>
           </div>
         </DialogContent>

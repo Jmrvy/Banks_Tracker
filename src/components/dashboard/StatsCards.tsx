@@ -279,12 +279,12 @@ export function StatsCards({
               className={`ft-kpi text-left ${clickable ? "cursor-pointer" : "cursor-default"}`}
             >
               {/* Top row: icon + label */}
-              <div className="flex items-center gap-2.5">
-                <div className={`ft-kpi-icon ${card.iconClass}`}>
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                <div className={`ft-kpi-icon ${card.iconClass} flex-shrink-0`}>
                   <card.icon className="h-4 w-4" />
                 </div>
-                <span className="ft-kpi-label flex items-center gap-1">
-                  {card.label}
+                <span className="ft-kpi-label flex items-center gap-1 min-w-0 truncate">
+                  <span className="truncate">{card.label}</span>
                   {card.id === "available" && hasDateDifference && (
                     <span
                       role="button"
@@ -293,7 +293,7 @@ export function StatsCards({
                         e.stopPropagation();
                         setShowDateDifferenceModal(true);
                       }}
-                      className="p-0.5 rounded-md hover:bg-bg-hover"
+                      className="p-0.5 rounded-md hover:bg-bg-hover flex-shrink-0"
                     >
                       <Info className="h-3 w-3 text-muted-foreground" />
                     </span>
@@ -302,22 +302,25 @@ export function StatsCards({
               </div>
 
               {/* Big value */}
-              <div className={`ft-kpi-value truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+              <div
+                className={`ft-kpi-value truncate min-w-0 ${isPrivacyMode ? "blur-md select-none" : ""}`}
+                style={{ fontSize: "clamp(1.125rem, 4.4vw, 1.625rem)" }}
+              >
                 {card.isCount ? card.value : formatCurrency(card.value)}
               </div>
 
               {/* Delta + caption */}
               {showTrendCaption ? (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className={`ft-delta ${cls}`}>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                  <span className={`ft-delta ${cls} whitespace-nowrap`}>
                     {flat ? "—" : isUp ? "↑" : "↓"} {Math.abs(card.trend).toFixed(1)}%
                   </span>
-                  <span className="hidden sm:inline">
+                  <span className="hidden sm:inline truncate">
                     {t("dashboard.vsPriorPeriod", { defaultValue: "vs. prior period" })}
                   </span>
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground truncate">
                   {card.id === "available"
                     ? t("dashboard.acrossAccounts", { defaultValue: "across {{n}} accounts", n: accounts.length })
                     : t("dashboard.activePlans", { defaultValue: "active plans" })}

@@ -108,28 +108,31 @@ export function HeroNetWorth() {
     <div className="ft-hero">
       <div className="grid grid-cols-1 md:grid-cols-[1.1fr_2fr] gap-6 md:gap-8 relative">
         {/* Left: meta */}
-        <div className="flex flex-col gap-4 pb-6 md:pb-7">
-          <div>
+        <div className="flex flex-col gap-4 pb-6 md:pb-7 min-w-0">
+          <div className="min-w-0">
             <div className="ft-hero-eyebrow">
               <span className="live" />
               {t("dashboard.totalNetWorth", { defaultValue: "Total net worth" })}
             </div>
-            <div className={`ft-hero-value mt-3 ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+            <div
+              className={`ft-hero-value mt-3 leading-none break-words ${isPrivacyMode ? "blur-md select-none" : ""}`}
+              style={{ fontSize: "clamp(2rem, 8vw, 3.5rem)" }}
+            >
               €{intPart}
               <span className="cents">.{cents}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 mt-3 text-[12.5px] text-muted-foreground">
-              <span className={`ft-delta ${up ? "up" : "down"}`}>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-[12.5px] text-muted-foreground">
+              <span className={`ft-delta ${up ? "up" : "down"} whitespace-nowrap`}>
                 {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                 {Math.abs(deltaPct).toFixed(1)}% · {up ? "+" : "−"}
                 {formatCurrency(Math.abs(delta30d))}
               </span>
-              <span>{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
+              <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-3 border-t border-line text-xs text-muted-foreground">
-            <Info className="h-3 w-3" />
-            <span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-3 border-t border-line text-xs text-muted-foreground">
+            <Info className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate min-w-0">
               {t("dashboard.updated", { defaultValue: "Updated" })}{" "}
               {new Date().toLocaleString(undefined, {
                 month: "short",
@@ -138,7 +141,7 @@ export function HeroNetWorth() {
                 minute: "2-digit",
               })}
             </span>
-            <span className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-subtle border border-line text-[11px]">
+            <span className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-subtle border border-line text-[11px] flex-shrink-0">
               <Lock className="h-2.5 w-2.5" />
               {t("common.secure", { defaultValue: "Secure" })}
             </span>

@@ -157,48 +157,60 @@ const Accounts = () => {
               className="pointer-events-none absolute inset-0 opacity-50"
               style={{ background: `radial-gradient(60% 80% at 0% 0%, ${accent}22, transparent 60%)` }}
             />
-            <div className="relative grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 p-5 md:p-6">
-              <div>
+            <div className="relative grid grid-cols-1 md:grid-cols-[auto_1fr] gap-5 md:gap-6 p-5 md:p-6">
+              <div className="min-w-0">
                 <div className="ft-hero-eyebrow">
                   <span className="live" />
                   {t("accounts.availableBalance", { defaultValue: "Available balance" })}
                 </div>
-                <div className={`ft-hero-value mt-3 ${hideBalances ? "" : ""}`}>
+                <div
+                  className="ft-hero-value mt-3 leading-none break-words"
+                  style={{ fontSize: "clamp(2rem, 8vw, 3.5rem)" }}
+                >
                   {hideBalances ? "•••••" : formatCurrency(selectedAccount.balance)}
                 </div>
-                <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-xs text-muted-foreground">
                   {accountSeries && (
-                    <span className={`ft-delta ${change30d >= 0 ? "up" : "down"}`}>
+                    <span className={`ft-delta ${change30d >= 0 ? "up" : "down"} whitespace-nowrap`}>
                       {change30d >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                       {fmtBal(Math.abs(change30d))}
                       <span className="opacity-70 ml-1">({changePct.toFixed(1)}%)</span>
                     </span>
                   )}
-                  <span>{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
+                  <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 md:gap-5 md:border-l md:border-line md:pl-6 self-center">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+              <div className="grid grid-cols-3 gap-3 md:gap-5 md:border-l md:border-line md:pl-6 self-center min-w-0">
+                <div className="min-w-0">
+                  <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">
                     {t("common.income", { defaultValue: "Income" })}
                   </div>
-                  <div className={`font-mono text-lg font-medium tracking-tight mt-1 text-pos`}>
+                  <div
+                    className="font-mono font-medium tracking-tight mt-1 text-pos truncate"
+                    style={{ fontSize: "clamp(0.875rem, 3.4vw, 1.125rem)" }}
+                  >
                     +{fmtBal(periodIncome)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+                <div className="min-w-0">
+                  <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">
                     {t("common.expenses", { defaultValue: "Spent" })}
                   </div>
-                  <div className={`font-mono text-lg font-medium tracking-tight mt-1 text-destructive`}>
+                  <div
+                    className="font-mono font-medium tracking-tight mt-1 text-destructive truncate"
+                    style={{ fontSize: "clamp(0.875rem, 3.4vw, 1.125rem)" }}
+                  >
                     −{fmtBal(periodExpense)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+                <div className="min-w-0">
+                  <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">
                     {t("dashboard.net", { defaultValue: "Net" })}
                   </div>
-                  <div className={`font-mono text-lg font-medium tracking-tight mt-1 ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}>
+                  <div
+                    className={`font-mono font-medium tracking-tight mt-1 truncate ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}
+                    style={{ fontSize: "clamp(0.875rem, 3.4vw, 1.125rem)" }}
+                  >
                     {fmtBal(periodNet, { sign: true })}
                   </div>
                 </div>
@@ -269,26 +281,29 @@ const Accounts = () => {
                 "radial-gradient(70% 80% at 100% 0%, hsl(var(--primary) / 0.10), transparent 60%)",
             }}
           />
-          <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-6 lg:gap-9 p-6 md:p-7">
-            <div>
+          <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-5 sm:gap-6 lg:gap-9 p-5 sm:p-6 md:p-7">
+            <div className="min-w-0">
               <div className="ft-hero-eyebrow">
                 <span className="live" />
                 {t("accounts.totalBalance", { defaultValue: "Total balance" })}
               </div>
-              <div className="ft-hero-value mt-3">
+              <div
+                className="ft-hero-value mt-3 leading-none break-words"
+                style={{ fontSize: "clamp(2rem, 8vw, 3.5rem)" }}
+              >
                 {hideBalances ? "•••••" : formatCurrency(totalBalance)}
               </div>
-              <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-xs text-muted-foreground">
                 {Math.abs(change30dTotal) > 0.01 && (
-                  <span className={`ft-delta ${change30dTotal >= 0 ? "up" : "down"}`}>
+                  <span className={`ft-delta ${change30dTotal >= 0 ? "up" : "down"} whitespace-nowrap`}>
                     {change30dTotal >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                     {fmtBal(Math.abs(change30dTotal))}
                   </span>
                 )}
-                <span>{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
+                <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
               </div>
             </div>
-            <div className="flex flex-col gap-4 justify-center">
+            <div className="flex flex-col gap-3 sm:gap-4 justify-center min-w-0">
               {/* Stacked composition bar */}
               <div className="flex h-3.5 rounded-lg overflow-hidden border border-line bg-bg-subtle">
                 <div
@@ -305,19 +320,19 @@ const Accounts = () => {
                 />
               </div>
               {/* Legend */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[
                   { label: t("accounts.checking", { defaultValue: "Checking" }), v: checkingTotal, color: "hsl(var(--primary))" },
                   { label: t("accounts.savings", { defaultValue: "Savings" }), v: savingsTotal, color: "hsl(var(--info))" },
                   { label: t("accounts.investment", { defaultValue: "Investment" }), v: investTotal, color: "hsl(var(--warning))" },
                 ].map((seg) => (
-                  <div key={seg.label} className="rounded-xl bg-bg-subtle border border-line p-3">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: seg.color }} />
+                  <div key={seg.label} className="rounded-xl bg-bg-subtle border border-line p-2.5 sm:p-3 min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground font-medium min-w-0">
+                      <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: seg.color }} />
                       <span className="truncate">{seg.label}</span>
                     </div>
-                    <div className="font-mono text-base font-medium mt-1">{fmtBal(seg.v)}</div>
-                    <div className="font-mono text-[11px] text-fg-dim mt-0.5">
+                    <div className="font-mono text-sm sm:text-base font-medium mt-1 truncate">{fmtBal(seg.v)}</div>
+                    <div className="font-mono text-[10px] sm:text-[11px] text-fg-dim mt-0.5">
                       {((seg.v / compositionTotal) * 100).toFixed(0)}%
                     </div>
                   </div>
@@ -371,14 +386,15 @@ const Accounts = () => {
                   </div>
 
                   {/* Balance */}
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[10.5px] uppercase tracking-[0.08em] font-semibold text-fg-dim">
                       {t("accounts.available", { defaultValue: "Available" })}
                     </div>
                     <div
-                      className={`font-mono text-2xl font-medium tracking-tight mt-0.5 ${
+                      className={`font-mono font-medium tracking-tight mt-0.5 truncate ${
                         account.balance < 0 ? "text-destructive" : ""
                       }`}
+                      style={{ fontSize: "clamp(1.25rem, 4.4vw, 1.625rem)" }}
                     >
                       {fmtBal(account.balance)}
                     </div>
@@ -392,11 +408,11 @@ const Accounts = () => {
                   )}
 
                   {/* Footer: delta + label */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-line text-xs">
-                    <span className={`ft-delta ${flat ? "flat" : up ? "up" : "down"}`}>
+                  <div className="flex items-center gap-2 pt-3 border-t border-line text-xs min-w-0">
+                    <span className={`ft-delta ${flat ? "flat" : up ? "up" : "down"} whitespace-nowrap truncate`}>
                       {flat ? "—" : up ? "↑" : "↓"} {flat ? t("accounts.noChange", { defaultValue: "no change" }) : fmtBal(Math.abs(change))}
                     </span>
-                    <span className="text-fg-dim">30d</span>
+                    <span className="text-fg-dim flex-shrink-0">30d</span>
                   </div>
                 </button>
               );
@@ -455,19 +471,19 @@ const Accounts = () => {
                   color: "hsl(var(--warning))",
                 },
               ].map((row) => (
-                <div key={row.label} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
-                  <div className="flex items-center gap-2 text-[13px] font-medium">
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: row.color }} />
-                    {row.label}
+                <div key={row.label} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 min-w-0">
+                  <div className="flex items-center gap-2 text-[13px] font-medium min-w-0">
+                    <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: row.color }} />
+                    <span className="truncate">{row.label}</span>
                   </div>
-                  <div className="font-mono text-[13px] font-medium">{fmtBal(row.v)}</div>
+                  <div className="font-mono text-[13px] font-medium whitespace-nowrap">{fmtBal(row.v)}</div>
                   <div className="col-span-2 ft-progress-track">
                     <div
                       className="ft-progress-fill"
                       style={{ width: `${(row.v / compositionTotal) * 100}%`, background: row.color }}
                     />
                   </div>
-                  <div className="col-span-2 text-[11px] text-fg-dim">{row.meta}</div>
+                  <div className="col-span-2 text-[11px] text-fg-dim truncate">{row.meta}</div>
                 </div>
               ))}
             </div>

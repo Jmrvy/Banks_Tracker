@@ -107,11 +107,22 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       .slice(0, 5);
   }, [recurringTransactions, installmentPayments, debts]);
 
-  const BlurredAmount = ({ amount, className = "" }: { amount: string; className?: string }) => (
-    <span className={`transition-all duration-300 ${!isRevealed ? 'blur-md select-none' : ''} ${className}`}>
-      {amount}
-    </span>
-  );
+  const BlurredAmount = ({
+    amount,
+    className = "",
+    block = false,
+  }: {
+    amount: string;
+    className?: string;
+    block?: boolean;
+  }) => {
+    const Tag = block ? "div" : "span";
+    return (
+      <Tag className={`transition-all duration-300 ${!isRevealed ? 'blur-md select-none' : ''} ${className}`}>
+        {amount}
+      </Tag>
+    );
+  };
 
   const currentMonth = format(new Date(), 'MMMM yyyy', { locale: dateLocale });
 
@@ -135,19 +146,20 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
 
       {/* Total Balance - Hero panel */}
       <div className="ft-hero">
-        <div className="flex items-center justify-between gap-4">
-          <div>
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
             <div className="ft-hero-eyebrow">
               <span className="live" />
               {t('quickPreview.totalBalance')}
             </div>
             <BlurredAmount
+              block
               amount={formatCurrency(totalBalance)}
-              className={`ft-hero-value mt-3 block ${isPositive ? "" : "text-destructive"}`}
+              className={`ft-hero-value mt-3 leading-none break-words ${isPositive ? "" : "text-destructive"}`}
             />
           </div>
-          <div className={`h-12 w-12 rounded-xl grid place-items-center flex-shrink-0 mb-6 ${isPositive ? "bg-pos/12 text-pos" : "bg-neg/12 text-destructive"}`}>
-            {isPositive ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
+          <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl grid place-items-center flex-shrink-0 mb-6 ${isPositive ? "bg-pos/12 text-pos" : "bg-neg/12 text-destructive"}`}>
+            {isPositive ? <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" /> : <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />}
           </div>
         </div>
         <div className="h-6" />
@@ -156,35 +168,38 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       {/* Monthly summary KPIs */}
       <div>
         <p className="ft-eyebrow mb-2 capitalize">{currentMonth}</p>
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon pos"><ArrowDownRight className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('common.income')}</span>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+          <div className="ft-kpi p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="ft-kpi-icon pos flex-shrink-0"><ArrowDownRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('common.income')}</span>
             </div>
             <BlurredAmount
               amount={formatCurrency(monthlyStats.income)}
-              className="ft-kpi-value text-pos"
+              block
+              className="ft-kpi-value text-pos truncate min-w-0"
             />
           </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon neg"><ArrowUpRight className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('common.expenses')}</span>
+          <div className="ft-kpi p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="ft-kpi-icon neg flex-shrink-0"><ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('common.expenses')}</span>
             </div>
             <BlurredAmount
               amount={formatCurrency(monthlyStats.expenses)}
-              className="ft-kpi-value text-destructive"
+              block
+              className="ft-kpi-value text-destructive truncate min-w-0"
             />
           </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon acc"><Wallet className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('dashboard.net')}</span>
+          <div className="ft-kpi p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="ft-kpi-icon acc flex-shrink-0"><Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></div>
+              <span className="ft-kpi-label truncate">{t('dashboard.net')}</span>
             </div>
             <BlurredAmount
-              amount={formatCurrency(monthlyStats.net)}
-              className={`ft-kpi-value ${monthlyStats.net >= 0 ? 'text-pos' : 'text-destructive'}`}
+              amount={`${formatCurrency(monthlyStats.net)}`}
+              block
+              className={`ft-kpi-value truncate min-w-0 ${monthlyStats.net >= 0 ? 'text-pos' : 'text-destructive'}`}
             />
           </div>
         </div>
