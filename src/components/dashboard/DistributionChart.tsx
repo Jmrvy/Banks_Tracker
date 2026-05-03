@@ -1,12 +1,9 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeChart";
-import { cn } from "@/lib/utils";
 import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
 import { parseLocalDate } from "@/lib/dateUtils";
 
@@ -15,245 +12,199 @@ interface DistributionChartProps {
   endDate: Date;
 }
 
+/**
+ * Spending by category — donut + ranked list.
+ * Modeled on the deck design's `<Categories>` component: total in the donut
+ * center, top 5 categories listed on the right with a per-row mini progress
+ * bar tinted to the category color.
+ */
 export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
-  const { t, i18n } = useTranslation();
-  const { transactions, categories } = useFinancialData();
+  const { t } = useTranslation();
+  const { transactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
-  const [isVisible, setIsVisible] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeName, setActiveName] = useState<string | null>(null);
 
-  const activeDateType = preferences.dateType;
+  const dateOf = (txn: any) =>
+    preferences.dateType === "value"
+      ? parseLocalDate(txn.value_date || txn.transaction_date)
+      : parseLocalDate(txn.transaction_date);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const { chartData, totalExpenses, cumulativeData } = useMemo(() => {
-    const monthStart = startDate;
-    const monthEnd = endDate;
-    
-    const monthTransactions = transactions.filter(t => {
-      const date = activeDateType === 'value'
-        ? parseLocalDate(t.value_date || t.transaction_date)
-        : parseLocalDate(t.transaction_date);
-      return date >= monthStart && date <= monthEnd && t.type === 'expense' && t.include_in_stats !== false;
+  const { items, total } = useMemo(() => {
+    const inRange = transactions.filter((t) => {
+      if (t.type !== "expense" || t.include_in_stats === false) return false;
+      const d = dateOf(t);
+      return d >= startDate && d <= endDate;
     });
 
-    const categoryTotals = new Map<string, { amount: number, color: string }>();
-    
-    monthTransactions.forEach(t => {
-      const catName = t.category?.name || 'Unknown';
-      const catColor = t.category?.color || CHART_COLORS[0];
-      const refundedAmount = t.refunded_amount || 0;
-      const netAmount = Math.max(0, t.amount - refundedAmount);
-      if (netAmount <= 0) return; // Skip fully refunded transactions
-      const existing = categoryTotals.get(catName);
-      categoryTotals.set(catName, { 
-        amount: (existing?.amount || 0) + netAmount,
-        color: existing?.color || catColor
+    const totals = new Map<string, { amount: number; color: string }>();
+    for (const tx of inRange) {
+      const refunded = tx.refunded_amount || 0;
+      const net = Math.max(0, tx.amount - refunded);
+      if (net <= 0) continue;
+      const name = tx.category?.name || t("common.uncategorized", { defaultValue: "Uncategorized" });
+      const color = tx.category?.color || CHART_COLORS[0];
+      const existing = totals.get(name);
+      totals.set(name, {
+        amount: (existing?.amount || 0) + net,
+        color: existing?.color || color,
       });
-    });
+    }
 
-    const total = Array.from(categoryTotals.values()).reduce((sum, val) => sum + val.amount, 0);
-    
-    const data = Array.from(categoryTotals.entries())
-      .map(([name, { amount, color }]) => ({
-        name,
-        value: amount,
-        percentage: total > 0 ? (amount / total * 100).toFixed(1) : '0.0',
-        color
-      }))
+    const sum = [...totals.values()].reduce((s, v) => s + v.amount, 0);
+    const list = [...totals.entries()]
+      .map(([name, v]) => ({ name, value: v.amount, color: v.color }))
       .sort((a, b) => b.value - a.value);
 
-    // Prepare cumulative data
-    const cumData = data.map(item => ({
-      name: item.name,
-      value: item.value,
-      color: item.color,
-      percentage: total > 0 ? (item.value / total) * 100 : 0
-    }));
+    return { items: list, total: sum };
+  }, [transactions, startDate, endDate, preferences.dateType, t]);
 
-    return { chartData: data, totalExpenses: total, cumulativeData: cumData };
-  }, [transactions, startDate, endDate, activeDateType]);
+  const top = items.slice(0, 5);
+  const otherCount = items.length - top.length;
+  const otherValue = items.slice(5).reduce((s, x) => s + x.value, 0);
 
   const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className={cn(
-          TOOLTIP_CLASS,
-          "max-w-[160px] sm:max-w-none",
-          "animate-scale-in"
-        )}>
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 pb-1.5 border-b border-border/30">
-            <div 
-              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
-              style={{ backgroundColor: data.color }}
-            />
-            <p className="text-[11px] sm:text-sm font-semibold text-foreground truncate">{payload[0].name}</p>
-          </div>
-          <div className="space-y-1 text-[10px] sm:text-xs">
-            <div className="flex items-center justify-between gap-2 sm:gap-4">
-              <span className="text-muted-foreground">{t('dashboard.amountLabel')}</span>
-              <span className="font-bold text-foreground">{formatCurrency(payload[0].value)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2 sm:gap-4">
-              <span className="text-muted-foreground">{t('dashboard.shareLabel')}</span>
-              <span className="font-medium">{data.percentage}%</span>
-            </div>
-          </div>
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    const pct = total > 0 ? (d.value / total) * 100 : 0;
+    return (
+      <div className={TOOLTIP_CLASS}>
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+          <p className="font-semibold truncate">{d.name}</p>
         </div>
-      );
-    }
-    return null;
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">{t("dashboard.amountLabel")}</span>
+          <span className="font-mono font-semibold">{formatCurrency(d.value)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">{t("dashboard.shareLabel")}</span>
+          <span className="font-mono font-medium">{pct.toFixed(1)}%</span>
+        </div>
+      </div>
+    );
   };
 
-  if (chartData.length === 0) {
+  if (items.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-3 sm:p-4 md:p-6">
-          <div className="text-center py-8 sm:py-12">
-            <h3 className="text-base sm:text-lg font-semibold mb-2">{t('dashboard.distribution')}</h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">{t('dashboard.noExpensesThisPeriod')}</p>
+      <div className="ft-card flex flex-col">
+        <div className="ft-card-head">
+          <div>
+            <h3 className="ft-card-title">
+              {t("dashboard.distribution", { defaultValue: "Spending by category" })}
+            </h3>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="text-center py-8 text-sm text-muted-foreground">
+          {t("dashboard.noExpensesThisPeriod", { defaultValue: "No expenses in this period" })}
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className={cn(
-      " "
-    )}>
-      <CardContent className="p-3 sm:p-4 md:p-6">
-        <div className={cn(
-          "transition-all duration-500",
-          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        )}>
-          <div className="mb-2.5 sm:mb-4">
-            <h3 className="text-sm sm:text-lg font-semibold">{t('dashboard.distribution')}</h3>
-          </div>
-          
-          <div className="flex flex-col items-center">
-            <div className="relative w-full max-w-[180px] sm:max-w-[280px]">
-              <ResponsiveContainer width="100%" height={160} className="sm:hidden">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="50%"
-                    outerRadius="85%"
-                    paddingAngle={2}
-                    dataKey="value"
-                    animationBegin={0}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        opacity={activeCategory && activeCategory !== entry.name ? 0.3 : 1}
-                        style={{ transition: 'opacity 0.3s ease-out' }}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+    <div className="ft-card flex flex-col">
+      <div className="ft-card-head">
+        <div>
+          <h3 className="ft-card-title">
+            {t("dashboard.distribution", { defaultValue: "Spending by category" })}
+          </h3>
+          <p className="ft-card-sub">
+            <span className={`font-mono ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
+              {formatCurrency(total)}
+            </span>
+            {" "}
+            {t("dashboard.thisPeriod", { defaultValue: "this period" })}
+          </p>
+        </div>
+      </div>
 
-              <ResponsiveContainer width="100%" height={260} className="hidden sm:block">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="58%"
-                    outerRadius="90%"
-                    paddingAngle={3}
-                    dataKey="value"
-                    animationBegin={0}
-                    animationDuration={700}
-                    animationEasing="ease-out"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        opacity={activeCategory && activeCategory !== entry.name ? 0.3 : 1}
-                        style={{ transition: 'opacity 0.3s ease-out', cursor: 'pointer' }}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="text-[9px] sm:text-xs text-muted-foreground">{t('common.expenses')}</div>
-                <div className={`text-sm sm:text-xl font-bold ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-                  {formatCurrency(totalExpenses)}
+      <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:gap-5 items-center">
+        {/* Donut with total in the center */}
+        <div className="relative mx-auto w-full max-w-[180px] sm:max-w-[200px] aspect-square">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={items}
+                cx="50%"
+                cy="50%"
+                innerRadius="62%"
+                outerRadius="92%"
+                paddingAngle={2}
+                dataKey="value"
+                onMouseEnter={(_, idx) => setActiveName(items[idx]?.name ?? null)}
+                onMouseLeave={() => setActiveName(null)}
+              >
+                {items.map((entry) => (
+                  <Cell
+                    key={entry.name}
+                    fill={entry.color}
+                    opacity={activeName && activeName !== entry.name ? 0.35 : 1}
+                    style={{ transition: "opacity 0.2s ease-out", cursor: "pointer" }}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+            <div className="text-[10.5px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+              {t("common.expenses", { defaultValue: "Expenses" })}
+            </div>
+            <div className={`font-mono text-lg font-medium tracking-tight mt-0.5 ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+              {formatCurrency(total)}
+            </div>
+          </div>
+        </div>
+
+        {/* Ranked list */}
+        <div className="flex flex-col min-w-0">
+          {top.map((item) => {
+            const pct = total > 0 ? (item.value / total) * 100 : 0;
+            const isActive = activeName === item.name;
+            return (
+              <div
+                key={item.name}
+                onMouseEnter={() => setActiveName(item.name)}
+                onMouseLeave={() => setActiveName(null)}
+                className={`grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 py-2 border-b border-line last:border-b-0 transition-colors ${
+                  isActive ? "bg-bg-subtle/60" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="h-2 w-2 rounded-sm flex-shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-[13px] font-medium truncate">{item.name}</span>
+                </div>
+                <div className={`font-mono text-[13px] font-medium whitespace-nowrap ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
+                  {formatCurrency(item.value)}
+                </div>
+                <div className="col-span-2 ft-progress-track">
+                  <div
+                    className="ft-progress-fill"
+                    style={{ width: `${pct}%`, background: item.color }}
+                  />
                 </div>
               </div>
-            </div>
-
-            {/* Legend - compact on mobile */}
-            <div className="mt-3 sm:mt-5 w-full space-y-1.5 sm:space-y-2">
-              {chartData.slice(0, 4).map((item, index) => (
-                <div
-                  key={item.name}
-                  onClick={() => setActiveCategory(activeCategory === item.name ? null : item.name)}
-                  className={cn(
-                    "flex items-center justify-between text-[11px] sm:text-sm cursor-pointer transition-all duration-300",
-                    "p-1.5 sm:p-2 rounded-xl border",
-                    activeCategory === item.name
-                      ? "bg-white/[0.08] border-white/[0.12] shadow-sm"
-                      : "bg-white/[0.03] border-white/[0.04] hover:bg-white/[0.06]"
-                  )}
-                >
-                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                    <div 
-                      className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-foreground font-medium truncate">{item.name}</span>
-                  </div>
-                  <div className="flex-shrink-0 ml-1.5 sm:ml-2 flex items-center gap-1.5 sm:gap-2">
-                    <span className={`font-bold text-[11px] sm:text-sm ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-                      {formatCurrency(item.value)}
-                    </span>
-                    <span className="text-[9px] sm:text-xs text-muted-foreground">
-                      {item.percentage}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {chartData.length > 4 && (
-                <div className="text-center">
-                  <span className="text-[9px] sm:text-xs text-muted-foreground">
-                    {t('dashboard.othersMore', { count: chartData.length - 4 })}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Cumulative Chart with separator */}
-          {cumulativeData.length > 0 && (
-            <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50">
-              <CategoryCumulativeChart
-                data={cumulativeData}
-                title={t('reports.cumulativeExpenses')}
-                formatCurrency={formatCurrency}
-                showCard={false}
-              />
+            );
+          })}
+          {otherCount > 0 && (
+            <div className="flex items-center justify-between text-[11.5px] text-fg-dim mt-2 pt-2 border-t border-line">
+              <span>
+                {t("dashboard.othersMore", {
+                  defaultValue: "+ {{count}} more",
+                  count: otherCount,
+                })}
+              </span>
+              <span className={`font-mono ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
+                {formatCurrency(otherValue)}
+              </span>
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

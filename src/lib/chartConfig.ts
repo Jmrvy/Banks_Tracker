@@ -23,7 +23,7 @@ export const CHART_SEMANTIC = {
 };
 
 export const TOOLTIP_CLASS =
-  'bg-popover/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-[0_8px_32px_-4px_hsl(220_20%_4%/0.6)] p-2.5 sm:p-3 text-xs';
+  'bg-popover border border-line rounded-lg shadow-md p-2.5 sm:p-3 text-xs';
 
 export const AXIS_TICK = {
   fontSize: 10,

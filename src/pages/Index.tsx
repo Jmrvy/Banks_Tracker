@@ -130,17 +130,18 @@ const Index = () => {
         {/* Budget breaches — full-width so per-category progress rows render legibly */}
         <BudgetAlertsCard />
 
+        {/* Accounts (full width) */}
+        <AccountsListCard />
+
+        {/* Global balance evolution — running balance per recent transaction
+            (replaces the old Recent activity card, same visual design) */}
+        <AggregatedBalanceEvolution />
+
         {/* Cashflow + categories two-up */}
         <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
           <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
           <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
         </div>
-
-        {/* Accounts (full width — replaces the previous 2-up with Recent activity) */}
-        <AccountsListCard />
-
-        {/* Global balance evolution — running balance per recent transaction */}
-        <AggregatedBalanceEvolution />
 
         {/* Savings goals */}
         <SavingsGoalsCard />
