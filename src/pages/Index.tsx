@@ -11,7 +11,6 @@ import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { HeroNetWorth } from "@/components/dashboard/HeroNetWorth";
 import { AccountsListCard } from "@/components/dashboard/AccountsListCard";
-import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { SavingsGoalsCard } from "@/components/dashboard/SavingsGoalsCard";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
 import { OverdueDebtPaymentsAlert } from "@/components/OverdueDebtPaymentsAlert";
@@ -131,20 +130,17 @@ const Index = () => {
         {/* Budget breaches — full-width so per-category progress rows render legibly */}
         <BudgetAlertsCard />
 
-        {/* Balance evolution */}
-        <AggregatedBalanceEvolution />
-
         {/* Cashflow + categories two-up */}
         <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
           <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
           <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
         </div>
 
-        {/* Accounts + Recent activity two-up */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
-          <AccountsListCard />
-          <RecentActivityCard />
-        </div>
+        {/* Accounts (full width — replaces the previous 2-up with Recent activity) */}
+        <AccountsListCard />
+
+        {/* Global balance evolution — running balance per recent transaction */}
+        <AggregatedBalanceEvolution />
 
         {/* Savings goals */}
         <SavingsGoalsCard />

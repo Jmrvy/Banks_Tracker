@@ -141,90 +141,22 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
             </div>
           </div>
 
-          {/* Filter buttons */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Single Advanced filter toggle */}
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsOpen(true)}
-              className={`h-9 px-3 gap-1.5 text-xs ${filters.categoryId !== 'all' ? 'border-primary text-primary' : ''}`}
+              className={`h-9 px-3 gap-1.5 text-xs ${advancedFiltersCount > 0 ? "border-primary text-primary" : ""}`}
             >
-              <Tag className="h-3.5 w-3.5" />
-              {categoryFilterLabel || t('transactions.category', { defaultValue: 'Category' })}
-              {categoryFilterLabel && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); updateFilter('categoryId', 'all'); }}
-                  className="p-0.5 rounded-md hover:bg-bg-hover"
-                >
-                  <X className="h-2.5 w-2.5" />
+              <Filter className="h-3.5 w-3.5" />
+              <span>{t("transactions.advancedFilters", { defaultValue: "Advanced filter" })}</span>
+              {advancedFiltersCount > 0 && (
+                <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                  {advancedFiltersCount}
                 </span>
               )}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsOpen(true)}
-              className={`h-9 px-3 gap-1.5 text-xs ${filters.accountId !== 'all' ? 'border-primary text-primary' : ''}`}
-            >
-              <Wallet className="h-3.5 w-3.5" />
-              {accountFilterLabel || t('transactions.account', { defaultValue: 'Account' })}
-              {accountFilterLabel && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); updateFilter('accountId', 'all'); }}
-                  className="p-0.5 rounded-md hover:bg-bg-hover"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </span>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsOpen(true)}
-              className={`h-9 px-3 gap-1.5 text-xs ${(filters.dateFrom || filters.dateTo) ? 'border-primary text-primary' : ''}`}
-            >
-              <History className="h-3.5 w-3.5" />
-              {dateFilterLabel || t('transactions.dateRange', { defaultValue: 'Date range' })}
-              {dateFilterLabel && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFiltersChange({ ...filters, dateFrom: '', dateTo: '' });
-                  }}
-                  className="p-0.5 rounded-md hover:bg-bg-hover"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </span>
-              )}
-            </Button>
-            {(filters.amountMin || filters.amountMax) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsOpen(true)}
-                className="h-9 px-3 gap-1.5 text-xs border-primary text-primary"
-              >
-                <DollarSign className="h-3.5 w-3.5" />
-                {filters.amountMin || '0'}€ – {filters.amountMax || '∞'}€
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFiltersChange({ ...filters, amountMin: '', amountMax: '' });
-                  }}
-                  className="p-0.5 rounded-md hover:bg-bg-hover"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </span>
-              </Button>
-            )}
             {activeFiltersCount > 0 && (
               <Button
                 variant="ghost"
@@ -232,11 +164,71 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 onClick={clearFilters}
                 className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
               >
-                {t('transactions.clearAll', { defaultValue: 'Clear all' })}
+                {t("transactions.clearAll", { defaultValue: "Clear all" })}
               </Button>
             )}
           </div>
         </div>
+
+        {/* Active filter chips — quick visual recap of what's currently applied */}
+        {advancedFiltersCount > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center pt-1">
+            {categoryFilterLabel && (
+              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+                <Tag className="h-3 w-3" />
+                <span className="truncate max-w-[140px]">{categoryFilterLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => updateFilter("categoryId", "all")}
+                  className="p-0.5 rounded hover:bg-foreground/10"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            )}
+            {accountFilterLabel && (
+              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+                <Wallet className="h-3 w-3" />
+                <span className="truncate max-w-[140px]">{accountFilterLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => updateFilter("accountId", "all")}
+                  className="p-0.5 rounded hover:bg-foreground/10"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            )}
+            {dateFilterLabel && (
+              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+                <History className="h-3 w-3" />
+                <span className="truncate max-w-[180px]">{dateFilterLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => onFiltersChange({ ...filters, dateFrom: "", dateTo: "" })}
+                  className="p-0.5 rounded hover:bg-foreground/10"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            )}
+            {(filters.amountMin || filters.amountMax) && (
+              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+                <DollarSign className="h-3 w-3" />
+                <span className="truncate max-w-[140px]">
+                  {filters.amountMin || "0"}€ – {filters.amountMax || "∞"}€
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onFiltersChange({ ...filters, amountMin: "", amountMax: "" })}
+                  className="p-0.5 rounded hover:bg-foreground/10"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Advanced filters dialog */}

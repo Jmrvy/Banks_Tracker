@@ -164,8 +164,8 @@ const Accounts = () => {
                   {t("accounts.availableBalance", { defaultValue: "Available balance" })}
                 </div>
                 <div
-                  className="ft-hero-value mt-3 leading-none break-words"
-                  style={{ fontSize: "clamp(2rem, 8vw, 3.5rem)" }}
+                  className="ft-hero-value mt-3 break-words"
+                 
                 >
                   {hideBalances ? "•••••" : formatCurrency(selectedAccount.balance)}
                 </div>
@@ -187,7 +187,7 @@ const Accounts = () => {
                   </div>
                   <div
                     className="font-mono font-medium tracking-tight mt-1 text-pos truncate"
-                    style={{ fontSize: "clamp(0.875rem, 3.4vw, 1.125rem)" }}
+                   
                   >
                     +{fmtBal(periodIncome)}
                   </div>
@@ -198,7 +198,7 @@ const Accounts = () => {
                   </div>
                   <div
                     className="font-mono font-medium tracking-tight mt-1 text-destructive truncate"
-                    style={{ fontSize: "clamp(0.875rem, 3.4vw, 1.125rem)" }}
+                   
                   >
                     −{fmtBal(periodExpense)}
                   </div>
@@ -209,7 +209,7 @@ const Accounts = () => {
                   </div>
                   <div
                     className={`font-mono font-medium tracking-tight mt-1 truncate ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}
-                    style={{ fontSize: "clamp(0.875rem, 3.4vw, 1.125rem)" }}
+                   
                   >
                     {fmtBal(periodNet, { sign: true })}
                   </div>
@@ -288,8 +288,8 @@ const Accounts = () => {
                 {t("accounts.totalBalance", { defaultValue: "Total balance" })}
               </div>
               <div
-                className="ft-hero-value mt-3 leading-none break-words"
-                style={{ fontSize: "clamp(2rem, 8vw, 3.5rem)" }}
+                className="ft-hero-value mt-3 break-words"
+               
               >
                 {hideBalances ? "•••••" : formatCurrency(totalBalance)}
               </div>
@@ -394,7 +394,7 @@ const Accounts = () => {
                       className={`font-mono font-medium tracking-tight mt-0.5 truncate ${
                         account.balance < 0 ? "text-destructive" : ""
                       }`}
-                      style={{ fontSize: "clamp(1.25rem, 4.4vw, 1.625rem)" }}
+                     
                     >
                       {fmtBal(account.balance)}
                     </div>

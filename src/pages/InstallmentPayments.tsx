@@ -10,10 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import {
-  InstallmentScheduleTimeline,
-  InstallmentMiniCard,
-} from "@/components/InstallmentScheduleTimeline";
 import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentModal";
 import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
 import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
@@ -55,7 +51,6 @@ const InstallmentPayments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [featuredPlanId, setFeaturedPlanId] = useState<string | null>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [adjustmentData, setAdjustmentData] = useState<{
@@ -529,44 +524,8 @@ const InstallmentPayments = () => {
           </div>
         </div>
 
-        {/* Featured plan deep-dive (timeline + other plans rail) */}
-        {(() => {
-          const activePlans = installmentPayments.filter((p) => p.is_active);
-          if (activePlans.length === 0) return null;
-          // Prefer the user-selected plan, else the one furthest from completion
-          const featured =
-            activePlans.find((p) => p.id === featuredPlanId) ||
-            [...activePlans].sort((a, b) => b.remaining_amount - a.remaining_amount)[0];
-          if (!featured) return null;
-          const others = activePlans.filter((p) => p.id !== featured.id);
-          const accountFor = (id: string) =>
-            accounts.find((a) => a.id === id)?.name ?? null;
-          return (
-            <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_1fr] gap-4">
-              <InstallmentScheduleTimeline
-                plan={featured}
-                accountName={accountFor(featured.account_id)}
-              />
-              {others.length > 0 && (
-                <div className="flex flex-col gap-3 min-h-0">
-                  <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground pl-1">
-                    {t("installments.otherActivePlans", {
-                      defaultValue: "Other active plans",
-                    })}
-                  </div>
-                  {others.slice(0, 4).map((p) => (
-                    <InstallmentMiniCard
-                      key={p.id}
-                      plan={p}
-                      accountName={accountFor(p.account_id)}
-                      onClick={() => setFeaturedPlanId(p.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {/* Schedule timeline now lives inside the per-plan detail modal — open
+            a plan to see its payment schedule alongside the existing details. */}
 
         {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">

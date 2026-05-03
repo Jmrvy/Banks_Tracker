@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,20 @@ import {
   InstallmentPayment,
   InstallmentPaymentHistory,
 } from '@/hooks/useInstallmentPayments';
+import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { RefreshCw, History, ArrowRight, Calendar, Loader2, Trash2 } from 'lucide-react';
+import {
+  RefreshCw,
+  History,
+  ArrowRight,
+  Calendar,
+  CalendarDays,
+  Loader2,
+  Trash2,
+} from 'lucide-react';
+import { InstallmentScheduleTimeline } from '@/components/InstallmentScheduleTimeline';
+import { TransactionDetailModal } from '@/components/TransactionDetailModal';
+import { EditTransactionModal } from '@/components/EditTransactionModal';
 
 
 interface InstallmentPaymentDetailsModalProps {
@@ -30,9 +42,25 @@ export const InstallmentPaymentDetailsModal = ({
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
   const { recalculateInstallmentPayment, fetchPaymentHistory, deleteHistoryEntry } = useInstallmentPayments();
+  const { transactions, accounts } = useFinancialData();
   const [history, setHistory] = useState<InstallmentPaymentHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
+  const [viewingTxn, setViewingTxn] = useState<Transaction | null>(null);
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
+
+  // Live-derived linked transactions for the schedule view — filtered from
+  // the global feed so edits propagate without an explicit refetch.
+  const linkedTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => tx.installment_payment_id === installmentPayment.id),
+    [transactions, installmentPayment.id]
+  );
+
+  const accountName = useMemo(
+    () => accounts.find((a) => a.id === installmentPayment.account_id)?.name ?? null,
+    [accounts, installmentPayment.account_id]
+  );
 
   const formatDate = (dateStr: string) => {
     try {
@@ -104,7 +132,7 @@ export const InstallmentPaymentDetailsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+      <DialogContent className="w-[95vw] max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
             <span className="truncate">{installmentPayment.description}</span>
@@ -114,14 +142,29 @@ export const InstallmentPaymentDetailsModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-2 mx-4 sm:mx-6 max-w-[calc(100%-2rem)] sm:max-w-[calc(100%-3rem)] flex-shrink-0">
-            <TabsTrigger value="overview" className="text-xs sm:text-sm">Aperçu</TabsTrigger>
+        <Tabs defaultValue="schedule" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-3 mx-4 sm:mx-6 max-w-[calc(100%-2rem)] sm:max-w-[calc(100%-3rem)] flex-shrink-0">
+            <TabsTrigger value="schedule" className="flex items-center gap-1 text-xs sm:text-sm">
+              <CalendarDays className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              {t('installments.scheduleTab', { defaultValue: 'Schedule' })}
+            </TabsTrigger>
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">
+              {t('installments.overviewTab', { defaultValue: 'Overview' })}
+            </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1 text-xs sm:text-sm">
               <History className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Historique
+              {t('installments.historyTab', { defaultValue: 'History' })}
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="schedule" className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 mt-3">
+            <InstallmentScheduleTimeline
+              plan={installmentPayment}
+              accountName={accountName}
+              linkedTransactions={linkedTransactions}
+              onTransactionClick={(tx) => setViewingTxn(tx)}
+            />
+          </TabsContent>
 
           <TabsContent value="overview" className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3 mt-3">
             {/* Progress card */}
@@ -300,6 +343,24 @@ export const InstallmentPaymentDetailsModal = ({
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {viewingTxn && (
+        <TransactionDetailModal
+          transaction={viewingTxn}
+          open={!!viewingTxn}
+          onOpenChange={(open) => !open && setViewingTxn(null)}
+          onEdit={(tx) => {
+            setViewingTxn(null);
+            setEditingTxn(tx);
+          }}
+        />
+      )}
+
+      <EditTransactionModal
+        open={!!editingTxn}
+        onOpenChange={(open) => !open && setEditingTxn(null)}
+        transaction={editingTxn}
+      />
     </Dialog>
   );
 };

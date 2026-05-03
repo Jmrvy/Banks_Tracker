@@ -178,8 +178,10 @@ export function StatsCards({
     return { moneyIn, moneyOut };
   }, [transactions, priorStart, priorEnd, activeDateType]);
 
-  const trendPct = (cur: number, prv: number) => {
-    if (prv === 0) return cur === 0 ? 0 : 100;
+  // Returns null when no meaningful comparison exists (no prior data, both zero, etc.)
+  const trendPct = (cur: number, prv: number): number | null => {
+    if (prv === 0 && cur === 0) return null;
+    if (prv === 0) return null; // baseline missing → can't compute %
     return ((cur - prv) / Math.abs(prv)) * 100;
   };
 
@@ -205,7 +207,7 @@ export function StatsCards({
     iconClass: "pos" | "neg" | "acc" | "warn";
     spark: number[];
     sparkColor: string;
-    trend: number;
+    trend: number | null;
     invert?: boolean;
   };
 
@@ -239,7 +241,7 @@ export function StatsCards({
       iconClass: "acc",
       spark: balanceSpark,
       sparkColor: "hsl(var(--primary))",
-      trend: 0, // running balance is absolute, no period-over-period meaning
+      trend: null, // running balance is absolute, no period-over-period meaning
     },
     {
       id: "recurring",
@@ -250,7 +252,7 @@ export function StatsCards({
       isCount: true,
       spark: recurringSpark,
       sparkColor: "hsl(var(--warning))",
-      trend: 0,
+      trend: null,
     },
   ];
 
@@ -265,9 +267,11 @@ export function StatsCards({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {cards.map((card) => {
           const clickable = card.id === "income" || card.id === "expenses" || card.id === "available";
-          const isUp = card.trend > 0;
+          const trendNull = card.trend === null;
+          const trendVal = card.trend ?? 0;
+          const isUp = trendVal > 0;
           const goodUp = !card.invert;
-          const flat = Math.abs(card.trend) < 0.05 || (card.trend === 0 && (card.id === "available" || card.id === "recurring"));
+          const flat = trendNull || Math.abs(trendVal) < 0.05;
           const cls = flat ? "flat" : isUp === goodUp ? "up" : "down";
           const showTrendCaption = card.id === "income" || card.id === "expenses";
           return (
@@ -304,7 +308,7 @@ export function StatsCards({
               {/* Big value */}
               <div
                 className={`ft-kpi-value truncate min-w-0 ${isPrivacyMode ? "blur-md select-none" : ""}`}
-                style={{ fontSize: "clamp(1.125rem, 4.4vw, 1.625rem)" }}
+               
               >
                 {card.isCount ? card.value : formatCurrency(card.value)}
               </div>
@@ -313,10 +317,12 @@ export function StatsCards({
               {showTrendCaption ? (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                   <span className={`ft-delta ${cls} whitespace-nowrap`}>
-                    {flat ? "—" : isUp ? "↑" : "↓"} {Math.abs(card.trend).toFixed(1)}%
+                    {trendNull ? "—" : `${isUp ? "↑" : "↓"} ${Math.abs(trendVal).toFixed(1)}%`}
                   </span>
                   <span className="hidden sm:inline truncate">
-                    {t("dashboard.vsPriorPeriod", { defaultValue: "vs. prior period" })}
+                    {trendNull
+                      ? t("dashboard.noPriorData", { defaultValue: "no prior data" })
+                      : t("dashboard.vsPriorPeriod", { defaultValue: "vs. prior period" })}
                   </span>
                 </div>
               ) : (

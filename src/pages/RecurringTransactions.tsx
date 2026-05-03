@@ -254,31 +254,6 @@ const RecurringTransactions = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon pos"><Play className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('recurring.active', { defaultValue: 'Active' })}</span>
-            </div>
-            <div className="ft-kpi-value">{activeTransactions.length}</div>
-          </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon"><Pause className="h-4 w-4 text-muted-foreground" /></div>
-              <span className="ft-kpi-label">{t('recurring.inactive', { defaultValue: 'Inactive' })}</span>
-            </div>
-            <div className="ft-kpi-value">{inactiveTransactions.length}</div>
-          </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon warn"><Calendar className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('recurring.next7Days', { defaultValue: 'Next 7 days' })}</span>
-            </div>
-            <div className="ft-kpi-value">{dueInSevenDaysCount}</div>
-          </div>
-        </div>
-
         {/* Tabs: Calendar / List */}
         <Tabs defaultValue="calendar" className="w-full">
           <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
@@ -339,7 +314,33 @@ const RecurringTransactions = () => {
                   onRecordPayment={(id) => setRecordPaymentForId(id)}
                   onManageDebtPayment={(debtId) => setManagingDebtId(debtId)}
                 />
-                <RecurringMonthlySummary />
+                <div className="flex flex-col gap-3">
+                  {/* At-a-glance stats — moved here from the top of the page */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="ft-kpi-icon pos h-6 w-6"><Play className="h-3 w-3" /></div>
+                        <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">{t('recurring.active', { defaultValue: 'Active' })}</span>
+                      </div>
+                      <div className="font-mono text-lg sm:text-xl font-medium tracking-tight leading-none">{activeTransactions.length}</div>
+                    </div>
+                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="ft-kpi-icon h-6 w-6"><Pause className="h-3 w-3 text-muted-foreground" /></div>
+                        <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">{t('recurring.inactive', { defaultValue: 'Inactive' })}</span>
+                      </div>
+                      <div className="font-mono text-lg sm:text-xl font-medium tracking-tight leading-none">{inactiveTransactions.length}</div>
+                    </div>
+                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="ft-kpi-icon warn h-6 w-6"><Calendar className="h-3 w-3" /></div>
+                        <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">{t('recurring.next7d', { defaultValue: '7 days' })}</span>
+                      </div>
+                      <div className="font-mono text-lg sm:text-xl font-medium tracking-tight leading-none">{dueInSevenDaysCount}</div>
+                    </div>
+                  </div>
+                  <RecurringMonthlySummary />
+                </div>
               </div>
             )}
           </TabsContent>

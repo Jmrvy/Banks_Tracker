@@ -114,10 +114,7 @@ export function HeroNetWorth() {
               <span className="live" />
               {t("dashboard.totalNetWorth", { defaultValue: "Total net worth" })}
             </div>
-            <div
-              className={`ft-hero-value mt-3 leading-none break-words ${isPrivacyMode ? "blur-md select-none" : ""}`}
-              style={{ fontSize: "clamp(2rem, 8vw, 3.5rem)" }}
-            >
+            <div className={`ft-hero-value mt-3 break-words ${isPrivacyMode ? "blur-md select-none" : ""}`}>
               €{intPart}
               <span className="cents">.{cents}</span>
             </div>

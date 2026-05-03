@@ -1,206 +1,192 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  ShoppingBag,
+  Utensils,
+  Car,
+  Home as HomeIcon,
+  Heart,
+  Music,
+  Package,
+  Zap,
+  Banknote,
+  ArrowLeftRight,
+  Receipt,
+} from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dateUtils";
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 
+const CATEGORY_ICONS: Record<string, typeof ShoppingBag> = {
+  groceries: ShoppingBag,
+  restaurants: Utensils,
+  food: Utensils,
+  transport: Car,
+  housing: HomeIcon,
+  health: Heart,
+  music: Music,
+  subscriptions: Music,
+  energy: Zap,
+  utilities: Zap,
+};
+
+function pickIcon(categoryName: string | undefined, type: string) {
+  if (type === "income") return Banknote;
+  if (type === "transfer") return ArrowLeftRight;
+  if (!categoryName) return Receipt;
+  const key = categoryName.toLowerCase();
+  for (const [k, Icon] of Object.entries(CATEGORY_ICONS)) {
+    if (key.includes(k)) return Icon;
+  }
+  return Package;
+}
+
+/**
+ * Global balance evolution — last N transactions with running balance,
+ * styled like RecentActivityCard so the dashboard reads consistently.
+ */
 export const AggregatedBalanceEvolution = () => {
-  const { t: tr, i18n } = useTranslation();
-  const dateLocale = i18n.language === 'fr' ? fr : enUS;
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { accounts, transactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
 
-  // Calculate total balance across all accounts
-  const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, acc) => sum + acc.balance, 0);
-  }, [accounts]);
+  const totalBalance = useMemo(
+    () => accounts.reduce((s, a) => s + a.balance, 0),
+    [accounts]
+  );
 
-  // Get all transactions sorted by date (most recent first for display)
-  const allTransactionsSorted = useMemo(() => {
-    return [...transactions].sort(
-      (a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime()
-    );
-  }, [transactions]);
+  // Last 10 transactions sorted most-recent first, with running balance after each
+  const items = useMemo(() => {
+    const sorted = [...transactions]
+      .filter((tx) => !tx.refund_of_transaction_id)
+      .sort(
+        (a, b) =>
+          parseLocalDate(b.transaction_date).getTime() -
+          parseLocalDate(a.transaction_date).getTime()
+      )
+      .slice(0, 10);
 
-  // Calculate balance evolution for last 10 transactions
-  const transactionsWithBalance = useMemo(() => {
-    if (allTransactionsSorted.length === 0) {
-      return [];
-    }
+    if (sorted.length === 0) return [];
 
-    // Take only last 10 transactions (already sorted most recent first)
-    const last10 = allTransactionsSorted.slice(0, 10);
-    
-    let runningBalance = totalBalance;
-    const result: Array<{
-      transaction: typeof transactions[0];
-      balanceAfter: number;
-    }> = [];
-
-    // For each transaction (most recent first), calculate balance after
-    // The most recent transaction's balanceAfter is the current total balance
-    last10.forEach((t, index) => {
-      if (index === 0) {
-        result.push({
-          transaction: t,
-          balanceAfter: runningBalance,
-        });
+    let running = totalBalance;
+    const out: { transaction: typeof sorted[number]; balanceAfter: number }[] = [];
+    sorted.forEach((tx, idx) => {
+      if (idx === 0) {
+        out.push({ transaction: tx, balanceAfter: running });
       } else {
-        // Subtract the previous transaction's effect to get balance after this one
-        const prevT = last10[index - 1];
-        if (prevT.type === 'income') {
-          runningBalance -= prevT.amount;
-        } else if (prevT.type === 'expense') {
-          runningBalance += prevT.amount;
-        }
-        // Transfers don't affect total balance (internal movement)
-        // but we need to account for transfer fees
-        if (prevT.type === 'transfer' && prevT.transfer_fee) {
-          runningBalance += prevT.transfer_fee;
-        }
-        
-        result.push({
-          transaction: t,
-          balanceAfter: runningBalance,
-        });
+        const prev = sorted[idx - 1];
+        if (prev.type === "income") running -= prev.amount;
+        else if (prev.type === "expense")
+          running += Math.max(0, prev.amount - (prev.refunded_amount || 0));
+        else if (prev.type === "transfer" && prev.transfer_fee)
+          running += prev.transfer_fee;
+        out.push({ transaction: tx, balanceAfter: running });
       }
     });
+    return out;
+  }, [transactions, totalBalance]);
 
-    return result;
-  }, [allTransactionsSorted, totalBalance]);
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'income':
-        return <ArrowDownCircle className="h-4 w-4 text-success" />;
-      case 'expense':
-        return <ArrowUpCircle className="h-4 w-4 text-destructive" />;
-      case 'transfer':
-        return <ArrowLeftRight className="h-4 w-4 text-primary" />;
-      default:
-        return null;
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'income': return tr('transactions.income');
-      case 'expense': return tr('transactions.expense');
-      case 'transfer': return tr('transactions.transfer');
-      default: return type;
-    }
-  };
-
-  const getAccountName = (accountId: string) => {
-    const account = accounts.find(a => a.id === accountId);
-    return account?.name || tr('common.unknownAccount');
-  };
-
-  if (transactionsWithBalance.length === 0) {
-    return (
-      <Card className="">
-        <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">{tr('dashboard.globalBalanceEvolution')}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-6 pt-0">
-          <p className="text-muted-foreground text-sm text-center py-4">
-            {tr('dashboard.noTransactions')}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (items.length === 0) return null;
 
   return (
-    <>
-      <Card className="">
-        <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="text-sm sm:text-base">{tr('dashboard.globalBalanceEvolution')}</CardTitle>
-        </CardHeader>
-        <CardContent className={`p-3 sm:p-6 pt-0 ${isPrivacyMode ? 'blur-md select-none' : ''}`}>
-          <div className="space-y-2">
-            {transactionsWithBalance.map(({ transaction: t, balanceAfter }) => (
-              <div
-                key={t.id}
-                className="glass-row flex items-center justify-between p-2 sm:p-3 cursor-pointer border border-white/[0.04]"
-                onClick={() => setSelectedTransaction(t)}
-              >
-                {/* Mobile: Compact view */}
-                <div className="flex sm:hidden items-center gap-2 flex-1 min-w-0">
-                  <div className="flex-shrink-0">
-                    {getTransactionIcon(t.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-sm">{t.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(parseLocalDate(t.transaction_date), 'dd MMM', { locale: dateLocale })} • {getAccountName(t.account_id)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex sm:hidden flex-col items-end">
-                  <p className={`font-bold text-xs ${
-                    t.type === 'income' ? 'text-success' :
-                    t.type === 'expense' ? 'text-destructive' :
-                    'text-primary'
-                  }`}>
-                    {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
-                  </p>
-                  <p className={`font-medium text-xs ${
-                    balanceAfter >= 0 ? 'text-success/70' : 'text-destructive/70'
-                  }`}>
-                    → {formatCurrency(balanceAfter)}
-                  </p>
-                </div>
+    <div className="ft-card-flush flex flex-col">
+      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-line">
+        <div>
+          <h3 className="ft-card-title">
+            {t("dashboard.globalBalanceEvolution", { defaultValue: "Global balance evolution" })}
+          </h3>
+          <p className="ft-card-sub">
+            {t("dashboard.lastNTransactionsBalance", {
+              defaultValue: "Last {{n}} transactions · running balance",
+              n: items.length,
+            })}
+          </p>
+        </div>
+        <Link
+          to="/transactions"
+          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-medium flex-shrink-0"
+        >
+          {t("common.viewAll", { defaultValue: "View all" })}
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
 
-                {/* Desktop: Full view */}
-                <div className="hidden sm:flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0">
-                    {getTransactionIcon(t.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-base">{t.description}</p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(parseLocalDate(t.transaction_date), 'dd MMM yyyy', { locale: dateLocale })}</span>
-                      <span>•</span>
-                      <Badge variant="outline" className="text-xs">
-                        {getTypeLabel(t.type)}
-                      </Badge>
-                      <span>•</span>
-                      <span>{getAccountName(t.account_id)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="hidden sm:flex items-center gap-4">
-                  <p className={`font-bold text-base ${
-                    t.type === 'income' ? 'text-success' :
-                    t.type === 'expense' ? 'text-destructive' :
-                    'text-primary'
-                  }`}>
-                    {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
-                  </p>
-                  <div className="text-right min-w-[100px]">
-                    <p className="text-xs text-muted-foreground">{tr('dashboard.balanceAfter')}</p>
-                    <p className={`font-semibold ${
-                      balanceAfter >= 0 ? 'text-success' : 'text-destructive'
-                    }`}>
-                      {formatCurrency(balanceAfter)}
-                    </p>
-                  </div>
+      <div className="flex flex-col">
+        {items.map(({ transaction: tx, balanceAfter }) => {
+          const Icon = pickIcon(tx.category?.name, tx.type);
+          const positive = tx.type === "income";
+          const date = parseLocalDate(tx.transaction_date);
+          return (
+            <button
+              key={tx.id}
+              type="button"
+              onClick={() => setSelectedTransaction(tx)}
+              className="grid items-center gap-3 px-4 md:px-5 py-3 border-b border-line last:border-b-0 hover:bg-bg-subtle/60 transition-colors text-left"
+              style={{ gridTemplateColumns: "32px minmax(0, 1fr) auto" }}
+            >
+              <div className="h-8 w-8 rounded-lg bg-bg-subtle border border-line text-muted-foreground grid place-items-center flex-shrink-0">
+                <Icon className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-medium text-[13px] truncate">{tx.description}</div>
+                <div className="text-[11px] text-fg-dim truncate flex items-center gap-1.5">
+                  {tx.category?.name && (
+                    <span
+                      className="ft-tag truncate max-w-[140px]"
+                      style={{
+                        background: `${tx.category.color}1f`,
+                        color: tx.category.color,
+                        borderColor: "transparent",
+                      }}
+                    >
+                      <span
+                        className="dot flex-shrink-0"
+                        style={{ background: tx.category.color }}
+                      />
+                      <span className="truncate">{tx.category.name}</span>
+                    </span>
+                  )}
+                  <span className="truncate">
+                    {tx.account?.name} · {format(date, "MMM d", { locale: dateLocale })}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="text-right whitespace-nowrap">
+                <div
+                  className={`font-mono text-sm font-medium ${
+                    isPrivacyMode ? "blur-md select-none" : ""
+                  } ${
+                    positive
+                      ? "text-pos"
+                      : tx.type === "transfer"
+                      ? "text-primary"
+                      : ""
+                  }`}
+                >
+                  {positive ? "+" : tx.type === "transfer" ? "↔" : "−"}
+                  {formatCurrency(Math.abs(tx.amount))}
+                </div>
+                <div
+                  className={`font-mono text-[10.5px] mt-0.5 ${
+                    isPrivacyMode ? "blur-md select-none" : "text-fg-dim"
+                  }`}
+                >
+                  → {formatCurrency(balanceAfter)}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
       {selectedTransaction && (
         <TransactionDetailModal
@@ -209,6 +195,6 @@ export const AggregatedBalanceEvolution = () => {
           onOpenChange={(open) => !open && setSelectedTransaction(null)}
         />
       )}
-    </>
+    </div>
   );
 };

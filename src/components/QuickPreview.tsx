@@ -155,7 +155,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             <BlurredAmount
               block
               amount={formatCurrency(totalBalance)}
-              className={`ft-hero-value mt-3 leading-none break-words ${isPositive ? "" : "text-destructive"}`}
+              className={`ft-hero-value mt-3 break-words ${isPositive ? "" : "text-destructive"}`}
             />
           </div>
           <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl grid place-items-center flex-shrink-0 mb-6 ${isPositive ? "bg-pos/12 text-pos" : "bg-neg/12 text-destructive"}`}>

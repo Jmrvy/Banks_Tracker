@@ -271,18 +271,15 @@
   }
   .ft-hero-value {
     font-family: "Geist Mono", "JetBrains Mono", monospace;
-    font-size: 44px;
+    font-size: clamp(1.875rem, 4.4vw, 2.75rem); /* 30px → 44px */
     font-weight: 500;
-    letter-spacing: -0.035em;
-    line-height: 1;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
     color: hsl(var(--foreground));
-  }
-  @media (min-width: 768px) {
-    .ft-hero-value { font-size: 56px; }
   }
   .ft-hero-value .cents {
     color: hsl(var(--muted-foreground));
-    font-size: 0.6em;
+    font-size: 0.55em;
     font-weight: 400;
   }
 
@@ -308,7 +305,10 @@
   }
   .ft-kpi-value {
     font-family: "Geist Mono", "JetBrains Mono", monospace;
-    @apply text-2xl md:text-[26px] font-medium tracking-tight;
+    font-size: clamp(1.125rem, 2.6vw, 1.5rem); /* 18px → 24px */
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    @apply font-medium;
   }
 
   /* =========================================================================

@@ -1,22 +1,54 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Bolt, Box, CreditCard, ShoppingBag } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { InstallmentPayment } from "@/hooks/useInstallmentPayments";
+import type { Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { addMonths, addWeeks, addQuarters, format, parseISO, isBefore, startOfDay } from "date-fns";
+import {
+  addMonths,
+  addWeeks,
+  addQuarters,
+  format,
+  parseISO,
+  startOfDay,
+  differenceInDays,
+} from "date-fns";
 import { fr, enUS } from "date-fns/locale";
+import { parseLocalDate } from "@/lib/dateUtils";
 
 interface Props {
   plan: InstallmentPayment;
   accountName?: string | null;
+  /**
+   * Linked transactions for this plan — filtered from the global feed by
+   * `installment_payment_id === plan.id`. When provided, schedule steps render
+   * paid/next/upcoming status based on real transaction dates, and clicking
+   * a paid step opens its detail.
+   */
+  linkedTransactions?: Transaction[];
+  onTransactionClick?: (txn: Transaction) => void;
+}
+
+interface StepStatus {
+  status: "paid" | "next" | "upcoming";
+  date: Date;
+  amount: number;
+  transaction?: Transaction;
 }
 
 /**
- * Featured installment plan detail card with 12-step schedule timeline.
- * Modeled on the deck design's InstallmentsDeepSlide featured plan card.
+ * Installment plan schedule timeline.
+ * Data-aware: when `linkedTransactions` are passed in, each scheduled step is
+ * matched to the real transaction nearest its expected date — so editing a
+ * transaction (date or amount) updates the schedule reactively, the same way
+ * the recurring calendar reflects executed transactions.
  */
-export function InstallmentScheduleTimeline({ plan, accountName }: Props) {
+export function InstallmentScheduleTimeline({
+  plan,
+  accountName,
+  linkedTransactions,
+  onTransactionClick,
+}: Props) {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { formatCurrency } = useUserPreferences();
@@ -26,18 +58,8 @@ export function InstallmentScheduleTimeline({ plan, accountName }: Props) {
     return Math.max(1, Math.ceil(plan.total_amount / plan.installment_amount));
   }, [plan.total_amount, plan.installment_amount]);
 
-  const paidSteps = useMemo(() => {
-    if (plan.installment_amount <= 0) return 0;
-    return Math.max(
-      0,
-      Math.min(
-        totalSteps,
-        Math.round((plan.total_amount - plan.remaining_amount) / plan.installment_amount)
-      )
-    );
-  }, [plan.total_amount, plan.remaining_amount, plan.installment_amount, totalSteps]);
-
-  const stepDates = useMemo(() => {
+  // Expected dates per step from start_date + frequency
+  const expectedDates = useMemo(() => {
     const start = parseISO(plan.start_date);
     return Array.from({ length: totalSteps }, (_, i) => {
       switch (plan.frequency) {
@@ -53,9 +75,83 @@ export function InstallmentScheduleTimeline({ plan, accountName }: Props) {
 
   const today = startOfDay(new Date());
 
-  const nextDate = stepDates[paidSteps];
-  const daysUntilNext = nextDate
-    ? Math.max(0, Math.ceil((nextDate.getTime() - today.getTime()) / 86400000))
+  // Match each step to a linked transaction:
+  //  • Sort linked transactions by date
+  //  • Walk steps in order, attaching the nearest unattached transaction to each
+  const steps: StepStatus[] = useMemo(() => {
+    const sortedTxns = (linkedTransactions ?? [])
+      .slice()
+      .sort(
+        (a, b) =>
+          parseLocalDate(a.transaction_date).getTime() -
+          parseLocalDate(b.transaction_date).getTime()
+      );
+    const used = new Set<string>();
+    const result: StepStatus[] = expectedDates.map((expectedDate) => {
+      // Find the nearest unattached linked transaction within ±21 days (covers
+      // late and early payments without crossing into the next step's window).
+      let bestTxn: Transaction | undefined;
+      let bestDiff = Infinity;
+      for (const tx of sortedTxns) {
+        if (used.has(tx.id)) continue;
+        const diff = Math.abs(
+          differenceInDays(parseLocalDate(tx.transaction_date), expectedDate)
+        );
+        if (diff <= 21 && diff < bestDiff) {
+          bestDiff = diff;
+          bestTxn = tx;
+        }
+      }
+      if (bestTxn) used.add(bestTxn.id);
+      return {
+        status: bestTxn ? "paid" : "upcoming",
+        date: expectedDate,
+        amount: bestTxn ? Math.abs(bestTxn.amount) : plan.installment_amount,
+        transaction: bestTxn,
+      };
+    });
+
+    // The first non-paid step is "next"
+    const firstUnpaid = result.findIndex((s) => s.status === "upcoming");
+    if (firstUnpaid >= 0) result[firstUnpaid].status = "next";
+
+    // Fallback for plans without linked transactions data: derive paid count
+    // from total/remaining (legacy behavior).
+    if (!linkedTransactions) {
+      const paidCount =
+        plan.installment_amount > 0
+          ? Math.max(
+              0,
+              Math.min(
+                totalSteps,
+                Math.round(
+                  (plan.total_amount - plan.remaining_amount) /
+                    plan.installment_amount
+                )
+              )
+            )
+          : 0;
+      return result.map((s, i) => ({
+        ...s,
+        status:
+          i < paidCount ? "paid" : i === paidCount ? "next" : "upcoming",
+      }));
+    }
+
+    return result;
+  }, [
+    expectedDates,
+    linkedTransactions,
+    plan.installment_amount,
+    plan.total_amount,
+    plan.remaining_amount,
+    totalSteps,
+  ]);
+
+  const paidSteps = steps.filter((s) => s.status === "paid").length;
+  const nextStep = steps.find((s) => s.status === "next");
+  const daysUntilNext = nextStep
+    ? Math.max(0, Math.ceil((nextStep.date.getTime() - today.getTime()) / 86400000))
     : 0;
 
   const Icon = plan.payment_type === "reimbursement" ? CreditCard : Box;
@@ -125,11 +221,11 @@ export function InstallmentScheduleTimeline({ plan, accountName }: Props) {
             {t("installments.nextCharge", { defaultValue: "Next charge" })}
           </div>
           <div className="font-mono text-base font-medium mt-1">
-            {nextDate
-              ? format(nextDate, "PP", { locale: dateLocale })
+            {nextStep
+              ? format(nextStep.date, "PP", { locale: dateLocale })
               : t("installments.complete", { defaultValue: "Complete" })}
           </div>
-          {nextDate && (
+          {nextStep && (
             <div className="text-[11px] text-muted-foreground mt-0.5">
               {t("installments.inDays", {
                 defaultValue: "in {{n}} days",
@@ -183,9 +279,12 @@ export function InstallmentScheduleTimeline({ plan, accountName }: Props) {
           <div
             className="absolute left-1 top-[36px] h-0.5 bg-pos"
             style={{
-              width: `calc(${
-                ((paidSteps - 1) / Math.max(1, totalSteps - 1)) * 100
-              }% - 8px)`,
+              width:
+                paidSteps === 0
+                  ? "0"
+                  : `calc(${
+                      ((paidSteps - 0.5) / Math.max(1, totalSteps - 1)) * 100
+                    }% - 4px)`,
               maxWidth: "calc(100% - 8px)",
               minWidth: 0,
             }}
@@ -194,55 +293,81 @@ export function InstallmentScheduleTimeline({ plan, accountName }: Props) {
           <div
             className="grid relative"
             style={{
-              gridTemplateColumns: `repeat(${totalSteps}, minmax(48px, 1fr))`,
-              minWidth: totalSteps * 48,
+              gridTemplateColumns: `repeat(${totalSteps}, minmax(56px, 1fr))`,
+              minWidth: totalSteps * 56,
             }}
           >
-            {Array.from({ length: totalSteps }, (_, i) => {
-              const status =
-                i < paidSteps ? "paid" : i === paidSteps ? "next" : "upcoming";
-              const date = stepDates[i];
+            {steps.map((step, i) => {
+              const clickable = step.status === "paid" && step.transaction && onTransactionClick;
               return (
-                <div
+                <button
                   key={i}
-                  className="flex flex-col items-center gap-2"
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() =>
+                    step.transaction && onTransactionClick?.(step.transaction)
+                  }
+                  className={`flex flex-col items-center gap-2 px-1 ${
+                    clickable
+                      ? "cursor-pointer hover:bg-bg-subtle/60 rounded-md transition-colors"
+                      : "cursor-default"
+                  }`}
                 >
                   <div
                     className={`h-[18px] w-[18px] rounded-full grid place-items-center text-background relative z-10 ${
-                      status === "paid"
+                      step.status === "paid"
                         ? "bg-pos"
-                        : status === "next"
+                        : step.status === "next"
                         ? "bg-primary"
                         : "bg-bg-elev border-[1.5px] border-line-strong"
                     }`}
                     style={
-                      status === "next"
+                      step.status === "next"
                         ? { boxShadow: "0 0 0 4px hsl(var(--primary) / 0.22)" }
                         : undefined
                     }
                   >
-                    {status === "paid" && <Check className="h-2.5 w-2.5" />}
+                    {step.status === "paid" && <Check className="h-2.5 w-2.5" />}
                   </div>
                   <div
                     className={`text-[10px] font-mono uppercase tracking-[0.05em] ${
-                      status === "next"
+                      step.status === "next"
                         ? "text-primary font-semibold"
                         : "text-muted-foreground font-medium"
                     }`}
                   >
-                    {format(date, "MMM", { locale: dateLocale })}
+                    {format(
+                      step.transaction
+                        ? parseLocalDate(step.transaction.transaction_date)
+                        : step.date,
+                      "d MMM",
+                      { locale: dateLocale }
+                    )}
                   </div>
                   <div
                     className={`text-[10px] font-mono ${
-                      status === "upcoming" ? "text-fg-dim" : "text-muted-foreground"
+                      step.status === "upcoming"
+                        ? "text-fg-dim"
+                        : step.status === "paid"
+                        ? "text-pos font-semibold"
+                        : "text-muted-foreground"
                     }`}
                   >
-                    {formatCurrency(plan.installment_amount)}
+                    {formatCurrency(step.amount)}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
+        </div>
+
+        {/* Progress fill: based on actual paid count */}
+        <div className="text-[11px] text-muted-foreground mt-3 -mt-2">
+          {linkedTransactions
+            ? t("installments.tipClickPaid", {
+                defaultValue: "Click a paid step to view or edit the transaction",
+              })
+            : null}
         </div>
 
         {plan.remaining_amount > 0 && (
