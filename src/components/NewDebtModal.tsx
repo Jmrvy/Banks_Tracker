@@ -102,7 +102,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
       console.error('Error creating recurring transaction for debt:', error);
       toast({
         title: "Erreur",
-        description: "La transaction récurrente n'a pas pu être créée pour cette dette.",
+        description: t("debts.recurringCreateError", { defaultValue: "The recurring transaction could not be created for this debt." }),
         variant: "destructive",
       });
     }
@@ -117,7 +117,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
 
     if (!validation.success) {
       toast({
-        title: "Erreur de validation",
+        title: t("common.validationError", { defaultValue: "Validation error" }),
         description: (validation as { success: false; error: string }).error,
         variant: "destructive",
       });
@@ -127,7 +127,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
     if (!formData.account_id) {
       toast({
         title: "Erreur",
-        description: "Veuillez sélectionner un compte de prélèvement",
+        description: t("debts.selectDebitAccount", { defaultValue: "Please select a debit account" }),
         variant: "destructive",
       });
       return;
@@ -273,7 +273,7 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
               </div>
 
               <div>
-                <Label htmlFor="category_id">Catégorie des paiements</Label>
+                <Label htmlFor="category_id">{t('debts.paymentCategory', { defaultValue: 'Payment category' })}</Label>
                 <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Optionnel" />

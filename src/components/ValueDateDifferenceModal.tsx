@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Transaction } from "@/hooks/useFinancialData";
@@ -21,6 +22,7 @@ export function ValueDateDifferenceModal({
   transactions,
   period
 }: ValueDateDifferenceModalProps) {
+  const { t } = useTranslation();
   const { formatCurrency } = useUserPreferences();
   const isMobile = useIsMobile();
 
@@ -128,8 +130,8 @@ export function ValueDateDifferenceModal({
         {transactionsWithDifference.length === 0 ? (
           <div className="text-center py-4 sm:py-6 text-muted-foreground">
             <Calendar className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-xs sm:text-sm">Aucune différence de date sur cette période</p>
-            <p className="text-[10px] sm:text-xs mt-1">Toutes les transactions ont la même date comptable et date valeur</p>
+            <p className="text-xs sm:text-sm">{t('transactions.noDateDifference', { defaultValue: 'No date difference in this period' })}</p>
+            <p className="text-[10px] sm:text-xs mt-1">{t('transactions.allTransactionsSameDate', { defaultValue: 'All transactions have matching accounting and value dates' })}</p>
           </div>
         ) : (
           <>

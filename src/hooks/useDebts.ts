@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,6 +60,7 @@ const DEBT_QUERY_KEYS = {
 };
 
 export const useDebts = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -74,8 +76,8 @@ export const useDebts = () => {
 
       if (error) {
         toast({
-          title: "Erreur",
-          description: "Impossible de charger les dettes",
+          title: t("common.error", { defaultValue: "Error" }),
+          description: t("debts.loadError", { defaultValue: "Unable to load debts" }),
           variant: "destructive"
         });
         throw error;
@@ -191,16 +193,16 @@ export const useDebts = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de créer la dette",
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("debts.createError", { defaultValue: "Unable to create the debt" }),
         variant: "destructive"
       });
       throw error;
     }
 
     toast({
-      title: "Succès",
-      description: "Dette créée avec succès"
+      title: t("common.success", { defaultValue: "Success" }),
+      description: t("debts.createSuccess", { defaultValue: "Debt created successfully" })
     });
 
     invalidateDebts();
@@ -218,16 +220,16 @@ export const useDebts = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de modifier la dette",
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("debts.updateError", { defaultValue: "Unable to update the debt" }),
         variant: "destructive"
       });
       throw error;
     }
 
     toast({
-      title: "Succès",
-      description: "Dette modifiée avec succès"
+      title: t("common.success", { defaultValue: "Success" }),
+      description: t("debts.updateSuccess", { defaultValue: "Debt updated successfully" })
     });
 
     invalidateDebts();
@@ -357,16 +359,16 @@ export const useDebts = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer la dette",
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("debts.deleteError", { defaultValue: "Unable to delete the debt" }),
         variant: "destructive"
       });
       throw error;
     }
 
     toast({
-      title: "Succès",
-      description: "Dette et transactions associées supprimées avec succès"
+      title: t("common.success", { defaultValue: "Success" }),
+      description: t("debts.deleteSuccess", { defaultValue: "Debt and associated transactions deleted successfully" })
     });
 
     invalidateDebts();
@@ -382,16 +384,16 @@ export const useDebts = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter le paiement",
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("debts.addPaymentError", { defaultValue: "Unable to add the payment" }),
         variant: "destructive"
       });
       throw error;
     }
 
     toast({
-      title: "Succès",
-      description: "Paiement enregistré avec succès"
+      title: t("common.success", { defaultValue: "Success" }),
+      description: t("debts.addPaymentSuccess", { defaultValue: "Payment recorded successfully" })
     });
 
     invalidateDebts();
@@ -406,16 +408,16 @@ export const useDebts = () => {
 
     if (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer le paiement",
+        title: t("common.error", { defaultValue: "Error" }),
+        description: t("debts.deletePaymentError", { defaultValue: "Unable to delete the payment" }),
         variant: "destructive"
       });
       throw error;
     }
 
     toast({
-      title: "Succès",
-      description: "Paiement supprimé avec succès"
+      title: t("common.success", { defaultValue: "Success" }),
+      description: t("debts.deletePaymentSuccess", { defaultValue: "Payment deleted successfully" })
     });
 
     invalidateDebts();

@@ -83,12 +83,12 @@ export const CommandPalette = () => {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Rechercher une page, transaction, compte, dette..." />
+      <CommandInput placeholder={t('common.searchPalettePlaceholder', { defaultValue: 'Search pages, transactions, accounts, debts…' })} />
       <CommandList>
         <CommandEmpty>
           <div className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">Aucun résultat trouvé</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Essayez un autre terme de recherche</p>
+            <p className="text-sm text-muted-foreground">{t('common.noResults', { defaultValue: 'No results found' })}</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">{t('common.tryAnotherSearchTerm', { defaultValue: 'Try a different search term' })}</p>
           </div>
         </CommandEmpty>
 

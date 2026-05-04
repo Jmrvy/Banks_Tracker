@@ -132,7 +132,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
   return (
     <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle>Transactions du compte</CardTitle>
+        <CardTitle>{tr('accounts.accountTransactions', { defaultValue: 'Account transactions' })}</CardTitle>
       </CardHeader>
       <CardContent>
         {transactionsWithBalance.length === 0 ? (

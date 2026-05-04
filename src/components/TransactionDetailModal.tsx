@@ -137,7 +137,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           {/* Description and amount */}
-          <div className="text-center py-4 bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl">
+          <div className="text-center py-4 bg-bg-subtle  border border-line rounded-2xl">
             <p className="text-lg font-semibold mb-2">{transaction.description}</p>
             <p className={`text-3xl font-bold ${getTypeColor()}`}>
               {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}
@@ -197,7 +197,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-3">
                   <History className="w-4 h-4 text-amber-600" />
-                  <p className="text-sm font-medium text-amber-600">Historique des remboursements</p>
+                  <p className="text-sm font-medium text-amber-600">{t('refund.history', { defaultValue: 'Refund history' })}</p>
                 </div>
                 
                 {/* Summary bar */}
@@ -206,7 +206,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                     <span>Remboursé : {formatCurrency(transaction.refunded_amount || 0)}</span>
                     <span>Reste : {formatCurrency(remainingToRefund)}</span>
                   </div>
-                  <div className="w-full bg-white/[0.06] rounded-full h-2">
+                  <div className="w-full bg-bg-hover rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all ${
                         transaction.refunded_amount === transaction.amount 
@@ -226,7 +226,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                     {refunds.map((refund, index) => (
                       <div 
                         key={refund.id} 
-                        className="glass-row flex items-center justify-between p-2 border border-white/[0.04] rounded-xl"
+                        className="flex items-center justify-between p-2 border border-line bg-bg-subtle/40 hover:bg-bg-subtle rounded-lg transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground w-5">#{index + 1}</span>

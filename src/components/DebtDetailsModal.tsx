@@ -130,7 +130,7 @@ export const DebtDetailsModal = ({
       await fetchScheduledPayments();
     } catch (error) {
       console.error('Error confirming payment:', error);
-      toast({ title: "Erreur", description: "Impossible de confirmer le paiement", variant: "destructive" });
+      toast({ title: t("common.error", { defaultValue: "Error" }), description: t("debts.confirmPaymentError", { defaultValue: "Unable to confirm the payment" }), variant: "destructive" });
     } finally {
       setConfirmingId(null);
     }
@@ -175,7 +175,7 @@ export const DebtDetailsModal = ({
       await fetchScheduledPayments();
     } catch (error) {
       console.error('Error unchecking payment:', error);
-      toast({ title: "Erreur", description: "Impossible d'annuler le paiement", variant: "destructive" });
+      toast({ title: t("common.error", { defaultValue: "Error" }), description: t("debts.cancelPaymentError", { defaultValue: "Unable to cancel the payment" }), variant: "destructive" });
     } finally {
       setUncheckingId(null);
     }

@@ -181,7 +181,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">Modifier la transaction</DialogTitle>
+          <DialogTitle className="text-sm sm:text-lg">{t('transactions.editTransaction', { defaultValue: 'Edit transaction' })}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
@@ -248,7 +248,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           {formData.type === 'transfer' && (
             <>
               <div className="space-y-2">
-                <Label>Vers le compte *</Label>
+                <Label>{t('transactions.toAccount', { defaultValue: 'To account' })} *</Label>
                 <Select
                   value={formData.transfer_to_account_id}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, transfer_to_account_id: value }))}

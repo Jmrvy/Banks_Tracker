@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Smartphone, Download, CheckCircle, Share } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Install() {
+  const { t } = useTranslation();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -93,25 +95,29 @@ export default function Install() {
 
           {isIOS && (
             <div className="rounded-lg border border-line bg-bg-subtle p-4 space-y-3">
-              <p className="font-semibold text-sm">Pour installer sur iPhone :</p>
+              <p className="font-semibold text-sm">
+                {t('install.iosTitle', { defaultValue: 'To install on iPhone:' })}
+              </p>
               <ol className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-foreground">1.</span>
-                  <span>Ouvrez cette page dans Safari</span>
+                  <span>{t('install.iosStep1', { defaultValue: 'Open this page in Safari' })}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-foreground">2.</span>
                   <span className="flex items-center">
-                    Appuyez sur le bouton <Share className="mx-1 h-4 w-4 inline" /> Partager
+                    {t('install.iosStep2Prefix', { defaultValue: 'Tap the' })}
+                    <Share className="mx-1 h-4 w-4 inline" />
+                    {t('install.iosStep2Suffix', { defaultValue: 'Share button' })}
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-foreground">3.</span>
-                  <span>Sélectionnez « Sur l'écran d'accueil »</span>
+                  <span>{t('install.iosStep3', { defaultValue: 'Select "Add to Home Screen"' })}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-foreground">4.</span>
-                  <span>Appuyez sur « Ajouter »</span>
+                  <span>{t('install.iosStep4', { defaultValue: 'Tap "Add"' })}</span>
                 </li>
               </ol>
             </div>

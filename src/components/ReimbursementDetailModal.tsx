@@ -72,14 +72,14 @@ export const ReimbursementDetailModal = ({
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3">
           {/* Progress */}
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 sm:p-4">
+          <div className="rounded-xl bg-bg-subtle/60 border border-line p-3 sm:p-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-[10px] sm:text-xs text-muted-foreground">Progression</span>
               <span className="text-xs sm:text-sm font-semibold">{progress.toFixed(1)}%</span>
             </div>
             <Progress value={progress} className="h-2 mb-3" />
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-2">
+              <div className="rounded-xl bg-bg-subtle border border-line p-2">
                 <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Total</p>
                 <p className="text-[11px] sm:text-sm font-bold truncate">{formatCurrency(installment.total_amount)}</p>
               </div>
@@ -95,7 +95,7 @@ export const ReimbursementDetailModal = ({
           </div>
 
           {/* Details */}
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 sm:p-4 space-y-2.5">
+          <div className="rounded-xl bg-bg-subtle/60 border border-line p-3 sm:p-4 space-y-2.5">
             <div className="flex justify-between items-center">
               <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5">
                 <CreditCard className="w-3 h-3" />
@@ -152,7 +152,7 @@ export const ReimbursementDetailModal = ({
               </div>
             )}
             {installment.is_active && remainingPayments > 0 && (
-              <div className="flex justify-between items-center pt-1 border-t border-white/[0.06]">
+              <div className="flex justify-between items-center pt-1 border-t border-line">
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Échéances restantes</span>
                 <span className="text-xs sm:text-sm font-semibold">{remainingPayments}</span>
               </div>

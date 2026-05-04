@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ interface CsvLoanImportProps {
 }
 
 export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
+  const { t } = useTranslation();
   const { createDebt } = useDebts();
   const { user } = useAuth();
   const { formatCurrency } = useUserPreferences();
@@ -250,10 +252,10 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
   return (
     <div className="space-y-4">
       {/* Format help toggle */}
-      <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+      <div className="rounded-xl border border-line overflow-hidden">
         <button
           onClick={() => setShowFormat(!showFormat)}
-          className="w-full flex items-center justify-between p-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+          className="w-full flex items-center justify-between p-3 bg-bg-subtle/60 hover:bg-bg-hover transition-colors"
         >
           <span className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
             <Info className="h-3.5 w-3.5 text-primary" />
@@ -337,7 +339,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
         className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-300 ${
           isDragOver
             ? 'border-primary/60 bg-primary/5'
-            : 'border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.02]'
+            : 'border-line-strong hover:border-primary/40 hover:bg-bg-subtle'
         }`}
       >
         <input
@@ -350,7 +352,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
         {parsing ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Analyse du fichier CSV...</p>
+            <p className="text-sm text-muted-foreground">{t('csv.parsing', { defaultValue: 'Parsing CSV file…' })}</p>
           </div>
         ) : fileName ? (
           <div className="flex flex-col items-center gap-2">
@@ -362,7 +364,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
           <div className="flex flex-col items-center gap-3">
             <Upload className="h-8 w-8 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Importer un échéancier CSV</p>
+              <p className="text-sm font-medium">{t('csv.importTitle', { defaultValue: 'Import a CSV schedule' })}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Glissez ou cliquez pour sélectionner votre fichier
               </p>
@@ -405,7 +407,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
       {parsedData && parsedData.schedule.length > 0 && (
         <div className="space-y-4">
           {/* Summary badges */}
-          <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] space-y-2">
+          <div className="p-3 rounded-xl bg-bg-subtle border border-line space-y-2">
             <div className="flex items-center gap-2 mb-2">
               <Check className="h-4 w-4 text-success" />
               <span className="text-sm font-medium">
@@ -449,10 +451,10 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
           </div>
 
           {/* Schedule preview */}
-          <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+          <div className="rounded-xl border border-line overflow-hidden">
             <button
               onClick={() => setShowSchedule(!showSchedule)}
-              className="w-full flex items-center justify-between p-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+              className="w-full flex items-center justify-between p-3 bg-bg-subtle/60 hover:bg-bg-hover transition-colors"
             >
               <span className="text-sm font-medium">Aperçu de l'échéancier</span>
               {showSchedule ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -460,7 +462,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
             {showSchedule && (
               <div className="max-h-[250px] overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-white/[0.04] sticky top-0">
+                  <thead className="bg-bg-subtle sticky top-0">
                     <tr>
                       <th className="p-2 text-left text-muted-foreground font-medium">Date</th>
                       <th className="p-2 text-right text-muted-foreground font-medium">Échéance</th>
@@ -472,7 +474,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
                   </thead>
                   <tbody>
                     {parsedData.schedule.map((row, i) => (
-                      <tr key={i} className={`border-t border-white/[0.04] ${i === parsedData.schedule.length - 1 ? 'font-medium' : ''}`}>
+                      <tr key={i} className={`border-t border-line ${i === parsedData.schedule.length - 1 ? 'font-medium' : ''}`}>
                         <td className="p-2">{new Date(row.date + 'T00:00:00').toLocaleDateString('fr-FR')}</td>
                         <td className="p-2 text-right">{formatCurrency(row.payment)}</td>
                         <td className="p-2 text-right hidden sm:table-cell">{formatCurrency(row.interest)}</td>
@@ -492,7 +494,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
           {/* Form — only show if validation passed */}
           {validation?.valid && (
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-muted-foreground">Complétez les informations</h4>
+              <h4 className="text-sm font-medium text-muted-foreground">{t('csv.fillDetails', { defaultValue: 'Fill in the details' })}</h4>
 
               <div>
                 <Label htmlFor="csv-description">Description *</Label>
@@ -545,7 +547,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
               </div>
 
               <div>
-                <Label htmlFor="csv-category">Catégorie des paiements</Label>
+                <Label htmlFor="csv-category">{t('debts.paymentCategory', { defaultValue: 'Payment category' })}</Label>
                 <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Optionnel" />

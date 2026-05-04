@@ -69,7 +69,7 @@ export const RecordRecurringPaymentModal = ({
       if (mode === 'new') {
         const paymentAmount = parseFloat(amount);
         if (!paymentAmount || paymentAmount <= 0) {
-          toast({ title: t('common.invalidAmount'), description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          toast({ title: t('common.invalidAmount'), description: t("common.enterValidAmount", { defaultValue: "Please enter a valid amount." }), variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -100,7 +100,7 @@ export const RecordRecurringPaymentModal = ({
       } else {
         // Link existing transaction
         if (!selectedTransactionId) {
-          toast({ title: t('common.transactionNotSelected'), description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
+          toast({ title: t('common.transactionNotSelected'), description: t("common.selectTransactionToLink", { defaultValue: "Please select a transaction to link." }), variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -176,7 +176,7 @@ export const RecordRecurringPaymentModal = ({
           <form onSubmit={handleSubmit}>
             <TabsContent value="link" className="space-y-3 pt-3">
               <div className="space-y-2">
-                <Label className="text-xs sm:text-sm">Sélectionner une transaction existante</Label>
+                <Label className="text-xs sm:text-sm">{t('recurring.selectExistingTransaction', { defaultValue: 'Select an existing transaction' })}</Label>
                 {linkableTransactions.length > 0 ? (
                   <ScrollArea className="h-[200px] border rounded-md p-2">
                     <div className="space-y-1">
@@ -235,7 +235,7 @@ export const RecordRecurringPaymentModal = ({
 
             <TabsContent value="new" className="space-y-3 pt-3">
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-xs sm:text-sm">Montant du Paiement *</Label>
+                <Label htmlFor="amount" className="text-xs sm:text-sm">{t('recurring.paymentAmount', { defaultValue: 'Payment amount' })} *</Label>
                 <AmountInput
                   id="amount"
                   placeholder="0.00"

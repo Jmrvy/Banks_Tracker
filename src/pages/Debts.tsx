@@ -232,7 +232,7 @@ const Debts = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm sm:text-lg">Supprimer cette dette ?</AlertDialogTitle>
+            <AlertDialogTitle className="text-sm sm:text-lg">{t('debts.deleteConfirmTitle', { defaultValue: 'Delete this debt?' })}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="text-xs sm:text-sm space-y-3">
                 {debtToDelete && (
@@ -242,7 +242,7 @@ const Debts = () => {
                   </p>
                 )}
                 {loadingImpact && (
-                  <p className="text-muted-foreground">Analyse des données liées...</p>
+                  <p className="text-muted-foreground">{t('common.analyzingLinkedData', { defaultValue: 'Analyzing linked data…' })}</p>
                 )}
                 {deletionImpact && (deletionImpact.transactionCount > 0 || deletionImpact.recurringCount > 0 || deletionImpact.paymentCount > 0) && (
                   <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 space-y-1">

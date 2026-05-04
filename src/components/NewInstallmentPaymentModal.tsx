@@ -196,7 +196,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
     if (!formData.description || !formData.total_amount || !computed.valid || !formData.account_id) {
       toast({
         title: "Informations manquantes",
-        description: "Veuillez remplir tous les champs obligatoires.",
+        description: t("common.fillAllRequired", { defaultValue: "Please fill in all required fields." }),
         variant: "destructive",
       });
       return;
@@ -678,7 +678,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                       title: "Informations manquantes",
                       description: calculationMode === 'manual' && !manualIsValid
                         ? t('installments.scheduleMismatchDesc')
-                        : "Veuillez remplir tous les champs obligatoires.",
+                        : t("common.fillAllRequired", { defaultValue: "Please fill in all required fields." }),
                       variant: "destructive",
                     });
                     return;

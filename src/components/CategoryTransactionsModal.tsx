@@ -266,7 +266,7 @@ export const CategoryTransactionsModal = ({
     const isOver = spentValue > categoryData.budget;
 
     return (
-      <div className="bg-popover/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl p-2.5 text-xs">
+      <div className="bg-popover  border border-border/50 rounded-lg shadow-xl p-2.5 text-xs">
         <p className="font-semibold text-foreground mb-1.5 pb-1 border-b border-border/30">
           {label}
         </p>

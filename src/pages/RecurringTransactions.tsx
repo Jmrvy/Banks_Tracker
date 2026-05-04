@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Repeat, Calendar, Pause, Play, Plus, List, CalendarDays } from "lucide-react";
@@ -270,18 +269,16 @@ const RecurringTransactions = () => {
           {/* Calendar View */}
           <TabsContent value="calendar" className="mt-4">
             {loading ? (
-              <Card>
-                <CardContent className="p-6">
-                  <div className="animate-pulse space-y-4" role="status">
-                    <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
-                    <div className="grid grid-cols-7 gap-2">
-                      {Array(35).fill(0).map((_, i) => (
-                        <div key={i} className="aspect-square bg-muted rounded"></div>
-                      ))}
-                    </div>
+              <div className="ft-card p-6">
+                <div className="animate-pulse space-y-4" role="status">
+                  <div className="h-8 bg-bg-subtle rounded w-1/3 mx-auto"></div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array(35).fill(0).map((_, i) => (
+                      <div key={i} className="aspect-square bg-bg-subtle rounded"></div>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : recurringTransactions.length === 0 ? (
               <div className="ft-card p-8 sm:p-12">
                 <div className="text-center">

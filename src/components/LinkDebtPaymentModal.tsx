@@ -102,12 +102,12 @@ export const LinkDebtPaymentModal = ({
       if (mode === 'new') {
         paymentAmount = parseFloat(amount);
         if (!paymentAmount || paymentAmount <= 0) {
-          toast({ title: t('common.invalidAmount'), description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          toast({ title: t('common.invalidAmount'), description: t("common.enterValidAmount", { defaultValue: "Please enter a valid amount." }), variant: "destructive" });
           setLoading(false);
           return;
         }
         if (!selectedAccountId) {
-          toast({ title: t('common.accountRequired'), description: "Veuillez sélectionner un compte.", variant: "destructive" });
+          toast({ title: t('common.accountRequired'), description: t("common.selectAccountPlease", { defaultValue: "Please select an account." }), variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -138,7 +138,7 @@ export const LinkDebtPaymentModal = ({
         }
       } else {
         if (!selectedTransactionId || !selectedTransaction) {
-          toast({ title: t('common.transactionNotSelected'), description: "Veuillez sélectionner une transaction.", variant: "destructive" });
+          toast({ title: t('common.transactionNotSelected'), description: t("common.selectTransactionPlease", { defaultValue: "Please select a transaction." }), variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -187,7 +187,7 @@ export const LinkDebtPaymentModal = ({
       onPaymentRecorded?.();
     } catch (error) {
       console.error('Error recording payment:', error);
-      toast({ title: t('common.error'), description: "Impossible d'enregistrer le paiement", variant: "destructive" });
+      toast({ title: t('common.error'), description: t("debts.recordPaymentError", { defaultValue: "Unable to record the payment" }), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -197,7 +197,7 @@ export const LinkDebtPaymentModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">Enregistrer un paiement</DialogTitle>
+          <DialogTitle className="text-sm sm:text-lg">{t('debts.recordPayment', { defaultValue: 'Record a payment' })}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
@@ -234,7 +234,7 @@ export const LinkDebtPaymentModal = ({
             <form onSubmit={handleSubmit}>
               <TabsContent value="link" className="space-y-3 pt-3">
                 <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm">Sélectionner une transaction existante</Label>
+                  <Label className="text-xs sm:text-sm">{t('debts.selectExistingTransaction', { defaultValue: 'Select an existing transaction' })}</Label>
                   {linkableTransactions.length > 0 && (
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

@@ -266,7 +266,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                         const data = payload[0].payload;
                         const percentage = ((data.value / totalForPercentage) * 100).toFixed(1);
                         return (
-                          <div className="rounded-lg border bg-background/95 backdrop-blur-sm p-2 shadow-lg">
+                          <div className="rounded-lg border bg-background/95  p-2 shadow-lg">
                             <div className="flex items-center gap-2 mb-1">
                               <div 
                                 className="w-2.5 h-2.5 rounded-full" 
@@ -305,7 +305,7 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                   <button
                     key={index}
                     onClick={() => handleCategoryClick(item.name)}
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-xl bg-white/[0.03] border border-white/[0.04] hover:bg-white/[0.06] transition-all duration-300 text-left group"
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-xl bg-bg-subtle/60 border border-line hover:bg-bg-hover transition-all duration-300 text-left group"
                   >
                     <div
                       className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform"
@@ -342,8 +342,8 @@ export const IncomeTab = ({ incomeAnalysis, totalIncome, includeUpcoming, upcomi
                   onClick={() => category.realCount > 0 ? handleCategoryClick(category.name) : undefined}
                   className={cn(
                     "w-full p-2.5 sm:p-3 rounded-xl transition-all duration-300 text-left",
-                    "bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.10]",
-                    "active:scale-[0.99] backdrop-blur-sm",
+                    "bg-bg-subtle/60 hover:bg-bg-hover border border-line hover:border-line-strong",
+                    "active:scale-[0.99] ",
                     category.projectedAmount > 0 && category.realAmount === 0 && "border-dashed border-primary/30"
                   )}
                 >

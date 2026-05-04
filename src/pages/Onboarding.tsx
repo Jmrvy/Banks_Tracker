@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
@@ -1034,6 +1034,7 @@ interface AccountDraft {
 const Onboarding = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { createAccount, createCategory, accounts: existingAccounts, categories: existingCategories } = useFinancialData();
   const { updatePreferences } = useUserPreferences();
 
@@ -1131,15 +1132,19 @@ const Onboarding = () => {
       localStorage.removeItem('budget-app-needs-onboarding');
 
       toast({
-        title: isReviewMode ? "Guide termine !" : "Configuration terminee !",
-        description: isReviewMode ? "Vous pouvez revenir ici depuis les parametres." : "Votre application est prete. Bienvenue !",
+        title: isReviewMode
+          ? t('onboarding.toast.guideDoneTitle', { defaultValue: 'Guide complete!' })
+          : t('onboarding.toast.setupDoneTitle', { defaultValue: 'Setup complete!' }),
+        description: isReviewMode
+          ? t('onboarding.toast.guideDoneDescription', { defaultValue: 'You can come back here from settings.' })
+          : t('onboarding.toast.setupDoneDescription', { defaultValue: 'Your app is ready. Welcome!' }),
       });
 
       navigate('/', { replace: true });
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la configuration.",
+        title: t('common.error', { defaultValue: 'Error' }),
+        description: t('onboarding.toast.setupError', { defaultValue: 'An error occurred during setup.' }),
         variant: "destructive",
       });
     } finally {
@@ -1180,11 +1185,15 @@ const Onboarding = () => {
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               <span className="text-sm font-medium text-muted-foreground">
-                Etape {currentStep + 1} / {TOTAL_STEPS}
+                {t('onboarding.stepOf', {
+                  current: currentStep + 1,
+                  total: TOTAL_STEPS,
+                  defaultValue: `Step ${currentStep + 1} / ${TOTAL_STEPS}`,
+                })}
               </span>
             </div>
             <Button variant="ghost" size="sm" onClick={handleSkip} className="text-xs text-muted-foreground">
-              Passer
+              {t('onboarding.skip', { defaultValue: 'Skip' })}
             </Button>
           </div>
           <Progress value={progress} className="h-1.5" />
@@ -1201,39 +1210,43 @@ const Onboarding = () => {
                 <Wallet className="h-10 w-10 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenue sur Banks Tracker</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                  {t('onboarding.welcome.title', { defaultValue: 'Welcome to Banks Tracker' })}
+                </h1>
                 <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto">
-                  Configurons ensemble votre application en quelques etapes simples pour que vous puissiez commencer a gerer vos finances.
+                  {t('onboarding.welcome.description', {
+                    defaultValue: "Let's set up your app in a few simple steps so you can start managing your finances.",
+                  })}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left max-w-lg mx-auto pt-4">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border border-line">
                   <CreditCard className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">Vos comptes</p>
-                    <p className="text-xs text-muted-foreground">Ajoutez vos comptes bancaires</p>
+                    <p className="text-sm font-medium">{t('onboarding.welcome.accountsTitle', { defaultValue: 'Your accounts' })}</p>
+                    <p className="text-xs text-muted-foreground">{t('onboarding.welcome.accountsDescription', { defaultValue: 'Add your bank accounts' })}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border border-line">
                   <Tag className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">Categories</p>
-                    <p className="text-xs text-muted-foreground">Organisez vos depenses</p>
+                    <p className="text-sm font-medium">{t('onboarding.welcome.categoriesTitle', { defaultValue: 'Categories' })}</p>
+                    <p className="text-xs text-muted-foreground">{t('onboarding.welcome.categoriesDescription', { defaultValue: 'Organize your spending' })}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border border-line">
                   <Wallet className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">Preferences</p>
-                    <p className="text-xs text-muted-foreground">Devise et parametres</p>
+                    <p className="text-sm font-medium">{t('onboarding.welcome.preferencesTitle', { defaultValue: 'Preferences' })}</p>
+                    <p className="text-xs text-muted-foreground">{t('onboarding.welcome.preferencesDescription', { defaultValue: 'Currency and settings' })}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-card border border-line">
                   <BookOpen className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">Guide</p>
-                    <p className="text-xs text-muted-foreground">Decouvrez les fonctionnalites</p>
+                    <p className="text-sm font-medium">{t('onboarding.welcome.guideTitle', { defaultValue: 'Guide' })}</p>
+                    <p className="text-xs text-muted-foreground">{t('onboarding.welcome.guideDescription', { defaultValue: 'Discover the features' })}</p>
                   </div>
                 </div>
               </div>
@@ -1247,87 +1260,92 @@ const Onboarding = () => {
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
                   <CreditCard className="h-6 w-6 text-primary" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold">Ajoutez vos comptes</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {t('onboarding.accounts.title', { defaultValue: 'Add your accounts' })}
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Renseignez vos comptes bancaires avec leur solde actuel
+                  {t('onboarding.accounts.description', { defaultValue: 'Enter your bank accounts with their current balance' })}
                 </p>
               </div>
 
               <div className="space-y-3">
                 {accounts.map((account, index) => (
-                  <Card key={index} className="border shadow-sm">
-                    <CardContent className="p-3 sm:p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Compte {index + 1}</span>
-                        {accounts.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeAccount(index)}
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                  <div key={index} className="ft-card p-3 sm:p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t('onboarding.accounts.accountLabel', {
+                          index: index + 1,
+                          defaultValue: `Account ${index + 1}`,
+                        })}
+                      </span>
+                      {accounts.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAccount(index)}
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t('onboarding.accounts.nameLabel', { defaultValue: 'Account name *' })}</Label>
+                        <Input
+                          placeholder={t('onboarding.accounts.namePlaceholder', { defaultValue: 'ex: Checking account' })}
+                          value={account.name}
+                          onChange={(e) => updateAccount(index, 'name', e.target.value)}
+                          className="h-9 text-sm"
+                        />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Nom du compte *</Label>
-                          <Input
-                            placeholder="ex: Compte Courant"
-                            value={account.name}
-                            onChange={(e) => updateAccount(index, 'name', e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Banque</Label>
-                          <Select
-                            value={account.bank}
-                            onValueChange={(v) => updateAccount(index, 'bank', v)}
-                          >
-                            <SelectTrigger className="h-9 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {bankOptions.map((b) => (
-                                <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Type</Label>
-                          <Select
-                            value={account.account_type}
-                            onValueChange={(v) => updateAccount(index, 'account_type', v)}
-                          >
-                            <SelectTrigger className="h-9 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {accountTypes.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Solde actuel</Label>
-                          <AmountInput
-                            placeholder="0.00"
-                            value={account.balance}
-                            onChange={(v) => updateAccount(index, 'balance', v)}
-                            className="h-9 text-sm"
-                          />
-                        </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t('onboarding.accounts.bankLabel', { defaultValue: 'Bank' })}</Label>
+                        <Select
+                          value={account.bank}
+                          onValueChange={(v) => updateAccount(index, 'bank', v)}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankOptions.map((b) => (
+                              <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t('onboarding.accounts.typeLabel', { defaultValue: 'Type' })}</Label>
+                        <Select
+                          value={account.account_type}
+                          onValueChange={(v) => updateAccount(index, 'account_type', v)}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accountTypes.map((accType) => (
+                              <SelectItem key={accType.value} value={accType.value}>{accType.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t('onboarding.accounts.balanceLabel', { defaultValue: 'Current balance' })}</Label>
+                        <AmountInput
+                          placeholder="0.00"
+                          value={account.balance}
+                          onChange={(v) => updateAccount(index, 'balance', v)}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
 
@@ -1337,7 +1355,7 @@ const Onboarding = () => {
                 className="w-full h-10 text-sm gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Ajouter un compte
+                {t('onboarding.accounts.addAccount', { defaultValue: 'Add an account' })}
               </Button>
             </div>
           )}
@@ -1349,9 +1367,13 @@ const Onboarding = () => {
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
                   <Tag className="h-6 w-6 text-primary" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold">Choisissez vos categories</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {t('onboarding.categories.title', { defaultValue: 'Choose your categories' })}
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Selectionnez les categories que vous souhaitez utiliser. Vous pourrez en ajouter d'autres plus tard.
+                  {t('onboarding.categories.description', {
+                    defaultValue: 'Select the categories you want to use. You can add more later.',
+                  })}
                 </p>
               </div>
 
@@ -1388,7 +1410,7 @@ const Onboarding = () => {
                   onClick={() => setSelectedCategories(new Set(defaultCategories.map((_, i) => i)))}
                   className="text-xs"
                 >
-                  Tout selectionner
+                  {t('onboarding.categories.selectAll', { defaultValue: 'Select all' })}
                 </Button>
                 <span className="text-muted-foreground">|</span>
                 <Button
@@ -1397,7 +1419,7 @@ const Onboarding = () => {
                   onClick={() => setSelectedCategories(new Set())}
                   className="text-xs"
                 >
-                  Tout deselectionner
+                  {t('onboarding.categories.deselectAll', { defaultValue: 'Deselect all' })}
                 </Button>
               </div>
             </div>
@@ -1410,9 +1432,13 @@ const Onboarding = () => {
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
                   <Wallet className="h-6 w-6 text-primary" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold">Votre devise</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {t('onboarding.currency.title', { defaultValue: 'Your currency' })}
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Choisissez la devise principale pour l'affichage de vos montants
+                  {t('onboarding.currency.description', {
+                    defaultValue: 'Pick the main currency used to display your amounts',
+                  })}
                 </p>
               </div>
 
@@ -1448,30 +1474,33 @@ const Onboarding = () => {
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
                   <BookOpen className="h-6 w-6 text-primary" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold">Decouvrez l'application</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {t('onboarding.guide.title', { defaultValue: 'Discover the app' })}
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Cliquez sur une fonctionnalite pour decouvrir comment l'utiliser
+                  {t('onboarding.guide.description', {
+                    defaultValue: 'Tap a feature to learn how to use it',
+                  })}
                 </p>
               </div>
 
               <div className="space-y-2.5">
                 {featureGuides.map((feature, index) => (
-                  <Card
+                  <button
                     key={index}
-                    className="border shadow-sm cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.98]"
+                    type="button"
+                    className="ft-card w-full text-left p-3 sm:p-4 flex items-start gap-3 cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.98]"
                     onClick={() => setSelectedGuide(feature.id)}
                   >
-                    <CardContent className="p-3 sm:p-4 flex items-start gap-3">
-                      <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <feature.icon className="h-4.5 w-4.5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold">{feature.title}</p>
-                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{feature.desc}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
-                    </CardContent>
-                  </Card>
+                    <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <feature.icon className="h-4.5 w-4.5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">{feature.title}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{feature.desc}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
+                  </button>
                 ))}
               </div>
 
@@ -1498,7 +1527,9 @@ const Onboarding = () => {
                         <div className="space-y-5">
                           {/* Steps */}
                           <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comment faire</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              {t('onboarding.guide.howTo', { defaultValue: 'How to use it' })}
+                            </p>
                             <div className="space-y-2.5">
                               {guide.steps.map((step, i) => (
                                 <div key={i} className="flex items-start gap-3">
@@ -1513,14 +1544,18 @@ const Onboarding = () => {
 
                           {/* UI Mockup */}
                           <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Apercu de l'interface</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              {t('onboarding.guide.preview', { defaultValue: 'Interface preview' })}
+                            </p>
                             <FeatureMockup id={guide.id} />
                           </div>
 
                           {/* Tips */}
                           {guide.tips && (
                             <div className="space-y-2.5">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Astuces</p>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                {t('onboarding.guide.tips', { defaultValue: 'Tips' })}
+                              </p>
                               <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2">
                                 {guide.tips.map((tip, i) => (
                                   <div key={i} className="flex items-start gap-2 text-sm">
@@ -1552,7 +1587,7 @@ const Onboarding = () => {
             className="gap-1.5"
           >
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Precedent</span>
+            <span className="hidden sm:inline">{t('onboarding.previous', { defaultValue: 'Previous' })}</span>
           </Button>
 
           <div className="flex gap-1.5">
@@ -1573,15 +1608,15 @@ const Onboarding = () => {
             className="gap-1.5"
           >
             {loading ? (
-              <span>Configuration...</span>
+              <span>{t('onboarding.configuring', { defaultValue: 'Setting up...' })}</span>
             ) : currentStep === TOTAL_STEPS - 1 ? (
               <>
-                <span>Commencer</span>
+                <span>{t('onboarding.start', { defaultValue: 'Get started' })}</span>
                 <Sparkles className="h-4 w-4" />
               </>
             ) : (
               <>
-                <span className="hidden sm:inline">Suivant</span>
+                <span className="hidden sm:inline">{t('onboarding.next', { defaultValue: 'Next' })}</span>
                 <ChevronRight className="h-4 w-4" />
               </>
             )}

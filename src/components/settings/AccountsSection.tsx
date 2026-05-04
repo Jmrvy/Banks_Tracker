@@ -75,7 +75,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
     } catch {
       toast({
         title: t('common.error'),
-        description: "Impossible de charger l'historique des recalculs.",
+        description: t("accounts.recalcHistoryError", { defaultValue: "Unable to load recalculation history." }),
         variant: "destructive",
       });
     } finally {
@@ -173,8 +173,8 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
 
       if (changes.length === 0) {
         toast({
-          title: "Soldes vérifiés",
-          description: "Tous les soldes sont déjà corrects.",
+          title: t("accounts.balancesVerified", { defaultValue: "Balances verified" }),
+          description: t("accounts.balancesAlreadyCorrect", { defaultValue: "All balances are already correct." }),
         });
       } else {
         const details = changes
@@ -183,14 +183,14 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
           )
           .join('\n');
         toast({
-          title: "Soldes recalculés",
+          title: t("accounts.balancesRecalculated", { defaultValue: "Balances recalculated" }),
           description: `${changes.length} compte(s) corrigé(s):\n${details}`,
         });
       }
     } catch {
       toast({
         title: t('common.error'),
-        description: "Impossible de recalculer les soldes. Vérifiez que la migration a été appliquée.",
+        description: t("accounts.recalcError", { defaultValue: "Unable to recalculate balances. Verify the migration has been applied." }),
         variant: "destructive",
       });
     } finally {
@@ -313,7 +313,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-sm sm:text-base">Historique des recalculs</DialogTitle>
+            <DialogTitle className="text-sm sm:text-base">{t('accounts.recalcHistory', { defaultValue: 'Recalculation history' })}</DialogTitle>
           </DialogHeader>
           {loadingHistory ? (
             <p className="text-xs text-muted-foreground text-center py-4">Chargement...</p>

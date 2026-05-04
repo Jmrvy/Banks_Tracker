@@ -77,15 +77,18 @@ interface ReportConfig {
   groupByAccount: boolean;
 }
 
-const SECTION_INFO: Record<ReportSection, { icon: React.ElementType; label: string; description: string }> = {
-  summary: { icon: BarChart3, label: "Synthese", description: "Revenus, depenses, solde net" },
-  accounts: { icon: Wallet, label: "Soldes comptes", description: "Solde actuel de chaque compte" },
-  transactions: { icon: Receipt, label: "Transactions", description: "Liste detaillee des operations" },
-  categories: { icon: PieChart, label: "Depenses/categorie", description: "Repartition des depenses" },
-  income: { icon: TrendingUp, label: "Revenus/categorie", description: "Analyse des revenus" },
-  budgets: { icon: Target, label: "Suivi budgets", description: "Budget vs depenses reelles" },
-  evolution: { icon: ArrowLeftRight, label: "Evolution solde", description: "Courbe d'evolution" },
-  recurring: { icon: Receipt, label: "Recurrents", description: "Transactions recurrentes" },
+const SECTION_INFO: Record<
+  ReportSection,
+  { icon: React.ElementType; labelKey: string; labelDefault: string; descKey: string; descDefault: string }
+> = {
+  summary: { icon: BarChart3, labelKey: 'reports.section.summary.label', labelDefault: 'Summary', descKey: 'reports.section.summary.desc', descDefault: 'Income, expenses, net balance' },
+  accounts: { icon: Wallet, labelKey: 'reports.section.accounts.label', labelDefault: 'Account balances', descKey: 'reports.section.accounts.desc', descDefault: 'Current balance of each account' },
+  transactions: { icon: Receipt, labelKey: 'reports.section.transactions.label', labelDefault: 'Transactions', descKey: 'reports.section.transactions.desc', descDefault: 'Detailed list of operations' },
+  categories: { icon: PieChart, labelKey: 'reports.section.categories.label', labelDefault: 'Expenses by category', descKey: 'reports.section.categories.desc', descDefault: 'Spending breakdown' },
+  income: { icon: TrendingUp, labelKey: 'reports.section.income.label', labelDefault: 'Income by category', descKey: 'reports.section.income.desc', descDefault: 'Income analysis' },
+  budgets: { icon: Target, labelKey: 'reports.section.budgets.label', labelDefault: 'Budget tracking', descKey: 'reports.section.budgets.desc', descDefault: 'Budget vs actual spending' },
+  evolution: { icon: ArrowLeftRight, labelKey: 'reports.section.evolution.label', labelDefault: 'Balance evolution', descKey: 'reports.section.evolution.desc', descDefault: 'Balance trend curve' },
+  recurring: { icon: Receipt, labelKey: 'reports.section.recurring.label', labelDefault: 'Recurring', descKey: 'reports.section.recurring.desc', descDefault: 'Recurring transactions' },
 };
 
 const DEFAULT_SECTIONS: ReportSection[] = ['summary', 'accounts', 'transactions', 'categories'];
@@ -856,7 +859,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     if (config.sections.length === 0) {
       toast({
         title: "Erreur",
-        description: "Selectionnez au moins une section a inclure",
+        description: t("reports.selectAtLeastOne", { defaultValue: "Select at least one section to include" }),
         variant: "destructive"
       });
       return;
@@ -878,7 +881,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       console.error('Error generating report:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de generer le rapport",
+        description: t("reports.generateError", { defaultValue: "Unable to generate the report" }),
         variant: "destructive"
       });
     } finally {
@@ -890,7 +893,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     <div className="space-y-5">
       {/* Format Selection - Apple style cards */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Format du rapport</Label>
+        <Label className="text-sm font-medium">{t('reports.format', { defaultValue: 'Report format' })}</Label>
         <div className="grid grid-cols-2 gap-3">
           <div
             className={cn(
@@ -1074,8 +1077,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
                 <Checkbox checked={isSelected} />
                 <Icon className={cn("h-5 w-5", isSelected ? "text-primary" : "text-muted-foreground")} />
                 <div className="flex-1 min-w-0">
-                  <p className={cn("font-medium text-sm", isSelected && "text-primary")}>{info.label}</p>
-                  <p className="text-xs text-muted-foreground">{info.description}</p>
+                  <p className={cn("font-medium text-sm", isSelected && "text-primary")}>{t(info.labelKey, { defaultValue: info.labelDefault })}</p>
+                  <p className="text-xs text-muted-foreground">{t(info.descKey, { defaultValue: info.descDefault })}</p>
                 </div>
                 {isSelected && <Check className="h-4 w-4 text-primary" />}
               </div>
@@ -1095,7 +1098,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const renderStep3 = () => (
     <div className="space-y-4">
       <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-        <h3 className="font-medium">Recapitulatif du rapport</h3>
+        <h3 className="font-medium">{t('reports.summary', { defaultValue: 'Report summary' })}</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="text-muted-foreground">Format</div>
           <div className="font-medium flex items-center gap-1">
@@ -1114,11 +1117,11 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       </div>
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Sections incluses</Label>
+        <Label className="text-sm font-medium">{t('reports.includedSections', { defaultValue: 'Included sections' })}</Label>
         <div className="flex flex-wrap gap-2">
           {config.sections.map(s => (
             <Badge key={s} variant="secondary" className="gap-1">
-              {SECTION_INFO[s].label}
+              {t(SECTION_INFO[s].labelKey, { defaultValue: SECTION_INFO[s].labelDefault })}
             </Badge>
           ))}
         </div>
@@ -1127,7 +1130,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       <Separator />
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Donnees du rapport</Label>
+        <Label className="text-sm font-medium">{t('reports.data', { defaultValue: 'Report data' })}</Label>
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="p-3">
@@ -1286,7 +1289,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       <>
         {chartsContainer}
         <Drawer open={open} onOpenChange={onOpenChange}>
-          <DrawerContent className="max-h-[92vh] bg-background/80 backdrop-blur-2xl border-t border-white/20 shadow-2xl">
+          <DrawerContent className="max-h-[92vh] bg-background  border-t border-white/20 shadow-2xl">
             <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/20 my-3" />
             <DrawerHeader className="pb-2 px-6">
               <div className="flex items-center gap-3">
@@ -1316,7 +1319,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     <>
       {chartsContainer}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-background  border border-white/10 shadow-2xl rounded-2xl">
           <DialogHeader className="pb-2">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-xl bg-primary/12">

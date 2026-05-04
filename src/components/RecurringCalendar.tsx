@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect, memo } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +110,7 @@ type DateField = 'value_date' | 'transaction_date';
 const getTxDate = (tx: Transaction, field: DateField): string => field === 'value_date' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
 
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
+  const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -1039,7 +1041,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               if (history.length === 0) return null;
               return (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Historique des paiements ({history.length})</p>
+                  <p className="text-xs font-medium text-muted-foreground">{t('recurring.paymentHistory', { defaultValue: 'Payment history' })} ({history.length})</p>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {history.map((tx) => (
                       <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
@@ -1117,7 +1119,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   return (
     <div className="space-y-4">
       {/* Calendar Card */}
-      <Card className="bg-card/50 backdrop-blur border-border/50">
+      <Card className="bg-card border-line">
         <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8" aria-label="Mois précédent">
@@ -1194,7 +1196,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                 <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">Total du mois</span>
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">{t('recurring.monthTotal', { defaultValue: 'Month total' })}</span>
                   </div>
                   <div className="space-y-0.5">
                     <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.totalIncome)}</p>

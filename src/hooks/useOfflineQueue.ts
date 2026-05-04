@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
 
 interface QueuedOperation {
@@ -12,6 +13,7 @@ export const useOfflineQueue = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const processingLockRef = useRef(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const addToQueue = useCallback((operation: () => Promise<void>) => {
     const queuedOp: QueuedOperation = {
@@ -50,8 +52,11 @@ export const useOfflineQueue = () => {
       // Process asynchronously
       (async () => {
         toast({
-          title: "Synchronisation",
-          description: `Synchronisation de ${currentQueue.length} opération(s) en attente...`,
+          title: t('offline.syncing', { defaultValue: 'Syncing' }),
+          description: t('offline.syncingDescription', {
+            count: currentQueue.length,
+            defaultValue: `Syncing ${currentQueue.length} pending operation(s)...`,
+          }),
         });
 
         const results = { success: 0, failed: 0 };
@@ -70,8 +75,17 @@ export const useOfflineQueue = () => {
 
         if (results.success > 0) {
           toast({
-            title: "Synchronisation terminée",
-            description: `${results.success} opération(s) synchronisée(s)${results.failed > 0 ? `, ${results.failed} échec(s)` : ''}`,
+            title: t('offline.syncComplete', { defaultValue: 'Sync complete' }),
+            description: results.failed > 0
+              ? t('offline.syncCompleteWithFailures', {
+                  success: results.success,
+                  failed: results.failed,
+                  defaultValue: `${results.success} operation(s) synced, ${results.failed} failure(s)`,
+                })
+              : t('offline.syncCompleteDescription', {
+                  success: results.success,
+                  defaultValue: `${results.success} operation(s) synced`,
+                }),
           });
         }
 
@@ -84,7 +98,7 @@ export const useOfflineQueue = () => {
 
       return currentQueue; // Don't modify queue synchronously
     });
-  }, [toast]);
+  }, [toast, t]);
 
   // Listen for sync events and process on mount if online
   useEffect(() => {

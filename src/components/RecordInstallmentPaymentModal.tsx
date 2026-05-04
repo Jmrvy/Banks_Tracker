@@ -72,7 +72,7 @@ export const RecordInstallmentPaymentModal = ({
       if (mode === 'new') {
         const paymentAmount = parseFloat(amount);
         if (!paymentAmount || paymentAmount <= 0) {
-          toast({ title: t('common.invalidAmount'), description: "Veuillez saisir un montant valide.", variant: "destructive" });
+          toast({ title: t('common.invalidAmount'), description: t("common.enterValidAmount", { defaultValue: "Please enter a valid amount." }), variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -104,7 +104,7 @@ export const RecordInstallmentPaymentModal = ({
       } else {
         // Link existing transaction
         if (!selectedTransactionId) {
-          toast({ title: t('common.transactionNotSelected'), description: "Veuillez sélectionner une transaction à lier.", variant: "destructive" });
+          toast({ title: t('common.transactionNotSelected'), description: t("common.selectTransactionToLink", { defaultValue: "Please select a transaction to link." }), variant: "destructive" });
           setLoading(false);
           return;
         }
@@ -148,7 +148,7 @@ export const RecordInstallmentPaymentModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">Enregistrer un Paiement</DialogTitle>
+          <DialogTitle className="text-sm sm:text-lg">{t('installments.recordPayment', { defaultValue: 'Record a payment' })}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
@@ -184,7 +184,7 @@ export const RecordInstallmentPaymentModal = ({
           <form onSubmit={handleSubmit}>
             <TabsContent value="new" className="space-y-3 pt-3">
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-xs sm:text-sm">Montant du Paiement *</Label>
+                <Label htmlFor="amount" className="text-xs sm:text-sm">{t('installments.paymentAmount', { defaultValue: 'Payment amount' })} *</Label>
                 <AmountInput
                   id="amount"
                   placeholder="0.00"
@@ -200,7 +200,7 @@ export const RecordInstallmentPaymentModal = ({
 
             <TabsContent value="link" className="space-y-3 pt-3">
               <div className="space-y-2">
-                <Label className="text-xs sm:text-sm">Sélectionner une transaction existante</Label>
+                <Label className="text-xs sm:text-sm">{t('installments.selectExistingTransaction', { defaultValue: 'Select an existing transaction' })}</Label>
                 {linkableTransactions.length > 0 ? (
                   <ScrollArea className="h-[200px] border rounded-md p-2">
                     <div className="space-y-1">

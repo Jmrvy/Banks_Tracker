@@ -222,7 +222,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
 
           {/* Evolution Chart */}
           {investmentStats.evolutionData.length > 0 && (
-            <div className="pt-3 border-t border-white/[0.06]">
+            <div className="pt-3 border-t border-line">
               <h4 className="text-xs sm:text-sm font-medium mb-3">{t('savings.cumulativeEvolution')}</h4>
               <div className="h-[200px] sm:h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -267,11 +267,11 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
 
           {/* Monthly Breakdown */}
           {investmentStats.monthlyData.length > 0 && (
-            <div className="pt-3 border-t border-white/[0.06]">
+            <div className="pt-3 border-t border-line">
               <h4 className="text-xs sm:text-sm font-medium mb-3">{t('savings.monthlyBreakdown')}</h4>
               <div className="space-y-2">
                 {investmentStats.monthlyData.slice(-6).map(({ month, amount }) => (
-                  <div key={month} className="flex items-center gap-2 sm:gap-3 p-1.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                  <div key={month} className="flex items-center gap-2 sm:gap-3 p-1.5 rounded-xl bg-bg-subtle/40 hover:bg-bg-subtle transition-colors">
                     <span className="text-[10px] sm:text-xs text-muted-foreground min-w-[60px] sm:min-w-[80px]">
                       {format(new Date(month + '-01'), 'MMM yyyy', { locale: fr })}
                     </span>
@@ -340,7 +340,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
                         />
                         <h4 className="text-xs sm:text-sm font-semibold">{goal.name}</h4>
                         {isComplete && (
-                          <Badge variant="default" className="text-[9px] sm:text-[10px] bg-success text-white px-1.5 py-0 h-4">
+                          <Badge variant="default" className="text-[9px] sm:text-[10px] bg-success text-success-foreground px-1.5 py-0 h-4">
                             {t('savings.goalReached')}
                           </Badge>
                         )}
@@ -375,7 +375,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
                   </div>
 
                   {!isComplete && (
-                    <div className="pt-2 border-t border-white/[0.06] space-y-1.5">
+                    <div className="pt-2 border-t border-line space-y-1.5">
                       {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
                         <div className="flex justify-between items-center text-[10px] sm:text-xs">
                           <span className="text-muted-foreground">

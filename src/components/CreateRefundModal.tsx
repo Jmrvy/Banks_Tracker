@@ -78,7 +78,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
     if (isNaN(amount) || amount <= 0) {
       toast({
         title: t('common.invalidAmount'),
-        description: "Veuillez entrer un montant valide.",
+        description: t("common.enterValidAmount", { defaultValue: "Please enter a valid amount." }),
         variant: "destructive",
       });
       return;
@@ -87,7 +87,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
     if (!formData.account_id) {
       toast({
         title: t('common.accountRequired'),
-        description: "Veuillez sélectionner un compte pour le remboursement.",
+        description: t("refund.selectAccount", { defaultValue: "Please select an account for the refund." }),
         variant: "destructive",
       });
       return;
@@ -219,7 +219,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
         <form id="refund-form" onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="refund-amount">Montant du remboursement *</Label>
+            <Label htmlFor="refund-amount">{t('refund.amount', { defaultValue: 'Refund amount' })} *</Label>
             <AmountInput
               id="refund-amount"
               value={formData.amount}
@@ -293,7 +293,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date du remboursement</Label>
+                <Label>{t('refund.date', { defaultValue: 'Refund date' })}</Label>
                 <DatePicker
                   date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
                   onDateChange={(date) => setFormData({ 

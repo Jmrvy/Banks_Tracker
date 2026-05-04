@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard } from "lucide-react";
@@ -290,34 +289,31 @@ const Savings = () => {
 
         {/* Evolution Chart */}
         {investmentStats.trendData.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg">
-                {t('savings.evolutionTitle')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-48 sm:h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={investmentStats.trendData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} className="text-muted-foreground" />
-                    <YAxis tick={{ fontSize: 10 }} className="text-muted-foreground" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                    <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="ft-card p-5 sm:p-6">
+            <h3 className="ft-card-title text-base sm:text-lg mb-3">
+              {t('savings.evolutionTitle')}
+            </h3>
+            <div className="h-48 sm:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={investmentStats.trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--line))" opacity={0.5} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value)}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--line))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                  />
+                  <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
 
         {/* Transactions List with Running Balance */}

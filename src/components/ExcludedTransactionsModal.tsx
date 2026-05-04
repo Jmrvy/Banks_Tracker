@@ -90,8 +90,8 @@ export function ExcludedTransactionsModal({
         {transactions.length === 0 ? (
           <div className="text-center py-6 sm:py-8 text-muted-foreground">
             <EyeOff className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 sm:mb-3 opacity-50" />
-            <p className="text-xs sm:text-sm">Aucune transaction exclue sur cette période</p>
-            <p className="text-[10px] sm:text-xs mt-1">Toutes les transactions sont incluses dans les statistiques</p>
+            <p className="text-xs sm:text-sm">{tr('transactions.noExcludedThisPeriod', { defaultValue: 'No excluded transactions in this period' })}</p>
+            <p className="text-[10px] sm:text-xs mt-1">{tr('transactions.allIncludedInStats', { defaultValue: 'All transactions are included in stats' })}</p>
           </div>
         ) : (
           transactions.map((t) => (

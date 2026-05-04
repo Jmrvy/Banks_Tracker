@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { useSearchParams } from "react-router-dom";
 import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock, ChevronDown, ChevronRight } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -243,10 +242,10 @@ const InstallmentPayments = () => {
     const isHighlighted = highlightId === payment.id;
 
     return (
-      <Card
+      <div
         key={payment.id}
         ref={isHighlighted ? highlightRef : undefined}
-        className={`overflow-hidden border-border/50 transition-all duration-500 ${payment.is_active ? 'bg-card/80' : 'bg-card/50 opacity-70'} ${isHighlighted ? 'ring-2 ring-primary/50 shadow-lg shadow-primary/10' : ''}`}
+        className={`ft-card overflow-hidden transition-all duration-500 ${!payment.is_active ? 'opacity-70' : ''} ${isHighlighted ? 'ring-2 ring-primary/50 shadow-lg shadow-primary/10' : ''}`}
       >
         {/* Main row */}
         <div
@@ -384,7 +383,7 @@ const InstallmentPayments = () => {
                 {paymentHistory.map((tx) => (
                   <div key={tx.id} className="flex items-center gap-2 py-1">
                     <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                      <svg className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <svg className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-success-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
@@ -460,7 +459,7 @@ const InstallmentPayments = () => {
             </div>
           </div>
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -469,7 +468,7 @@ const InstallmentPayments = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-          <p className="text-sm text-muted-foreground">Chargement des paiements échelonnés...</p>
+          <p className="text-sm text-muted-foreground">{t('installments.loading', { defaultValue: 'Loading installment payments…' })}</p>
         </div>
       </div>
     );
@@ -610,12 +609,12 @@ const InstallmentPayments = () => {
       }}>
         <AlertDialogContent className="max-h-[85vh] flex flex-col">
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le paiement échelonné ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('installments.deleteConfirmTitle', { defaultValue: 'Delete installment plan?' })}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>Cette action est irréversible. Le paiement échelonné et sa transaction récurrente associée seront définitivement supprimés.</p>
                 {loadingLinkedTransactions && (
-                  <p className="text-muted-foreground text-sm">Chargement des transactions liées...</p>
+                  <p className="text-muted-foreground text-sm">{t('installments.loadingLinkedTxns', { defaultValue: 'Loading linked transactions…' })}</p>
                 )}
                 {!loadingLinkedTransactions && linkedTransactionsToDelete.length > 0 && (
                   <div className="space-y-2">

@@ -55,7 +55,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
     if (!formData.description || !formData.total_amount || !formData.installment_amount || !formData.account_id) {
       toast({
         title: "Informations manquantes",
-        description: "Veuillez remplir tous les champs obligatoires.",
+        description: t("common.fillAllRequired", { defaultValue: "Please fill in all required fields." }),
         variant: "destructive",
       });
       return;
@@ -96,7 +96,7 @@ export const EditInstallmentPaymentModal = ({ open, onOpenChange, installmentPay
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">Modifier le Paiement Échelonné</DialogTitle>
+          <DialogTitle className="text-sm sm:text-lg">{t('installments.editPayment', { defaultValue: 'Edit installment payment' })}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-2 sm:px-6 space-y-3 sm:space-y-4">

@@ -110,7 +110,7 @@ const RecurringListCard = React.memo(({
           {!recurring.is_active && (() => {
             const isCompleted = installmentInfo?.isCompleted;
             return (
-              <Badge variant={isCompleted ? "default" : "secondary"} className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${isCompleted ? 'bg-success text-white' : ''}`}>
+              <Badge variant={isCompleted ? "default" : "secondary"} className={`text-[9px] px-1.5 py-0 flex-shrink-0 ${isCompleted ? 'bg-success text-success-foreground' : ''}`}>
                 {isCompleted ? 'Terminé' : 'Inactif'}
               </Badge>
             );
@@ -203,7 +203,7 @@ const RecurringListCard = React.memo(({
               {(() => {
                 const isCompleted = installmentInfo?.isCompleted;
                 return (
-                  <Badge variant={recurring.is_active ? 'default' : isCompleted ? 'default' : 'secondary'} className={`text-xs ${isCompleted ? 'bg-success text-white' : ''}`}>
+                  <Badge variant={recurring.is_active ? 'default' : isCompleted ? 'default' : 'secondary'} className={`text-xs ${isCompleted ? 'bg-success text-success-foreground' : ''}`}>
                     {recurring.is_active ? 'Actif' : isCompleted ? 'Terminé' : 'Inactif'}
                   </Badge>
                 );
@@ -233,7 +233,7 @@ const RecurringListCard = React.memo(({
                 {installmentPaymentHistory.map((tx) => (
                   <div key={tx.id} className="flex items-center gap-2.5 py-1.5">
                     <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                      <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <svg className="h-2.5 w-2.5 text-success-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
@@ -281,7 +281,7 @@ const RecurringListCard = React.memo(({
                 {debtPaymentHistory.map((dp) => (
                   <div key={dp.id} className="flex items-center gap-2.5 py-1.5">
                     <div className="h-4 w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                      <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <svg className="h-2.5 w-2.5 text-success-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>

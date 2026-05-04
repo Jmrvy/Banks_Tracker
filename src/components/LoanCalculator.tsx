@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,7 @@ export interface LoanParams {
 }
 
 export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => {
+  const { t } = useTranslation();
   const { formatCurrency } = useUserPreferences();
   const [params, setParams] = useState<LoanParams>({
     amount: 10000,
@@ -94,7 +96,7 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="amount">Montant du prêt</Label>
+              <Label htmlFor="amount">{t('loan.amount', { defaultValue: 'Loan amount' })}</Label>
               <Input
                 id="amount"
                 type="text"
@@ -163,7 +165,7 @@ export const LoanCalculator = ({ onCalculationChange }: LoanCalculatorProps) => 
       {calculation && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Résultats du calcul</CardTitle>
+            <CardTitle className="text-lg">{t('loan.results', { defaultValue: 'Calculation results' })}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

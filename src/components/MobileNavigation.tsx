@@ -21,7 +21,7 @@ export const MobileNavigation = () => {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/70 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-4px_24px_-4px_hsl(220_20%_4%/0.5),inset_0_0.5px_0_0_hsl(210_20%_98%/0.04)] z-50 md:hidden safe-area-inset-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-line z-50 md:hidden safe-area-inset-bottom">
         <div className="flex items-center justify-around px-1 py-1">
           {/* Home and Accounts from config */}
           {mobileBottomNav.map((item) => {
@@ -36,8 +36,8 @@ export const MobileNavigation = () => {
                 onClick={() => navigate(item.path)}
                 className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                   isItemActive
-                    ? "text-primary bg-primary/10 shadow-[0_0_8px_-2px_hsl(38_70%_68%/0.3)]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-bg-hover"
                 }`}
               >
                 <Icon className={`h-5 w-5 transition-transform ${isItemActive ? 'scale-110' : ''}`} />
@@ -55,8 +55,8 @@ export const MobileNavigation = () => {
             onClick={() => navigate("/new-transaction")}
             className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               location.pathname === "/new-transaction"
-                ? "text-primary bg-primary/10 shadow-[0_0_8px_-2px_hsl(38_70%_68%/0.3)]"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-bg-hover"
             }`}
           >
             <Plus className={`h-5 w-5 transition-transform ${location.pathname === "/new-transaction" ? 'scale-110' : ''}`} />
@@ -70,7 +70,7 @@ export const MobileNavigation = () => {
             variant="ghost"
             size="sm"
             onClick={() => setMenuOpen(true)}
-            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-bg-hover"
           >
             <Menu className="h-5 w-5" />
             <span className="text-xs leading-tight font-medium">{t('common.menu')}</span>

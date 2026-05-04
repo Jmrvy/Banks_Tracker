@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ interface EditDebtModalProps {
 }
 
 export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) => {
+  const { t } = useTranslation();
   const { updateDebt } = useDebts();
   const { categories } = useFinancialData();
   const [loading, setLoading] = useState(false);
@@ -86,12 +88,12 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">Modifier la dette</DialogTitle>
+          <DialogTitle className="text-sm sm:text-lg">{t('debts.editDebt', { defaultValue: 'Edit debt' })}</DialogTitle>
         </DialogHeader>
 
         <form id="edit-debt-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
           <div>
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">{t('common.description', { defaultValue: 'Description' })} *</Label>
             <Input
               id="description"
               value={formData.description}
@@ -101,36 +103,36 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
           </div>
 
           <div>
-            <Label htmlFor="type">Type *</Label>
+            <Label htmlFor="type">{t('common.type', { defaultValue: 'Type' })} *</Label>
             <Select value={formData.type} onValueChange={(value: any) => setFormData({ ...formData, type: value })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="loan_received">Prêt contracté</SelectItem>
-                <SelectItem value="loan_given">Prêt accordé</SelectItem>
+                <SelectItem value="loan_received">{t('debts.loanReceived', { defaultValue: 'Loan received' })}</SelectItem>
+                <SelectItem value="loan_given">{t('debts.loanGiven', { defaultValue: 'Loan given' })}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="payment_frequency">Périodicité</Label>
+              <Label htmlFor="payment_frequency">{t('debts.frequency', { defaultValue: 'Frequency' })}</Label>
               <Select value={formData.payment_frequency} onValueChange={(v) => setFormData({ ...formData, payment_frequency: v })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="monthly">Mensuel</SelectItem>
-                  <SelectItem value="quarterly">Trimestriel</SelectItem>
-                  <SelectItem value="semi_annual">Semestriel</SelectItem>
-                  <SelectItem value="annual">Annuel</SelectItem>
+                  <SelectItem value="monthly">{t('common.monthly', { defaultValue: 'Monthly' })}</SelectItem>
+                  <SelectItem value="quarterly">{t('common.quarterly', { defaultValue: 'Quarterly' })}</SelectItem>
+                  <SelectItem value="semi_annual">{t('common.semiAnnual', { defaultValue: 'Semi-annual' })}</SelectItem>
+                  <SelectItem value="annual">{t('common.annual', { defaultValue: 'Annual' })}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="payment_amount">Montant du paiement</Label>
+              <Label htmlFor="payment_amount">{t('debts.paymentAmount', { defaultValue: 'Payment amount' })}</Label>
               <AmountInput
                 id="payment_amount"
                 value={formData.payment_amount}
@@ -141,7 +143,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="interest_rate">Taux d'intérêt (%)</Label>
+              <Label htmlFor="interest_rate">{t('debts.interestRate', { defaultValue: 'Interest rate (%)' })}</Label>
               <AmountInput
                 id="interest_rate"
                 value={formData.interest_rate}
@@ -150,7 +152,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
             </div>
 
             <div>
-              <Label htmlFor="end_date">Date de fin prévue</Label>
+              <Label htmlFor="end_date">{t('debts.endDate', { defaultValue: 'Expected end date' })}</Label>
               <Input
                 id="end_date"
                 type="date"
@@ -162,7 +164,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="contact_name">Contact</Label>
+              <Label htmlFor="contact_name">{t('debts.contact', { defaultValue: 'Contact' })}</Label>
               <Input
                 id="contact_name"
                 value={formData.contact_name}
@@ -171,7 +173,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
             </div>
 
             <div>
-              <Label htmlFor="contact_info">Info contact</Label>
+              <Label htmlFor="contact_info">{t('debts.contactInfo', { defaultValue: 'Contact info' })}</Label>
               <Input
                 id="contact_info"
                 value={formData.contact_info}
@@ -181,24 +183,24 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
           </div>
 
           <div>
-            <Label htmlFor="status">Statut</Label>
+            <Label htmlFor="status">{t('common.status', { defaultValue: 'Status' })}</Label>
             <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="completed">Terminé</SelectItem>
-                <SelectItem value="defaulted">Défaut</SelectItem>
+                <SelectItem value="active">{t('debts.active', { defaultValue: 'Active' })}</SelectItem>
+                <SelectItem value="completed">{t('debts.completed', { defaultValue: 'Completed' })}</SelectItem>
+                <SelectItem value="defaulted">{t('debts.defaulted', { defaultValue: 'Defaulted' })}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label htmlFor="category_id">Catégorie des paiements</Label>
+            <Label htmlFor="category_id">{t('debts.paymentCategory', { defaultValue: 'Payment category' })}</Label>
             <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
               <SelectTrigger>
-                <SelectValue placeholder="Optionnel" />
+                <SelectValue placeholder={t('common.optional', { defaultValue: 'Optional' })} />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
@@ -217,7 +219,7 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
           </div>
 
           <div>
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes">{t('common.notes', { defaultValue: 'Notes' })}</Label>
             <Textarea
               id="notes"
               value={formData.notes}
@@ -227,13 +229,13 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
 
         </form>
 
-        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t border-line">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs sm:text-sm">
-            Annuler
+            {t('common.cancel', { defaultValue: 'Cancel' })}
           </Button>
           <Button type="submit" form="edit-debt-form" disabled={loading} className="h-9 text-xs sm:text-sm">
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Modifier
+            {t('common.save', { defaultValue: 'Save' })}
           </Button>
         </div>
       </DialogContent>

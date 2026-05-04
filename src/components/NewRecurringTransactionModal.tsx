@@ -47,7 +47,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
     if (!formData.description || !formData.amount || !formData.account_id) {
       toast({
         title: t('common.missingInfo'),
-        description: "Veuillez remplir tous les champs obligatoires.",
+        description: t("common.fillAllRequired", { defaultValue: "Please fill in all required fields." }),
         variant: "destructive",
       });
       return;

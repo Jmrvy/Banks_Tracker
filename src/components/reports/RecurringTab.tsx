@@ -180,7 +180,7 @@ export const RecurringTab = ({
                             const data = payload[0].payload;
                             const pct = totalExpenseCat > 0 ? ((data.amount / totalExpenseCat) * 100).toFixed(1) : '0';
                             return (
-                              <div className="rounded-lg border bg-background/95 backdrop-blur-sm p-2 shadow-lg">
+                              <div className="rounded-lg border bg-background/95  p-2 shadow-lg">
                                 <div className="flex items-center gap-2 mb-1">
                                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} />
                                   <span className="font-medium text-xs">{data.name}</span>
@@ -250,7 +250,7 @@ export const RecurringTab = ({
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl space-y-2">
+                <div className="p-2.5 bg-bg-subtle/60 border border-line rounded-xl space-y-2">
                   <h4 className="text-[10px] sm:text-xs font-medium">Projection mensuelle</h4>
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
@@ -284,7 +284,7 @@ export const RecurringTab = ({
                     </div>
                     {spendingPatternsData.projectedMonthlyExpenses > 0 && (
                       <div className="flex justify-between border-t border-border pt-1.5">
-                        <span className="text-muted-foreground">Part des récurrents:</span>
+                        <span className="text-muted-foreground">{t('reports.recurringShare', { defaultValue: 'Recurring share:' })}</span>
                         <span className="font-bold text-primary">
                           {((recurringData.monthlyExpenses / spendingPatternsData.projectedMonthlyExpenses) * 100).toFixed(0)}%
                         </span>
@@ -332,8 +332,8 @@ export const RecurringTab = ({
               <div
                 key={recurring.id}
                 className={cn(
-                  "p-2.5 sm:p-3 rounded-xl transition-all duration-300 border backdrop-blur-sm",
-                  "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]"
+                  "p-2.5 sm:p-3 rounded-xl transition-all duration-300 border ",
+                  "bg-bg-subtle/60 border-line hover:bg-bg-hover"
                 )}
               >
                 <div className="flex items-center justify-between gap-2">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ interface AddPaymentModalProps {
 }
 
 export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalProps) => {
+  const { t } = useTranslation();
   const { addPayment } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const [loading, setLoading] = useState(false);
@@ -61,20 +63,21 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
         <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">Ajouter un paiement</DialogTitle>
+          <DialogTitle className="text-sm sm:text-lg">{t('debts.addPayment', { defaultValue: 'Add a payment' })}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
-          <div className="space-y-2 p-4 bg-muted rounded-lg">
+          <div className="space-y-2 p-4 bg-bg-subtle rounded-lg">
             <p className="text-sm font-medium">{debt.description}</p>
             <p className="text-sm text-muted-foreground">
-              Montant restant: <span className="font-semibold text-primary">{formatCurrency(debt.remaining_amount)}</span>
+              {t('debts.remainingAmount', { defaultValue: 'Remaining' })}:{' '}
+              <span className="font-semibold text-primary font-mono">{formatCurrency(debt.remaining_amount)}</span>
             </p>
           </div>
 
           <form id="add-payment-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="amount">Montant *</Label>
+              <Label htmlFor="amount">{t('common.amount', { defaultValue: 'Amount' })} *</Label>
               <AmountInput
                 id="amount"
                 value={formData.amount}
@@ -83,12 +86,12 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
                 required
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Maximum: {formatCurrency(debt.remaining_amount)}
+                {t('common.max', { defaultValue: 'Max' })}: {formatCurrency(debt.remaining_amount)}
               </p>
             </div>
 
             <div>
-              <Label htmlFor="payment_date">Date du paiement *</Label>
+              <Label htmlFor="payment_date">{t('debts.paymentDate', { defaultValue: 'Payment date' })} *</Label>
               <Input
                 id="payment_date"
                 type="date"
@@ -99,24 +102,24 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
             </div>
 
             <div>
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">{t('common.notes', { defaultValue: 'Notes' })}</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Notes sur ce paiement..."
+                placeholder={t('debts.paymentNotesPlaceholder', { defaultValue: 'Notes on this payment…' })}
               />
             </div>
           </form>
         </div>
 
-        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t border-line">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs sm:text-sm">
-            Annuler
+            {t('common.cancel', { defaultValue: 'Cancel' })}
           </Button>
           <Button type="submit" form="add-payment-form" disabled={loading} className="h-9 text-xs sm:text-sm">
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Enregistrer
+            {t('common.save', { defaultValue: 'Save' })}
           </Button>
         </div>
       </DialogContent>

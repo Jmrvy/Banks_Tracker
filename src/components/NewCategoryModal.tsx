@@ -37,7 +37,7 @@ export function NewCategoryModal({ open, onOpenChange }: NewCategoryModalProps) 
     if (!formData.name) {
       toast({
         title: t('common.missingInfo'),
-        description: "Veuillez saisir un nom de catégorie.",
+        description: t("categories.enterName", { defaultValue: "Please enter a category name." }),
         variant: "destructive",
       });
       return;
