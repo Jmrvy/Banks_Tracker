@@ -87,7 +87,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
 
   if (items.length === 0) {
     return (
-      <div className="ft-card flex flex-col">
+      <div className="ft-card p-5 md:p-6 flex flex-col">
         <div className="ft-card-head">
           <div>
             <h3 className="ft-card-title">
@@ -103,7 +103,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
   }
 
   return (
-    <div className="ft-card flex flex-col">
+    <div className="ft-card p-5 md:p-6 flex flex-col">
       <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">

@@ -117,7 +117,7 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
   };
 
   return (
-    <div className="ft-card flex flex-col">
+    <div className="ft-card p-5 md:p-6 flex flex-col">
       <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">{t("dashboard.cashflow", { defaultValue: "Cash flow" })}</h3>

@@ -70,7 +70,7 @@ export function RecentActivityCard() {
 
   return (
     <div className="ft-card-flush flex flex-col">
-      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-line">
+      <div className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 md:py-5 border-b border-line">
         <div>
           <h3 className="ft-card-title">
             {t("dashboard.recentActivity", { defaultValue: "Recent activity" })}

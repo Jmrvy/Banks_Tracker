@@ -395,7 +395,7 @@
      List rows
      ========================================================================= */
   .ft-list-row {
-    @apply grid items-center gap-3 px-4 md:px-5 py-3 transition-colors;
+    @apply grid items-center gap-3 px-5 md:px-6 py-3 transition-colors;
     grid-template-columns: 36px 1fr auto;
     border-bottom: 1px solid hsl(var(--line));
   }

@@ -24,7 +24,7 @@ export function SavingsGoalsCard() {
   const visible = goals.slice(0, 4);
 
   return (
-    <div className="ft-card">
+    <div className="ft-card p-5 md:p-6">
       <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">{t("savings.pageTitle")}</h3>
