@@ -1,6 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search } from "lucide-react";
+import { Search, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -8,13 +8,13 @@ import {
   mainNavigation,
   accountsGroup,
   toolsGroup,
-  settingsItem,
   type NavigationItem,
 } from "@/config/navigation";
 
 export function AppSidebar() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const isActive = (path: string) => {
@@ -97,11 +97,6 @@ export function AppSidebar() {
             <NavLink key={item.path} item={item} />
           ))}
         </div>
-
-        {/* Settings */}
-        <div className="flex flex-col gap-px mt-2">
-          <NavLink item={settingsItem} />
-        </div>
       </nav>
 
       {/* Language selector */}
@@ -109,8 +104,16 @@ export function AppSidebar() {
         <LanguageSelector />
       </div>
 
-      {/* User footer */}
-      <div className="flex items-center gap-2.5 px-3 py-3 border-t border-line">
+      {/* User footer — clickable: opens Settings */}
+      <button
+        type="button"
+        onClick={() => navigate("/settings")}
+        aria-label={t("navigation.settings")}
+        className={cn(
+          "group flex items-center gap-2.5 px-3 py-3 border-t border-line text-left transition-colors w-full hover:bg-bg-hover",
+          location.pathname.startsWith("/settings") && "bg-bg-subtle"
+        )}
+      >
         <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground grid place-items-center text-xs font-semibold flex-shrink-0">
           {initials || "JM"}
         </div>
@@ -120,7 +123,8 @@ export function AppSidebar() {
           </p>
           <p className="text-[11px] text-fg-dim truncate">Personal · Pro</p>
         </div>
-      </div>
+        <SettingsIcon className="h-4 w-4 text-muted-foreground group-hover:text-foreground flex-shrink-0" />
+      </button>
     </aside>
   );
 }

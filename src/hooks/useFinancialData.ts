@@ -34,7 +34,7 @@ export interface Transaction {
   value_date: string; // Date de valeur
   include_in_stats: boolean; // Si la transaction doit être incluse dans les stats
   account: { name: string; bank: string };
-  category: { id: string; name: string; color: string } | null;
+  category: { id: string; name: string; color: string; icon?: string | null } | null;
   transfer_to_account_id?: string;
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
@@ -50,6 +50,7 @@ export interface Category {
   name: string;
   color: string;
   budget: number | null;
+  icon: string | null;
 }
 
 export interface RecurringTransaction {
@@ -66,7 +67,7 @@ export interface RecurringTransaction {
   next_due_date: string;
   is_active: boolean;
   account: { name: string; bank: string } | null;
-  category: { id: string; name: string; color: string } | null;
+  category: { id: string; name: string; color: string; icon?: string | null } | null;
   installment_payment_id: string | null; // Lien vers le paiement échelonné source
   debt_id: string | null; // Lien vers la dette source
   created_at: string;
@@ -101,7 +102,7 @@ function useFinancialDataInternal() {
         .select(`
           *,
           account:accounts!transactions_account_id_fkey(name, bank),
-          category:categories(id, name, color),
+          category:categories(id, name, color, icon),
           transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
         `)
         .eq('user_id', user!.id)
@@ -156,7 +157,7 @@ function useFinancialDataInternal() {
         .select(`
           *,
           account:accounts(name, bank),
-          category:categories(id, name, color)
+          category:categories(id, name, color, icon)
         `)
         .eq('user_id', user!.id)
         .order('next_due_date', { ascending: true });

@@ -21,6 +21,7 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
+import { getCategoryIcon } from "@/lib/categoryIcons";
 
 const CATEGORY_ICONS: Record<string, typeof ShoppingBag> = {
   groceries: ShoppingBag,
@@ -98,7 +99,9 @@ export function RecentActivityCard() {
           </div>
         )}
         {items.map((txn) => {
-          const Icon = pickIcon(txn.category?.name, txn.type);
+          const userIcon = getCategoryIcon(txn.category?.icon ?? null);
+          const Icon = userIcon ?? pickIcon(txn.category?.name, txn.type);
+          const tintColor = userIcon && txn.category ? txn.category.color : null;
           const positive = txn.type === "income";
           const date = parseLocalDate(txn.transaction_date);
           return (
@@ -107,7 +110,16 @@ export function RecentActivityCard() {
               className="ft-list-row"
               style={{ gridTemplateColumns: "36px 1fr auto" }}
             >
-              <div className="h-8 w-8 rounded-lg bg-bg-subtle border border-line text-muted-foreground grid place-items-center">
+              <div
+                className={`h-8 w-8 rounded-lg grid place-items-center ${
+                  tintColor ? "" : "bg-bg-subtle border border-line text-muted-foreground"
+                }`}
+                style={
+                  tintColor
+                    ? { background: `${tintColor}1F`, color: tintColor }
+                    : undefined
+                }
+              >
                 <Icon className="h-3.5 w-3.5" />
               </div>
               <div className="min-w-0">

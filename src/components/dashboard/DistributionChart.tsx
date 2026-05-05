@@ -6,6 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 interface DistributionChartProps {
   startDate: Date;
@@ -37,23 +38,25 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       return d >= startDate && d <= endDate;
     });
 
-    const totals = new Map<string, { amount: number; color: string }>();
+    const totals = new Map<string, { amount: number; color: string; icon: string | null }>();
     for (const tx of inRange) {
       const refunded = tx.refunded_amount || 0;
       const net = Math.max(0, tx.amount - refunded);
       if (net <= 0) continue;
       const name = tx.category?.name || t("common.uncategorized", { defaultValue: "Uncategorized" });
       const color = tx.category?.color || CHART_COLORS[0];
+      const icon = tx.category?.icon ?? null;
       const existing = totals.get(name);
       totals.set(name, {
         amount: (existing?.amount || 0) + net,
         color: existing?.color || color,
+        icon: existing?.icon ?? icon,
       });
     }
 
     const sum = [...totals.values()].reduce((s, v) => s + v.amount, 0);
     const list = [...totals.entries()]
-      .map(([name, v]) => ({ name, value: v.amount, color: v.color }))
+      .map(([name, v]) => ({ name, value: v.amount, color: v.color, icon: v.icon }))
       .sort((a, b) => b.value - a.value);
 
     return { items: list, total: sum };
@@ -173,10 +176,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="h-2 w-2 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: item.color }}
-                  />
+                  <CategoryIcon icon={item.icon} color={item.color} size={20} />
                   <span className="text-[13px] font-medium truncate">{item.name}</span>
                 </div>
                 <div className={`font-mono text-[13px] font-medium whitespace-nowrap ${isPrivacyMode ? "blur-sm select-none" : ""}`}>

@@ -539,7 +539,9 @@
     "accountAliasesDesc": "Short name used in automatic transfer descriptions (e.g., Gold Card → SocGen)",
     "guideTitle": "Application guide",
     "guideSubtitle": "Review the feature walkthrough",
-    "reviewGuide": "Review the guide"
+    "reviewGuide": "Review the guide",
+    "signOutSection": "Sign out",
+    "signOutSectionDesc": "Sign out of your account"
   },
   "validation": {
     "required": "This field is required",

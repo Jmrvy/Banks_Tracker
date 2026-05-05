@@ -22,6 +22,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
+import { getCategoryIcon } from "@/lib/categoryIcons";
 
 const CATEGORY_ICONS: Record<string, typeof ShoppingBag> = {
   groceries: ShoppingBag,
@@ -122,7 +123,9 @@ export const AggregatedBalanceEvolution = () => {
 
       <div className="flex flex-col">
         {items.map(({ transaction: tx, balanceAfter }) => {
-          const Icon = pickIcon(tx.category?.name, tx.type);
+          const userIcon = getCategoryIcon(tx.category?.icon ?? null);
+          const Icon = userIcon ?? pickIcon(tx.category?.name, tx.type);
+          const tintColor = userIcon && tx.category ? tx.category.color : null;
           const positive = tx.type === "income";
           const date = parseLocalDate(tx.transaction_date);
           return (
@@ -133,7 +136,16 @@ export const AggregatedBalanceEvolution = () => {
               className="grid items-center gap-3 px-4 md:px-5 py-3 border-b border-line last:border-b-0 hover:bg-bg-subtle/60 transition-colors text-left"
               style={{ gridTemplateColumns: "32px minmax(0, 1fr) auto" }}
             >
-              <div className="h-8 w-8 rounded-lg bg-bg-subtle border border-line text-muted-foreground grid place-items-center flex-shrink-0">
+              <div
+                className={`h-8 w-8 rounded-lg grid place-items-center flex-shrink-0 ${
+                  tintColor ? "" : "bg-bg-subtle border border-line text-muted-foreground"
+                }`}
+                style={
+                  tintColor
+                    ? { background: `${tintColor}1F`, color: tintColor }
+                    : undefined
+                }
+              >
                 <Icon className="h-3.5 w-3.5" />
               </div>
               <div className="min-w-0">

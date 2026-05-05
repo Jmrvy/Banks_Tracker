@@ -81,12 +81,12 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Danger zone — sign out */}
+          {/* Sign out */}
           <div className="ft-card p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <h3 className="ft-card-title">{t('settings.dangerZone', { defaultValue: 'Danger zone' })}</h3>
-                <p className="ft-card-sub mt-0.5">{t('settings.dangerZoneDesc', { defaultValue: 'Sign out of your account' })}</p>
+                <h3 className="ft-card-title">{t('settings.signOutSection', { defaultValue: 'Sign out' })}</h3>
+                <p className="ft-card-sub mt-0.5">{t('settings.signOutSectionDesc', { defaultValue: 'Sign out of your account' })}</p>
               </div>
               <Button variant="outline" onClick={signOut} size="sm" className="h-8 text-sm border-destructive/40 text-destructive hover:bg-destructive/10">
                 {t('auth.signOut')}

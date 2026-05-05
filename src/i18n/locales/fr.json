@@ -539,7 +539,9 @@
     "accountAliasesDesc": "Nom court utilisé dans la description automatique des transferts (ex: CB Gold → SocGen)",
     "guideTitle": "Guide de l'application",
     "guideSubtitle": "Revoir la présentation des fonctionnalités",
-    "reviewGuide": "Revoir le guide"
+    "reviewGuide": "Revoir le guide",
+    "signOutSection": "Déconnexion",
+    "signOutSectionDesc": "Se déconnecter de votre compte"
   },
   "validation": {
     "required": "Ce champ est requis",
