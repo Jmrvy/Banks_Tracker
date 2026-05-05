@@ -9,6 +9,7 @@ import { fr, enUS } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { TransactionDetailModal } from "./TransactionDetailModal";
 import { useTranslation } from "react-i18next";
+import { getCategoryIcon } from "@/lib/categoryIcons";
 
 interface AccountTransactionsListProps {
   accountId: string;
@@ -103,17 +104,28 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
     return result.reverse();
   }, [transactions, accountId, initialBalance, startDate, endDate]);
 
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'income':
-        return <TrendingUp className="h-4 w-4 text-success" />;
-      case 'expense':
-        return <TrendingDown className="h-4 w-4 text-destructive" />;
-      case 'transfer':
-        return <ArrowRightLeft className="h-4 w-4 text-primary" />;
-      default:
-        return null;
+  const renderTransactionIcon = (txn: Transaction) => {
+    const userIcon = getCategoryIcon(txn.category?.icon ?? null);
+    if (userIcon && txn.category) {
+      const Icon = userIcon;
+      return (
+        <div
+          className="h-8 w-8 rounded-lg grid place-items-center"
+          style={{ background: `${txn.category.color}1F`, color: txn.category.color }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+      );
     }
+    const Fallback =
+      txn.type === 'income' ? TrendingUp : txn.type === 'transfer' ? ArrowRightLeft : TrendingDown;
+    const tone =
+      txn.type === 'income' ? 'text-success' : txn.type === 'transfer' ? 'text-primary' : 'text-destructive';
+    return (
+      <div className="h-8 w-8 rounded-lg grid place-items-center bg-bg-subtle border border-line">
+        <Fallback className={`h-3.5 w-3.5 ${tone}`} />
+      </div>
+    );
   };
 
   const getTypeLabel = (type: string) => {
@@ -150,7 +162,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                 {/* Mobile: Single line compact view */}
                 <div className="flex items-center gap-2 flex-1 min-w-0 sm:hidden">
                   <div className="flex-shrink-0">
-                    {getTransactionIcon(t.type)}
+                    {renderTransactionIcon(t)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{t.description}</p>
@@ -182,7 +194,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                 {/* Desktop: Full view */}
                 <div className="hidden sm:flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
-                    {getTransactionIcon(t.type)}
+                    {renderTransactionIcon(t)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{t.description}</p>

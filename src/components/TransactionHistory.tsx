@@ -31,6 +31,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { BANK_COLORS } from "@/lib/constants";
+import { getCategoryIcon } from "@/lib/categoryIcons";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -61,8 +62,11 @@ const TransactionRow = React.memo(
       transaction.type === 'transfer' && transaction.transfer_fee ? transaction.transfer_fee : 0;
     const displayAmount = transaction.type === 'expense' ? netExpenseAmount : transaction.amount;
 
-    const Icon =
+    const userIcon = getCategoryIcon(transaction.category?.icon ?? null);
+    const FallbackIcon =
       transaction.type === 'income' ? ArrowDownRight : transaction.type === 'transfer' ? ArrowRightLeft : ArrowUpRight;
+    const Icon = userIcon ?? FallbackIcon;
+    const tintColor = userIcon && transaction.category ? transaction.category.color : null;
     const iconBgClass =
       transaction.type === 'income'
         ? 'bg-pos/12 text-pos'
@@ -81,8 +85,13 @@ const TransactionRow = React.memo(
         {/* Bank stripe */}
         <div className="h-7 w-1 rounded-full" style={{ background: bankColor }} />
 
-        {/* Type icon */}
-        <div className={`h-8 w-8 rounded-lg grid place-items-center flex-shrink-0 ${iconBgClass}`}>
+        {/* Type/category icon */}
+        <div
+          className={`h-8 w-8 rounded-lg grid place-items-center flex-shrink-0 ${
+            tintColor ? '' : iconBgClass
+          }`}
+          style={tintColor ? { background: `${tintColor}1F`, color: tintColor } : undefined}
+        >
           <Icon className="h-3.5 w-3.5" />
         </div>
 
