@@ -39,7 +39,7 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { transactions } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
 
   // Build last 6 months (oldest → newest) with income + expense aggregates.
@@ -61,7 +61,10 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
     }
     for (const tx of transactions) {
       if (tx.include_in_stats === false) continue;
-      const d = parseLocalDate(tx.transaction_date);
+      const d =
+        preferences.dateType === "value"
+          ? parseLocalDate(tx.value_date || tx.transaction_date)
+          : parseLocalDate(tx.transaction_date);
       const m = months.find((x) => isWithinInterval(d, { start: x.from, end: x.to }));
       if (!m) continue;
       if (tx.type === "income" && !tx.refund_of_transaction_id) {
@@ -73,7 +76,7 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
       }
     }
     return months;
-  }, [transactions, dateLocale]);
+  }, [transactions, dateLocale, preferences.dateType]);
 
   const stats = useMemo(() => {
     const last = data[data.length - 1] || { income: 0, expense: 0 };

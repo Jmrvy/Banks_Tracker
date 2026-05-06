@@ -23,7 +23,7 @@ export const CHART_SEMANTIC = {
 };
 
 export const TOOLTIP_CLASS =
-  'bg-popover border border-line rounded-lg shadow-md p-2.5 sm:p-3 text-xs';
+  'bg-popover text-popover-foreground border border-line-strong rounded-lg shadow-lg p-2.5 sm:p-3 text-xs';
 
 export const AXIS_TICK = {
   fontSize: 10,
