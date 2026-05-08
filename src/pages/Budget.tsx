@@ -208,45 +208,83 @@ const Budget = () => {
     let from: Date;
     let to: Date = endOfMonth(now);
     let label: string;
+    // Prior period — calendar-aligned for fixed presets (so a 1m comparison
+    // reads as "vs previous month", not "vs same-31-days-window").
+    let prevFrom: Date;
+    let prevTo: Date;
     switch (periodKey) {
       case "1m":
         from = startOfMonth(now);
         to = endOfMonth(now);
         label = format(now, "MMMM yyyy");
+        prevFrom = startOfMonth(subMonths(now, 1));
+        prevTo = endOfMonth(subMonths(now, 1));
         break;
       case "3m":
         from = startOfMonth(subMonths(now, 2));
         to = endOfMonth(now);
         label = t("budget.period3m", { defaultValue: "Last 3 months" });
+        prevFrom = startOfMonth(subMonths(now, 5));
+        prevTo = endOfMonth(subMonths(now, 3));
         break;
       case "6m":
         from = startOfMonth(subMonths(now, 5));
         to = endOfMonth(now);
         label = t("budget.period6m", { defaultValue: "Last 6 months" });
+        prevFrom = startOfMonth(subMonths(now, 11));
+        prevTo = endOfMonth(subMonths(now, 6));
         break;
       case "ytd":
         from = startOfYear(now);
         to = endOfMonth(now);
         label = t("budget.periodYtd", { defaultValue: "Year to date" });
+        // Same range last year — Jan 1 of last year → end of current month, last year.
+        prevFrom = startOfYear(subYears(now, 1));
+        prevTo = endOfMonth(subYears(now, 1));
         break;
       case "1y":
-        from = startOfMonth(subYears(now, 1));
+        // Full *current* calendar year — past actuals + future projections.
+        from = startOfYear(now);
         to = endOfYear(now);
         label = t("budget.period1y", { defaultValue: "Full year" });
+        prevFrom = startOfYear(subYears(now, 1));
+        prevTo = endOfYear(subYears(now, 1));
         break;
-      case "custom":
+      case "custom": {
         from = customRange.from;
         to = customRange.to;
         label = `${format(from, "dd MMM yy")} → ${format(to, "dd MMM yy")}`;
+        // Custom — fall back to "same length immediately preceding".
+        const lengthDays = Math.max(1, differenceInCalendarDays(to, from) + 1);
+        prevTo = addDays(from, -1);
+        prevFrom = addDays(from, -lengthDays);
         break;
+      }
     }
     const effectiveMonths = effectiveMonthsBetween(from, to);
-
-    // Equivalent prior period (same length, immediately preceding).
     const lengthDays = Math.max(1, differenceInCalendarDays(to, from) + 1);
-    const prevTo = addDays(from, -1);
-    const prevFrom = addDays(from, -lengthDays);
-    const prevEffectiveMonths = effectiveMonthsBetween(prevFrom, prevTo);
+
+    // Clamp the prior period to the same *elapsed* duration as the current
+    // period — otherwise a half-finished month gets compared against a full
+    // prior month, and the delta is meaningless. For periods entirely in the
+    // past or future, the clamp leaves the original calendar window intact /
+    // collapses it to nothing respectively.
+    const todayLocal = new Date();
+    todayLocal.setHours(0, 0, 0, 0);
+    let elapsedDays: number;
+    if (todayLocal < from) {
+      elapsedDays = 0; // Window hasn't started yet → no fair comparison.
+    } else if (todayLocal >= to) {
+      elapsedDays = lengthDays; // Window fully in the past — full comparison.
+    } else {
+      elapsedDays = differenceInCalendarDays(todayLocal, from) + 1;
+    }
+    if (elapsedDays === 0) {
+      prevTo = addDays(prevFrom, -1); // Empty prior range → no delta.
+    } else if (elapsedDays < lengthDays) {
+      prevTo = addDays(prevFrom, elapsedDays - 1);
+    }
+    // else: leave prevTo as the full calendar prior period.
 
     // Bucket the period into ~12–30 buckets for sparkline rendering.
     let bucketCount: number;
@@ -289,7 +327,6 @@ const Budget = () => {
       effectiveMonths,
       prevFrom,
       prevTo,
-      prevEffectiveMonths,
       buckets,
     };
   }, [periodKey, customRange, t]);
@@ -427,35 +464,27 @@ const Budget = () => {
         }
       }
 
-      // Walk occurrences from start_date forward — same as the Analysis
-      // page: skip future occurrences before next_due_date.
-      let cursor = parseLocalDate(rt.start_date);
+      // Walk forward from `next_due_date`. We only count *future* occurrences
+      // for projection, and `next_due_date` is by definition aligned with
+      // the recurrence cadence — starting there avoids wasted iterations and
+      // a possible cap-out for long-running weekly recurrences.
+      let cursor = new Date(nextDue);
       cursor.setHours(0, 0, 0, 0);
       const cap = 500;
       let n = 0;
       while (cursor <= period.to && n < cap) {
         if (effectiveEnd && cursor > effectiveEnd) break;
-        const inWindow = cursor >= period.from && cursor <= period.to;
-        if (inWindow) {
-          const isFuture = cursor >= today;
-          if (isFuture) {
-            // Skip future occurrences before next_due_date (calendar parity).
-            if (cursor < nextDue) {
-              cursor = advanceDate(cursor, rt.recurrence_type);
-              n++;
-              continue;
-            }
-            const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-            const amt = effectiveAmount(rt, dateStr);
-            const idx = period.buckets.bucketOf(cursor);
-            let entry = map.get(rt.category.id);
-            if (!entry) {
-              entry = { total: 0, series: new Array(period.buckets.count).fill(0) };
-              map.set(rt.category.id, entry);
-            }
-            entry.total += amt;
-            if (idx >= 0) entry.series[idx] += amt;
+        if (cursor >= today && cursor >= period.from) {
+          const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+          const amt = effectiveAmount(rt, dateStr);
+          const idx = period.buckets.bucketOf(cursor);
+          let entry = map.get(rt.category.id);
+          if (!entry) {
+            entry = { total: 0, series: new Array(period.buckets.count).fill(0) };
+            map.set(rt.category.id, entry);
           }
+          entry.total += amt;
+          if (idx >= 0) entry.series[idx] += amt;
         }
         cursor = advanceDate(cursor, rt.recurrence_type);
         n++;
@@ -605,7 +634,13 @@ const Budget = () => {
       (x) => x.status === "noBudget" && x.suggested > 0
     ).length;
     const utilization = totalBudget > 0 ? totalUsed / totalBudget : 0;
-    const prevDelta = totalPrevSpent > 0 ? (totalSpent - totalPrevSpent) / totalPrevSpent : null;
+    // Only meaningful when both sides have spend to compare. Suppressing the
+    // chip when the current period has zero actual spend avoids a misleading
+    // "−100%" green badge on entirely-future periods.
+    const prevDelta =
+      totalPrevSpent > 0 && totalSpent > 0
+        ? (totalSpent - totalPrevSpent) / totalPrevSpent
+        : null;
     return {
       totalBudget,
       totalSpent,
@@ -1152,135 +1187,174 @@ const Budget = () => {
                     ? "hsl(var(--muted-foreground) / 0.4)"
                     : category.color;
 
+                const spentSub =
+                  includeProjected && projected > 0
+                    ? t("budget.spentSplit", {
+                        actual: formatCurrency(spent),
+                        projected: formatCurrency(projected),
+                        defaultValue: `${formatCurrency(spent)} actual + ${formatCurrency(
+                          projected
+                        )} projected`,
+                      })
+                    : undefined;
+                const budgetSub =
+                  monthly != null
+                    ? t("budget.monthlyEqv", {
+                        value: formatCurrency(monthly),
+                        defaultValue: `${formatCurrency(monthly)} / month`,
+                      })
+                    : undefined;
+                const remainingValue =
+                  remaining == null
+                    ? "—"
+                    : remaining >= 0
+                    ? formatCurrency(remaining)
+                    : `−${formatCurrency(Math.abs(remaining))}`;
+                const remainingTone: "default" | "pos" | "neg" | "muted" =
+                  remaining == null ? "muted" : remaining >= 0 ? "pos" : "neg";
+
                 return (
                   <div
                     key={category.id}
                     className="rounded-lg border border-line bg-bg-subtle/40 p-3 sm:p-4"
                   >
+                    {/* Top row — identity + actions. Edit / Delete sit at the
+                        top-right on every viewport so the row reads cleanly on
+                        narrow screens. */}
                     <div className="flex items-start gap-3">
                       <CategoryIcon icon={category.icon} color={category.color} size={36} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold truncate">{category.name}</p>
+                        <p className="text-sm font-semibold truncate">{category.name}</p>
+                        <div className="mt-0.5">
                           <StatusPill status={status} />
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-1.5">
-                          <Stat
-                            label={t("categories.spent", { defaultValue: "Spent" })}
-                            value={formatCurrency(used)}
-                            sub={
-                              includeProjected && projected > 0
-                                ? t("budget.spentSplit", {
-                                    actual: formatCurrency(spent),
-                                    projected: formatCurrency(projected),
-                                    defaultValue: `${formatCurrency(spent)} actual + ${formatCurrency(
-                                      projected
-                                    )} projected`,
-                                  })
-                                : undefined
-                            }
-                          />
-                          <Stat
-                            label={t("budget.periodBudget", { defaultValue: "Period budget" })}
-                            value={periodBudget != null ? formatCurrency(periodBudget) : "—"}
-                            sub={
-                              monthly != null
-                                ? t("budget.monthlyEqv", {
-                                    value: formatCurrency(monthly),
-                                    defaultValue: `${formatCurrency(monthly)} / month`,
-                                  })
-                                : undefined
-                            }
-                            muted={periodBudget == null}
-                          />
-                          <Stat
-                            label={t("categories.remaining", { defaultValue: "Remaining" })}
-                            value={
-                              remaining == null
-                                ? "—"
-                                : remaining >= 0
-                                ? formatCurrency(remaining)
-                                : `−${formatCurrency(Math.abs(remaining))}`
-                            }
-                            tone={remaining == null ? "muted" : remaining >= 0 ? "pos" : "neg"}
-                          />
-                          <Stat
-                            label={t("budget.monthlyAvg", { defaultValue: "Avg / month (6 mo)" })}
-                            value={monthlyAvg > 0 ? formatCurrency(monthlyAvg) : "—"}
-                            muted={monthlyAvg <= 0}
-                          />
-                        </div>
-                        {/* Sparkline of bucketed spend over the period */}
-                        <div className="mt-3">
-                          <CategorySparkline
-                            buckets={s.buckets}
-                            projected={includeProjected ? s.projectedBuckets : undefined}
-                            color={category.color}
-                            reference={
-                              periodBudget != null && period.buckets.count > 0
-                                ? periodBudget / period.buckets.count
-                                : undefined
-                            }
-                            height={32}
-                          />
-                        </div>
-                        <div className="ft-progress-track mt-2">
-                          <div
-                            className="ft-progress-fill"
-                            style={{ width: `${barPct}%`, background: barColor }}
-                          />
-                        </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 flex-shrink-0">
-                        {showSuggestion(s) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => applySuggestion(category.id, suggested)}
-                            disabled={busyId === category.id}
-                            className="h-8 px-2 text-xs gap-1.5"
-                            title={t("categories.suggestTooltip", {
-                              value: formatCurrency(suggested),
-                              defaultValue: `Set monthly budget to ${formatCurrency(
-                                suggested
-                              )} (6-mo p75 / current run rate)`,
-                            })}
-                          >
-                            <Sparkles className="h-3.5 w-3.5 text-primary" />
-                            <span className="hidden sm:inline">
-                              {t("categories.suggest", { defaultValue: "Suggest" })}
-                            </span>
-                            <span className="font-mono">{formatCurrency(suggested)}</span>
-                            {monthly != null &&
-                              (suggested > monthly ? (
-                                <ArrowUp className="h-3 w-3 text-warning" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3 text-pos" />
-                              ))}
-                          </Button>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => startEditing(category)}
-                            className="h-8 w-8 p-0"
-                            aria-label={t("common.edit", { defaultValue: "Edit" })}
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(category.id)}
-                            className="h-8 w-8 p-0"
-                            aria-label={t("common.delete", { defaultValue: "Delete" })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEditing(category)}
+                          className="h-8 w-8 p-0"
+                          aria-label={t("common.edit", { defaultValue: "Edit" })}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(category.id)}
+                          className="h-8 w-8 p-0"
+                          aria-label={t("common.delete", { defaultValue: "Delete" })}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
+
+                    {/* Mobile stats — single column rows, label/value side-by-side
+                        so currency values can never truncate. */}
+                    <div className="sm:hidden mt-3 divide-y divide-line/60 border-t border-b border-line/60">
+                      <StatRow
+                        label={t("categories.spent", { defaultValue: "Spent" })}
+                        value={formatCurrency(used)}
+                        sub={spentSub}
+                      />
+                      <StatRow
+                        label={t("budget.periodBudget", { defaultValue: "Period budget" })}
+                        value={periodBudget != null ? formatCurrency(periodBudget) : "—"}
+                        sub={budgetSub}
+                        muted={periodBudget == null}
+                      />
+                      <StatRow
+                        label={t("categories.remaining", { defaultValue: "Remaining" })}
+                        value={remainingValue}
+                        tone={remainingTone}
+                      />
+                      <StatRow
+                        label={t("budget.monthlyAvg", { defaultValue: "Avg / month (6 mo)" })}
+                        value={monthlyAvg > 0 ? formatCurrency(monthlyAvg) : "—"}
+                        muted={monthlyAvg <= 0}
+                      />
+                    </div>
+
+                    {/* Desktop stats — 4-column grid. */}
+                    <div className="hidden sm:grid grid-cols-4 gap-x-4 gap-y-1 mt-2">
+                      <Stat
+                        label={t("categories.spent", { defaultValue: "Spent" })}
+                        value={formatCurrency(used)}
+                        sub={spentSub}
+                      />
+                      <Stat
+                        label={t("budget.periodBudget", { defaultValue: "Period budget" })}
+                        value={periodBudget != null ? formatCurrency(periodBudget) : "—"}
+                        sub={budgetSub}
+                        muted={periodBudget == null}
+                      />
+                      <Stat
+                        label={t("categories.remaining", { defaultValue: "Remaining" })}
+                        value={remainingValue}
+                        tone={remainingTone}
+                      />
+                      <Stat
+                        label={t("budget.monthlyAvg", { defaultValue: "Avg / month (6 mo)" })}
+                        value={monthlyAvg > 0 ? formatCurrency(monthlyAvg) : "—"}
+                        muted={monthlyAvg <= 0}
+                      />
+                    </div>
+
+                    {/* Sparkline of bucketed spend over the period */}
+                    <div className="mt-3">
+                      <CategorySparkline
+                        buckets={s.buckets}
+                        projected={includeProjected ? s.projectedBuckets : undefined}
+                        color={category.color}
+                        reference={
+                          periodBudget != null && period.buckets.count > 0
+                            ? periodBudget / period.buckets.count
+                            : undefined
+                        }
+                        height={32}
+                      />
+                    </div>
+                    <div className="ft-progress-track mt-2">
+                      <div
+                        className="ft-progress-fill"
+                        style={{ width: `${barPct}%`, background: barColor }}
+                      />
+                    </div>
+
+                    {/* Suggest — full-width banner on mobile, right-aligned on desktop. */}
+                    {showSuggestion(s) && (
+                      <div className="mt-3 sm:flex sm:justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => applySuggestion(category.id, suggested)}
+                          disabled={busyId === category.id}
+                          className="w-full sm:w-auto h-9 px-3 text-xs gap-1.5"
+                          title={t("categories.suggestTooltip", {
+                            value: formatCurrency(suggested),
+                            defaultValue: `Set monthly budget to ${formatCurrency(
+                              suggested
+                            )} (6-mo p75 / current run rate)`,
+                          })}
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-primary" />
+                          <span>
+                            {t("categories.suggestMonthly", {
+                              value: formatCurrency(suggested),
+                              defaultValue: `Suggest ${formatCurrency(suggested)} / month`,
+                            })}
+                          </span>
+                          {monthly != null &&
+                            (suggested > monthly ? (
+                              <ArrowUp className="h-3 w-3 text-warning" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3 text-pos" />
+                            ))}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1393,6 +1467,42 @@ function Stat({
       </div>
       <div className={`font-mono text-[12.5px] font-medium truncate ${valueClass}`}>{value}</div>
       {sub && <div className="text-[10px] text-fg-dim truncate">{sub}</div>}
+    </div>
+  );
+}
+
+function StatRow({
+  label,
+  value,
+  tone = "default",
+  muted = false,
+  sub,
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "pos" | "neg" | "muted";
+  muted?: boolean;
+  sub?: string;
+}) {
+  const valueClass =
+    muted || tone === "muted"
+      ? "text-fg-dim"
+      : tone === "pos"
+      ? "text-pos"
+      : tone === "neg"
+      ? "text-destructive"
+      : "text-foreground";
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <div className="flex flex-col min-w-0">
+        <div className="text-[11px] font-medium text-muted-foreground truncate">{label}</div>
+        {sub && <div className="text-[10.5px] text-fg-dim truncate">{sub}</div>}
+      </div>
+      <div
+        className={`font-mono text-sm font-medium tabular-nums whitespace-nowrap ${valueClass}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }
