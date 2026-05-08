@@ -1120,6 +1120,7 @@ const Onboarding = () => {
             name: cat.name,
             color: cat.color,
             budget: null,
+            icon: null,
           });
         }
 

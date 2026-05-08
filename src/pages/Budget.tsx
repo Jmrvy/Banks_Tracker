@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   Edit3,
+  Plus,
   Search,
   Sparkles,
   Target,
@@ -23,6 +24,7 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { EditCategoryModal } from "@/components/EditCategoryModal";
+import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, type Category, type Transaction } from "@/hooks/useFinancialData";
@@ -55,10 +57,11 @@ const Budget = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { categories, transactions, refetch } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
 
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("alpha");
@@ -82,8 +85,11 @@ const Budget = () => {
         if (tx.category?.id !== category.id) continue;
         const net = netExpense(tx);
         if (net <= 0) continue;
-        // Budgets are commitments — always reason at the accounting date.
-        const d = parseLocalDate(tx.transaction_date);
+        // Honor the date setting from preferences (accounting vs value).
+        const d =
+          preferences.dateType === "value"
+            ? parseLocalDate(tx.value_date || tx.transaction_date)
+            : parseLocalDate(tx.transaction_date);
         if (d >= monthStart && d <= monthEnd) spentThisMonth += net;
         if (d >= window3Start && d <= window3End) total3Months += net;
       }
@@ -99,7 +105,7 @@ const Budget = () => {
 
       return { category, spentThisMonth, avg3Months, suggested, remaining, pct, status };
     });
-  }, [categories, transactions]);
+  }, [categories, transactions, preferences.dateType]);
 
   const totals = useMemo(() => {
     const totalBudget = stats.reduce((s, x) => s + (x.category.budget ?? 0), 0);
@@ -277,23 +283,29 @@ const Budget = () => {
               })}
             </div>
           </div>
-          {totals.suggestableCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={autoBudgetMissing}
-              disabled={bulkBusy}
-              className="h-9 text-xs gap-1.5"
-            >
-              <Wand2 className="h-3.5 w-3.5" />
-              {bulkBusy
-                ? t("common.saving", { defaultValue: "Saving..." })
-                : t("categories.autoBudgetMissing", {
-                    count: totals.suggestableCount,
-                    defaultValue: `Auto-budget ${totals.suggestableCount} missing`,
-                  })}
+          <div className="flex items-center gap-2 flex-wrap">
+            {totals.suggestableCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={autoBudgetMissing}
+                disabled={bulkBusy}
+                className="h-9 text-xs gap-1.5"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                {bulkBusy
+                  ? t("common.saving", { defaultValue: "Saving..." })
+                  : t("categories.autoBudgetMissing", {
+                      count: totals.suggestableCount,
+                      defaultValue: `Auto-budget ${totals.suggestableCount} missing`,
+                    })}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setNewOpen(true)} className="h-9 text-xs gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              {t("categories.newCategory", { defaultValue: "New category" })}
             </Button>
-          )}
+          </div>
         </div>
 
         {/* KPI strip */}
@@ -559,6 +571,8 @@ const Budget = () => {
         onOpenChange={setEditOpen}
         onSaved={refetch}
       />
+
+      <NewCategoryModal open={newOpen} onOpenChange={setNewOpen} onCreated={refetch} />
 
       <ConfirmDialog
         open={confirmOpen}
