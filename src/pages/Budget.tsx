@@ -602,6 +602,35 @@ function KpiTile({
   );
 }
 
+function Stat({
+  label,
+  value,
+  tone = "default",
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "pos" | "neg" | "muted";
+  muted?: boolean;
+}) {
+  const valueClass =
+    muted || tone === "muted"
+      ? "text-fg-dim"
+      : tone === "pos"
+      ? "text-pos"
+      : tone === "neg"
+      ? "text-destructive"
+      : "text-foreground";
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80 truncate">
+        {label}
+      </div>
+      <div className={`font-mono text-[12.5px] font-medium truncate ${valueClass}`}>{value}</div>
+    </div>
+  );
+}
+
 function FilterPill({
   active,
   onClick,
