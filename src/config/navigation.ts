@@ -8,6 +8,7 @@ import {
   History,
   Scale,
   PiggyBank,
+  Target,
   LucideIcon,
 } from "lucide-react";
 
@@ -46,6 +47,7 @@ export const toolsGroup: NavigationGroup = {
   icon: Settings,
   items: [
     { nameKey: "navigation.analyse", path: "/analyse", icon: BarChart3 },
+    { nameKey: "navigation.budget", path: "/budget", icon: Target },
     { nameKey: "navigation.recurringTransactions", path: "/recurring-transactions", icon: Receipt },
     { nameKey: "navigation.installmentPayments", path: "/installment-payments", icon: CreditCard },
   ],

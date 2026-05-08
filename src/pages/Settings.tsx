@@ -7,14 +7,13 @@ import { ProfileSection } from "@/components/settings/ProfileSection";
 import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { NotificationsSection } from "@/components/settings/NotificationsSection";
 import { AccountsSection } from "@/components/settings/AccountsSection";
-import { CategoriesSection } from "@/components/settings/CategoriesSection";
 import { BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
   const { t } = useTranslation();
   const { user, signOut } = useAuth();
-  const { accounts, categories, refetch } = useFinancialData();
+  const { accounts, refetch } = useFinancialData();
   const { preferences, updatePreferences, formatCurrency } = useUserPreferences();
   const navigate = useNavigate();
 
@@ -53,12 +52,6 @@ const Settings = () => {
 
           <AccountsSection
             accounts={accounts}
-            refetch={refetch}
-            formatCurrency={formatCurrency}
-          />
-
-          <CategoriesSection
-            categories={categories}
             refetch={refetch}
             formatCurrency={formatCurrency}
           />
