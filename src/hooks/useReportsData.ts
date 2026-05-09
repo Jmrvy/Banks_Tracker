@@ -492,7 +492,12 @@ export const useReportsData = (
       let current = new Date(sy, sm - 1, sd);
       const endDate = rt.end_date && rt.end_date.length >= 10 ? parseLocalDate(rt.end_date) : null;
       if (endDate && isNaN(endDate.getTime())) return { total: 0, past: 0, future: 0, details: [] };
-      const maxIterations = 500;
+      // Cap is wide enough for ~190 years of weekly recurrences. Long-running
+      // weekly recurrences started years ago (e.g., 2014) used to silently
+      // hit the previous 500 cap and never reach far-future periods like
+      // "Full year 2026", which is why projections diverged from the Budget
+      // page (which walks from next_due_date and never has this problem).
+      const maxIterations = 10000;
       let iterations = 0;
 
       const today = new Date();

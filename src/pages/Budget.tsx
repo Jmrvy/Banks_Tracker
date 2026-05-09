@@ -25,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { MonthPicker } from "@/components/ui/month-picker";
+import { YearPicker } from "@/components/ui/year-picker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BudgetRowSparkline } from "@/components/BudgetRowSparkline";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -43,6 +45,7 @@ import { useDebts } from "@/hooks/useDebts";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
 import {
   addDays,
@@ -66,7 +69,7 @@ import {
 // =============================================================================
 
 type StatusFilter = "all" | "over" | "warn" | "noBudget";
-type PeriodKey = "1m" | "3m" | "6m" | "ytd" | "1y" | "custom";
+type PeriodKey = "1m" | "3m" | "6m" | "ytd" | "1y" | "month" | "year" | "custom";
 type Status = "noBudget" | "ok" | "warn" | "over";
 
 interface Driver {
@@ -231,6 +234,11 @@ const Budget = () => {
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
+  // Anchor date for the "specific month" / "specific year" pickers. The
+  // picker pills only become active when the user explicitly chooses one;
+  // the relative presets (1m / 3m / …) ignore this value.
+  const [pickedMonth, setPickedMonth] = useState<Date>(() => startOfMonth(new Date()));
+  const [pickedYear, setPickedYear] = useState<Date>(() => startOfYear(new Date()));
   const [customRange, setCustomRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -282,6 +290,23 @@ const Budget = () => {
         label = t("budget.period1y", { defaultValue: "Full year" });
         prevFrom = startOfYear(subYears(now, 1));
         prevTo = endOfYear(subYears(now, 1));
+        break;
+      case "month":
+        // Specific calendar month (any month, past or future) chosen via the
+        // MonthPicker. Prior period = the month before.
+        from = startOfMonth(pickedMonth);
+        to = endOfMonth(pickedMonth);
+        label = format(pickedMonth, "MMMM yyyy");
+        prevFrom = startOfMonth(subMonths(pickedMonth, 1));
+        prevTo = endOfMonth(subMonths(pickedMonth, 1));
+        break;
+      case "year":
+        // Specific calendar year (any year). Prior period = the year before.
+        from = startOfYear(pickedYear);
+        to = endOfYear(pickedYear);
+        label = format(pickedYear, "yyyy");
+        prevFrom = startOfYear(subYears(pickedYear, 1));
+        prevTo = endOfYear(subYears(pickedYear, 1));
         break;
       case "custom": {
         from = customRange.from;
@@ -363,7 +388,7 @@ const Budget = () => {
       elapsedFraction,
       elapsedBuckets,
     };
-  }, [periodKey, customRange, t, today]);
+  }, [periodKey, customRange, pickedMonth, pickedYear, t, today]);
 
   const dateOf = useMemo(
     () => (tx: Transaction) =>
@@ -383,25 +408,29 @@ const Budget = () => {
     if (!includeProjected || period.to < today) return map;
 
     const installmentMap = new Map(installmentPayments.map((ip) => [ip.id, ip]));
-    const debtMap = new Map(debts.map((d) => [d.id, d]));
+    // Debt resolution now goes through `resolveDebtForRecurring` which
+    // accepts the description-fallback path Analysis uses.
     const sdpByDebtMonth = new Map<string, number>();
     for (const sp of scheduledDebtPayments) {
       sdpByDebtMonth.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
     }
 
     const effectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
-      if (rt.debt_id) {
-        const debt = debtMap.get(rt.debt_id);
-        if (debt) {
-          const monthKey = dateStr.substring(0, 7);
-          const scheduled = sdpByDebtMonth.get(`${debt.id}:${monthKey}`);
-          if (scheduled !== undefined) return scheduled;
-          const nextUnpaid = scheduledDebtPayments.find(
-            (sp) => sp.debt_id === debt.id && !sp.is_paid
-          );
-          if (nextUnpaid) return nextUnpaid.scheduled_amount;
-          return debt.payment_amount > 0 ? debt.payment_amount : Number(rt.amount);
-        }
+      // Use the same debt-resolution path the Analysis page uses, including
+      // the description-match fallback. Without it, legacy recurrences (no
+      // `debt_id` set, but described as `"... (Remboursement dette)"`) would
+      // be projected at `rt.amount` instead of the debt's scheduled amount,
+      // and they wouldn't be capped to the remaining payments.
+      const debt = resolveDebtForRecurring(rt, debts);
+      if (debt) {
+        const monthKey = dateStr.substring(0, 7);
+        const scheduled = sdpByDebtMonth.get(`${debt.id}:${monthKey}`);
+        if (scheduled !== undefined) return scheduled;
+        const nextUnpaid = scheduledDebtPayments.find(
+          (sp) => sp.debt_id === debt.id && !sp.is_paid
+        );
+        if (nextUnpaid) return nextUnpaid.scheduled_amount;
+        return debt.payment_amount > 0 ? debt.payment_amount : Number(rt.amount);
       }
       if (rt.installment_payment_id) {
         const ip = installmentMap.get(rt.installment_payment_id);
@@ -451,8 +480,10 @@ const Budget = () => {
         }
       }
 
-      if (rt.debt_id) {
-        const debt = debtMap.get(rt.debt_id);
+      // Use the same debt resolver as `effectiveAmount` so the cap and the
+      // amount agree on which debt this recurrence is linked to.
+      {
+        const debt = resolveDebtForRecurring(rt, debts);
         if (debt) {
           if (debt.status === "completed") {
             const stop = new Date(nextDue.getTime() - 86400000);
@@ -602,7 +633,18 @@ const Budget = () => {
       const pct = periodBudget != null && periodBudget > 0 ? used / periodBudget : 0;
       const status = statusOf(used, periodBudget, period.elapsedFraction);
 
-      // Suggestion engine (unchanged math; rounding + dead-zone handled in showSuggestion).
+      // ── Suggestion engine ──────────────────────────────────────────────
+      // The suggested *monthly* budget is the max of three signals:
+      //  1. p75 of the last 6 complete months — robust historical baseline.
+      //  2. blended current-month projection — `currentSpent + (1-frac)·avg`,
+      //     prevents day-1 spikes from dominating early in the month.
+      //  3. **period-pace projection** — extrapolate the user's rate against
+      //     the *selected* period and reduce to a monthly-equivalent.
+      //
+      //  Signal 3 is what makes the suggestion respond when a category is
+      //  near its cap mid-period. Example: yearly view, mid-year, 90% of the
+      //  yearly budget already spent → projected period total ≈ 1.8× budget,
+      //  suggested monthly ≈ 1.8× current monthly.
       const history = historyByCategory.get(category.id) ?? [];
       const hasHistory = history.some((v) => v > 0);
       const monthlyAvg =
@@ -611,8 +653,19 @@ const Budget = () => {
       const monthFraction =
         totalDaysInMonth > 0 ? Math.min(1, dayInMonth / totalDaysInMonth) : 1;
       const expectedMonthTotal = currentMonthSpent + (1 - monthFraction) * monthlyAvg;
-      const base = Math.max(p75v, expectedMonthTotal);
-      const suggested = hasHistory || currentMonthSpent > 0 ? niceRound(base) : 0;
+
+      // Pace-projected monthly equivalent. Ignored until at least 5 % of the
+      // period has elapsed to avoid extrapolating from one purchase on day 1,
+      // and ignored when the period doesn't span any full month.
+      let pacedMonthly = 0;
+      if (period.elapsedFraction > 0.05 && period.effectiveMonths > 0 && spent > 0) {
+        const projectedPeriodTotal = spent / period.elapsedFraction;
+        pacedMonthly = projectedPeriodTotal / period.effectiveMonths;
+      }
+
+      const base = Math.max(p75v, expectedMonthTotal, pacedMonthly);
+      const suggested =
+        hasHistory || currentMonthSpent > 0 || pacedMonthly > 0 ? niceRound(base) : 0;
 
       // Top-5 drivers (descending amount) inside the period.
       const topDrivers = driversInPeriod
@@ -685,12 +738,25 @@ const Budget = () => {
     }
     const q = search.trim().toLowerCase();
     if (q) out = out.filter((s) => s.category.name.toLowerCase().includes(q));
-    // Stable order: alphabetical, with over-budget rows pulled to the top so
-    // the most actionable ones land in view first.
+    // Sort: most-breached first.
+    //  1. Group by status (over → warn → noBudget → ok) so the most actionable
+    //     rows land at the top in a predictable order.
+    //  2. Within each group, sort by overrun magnitude — for budgeted rows
+    //     that's `pct` desc (highest utilisation first); for noBudget rows
+    //     by current spend desc; for ok rows by remaining-budget asc (those
+    //     closest to their limit appear first).
     return [...out].sort((a, b) => {
       const order: Record<Status, number> = { over: 0, warn: 1, noBudget: 2, ok: 3 };
       const so = order[a.status] - order[b.status];
       if (so !== 0) return so;
+      if (a.status === "over" || a.status === "warn" || a.status === "ok") {
+        const dpct = b.pct - a.pct;
+        if (Math.abs(dpct) > 0.0001) return dpct;
+      } else {
+        // noBudget: sort by current period spend desc (heaviest unbudgeted spend first).
+        const dspend = b.used - a.used;
+        if (Math.abs(dspend) > 0.0001) return dspend;
+      }
       return a.category.name.localeCompare(b.category.name);
     });
   }, [stats, statusFilter, search]);
@@ -937,6 +1003,7 @@ const Budget = () => {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {/* Quick relative presets — anchored to today. */}
               <div className="ft-seg flex-wrap">
                 {(
                   [
@@ -957,6 +1024,49 @@ const Budget = () => {
                     {l}
                   </button>
                 ))}
+              </div>
+              {/* Specific-month / specific-year pickers — same flexibility the
+                  Analysis page offers. The picker labels show the active
+                  selection; clicking opens a popover. */}
+              <div
+                className={cn(
+                  "inline-flex h-9 rounded-md border transition-colors",
+                  periodKey === "month"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-line bg-card text-muted-foreground hover:bg-bg-hover hover:text-foreground"
+                )}
+              >
+                <MonthPicker
+                  value={pickedMonth}
+                  onChange={(d) => {
+                    if (d) {
+                      setPickedMonth(startOfMonth(d));
+                      setPeriodKey("month");
+                    }
+                  }}
+                  placeholder={t("budget.pickMonth", { defaultValue: "Pick a month" })}
+                  className="h-9 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
+                />
+              </div>
+              <div
+                className={cn(
+                  "inline-flex h-9 rounded-md border transition-colors",
+                  periodKey === "year"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-line bg-card text-muted-foreground hover:bg-bg-hover hover:text-foreground"
+                )}
+              >
+                <YearPicker
+                  value={pickedYear}
+                  onChange={(d) => {
+                    if (d) {
+                      setPickedYear(startOfYear(d));
+                      setPeriodKey("year");
+                    }
+                  }}
+                  placeholder={t("budget.pickYear", { defaultValue: "Pick a year" })}
+                  className="h-9 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
+                />
               </div>
               {period.to >= today && (
                 <label
