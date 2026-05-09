@@ -179,16 +179,24 @@ function effectiveMonthsBetween(from: Date, to: Date): number {
 }
 
 /**
- * Time-aware status: a fixed 85% threshold lights up too early when only 5%
- * of the period has elapsed. Compares utilisation to elapsed-time fraction
- * and adds a tolerance band.
+ * Time-aware status. The "warn" threshold is pace-aware so that 85% used
+ * on day 3 of 31 still raises a flag, but we reserve "over" for rows that
+ * have actually exceeded their budget — otherwise an "Over" pill on a row
+ * with €13 still left contradicts the remaining figure on the same line.
+ *
+ *   over: ratio ≥ 1                    (truly exceeded)
+ *   warn: ratio ≥ elapsed + 0.15       (pacing too hot)
+ *   ok  : below
+ *
+ * The row's `pace X% · used Y%` micro-line already tells the pacing story,
+ * so collapsing the previous "ratio ≥ elapsed + 0.4 → over" tier into
+ * "warn" keeps the heads-up without misnaming the state.
  */
 function statusOf(used: number, periodBudget: number | null, elapsed: number): Status {
   if (periodBudget == null) return "noBudget";
   if (periodBudget <= 0) return "ok";
   const ratio = used / periodBudget;
   if (ratio >= 1) return "over";
-  if (ratio >= elapsed + 0.4) return "over";
   if (ratio >= elapsed + 0.15) return "warn";
   return "ok";
 }
