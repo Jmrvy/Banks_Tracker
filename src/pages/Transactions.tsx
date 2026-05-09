@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Download } from "lucide-react";
 import { TransactionSearch, TransactionFilters } from "@/components/TransactionSearch";
@@ -9,22 +10,30 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
 
+interface TransactionsLocationState {
+  categoryId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 const Transactions = () => {
   const { t } = useTranslation();
   const { transactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
+  const location = useLocation();
+  const navState = (location.state ?? {}) as TransactionsLocationState;
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
-  const [filters, setFilters] = useState<TransactionFilters>({
+  const [filters, setFilters] = useState<TransactionFilters>(() => ({
     searchText: "",
     type: "all",
-    categoryId: "all",
+    categoryId: navState.categoryId ?? "all",
     accountId: "all",
-    dateFrom: "",
-    dateTo: "",
+    dateFrom: navState.dateFrom ?? "",
+    dateTo: navState.dateTo ?? "",
     amountMin: "",
     amountMax: "",
-  });
+  }));
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
