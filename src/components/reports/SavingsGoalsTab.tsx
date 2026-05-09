@@ -25,11 +25,21 @@ interface SavingsGoalsTabProps {
 
 export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) => {
   const { goals, isLoading } = useSavingsGoals();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { categories } = useFinancialData();
   const { t } = useTranslation();
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
+
+  // Resolve transaction date according to the user's accounting/value setting.
+  const dateOf = (tx: Transaction) =>
+    preferences.dateType === 'value'
+      ? parseLocalDate(tx.value_date || tx.transaction_date)
+      : parseLocalDate(tx.transaction_date);
+
+  // Net of any partial refund — fully-refunded entries collapse to 0.
+  const netExpense = (tx: Transaction) =>
+    Math.max(0, Number(tx.amount) - Number((tx as any).refunded_amount || 0));
 
   // Calculate investment statistics
   const investmentStats = useMemo(() => {
@@ -43,18 +53,22 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
       return { total: 0, monthlyAverage: 0, weightedAverage: 0, monthlyData: [], evolutionData: [], trend: 0, count: 0 };
     }
 
+    // Honour the global stats exclusion flag — same rule the rest of the app
+    // applies — and only count transactions in this category.
     const investmentTransactions = transactions.filter(
-      tx => tx.type === 'expense' && tx.category?.id === investmentCategory.id
+      tx => tx.type === 'expense'
+        && tx.category?.id === investmentCategory.id
+        && tx.include_in_stats !== false
     );
 
-    const total = investmentTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const total = investmentTransactions.reduce((sum, tx) => sum + netExpense(tx), 0);
     const count = investmentTransactions.length;
 
-    // Calculate monthly breakdown
+    // Monthly breakdown — bucket on the user's preferred date column, net of refunds.
     const monthlyMap = new Map<string, number>();
     investmentTransactions.forEach(tx => {
-      const month = format(parseLocalDate(tx.value_date), 'yyyy-MM');
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + tx.amount);
+      const month = format(dateOf(tx), 'yyyy-MM');
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + netExpense(tx));
     });
 
     const monthlyData = Array.from(monthlyMap.entries())
@@ -86,20 +100,21 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     let cumulative = 0;
 
     const sortedTransactions = [...investmentTransactions].sort(
-      (a, b) => parseLocalDate(a.value_date).getTime() - parseLocalDate(b.value_date).getTime()
+      (a, b) => dateOf(a).getTime() - dateOf(b).getTime()
     );
 
     sortedTransactions.forEach(tx => {
-      cumulative += tx.amount;
+      const net = netExpense(tx);
+      cumulative += net;
       evolutionData.push({
-        date: format(parseLocalDate(tx.value_date), 'dd/MM/yyyy'),
-        amount: tx.amount,
+        date: format(dateOf(tx), 'dd/MM/yyyy'),
+        amount: net,
         cumulative
       });
     });
 
     return { total, monthlyAverage, weightedAverage, monthlyData, evolutionData, trend, count };
-  }, [transactions, categories]);
+  }, [transactions, categories, preferences.dateType]);
 
   const calculateProjection = (goal: SavingsGoal) => {
     const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;

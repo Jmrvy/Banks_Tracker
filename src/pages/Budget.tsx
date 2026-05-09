@@ -181,23 +181,23 @@ function effectiveMonthsBetween(from: Date, to: Date): number {
 /**
  * Time-aware status. The "warn" threshold is pace-aware so that 85% used
  * on day 3 of 31 still raises a flag, but we reserve "over" for rows that
- * have actually exceeded their budget — otherwise an "Over" pill on a row
- * with €13 still left contradicts the remaining figure on the same line.
+ * have *actually* exceeded their budget — €600 spent against a €600 budget
+ * is on-target, not a breach.
  *
- *   over: ratio ≥ 1                    (truly exceeded)
- *   warn: ratio ≥ elapsed + 0.15       (pacing too hot)
- *   ok  : below
+ *   over: ratio > 1                    (strictly exceeded — no false alarms at 100%)
+ *   warn: elapsed + 0.15 ≤ ratio < 1   (pacing too hot, not yet over)
+ *   ok  : below pace, or exactly at budget
  *
- * The row's `pace X% · used Y%` micro-line already tells the pacing story,
- * so collapsing the previous "ratio ≥ elapsed + 0.4 → over" tier into
- * "warn" keeps the heads-up without misnaming the state.
+ * The row's `pace X% · used Y%` micro-line carries the pacing story, so
+ * exactly-at-budget reads cleanly as "On track" instead of triggering noise
+ * on a fixed monthly like rent.
  */
 function statusOf(used: number, periodBudget: number | null, elapsed: number): Status {
   if (periodBudget == null) return "noBudget";
   if (periodBudget <= 0) return "ok";
   const ratio = used / periodBudget;
-  if (ratio >= 1) return "over";
-  if (ratio >= elapsed + 0.15) return "warn";
+  if (ratio > 1) return "over";
+  if (ratio < 1 && ratio >= elapsed + 0.15) return "warn";
   return "ok";
 }
 

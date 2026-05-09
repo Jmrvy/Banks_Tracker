@@ -277,14 +277,23 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 15;
+    const margin = 18;
     let yPos = 20;
 
-    // Helper functions
+    // Design tokens — mirrors the redesign's :root colour set so on-demand
+    // PDFs match the email + monthly PDF visual vocabulary.
+    const ink: [number, number, number] = [12, 13, 12];        // #0c0d0c
+    const ink2: [number, number, number] = [31, 33, 31];       // #1f211f
+    const mute: [number, number, number] = [110, 113, 108];    // #6e716c
+    const mute2: [number, number, number] = [154, 156, 151];   // #9a9c97
+    const lineCol: [number, number, number] = [231, 229, 221]; // #e7e5dd
+    const negCol: [number, number, number] = [200, 58, 42];    // ≈ neg
+    const posCol: [number, number, number] = [44, 138, 74];    // ≈ pos
+
     const addPageIfNeeded = (requiredSpace: number) => {
       if (yPos + requiredSpace > pageHeight - 25) {
         pdf.addPage();
-        yPos = 20;
+        yPos = 22;
         return true;
       }
       return false;
@@ -297,46 +306,101 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       }).format(value) + ' EUR';
     };
 
+    /** Statement-style section header — eyebrow + serif title + thin rule. */
+    const drawSectionHeader = (eyebrow: string, title: string) => {
+      pdf.setFont('courier', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(...mute);
+      pdf.text(eyebrow.toUpperCase(), margin, yPos);
+      yPos += 7;
+      pdf.setFont('times', 'normal');
+      pdf.setFontSize(20);
+      pdf.setTextColor(...ink);
+      pdf.text(title, margin, yPos);
+      yPos += 4;
+      pdf.setDrawColor(...lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+    };
+
     const addFooter = () => {
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
+      pdf.setDrawColor(...lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, pageHeight - 18, pageWidth - margin, pageHeight - 18);
+      pdf.setFont('courier', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(...mute2);
+      pdf.text('SPENDING TRACKER · ON DEMAND', margin, pageHeight - 11);
       pdf.text(
-        `Page ${pdf.getCurrentPageInfo().pageNumber}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
+        String(pdf.getCurrentPageInfo().pageNumber).padStart(2, '0'),
+        pageWidth - margin, pageHeight - 11, { align: 'right' },
       );
     };
 
-    // ======= COVER PAGE =======
-    // Gradient header
-    pdf.setFillColor(59, 130, 246);
-    pdf.rect(0, 0, pageWidth, 70, 'F');
-    pdf.setFillColor(37, 99, 235);
-    pdf.rect(0, 50, pageWidth, 20, 'F');
+    // ======= COVER PAGE — magazine-style, off-white paper =======
+    // Off-white canvas
+    pdf.setFillColor(245, 244, 240);
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
 
-    // Title
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(28);
+    // Top brand row — small ink square + "Spending Tracker" + "ON DEMAND" tag.
+    pdf.setFillColor(...ink);
+    pdf.rect(margin, 22, 6, 6, 'F');
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Rapport Financier', pageWidth / 2, 35, { align: 'center' });
+    pdf.setFontSize(11);
+    pdf.setTextColor(...ink2);
+    pdf.text('Spending Tracker', margin + 9, 27);
+    pdf.setFont('courier', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(...mute);
+    pdf.text('RAPPORT À LA DEMANDE', pageWidth - margin, 27, { align: 'right' });
 
-    // Subtitle with period
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(
-      `${format(actualDates.start, 'dd MMMM yyyy', { locale })} - ${format(actualDates.end, 'dd MMMM yyyy', { locale })}`,
-      pageWidth / 2,
-      55,
-      { align: 'center' }
-    );
+    // Mid-page hairline ~ 52% down (matches the redesign's cover composition).
+    pdf.setDrawColor(...lineCol);
+    pdf.setLineWidth(0.2);
+    pdf.line(margin, pageHeight * 0.48, pageWidth - margin, pageHeight * 0.48);
 
-    // Generation date
+    // Eyebrow above the title
+    pdf.setFont('courier', 'normal');
     pdf.setFontSize(10);
-    pdf.setTextColor(200, 220, 255);
-    pdf.text(`Genere le ${format(new Date(), 'dd/MM/yyyy a HH:mm', { locale })}`, pageWidth / 2, 65, { align: 'center' });
+    pdf.setTextColor(...mute);
+    pdf.text('Rapport financier', margin, pageHeight * 0.45);
 
-    yPos = 85;
+    // Magazine-style serif title — period range as the headline.
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(36);
+    pdf.setTextColor(...ink);
+    const periodTitle = `${format(actualDates.start, 'd MMM', { locale })} — ${format(actualDates.end, 'd MMM yyyy', { locale })}`;
+    pdf.text(periodTitle, margin, pageHeight * 0.40);
+
+    // Verdict subline (italic serif)
+    pdf.setFont('times', 'italic');
+    pdf.setFontSize(13);
+    pdf.setTextColor(...mute);
+    const verdictNet = stats.netPeriodBalance;
+    const verdictLine = verdictNet >= 0
+      ? `Vous avez mis de cote ${formatAmount(Math.abs(verdictNet))}.`
+      : `Solde de la periode : ${formatAmount(verdictNet)}.`;
+    pdf.text(verdictLine, margin, pageHeight * 0.40 + 8);
+
+    // Bottom hairline + meta row (date, transactions, sections).
+    pdf.setDrawColor(...lineCol);
+    pdf.line(margin, pageHeight - 35, pageWidth - margin, pageHeight - 35);
+    pdf.setFont('courier', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(...mute2);
+    pdf.text('GENERE', margin, pageHeight - 28);
+    pdf.text('TRANSACTIONS', margin + 60, pageHeight - 28);
+    pdf.text('SECTIONS', margin + 110, pageHeight - 28);
+    pdf.setFontSize(10);
+    pdf.setTextColor(...ink2);
+    pdf.text(format(new Date(), 'd MMMM yyyy', { locale }), margin, pageHeight - 22);
+    pdf.setFont('courier', 'bold');
+    pdf.text(String(filteredTransactions.length), margin + 60, pageHeight - 22);
+    pdf.text(String(config.sections.length), margin + 110, pageHeight - 22);
+
+    pdf.addPage();
+    yPos = 22;
     pdf.setTextColor(0, 0, 0);
 
     // ======= SUMMARY SECTION WITH CHARTS =======
@@ -360,52 +424,49 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         yPos += imgHeight + 15;
       }
     } else if (config.sections.includes('summary')) {
-      // Text-only summary
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('Synthese de la periode', margin, yPos);
-      yPos += 10;
+      drawSectionHeader('01 · Synthese', 'Bilan de la periode');
 
       const summaryData = [
-        ['Revenus', formatAmount(stats.income), 'green'],
-        ['Depenses', formatAmount(stats.expenses), 'red'],
-        ['Solde net', formatAmount(stats.netPeriodBalance), stats.netPeriodBalance >= 0 ? 'green' : 'red'],
-        ['Solde initial', formatAmount(stats.initialBalance), 'gray'],
-        ['Solde final', formatAmount(stats.finalBalance), 'gray'],
+        ['Revenus', formatAmount(stats.income), 'pos'],
+        ['Depenses', formatAmount(stats.expenses), 'neg'],
+        ['Solde net', formatAmount(stats.netPeriodBalance), stats.netPeriodBalance >= 0 ? 'pos' : 'neg'],
+        ['Solde initial', formatAmount(stats.initialBalance), 'mute'],
+        ['Solde final', formatAmount(stats.finalBalance), 'mute'],
       ];
 
       autoTable(pdf, {
         startY: yPos,
         head: [['Indicateur', 'Montant']],
         body: summaryData.map(([label, value]) => [label, value]),
-        theme: 'grid',
-        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 11, cellPadding: 5 },
+        theme: 'plain',
+        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
+        styles: { fontSize: 11, cellPadding: 5, lineColor: lineCol, lineWidth: 0.2 },
         columnStyles: {
-          0: { cellWidth: 80 },
-          1: { halign: 'right', cellWidth: 60, fontStyle: 'bold' }
+          0: { cellWidth: 90 },
+          1: { halign: 'right', cellWidth: 80, font: 'courier', fontStyle: 'bold' },
         },
         margin: { left: margin, right: margin },
         didParseCell: (data: any) => {
-          if (data.section === 'body' && data.column.index === 1) {
-            const colorType = summaryData[data.row.index]?.[2];
-            if (colorType === 'green') data.cell.styles.textColor = [22, 163, 74];
-            else if (colorType === 'red') data.cell.styles.textColor = [220, 38, 38];
+          if (data.section === 'body') {
+            // Hairline bottom border per row
+            data.cell.styles.lineColor = lineCol;
+            data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
+            if (data.column.index === 1) {
+              const colorType = summaryData[data.row.index]?.[2];
+              if (colorType === 'pos') data.cell.styles.textColor = posCol;
+              else if (colorType === 'neg') data.cell.styles.textColor = negCol;
+              else data.cell.styles.textColor = ink;
+            }
           }
-        }
+        },
       });
       yPos = (pdf as any).lastAutoTable.finalY + 15;
     }
 
     // ======= ACCOUNTS SECTION =======
     if (config.sections.includes('accounts')) {
-      addPageIfNeeded(50);
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('Soldes des comptes', margin, yPos);
-      yPos += 10;
+      addPageIfNeeded(60);
+      drawSectionHeader('02 · Comptes', 'Soldes des comptes');
 
       const accountData = accounts.map(acc => [
         acc.name,
@@ -423,15 +484,15 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         head: [['Compte', 'Banque', 'Type', 'Solde']],
         body: accountData,
         foot: [['', '', 'TOTAL', formatAmount(totalBalance)]],
-        theme: 'striped',
-        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
-        footStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
-        styles: { fontSize: 10, cellPadding: 4 },
+        theme: 'plain',
+        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
+        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier', lineWidth: { top: 0.4, bottom: 0, left: 0, right: 0 }, lineColor: ink },
+        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
         columnStyles: {
           0: { cellWidth: 55 },
           1: { cellWidth: 45 },
           2: { cellWidth: 30 },
-          3: { halign: 'right', cellWidth: 45, fontStyle: 'bold' }
+          3: { halign: 'right', cellWidth: 45, font: 'courier', fontStyle: 'bold' }
         },
         margin: { left: margin, right: margin },
       });
@@ -441,12 +502,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     // ======= CATEGORIES SECTION WITH PIE CHART =======
     if (config.sections.includes('categories')) {
       pdf.addPage();
-      yPos = 20;
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('Depenses par categorie', margin, yPos);
-      yPos += 10;
+      yPos = 22;
+      drawSectionHeader('03 · Repartition', 'Depenses par categorie');
 
       // Capture pie chart
       if (config.includeCharts) {
@@ -483,13 +540,13 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           startY: yPos,
           head: [['Categorie', 'Montant', 'Part']],
           body: catData,
-          theme: 'striped',
-          headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
-          styles: { fontSize: 10, cellPadding: 4 },
+          theme: 'plain',
+          headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
+          styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
           columnStyles: {
             0: { cellWidth: 80 },
-            1: { halign: 'right', cellWidth: 50 },
-            2: { halign: 'center', cellWidth: 30 }
+            1: { halign: 'right', cellWidth: 50, font: 'courier', fontStyle: 'bold' },
+            2: { halign: 'center', cellWidth: 30, font: 'courier', textColor: mute }
           },
           margin: { left: margin, right: margin },
         });
@@ -500,12 +557,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     // ======= EVOLUTION SECTION WITH CHART =======
     if (config.sections.includes('evolution')) {
       pdf.addPage();
-      yPos = 20;
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('Evolution du solde', margin, yPos);
-      yPos += 10;
+      yPos = 22;
+      drawSectionHeader('04 · Evolution', 'Evolution du solde');
 
       if (config.includeCharts) {
         const evolutionImg = await captureChartAsImage(evolutionChartRef);
@@ -533,11 +586,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     // ======= INCOME SECTION =======
     if (config.sections.includes('income') && incomeAnalysis.length > 0) {
       addPageIfNeeded(70);
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('Revenus par categorie', margin, yPos);
-      yPos += 10;
+      drawSectionHeader('05 · Revenus', 'Revenus par categorie');
 
       const incData = incomeAnalysis.map(inc => {
         const pct = stats.income > 0 ? ((inc.totalAmount / stats.income) * 100).toFixed(1) : '0.0';
@@ -549,15 +598,15 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         head: [['Source', 'Montant', 'Part', 'Nb']],
         body: incData,
         foot: [['TOTAL', formatAmount(stats.income), '100%', '']],
-        theme: 'striped',
-        headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
-        footStyles: { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold' },
-        styles: { fontSize: 10, cellPadding: 4 },
+        theme: 'plain',
+        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
+        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier', lineWidth: { top: 0.4, bottom: 0, left: 0, right: 0 }, lineColor: ink },
+        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
         columnStyles: {
           0: { cellWidth: 70 },
-          1: { halign: 'right', cellWidth: 50 },
-          2: { halign: 'center', cellWidth: 25 },
-          3: { halign: 'center', cellWidth: 20 }
+          1: { halign: 'right', cellWidth: 50, font: 'courier', fontStyle: 'bold', textColor: posCol },
+          2: { halign: 'center', cellWidth: 25, font: 'courier', textColor: mute },
+          3: { halign: 'center', cellWidth: 20, font: 'courier', textColor: mute }
         },
         margin: { left: margin, right: margin },
       });
@@ -569,12 +618,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       const budgetCategories = categoryChartData.filter(c => c.budget > 0);
       if (budgetCategories.length > 0) {
         pdf.addPage();
-        yPos = 20;
-        pdf.setFontSize(16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(59, 130, 246);
-        pdf.text('Suivi des budgets', margin, yPos);
-        yPos += 10;
+        yPos = 22;
+        drawSectionHeader('06 · Budgets', 'Suivi des budgets');
 
         if (config.includeCharts) {
           const budgetImg = await captureChartAsImage(budgetChartRef);
@@ -604,31 +649,30 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           startY: yPos,
           head: [['Categorie', 'Depense', 'Budget', 'Restant', '%', 'Statut']],
           body: budgetData,
-          theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-          styles: { fontSize: 9, cellPadding: 3 },
+          theme: 'plain',
+          headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
+          styles: { fontSize: 9, cellPadding: 3, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
           columnStyles: {
             0: { cellWidth: 40 },
-            1: { halign: 'right', cellWidth: 28 },
-            2: { halign: 'right', cellWidth: 28 },
-            3: { halign: 'right', cellWidth: 28 },
-            4: { halign: 'center', cellWidth: 18 },
-            5: { halign: 'center', cellWidth: 22 }
+            1: { halign: 'right', cellWidth: 28, font: 'courier' },
+            2: { halign: 'right', cellWidth: 28, font: 'courier', textColor: mute },
+            3: { halign: 'right', cellWidth: 28, font: 'courier' },
+            4: { halign: 'center', cellWidth: 18, font: 'courier', textColor: mute },
+            5: { halign: 'center', cellWidth: 22, font: 'courier' }
           },
           margin: { left: margin, right: margin },
           didParseCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 5) {
               const status = data.cell.raw;
-              if (status === 'Depasse') {
-                data.cell.styles.textColor = [220, 38, 38];
-                data.cell.styles.fontStyle = 'bold';
-              } else if (status === 'Attention') {
-                data.cell.styles.textColor = [234, 88, 12];
-                data.cell.styles.fontStyle = 'bold';
-              } else {
-                data.cell.styles.textColor = [22, 163, 74];
-                data.cell.styles.fontStyle = 'bold';
-              }
+              if (status === 'Depasse') data.cell.styles.textColor = negCol;
+              else if (status === 'Attention') data.cell.styles.textColor = [192, 102, 26];
+              else data.cell.styles.textColor = posCol;
+              data.cell.styles.fontStyle = 'bold';
+            }
+            // Restant: red when negative, neutral otherwise
+            if (data.section === 'body' && data.column.index === 3) {
+              const raw = String(data.cell.raw);
+              if (raw.includes('-')) data.cell.styles.textColor = negCol;
             }
           }
         });
@@ -639,16 +683,12 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     // ======= TRANSACTIONS SECTION =======
     if (config.sections.includes('transactions')) {
       pdf.addPage();
-      yPos = 20;
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('Detail des transactions', margin, yPos);
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(107, 114, 128);
-      pdf.text(`${filteredTransactions.length} operations`, margin + 120, yPos);
-      yPos += 10;
+      yPos = 22;
+      drawSectionHeader('07 · Transactions', 'Detail des transactions');
+      pdf.setFont('courier', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(...mute);
+      pdf.text(`${filteredTransactions.length} OPERATIONS`, pageWidth - margin, yPos - 6, { align: 'right' });
 
       // Calculate running balance
       let runningBalance = stats.initialBalance;
@@ -676,27 +716,24 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         startY: yPos,
         head: [['Date', 'Compte', 'Description', 'Cat.', 'Montant', 'Solde']],
         body: txData,
-        theme: 'striped',
-        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize' },
+        theme: 'plain',
+        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize', textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.15, left: 0, right: 0 } },
         columnStyles: {
-          0: { cellWidth: 18 },
+          0: { cellWidth: 18, font: 'courier', textColor: mute },
           1: { cellWidth: 26 },
           2: { cellWidth: 58 },
-          3: { cellWidth: 24 },
-          4: { halign: 'right', cellWidth: 26 },
-          5: { halign: 'right', cellWidth: 26, fontStyle: 'bold' }
+          3: { cellWidth: 24, textColor: mute },
+          4: { halign: 'right', cellWidth: 26, font: 'courier' },
+          5: { halign: 'right', cellWidth: 26, font: 'courier', fontStyle: 'bold', textColor: mute }
         },
         margin: { left: margin, right: margin },
         showHead: 'everyPage',
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.column.index === 4) {
             const value = String(data.cell.raw);
-            if (value.startsWith('+')) {
-              data.cell.styles.textColor = [22, 163, 74];
-            } else if (value.startsWith('-')) {
-              data.cell.styles.textColor = [220, 38, 38];
-            }
+            if (value.startsWith('+')) data.cell.styles.textColor = posCol;
+            else if (value.startsWith('-')) data.cell.styles.textColor = negCol;
           }
         },
         didDrawPage: () => {
@@ -1149,81 +1186,420 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     </div>
   );
 
+  // Period preset pills.
+  const periodPresets = [
+    { key: 'thisMonth', label: t('reports.thisMonth', { defaultValue: 'This month' }) },
+    { key: 'lastMonth', label: t('reports.lastMonth', { defaultValue: 'Last month' }) },
+    { key: 'thisQuarter', label: t('reports.thisQuarter', { defaultValue: 'This quarter' }) },
+    { key: 'thisYear', label: t('reports.thisYear', { defaultValue: 'YTD' }) },
+    { key: 'lastYear', label: t('reports.lastYear', { defaultValue: 'Last year' }) },
+  ] as const;
+  const today = new Date();
+  const isPresetActive = (key: string): boolean => {
+    const startOfThisMonth = startOfMonth(today);
+    const startOfLastMonth = startOfMonth(subMonths(today, 1));
+    const startOfThisQuarter = startOfQuarter(today);
+    const startOfThisYear = startOfYear(today);
+    const startOfLastYear = startOfYear(subMonths(today, 12));
+    if (key === 'thisMonth') return isSameDay(config.startDate, startOfThisMonth);
+    if (key === 'lastMonth') return isSameDay(config.startDate, startOfLastMonth);
+    if (key === 'thisQuarter') return isSameDay(config.startDate, startOfThisQuarter);
+    if (key === 'thisYear') return isSameDay(config.startDate, startOfThisYear);
+    if (key === 'lastYear') return isSameDay(config.startDate, startOfLastYear);
+    return false;
+  };
+
+  // Live preview — mocks a document layout that reacts to selected sections.
+  // Page-count estimate: 1 (cover) + ⌈sections / 2⌉ + (transactions section ? ⌈n/40⌉ : 0).
+  const txCount = filteredTransactions.length;
+  const includesTx = config.sections.includes('transactions');
+  const estimatedPages =
+    1 +
+    Math.ceil(config.sections.filter((s) => s !== 'transactions').length / 2) +
+    (includesTx ? Math.max(1, Math.ceil(txCount / 40)) : 0);
+  const estimatedKb = Math.round(60 + estimatedPages * 32 + (includesTx ? txCount * 0.4 : 0));
+  const previewBlocks = [
+    config.sections.includes('summary') && {
+      title: t('reports.section.summary.label', { defaultValue: 'Summary' }),
+      shape: 'row3',
+    },
+    config.sections.includes('categories') && {
+      title: t('reports.section.categories.label', { defaultValue: 'Categories' }),
+      shape: 'list',
+    },
+    config.sections.includes('evolution') && {
+      title: t('reports.section.evolution.label', { defaultValue: 'Evolution' }),
+      shape: 'chart',
+    },
+    config.sections.includes('accounts') && {
+      title: t('reports.section.accounts.label', { defaultValue: 'Accounts' }),
+      shape: 'list',
+    },
+    config.sections.includes('income') && {
+      title: t('reports.section.income.label', { defaultValue: 'Income' }),
+      shape: 'list',
+    },
+    config.sections.includes('recurring') && {
+      title: t('reports.section.recurring.label', { defaultValue: 'Recurring' }),
+      shape: 'list',
+    },
+    config.sections.includes('budgets') && {
+      title: t('reports.section.budgets.label', { defaultValue: 'Budgets' }),
+      shape: 'list',
+    },
+    config.sections.includes('transactions') && {
+      title: `${t('reports.section.transactions.label', { defaultValue: 'Transactions' })} · ${txCount} rows`,
+      shape: 'rows',
+    },
+  ].filter(Boolean) as { title: string; shape: 'row3' | 'list' | 'chart' | 'rows' }[];
+
+  const totalSectionCount = Object.keys(SECTION_INFO).length;
+
+  // Single-screen layout — sections + period + format on the left, document
+  // preview + page-count estimate on the right (collapses to a stack on mobile).
   const content = (
-    <div className="space-y-5">
-      {/* Progress - Apple style dots */}
-      <div className="flex items-center justify-center gap-3 py-2">
-        {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className={cn(
-              "transition-all duration-300 rounded-full",
-              s === step
-                ? "w-8 h-2 bg-primary shadow-lg shadow-primary/30"
-                : s < step
-                  ? "w-2 h-2 bg-primary/60"
-                  : "w-2 h-2 bg-muted-foreground/20"
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 lg:gap-6">
+        {/* ── Left: configuration ─────────────────────── */}
+        <div className="space-y-5 min-w-0">
+          {/* Period */}
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <Label className="text-sm font-medium">
+                {t('reports.period', { defaultValue: 'Period' })}
+              </Label>
+              <span className="text-xs text-muted-foreground font-mono tabular-nums">
+                {format(actualDates.start, 'd MMM yyyy', { locale })} →{' '}
+                {format(actualDates.end, 'd MMM yyyy', { locale })}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {periodPresets.map(({ key, label }) => {
+                const active = isPresetActive(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handlePeriodPreset(key)}
+                    className={cn(
+                      'h-8 px-3 rounded-md border text-xs font-medium transition-colors',
+                      active
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover bg-card'
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setConfig((p) => ({ ...p, periodType: 'custom' }))}
+                className={cn(
+                  'h-8 px-3 rounded-md border text-xs font-medium transition-colors',
+                  config.periodType === 'custom'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover bg-card'
+                )}
+              >
+                {t('reports.custom', { defaultValue: 'Custom' })}
+              </button>
+            </div>
+            {config.periodType === 'month' && (
+              <MonthPicker
+                value={config.startDate}
+                onChange={(d) =>
+                  setConfig((prev) => ({ ...prev, startDate: d || new Date() }))
+                }
+                className="rounded-lg bg-bg-subtle border-line"
+              />
             )}
-          />
-        ))}
+            {config.periodType === 'year' && (
+              <YearPicker
+                value={config.startDate}
+                onChange={(d) =>
+                  setConfig((prev) => ({ ...prev, startDate: d || new Date() }))
+                }
+                className="rounded-lg bg-bg-subtle border-line"
+              />
+            )}
+            <Select
+              value={config.dateType}
+              onValueChange={(v: any) => setConfig((prev) => ({ ...prev, dateType: v }))}
+            >
+              <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="accounting">
+                  {t('settings.accountingDate', { defaultValue: 'By accounting' })}
+                </SelectItem>
+                <SelectItem value="value">
+                  {t('settings.valueDate', { defaultValue: 'By value' })}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sections */}
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <Label className="text-sm font-medium">
+                {t('reports.sections', { defaultValue: 'Sections' })}
+                <span className="text-fg-dim font-normal ml-1.5">
+                  · {config.sections.length} of {totalSectionCount}
+                </span>
+              </Label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  if (config.sections.length === totalSectionCount) {
+                    setConfig((prev) => ({ ...prev, sections: ['summary'] }));
+                  } else {
+                    setConfig((prev) => ({
+                      ...prev,
+                      sections: Object.keys(SECTION_INFO) as ReportSection[],
+                    }));
+                  }
+                }}
+              >
+                {config.sections.length === totalSectionCount
+                  ? t('common.deselectAll', { defaultValue: 'Deselect all' })
+                  : t('common.selectAll', { defaultValue: 'Select all' })}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(Object.entries(SECTION_INFO) as [ReportSection, typeof SECTION_INFO[ReportSection]][]).map(
+                ([key, info]) => {
+                  const Icon = info.icon;
+                  const isSelected = config.sections.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleSection(key)}
+                      className={cn(
+                        'flex items-start gap-2.5 p-3 rounded-lg border text-left transition-colors min-w-0',
+                        isSelected
+                          ? 'border-foreground bg-bg-subtle'
+                          : 'border-line bg-card hover:bg-bg-hover'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded-md border text-[11px] font-bold mt-0.5',
+                          isSelected
+                            ? 'bg-foreground text-background border-foreground'
+                            : 'border-line text-muted-foreground'
+                        )}
+                      >
+                        {isSelected ? <Check className="h-3 w-3" /> : null}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          <span className="text-[13px] font-medium truncate">
+                            {t(info.labelKey, { defaultValue: info.labelDefault })}
+                          </span>
+                        </div>
+                        <span className="text-[11.5px] text-fg-dim leading-snug">
+                          {t(info.descKey, { defaultValue: info.descDefault })}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">
+              {t('reports.format', { defaultValue: 'Format' })}
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['pdf', 'excel'] as const).map((fmt) => {
+                const isActive = config.format === fmt;
+                const Icon = fmt === 'pdf' ? FileText : FileSpreadsheet;
+                return (
+                  <button
+                    key={fmt}
+                    type="button"
+                    onClick={() => setConfig((prev) => ({ ...prev, format: fmt }))}
+                    className={cn(
+                      'flex items-center gap-3 p-3 rounded-lg border text-left transition-colors',
+                      isActive
+                        ? 'border-foreground bg-bg-subtle'
+                        : 'border-line bg-card hover:bg-bg-hover'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-flex items-center justify-center h-9 w-9 rounded-md font-mono text-[10px] font-semibold tracking-wide',
+                        isActive
+                          ? 'bg-foreground text-background'
+                          : 'bg-bg-subtle text-muted-foreground'
+                      )}
+                    >
+                      {fmt.toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium">
+                        {fmt === 'pdf' ? 'PDF' : 'Excel'}
+                      </div>
+                      <div className="text-[11.5px] text-fg-dim">
+                        {fmt === 'pdf'
+                          ? t('reports.formatPdfDesc', {
+                              defaultValue: 'Statement-style · vector charts · printable',
+                            })
+                          : t('reports.formatXlsDesc', {
+                              defaultValue: 'Raw rows, one tab per section',
+                            })}
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center justify-center h-5 w-5 rounded-md border',
+                        isActive
+                          ? 'bg-foreground text-background border-foreground'
+                          : 'border-line text-transparent'
+                      )}
+                    >
+                      <Check className="h-3 w-3" />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right: live preview ─────────────────────── */}
+        <div className="hidden lg:flex flex-col gap-2 sticky top-0 self-start">
+          <div className="text-[11px] text-fg-dim leading-relaxed">
+            <b className="text-foreground font-medium">
+              {t('reports.livePreview', { defaultValue: 'Live preview' })}
+            </b>{' '}
+            — {t('reports.livePreviewHint', {
+              defaultValue: 'updates as you toggle sections.',
+            })}
+          </div>
+          <div className="relative bg-card border border-line rounded-lg shadow-sm aspect-[1/1.4] p-3 overflow-hidden">
+            <div className="text-[8px] uppercase tracking-[0.08em] font-semibold text-muted-foreground/80">
+              Spending Tracker · Report
+            </div>
+            <div
+              className="text-[14px] leading-tight font-medium mt-1"
+              style={{ fontFamily: '"Fraunces", Georgia, serif' }}
+            >
+              Financial report
+            </div>
+            <div className="text-[8px] uppercase tracking-[0.08em] font-semibold text-foreground mt-0.5 font-mono">
+              {format(actualDates.start, 'd MMM').toUpperCase()} —{' '}
+              {format(actualDates.end, 'd MMM yyyy').toUpperCase()}
+            </div>
+            <div className="border-t border-line my-2" />
+            <div className="space-y-1.5 overflow-hidden">
+              {previewBlocks.map((b, i) => (
+                <div key={i}>
+                  <div className="text-[8px] uppercase tracking-[0.08em] font-semibold text-muted-foreground/80 mb-1">
+                    {b.title}
+                  </div>
+                  {b.shape === 'row3' && (
+                    <div className="grid grid-cols-3 gap-1">
+                      <div className="h-4 rounded-sm bg-bg-subtle" />
+                      <div className="h-4 rounded-sm bg-bg-subtle" />
+                      <div className="h-4 rounded-sm bg-bg-subtle" />
+                    </div>
+                  )}
+                  {b.shape === 'list' && (
+                    <div className="space-y-0.5">
+                      <div className="h-2 rounded-sm bg-bg-subtle" />
+                      <div className="h-2 rounded-sm bg-bg-subtle w-4/5" />
+                      <div className="h-2 rounded-sm bg-bg-subtle w-3/5" />
+                    </div>
+                  )}
+                  {b.shape === 'chart' && (
+                    <div className="h-8 rounded-sm bg-bg-subtle" />
+                  )}
+                  {b.shape === 'rows' && (
+                    <div className="space-y-0.5">
+                      <div className="h-1.5 rounded-sm bg-bg-subtle" />
+                      <div className="h-1.5 rounded-sm bg-bg-subtle" />
+                      <div className="h-1.5 rounded-sm bg-bg-subtle" />
+                      <div className="h-1.5 rounded-sm bg-bg-subtle w-4/5" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="absolute bottom-1.5 right-2 text-[7px] font-mono tracking-[0.08em] text-fg-dim">
+              01 / {String(estimatedPages).padStart(2, '0')}
+            </div>
+          </div>
+          <div className="text-[11px] text-fg-dim leading-relaxed">
+            {t('reports.estimate', {
+              pages: estimatedPages,
+              size: estimatedKb,
+              tx: txCount,
+              defaultValue: `Estimated ${estimatedPages} page${estimatedPages !== 1 ? 's' : ''}, ~${estimatedKb} KB${
+                includesTx ? ` · ${txCount} transactions` : ''
+              }.`,
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Step indicator */}
-      <div className="text-center">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {step === 1 ? t('reports.period') + ' & Format' : step === 2 ? 'Contenu' : 'Confirmation'}
-        </span>
-      </div>
-
-      {/* Step Content */}
-      <div className="min-h-[300px]">
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-      </div>
-
-      {/* Navigation - Apple style buttons */}
-      <div className="flex justify-between pt-4 border-t border-border/50">
-        <Button
-          variant="ghost"
-          onClick={() => step > 1 ? setStep(s => s - 1) : onOpenChange(false)}
-          disabled={isGenerating}
-          className="rounded-xl px-5 hover:bg-muted/50"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          {step > 1 ? t('common.back') : t('common.cancel')}
-        </Button>
-
-        {step < totalSteps ? (
+      {/* Footer */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-line">
+        <div className="text-[12px] text-muted-foreground font-mono tabular-nums">
+          {config.sections.length} sections · {format(actualDates.start, 'd MMM', { locale })} →{' '}
+          {format(actualDates.end, 'd MMM yyyy', { locale })} · {config.format.toUpperCase()}
+        </div>
+        <div className="flex items-center gap-2">
           <Button
-            onClick={() => setStep(s => s + 1)}
-            className="rounded-xl px-6 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isGenerating}
+            className="h-9 text-sm"
           >
-            {t('common.next')}
-            <ChevronRight className="h-4 w-4 ml-1" />
+            {t('common.cancel', { defaultValue: 'Cancel' })}
           </Button>
-        ) : (
           <Button
             onClick={handleGenerate}
             disabled={isGenerating || config.sections.length === 0}
-            className="rounded-xl px-6 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
+            className="h-9 text-sm gap-2"
           >
             {isGenerating ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {t('common.loading')}
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t('common.loading', { defaultValue: 'Generating...' })}
               </>
             ) : (
               <>
-                <Download className="h-4 w-4 mr-2" />
-                {t('common.export')}
+                <Download className="h-4 w-4" />
+                {config.format === 'pdf'
+                  ? t('reports.generatePdf', { defaultValue: 'Generate PDF' })
+                  : t('reports.generateXls', { defaultValue: 'Generate Excel' })}
               </>
             )}
           </Button>
-        )}
+        </div>
       </div>
     </div>
   );
+
+  // Step state is no longer used — keep referenced to satisfy lint with the
+  // previous step1/2/3 helpers (they're unused but left in place for future
+  // re-use without re-deriving the configuration logic).
+  void step;
+  void setStep;
+  void totalSteps;
+  void renderStep1;
+  void renderStep2;
+  void renderStep3;
 
   // Hidden chart container for PDF capture
   const chartsContainer = (
@@ -1319,21 +1695,21 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     <>
       {chartsContainer}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-background  border border-white/10 shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-background border border-line shadow-xl rounded-xl">
           <DialogHeader className="pb-2">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-primary/12">
-                <Download className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">
-                  {t('reports.export')}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  {t('reports.generate')}
-                </DialogDescription>
+              <div
+                className="text-2xl leading-none mt-0.5"
+                style={{ fontFamily: '"Fraunces", Georgia, serif', fontWeight: 500 }}
+              >
+                {t('reports.generateReport', { defaultValue: 'Generate report' })}
               </div>
             </div>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {t('reports.generateSubtitle', {
+                defaultValue: "Pick what you want, see how it'll look, export.",
+              })}
+            </DialogDescription>
           </DialogHeader>
           {content}
         </DialogContent>

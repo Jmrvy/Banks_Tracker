@@ -24,28 +24,33 @@ function uint8ToBase64(bytes: Uint8Array): string {
 
 async function generateSlidesPdf(data: any): Promise<string> {
   const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  // Type system mirrors the redesign — Geist (sans) → Helvetica, Geist Mono
+  // → Courier, Fraunces (serif headlines) → Times. pdf-lib only ships the
+  // 14 PDF standard fonts; embedding the actual webfonts would balloon the
+  // edge function payload.
+  const sans = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const sansBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const mono = await pdfDoc.embedFont(StandardFonts.Courier);
+  const monoBold = await pdfDoc.embedFont(StandardFonts.CourierBold);
+  const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const serifItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
 
   const W = 842; // A4 landscape in points
   const H = 595;
 
-  // Colors
-  const dark = rgb(0.118, 0.161, 0.231);       // #1e293b
-  const darkAlt = rgb(0.2, 0.255, 0.333);       // #334155
-  const white = rgb(1, 1, 1);
-  const green = rgb(0.02, 0.588, 0.412);         // #059669
-  const red = rgb(0.863, 0.149, 0.149);          // #dc2626
-  const blue = rgb(0.231, 0.51, 0.965);          // #3b82f6
-  const gray = rgb(0.392, 0.455, 0.545);         // #64748b
-  const subtle = rgb(0.58, 0.639, 0.722);        // #94a3b8
-  const lightGray = rgb(0.945, 0.961, 0.976);    // #f1f5f9
-  const lightGreen = rgb(0.941, 0.992, 0.957);   // #f0fdf4
-  const lightRed = rgb(0.996, 0.949, 0.949);     // #fef2f2
-  const divider = rgb(0.933, 0.937, 0.953);      // #eeeaf3
-  const textDark = rgb(0.067, 0.094, 0.153);     // #111827
+  // Colour tokens — straight from the redesign's :root.
+  const ink = rgb(0.047, 0.051, 0.047);     // #0c0d0c
+  const ink2 = rgb(0.122, 0.129, 0.122);    // #1f211f
+  const mute = rgb(0.431, 0.443, 0.424);    // #6e716c
+  const mute2 = rgb(0.604, 0.612, 0.592);   // #9a9c97
+  const line = rgb(0.906, 0.898, 0.867);    // #e7e5dd
+  const line2 = rgb(0.937, 0.925, 0.894);   // #efece4
+  const paper = rgb(1, 1, 1);
+  const canvas = rgb(0.961, 0.957, 0.941);  // #f5f4f0 — used on the cover
+  const pos = rgb(0.173, 0.541, 0.290);     // ≈ oklch(46% 0.09 155)
+  const neg = rgb(0.784, 0.227, 0.165);     // ≈ oklch(52% 0.16 25)
 
-  // Helpers
+  // Width helpers
   const cx = (text: string, size: number, f: any) =>
     (W - f.widthOfTextAtSize(text, size)) / 2;
   const rx = (text: string, size: number, f: any, margin: number) =>
@@ -57,310 +62,317 @@ async function generateSlidesPdf(data: any): Promise<string> {
   const net = parseFloat(income) - parseFloat(expenses);
   const netStr = (net >= 0 ? '+' : '') + net.toFixed(2);
   const period = String(data.period ?? '');
-  const periodUpper = period.toUpperCase();
   const savingsRate = data.savingsRate ?? 0;
   const txCount = data.transactionCount ?? 0;
   const incomeChange = data.incomeChange ?? 0;
   const expenseChange = data.expenseChange ?? 0;
+  const generatedOn = format(new Date(), "d MMMM yyyy", { locale: fr });
 
-  // Helper to draw slide header bar
-  function drawHeader(page: any, title: string) {
-    page.drawRectangle({ x: 0, y: H - 65, width: W, height: 65, color: dark });
-    page.drawText(title, { x: 50, y: H - 42, size: 18, font: fontBold, color: white });
-    page.drawText(period, { x: rx(period, 12, font, 50), y: H - 42, size: 12, font, color: subtle });
-    // Accent line under header
-    page.drawRectangle({ x: 50, y: H - 66, width: 80, height: 3, color: blue });
+  /** Hairline horizontal rule. */
+  function rule(page: any, x: number, y: number, w: number, color = line) {
+    page.drawRectangle({ x, y, width: w, height: 0.5, color });
   }
 
-  // Helper to draw page number
-  function drawPageNum(page: any, num: number, total: number) {
-    const txt = `${num} / ${total}`;
-    page.drawText(txt, { x: rx(txt, 9, font, 30), y: 20, size: 9, font, color: subtle });
-    page.drawText('Gestion des comptes CB', { x: 30, y: 20, size: 9, font, color: subtle });
+  /** Statement-style page header — eyebrow + serif title + thin rule. */
+  function drawSectionHeader(page: any, eyebrow: string, title: string) {
+    const M = 50;
+    page.drawText(eyebrow.toUpperCase(), { x: M, y: H - 50, size: 9, font: mono, color: mute });
+    page.drawText(title, { x: M, y: H - 80, size: 26, font: serif, color: ink });
+    page.drawText(period, { x: rx(period, 9, mono, M), y: H - 50, size: 9, font: mono, color: mute });
+    rule(page, M, H - 96, W - 2 * M, line);
+  }
+
+  /** Statement-style footer — thin rule + brand and page indicator. */
+  function drawPageFoot(page: any, num: number, total: number) {
+    const M = 50;
+    rule(page, M, 38, W - 2 * M, line);
+    page.drawText('SPENDING TRACKER · RAPPORT MENSUEL', { x: M, y: 22, size: 8, font: mono, color: mute2 });
+    const pn = `${String(num).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+    page.drawText(pn, { x: rx(pn, 8, mono, M), y: 22, size: 8, font: mono, color: mute2 });
   }
 
   const totalPages = 2 + (data.topCategories?.length > 0 ? 1 : 0) + (data.accounts?.length > 0 ? 1 : 0) + (data.budgetOverspent?.length > 0 ? 1 : 0);
   let pageNum = 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 1: COVER
+  // PAGE 1: MAGAZINE COVER
   // ═══════════════════════════════════════════════════════════════════════════
   const p1 = pdfDoc.addPage([W, H]);
   pageNum++;
 
-  // Full dark background
-  p1.drawRectangle({ x: 0, y: 0, width: W, height: H, color: dark });
+  // Warm off-white paper
+  p1.drawRectangle({ x: 0, y: 0, width: W, height: H, color: canvas });
 
-  // Blue accent line
-  p1.drawRectangle({ x: 0, y: H * 0.52, width: W, height: 4, color: blue });
+  // Top brand row
+  const COV_M = 56;
+  // Logo square (filled near-black)
+  p1.drawRectangle({ x: COV_M, y: H - COV_M - 22, width: 22, height: 22, color: ink });
+  p1.drawText('Spending Tracker', {
+    x: COV_M + 32, y: H - COV_M - 16, size: 13, font: sansBold, color: ink2,
+  });
+  p1.drawText('RAPPORT MENSUEL', {
+    x: rx('RAPPORT MENSUEL', 10, mono, COV_M),
+    y: H - COV_M - 16, size: 10, font: mono, color: mute,
+  });
 
-  // App name
-  let txt = 'GESTION DES COMPTES CB';
-  p1.drawText(txt, { x: cx(txt, 12, font), y: H * 0.72, size: 12, font, color: subtle });
+  // Hairline rule across the cover, ~52% down the page (matches the redesign).
+  rule(p1, COV_M, H * 0.52, W - 2 * COV_M, line);
 
-  // Main title
-  txt = 'RAPPORT MENSUEL';
-  p1.drawText(txt, { x: cx(txt, 40, fontBold), y: H * 0.58, size: 40, font: fontBold, color: white });
+  // Eyebrow above the headline
+  p1.drawText('Bilan financier', {
+    x: COV_M, y: H * 0.55 + 14, size: 11, font: mono, color: mute,
+  });
 
-  // Period
-  p1.drawText(periodUpper, { x: cx(periodUpper, 26, fontBold), y: H * 0.40, size: 26, font: fontBold, color: white });
+  // Big serif period — magazine headline.
+  const periodTitle = period;
+  p1.drawText(periodTitle, {
+    x: COV_M, y: H * 0.42, size: 56, font: serif, color: ink,
+  });
 
-  // Badges row
-  const badgeY = 100;
-  const txBadgeText = `${txCount} transactions`;
-  const txBadgeW = font.widthOfTextAtSize(txBadgeText, 11) + 28;
-  const srBadgeText = `Epargne : ${savingsRate}%`;
-  const srBadgeW = font.widthOfTextAtSize(srBadgeText, 11) + 28;
-  const totalBadgeW = txBadgeW + 14 + srBadgeW;
-  const badgeStartX = (W - totalBadgeW) / 2;
+  // Subline — verdict-first, italic accent on the sign of the net.
+  const verdict = net >= 0
+    ? `Vous avez mis de cote ${Math.abs(net).toFixed(0)} EUR.`
+    : `Vous avez depense ${Math.abs(net).toFixed(0)} EUR de plus que vos revenus.`;
+  p1.drawText(verdict, {
+    x: COV_M, y: H * 0.42 - 26, size: 14, font: serifItalic, color: mute,
+  });
 
-  // Tx count badge
-  p1.drawRectangle({ x: badgeStartX, y: badgeY - 5, width: txBadgeW, height: 24, color: darkAlt });
-  p1.drawText(txBadgeText, { x: badgeStartX + 14, y: badgeY + 2, size: 11, font, color: subtle });
+  // Bottom meta row — generated date + tx count + savings rate, mono.
+  rule(p1, COV_M, 96, W - 2 * COV_M, line);
+  p1.drawText('GENERE', { x: COV_M, y: 76, size: 8, font: mono, color: mute2 });
+  p1.drawText(generatedOn, { x: COV_M, y: 60, size: 11, font: sans, color: ink2 });
 
-  // Savings badge
-  const srBgColor = savingsRate >= 0 ? rgb(0.024, 0.306, 0.231) : rgb(0.498, 0.114, 0.114);
-  const srTxtColor = savingsRate >= 0 ? rgb(0.431, 0.906, 0.718) : rgb(0.988, 0.647, 0.647);
-  p1.drawRectangle({ x: badgeStartX + txBadgeW + 14, y: badgeY - 5, width: srBadgeW, height: 24, color: srBgColor });
-  p1.drawText(srBadgeText, { x: badgeStartX + txBadgeW + 14 + 14, y: badgeY + 2, size: 11, font, color: srTxtColor });
+  p1.drawText('TRANSACTIONS', { x: COV_M + 220, y: 76, size: 8, font: mono, color: mute2 });
+  p1.drawText(String(txCount), { x: COV_M + 220, y: 60, size: 11, font: monoBold, color: ink2 });
 
-  drawPageNum(p1, pageNum, totalPages);
+  p1.drawText('TAUX D\'EPARGNE', { x: COV_M + 360, y: 76, size: 8, font: mono, color: mute2 });
+  p1.drawText(`${savingsRate}%`, {
+    x: COV_M + 360, y: 60, size: 11, font: monoBold, color: savingsRate >= 0 ? pos : neg,
+  });
+
+  // Page indicator
+  const coverPn = `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`;
+  p1.drawText(coverPn, { x: rx(coverPn, 9, mono, COV_M), y: 60, size: 9, font: mono, color: mute2 });
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 2: FINANCIAL OVERVIEW
+  // PAGE 2: VUE D'ENSEMBLE — statement-style 3-cell number row
   // ═══════════════════════════════════════════════════════════════════════════
   const p2 = pdfDoc.addPage([W, H]);
   pageNum++;
-  drawHeader(p2, 'VUE D\'ENSEMBLE');
+  drawSectionHeader(p2, '01 · Vue d\'ensemble', 'Bilan du mois');
 
-  const boxW = 210;
-  const boxH = 110;
-  const boxGap = 22;
-  const boxStartX = (W - (3 * boxW + 2 * boxGap)) / 2;
-  const boxTopY = H - 65 - 30; // top edge of boxes (in top-down thinking)
-  const boxY = boxTopY - boxH; // pdf-lib y = bottom edge
+  const M = 50;
+  const cellW = (W - 2 * M) / 3;
+  const cellTopY = H - 130;
+  const cellBotY = cellTopY - 110;
 
-  // Revenue box
-  p2.drawRectangle({ x: boxStartX, y: boxY, width: boxW, height: boxH, color: lightGreen });
-  txt = 'REVENUS';
-  p2.drawText(txt, { x: boxStartX + (boxW - fontBold.widthOfTextAtSize(txt, 11)) / 2, y: boxY + boxH - 28, size: 11, font: fontBold, color: gray });
-  txt = `${income} EUR`;
-  p2.drawText(txt, { x: boxStartX + (boxW - fontBold.widthOfTextAtSize(txt, 24)) / 2, y: boxY + boxH - 60, size: 24, font: fontBold, color: green });
-  if (incomeChange !== 0) {
-    const arrow = incomeChange >= 0 ? '+' : '';
-    const clr = incomeChange >= 0 ? green : red;
-    txt = `${arrow}${incomeChange}% vs mois prec.`;
-    p2.drawText(txt, { x: boxStartX + (boxW - font.widthOfTextAtSize(txt, 10)) / 2, y: boxY + 14, size: 10, font, color: clr });
+  // Single bordered card containing 3 cells, hairlines between.
+  p2.drawRectangle({
+    x: M, y: cellBotY, width: W - 2 * M, height: cellTopY - cellBotY,
+    borderColor: line, borderWidth: 0.75, color: paper,
+  });
+  // Vertical dividers
+  p2.drawRectangle({ x: M + cellW, y: cellBotY, width: 0.75, height: cellTopY - cellBotY, color: line });
+  p2.drawRectangle({ x: M + 2 * cellW, y: cellBotY, width: 0.75, height: cellTopY - cellBotY, color: line });
+
+  function drawCell(x: number, eyebrow: string, value: string, color: any, deltaPct?: number, deltaGood?: boolean) {
+    p2.drawText(eyebrow.toUpperCase(), { x: x + 18, y: cellTopY - 26, size: 9, font: mono, color: mute });
+    p2.drawText(value, { x: x + 18, y: cellTopY - 70, size: 26, font: monoBold, color });
+    if (deltaPct !== undefined && deltaPct !== 0) {
+      const arrow = deltaPct >= 0 ? '↑' : '↓';
+      const tone = deltaGood ? pos : neg;
+      const txt = `${arrow} ${Math.abs(deltaPct)}% vs mois precedent`;
+      p2.drawText(txt, { x: x + 18, y: cellBotY + 14, size: 9.5, font: mono, color: tone });
+    }
   }
 
-  // Expenses box
-  const expX = boxStartX + boxW + boxGap;
-  p2.drawRectangle({ x: expX, y: boxY, width: boxW, height: boxH, color: lightRed });
-  txt = 'DEPENSES';
-  p2.drawText(txt, { x: expX + (boxW - fontBold.widthOfTextAtSize(txt, 11)) / 2, y: boxY + boxH - 28, size: 11, font: fontBold, color: gray });
-  txt = `${expenses} EUR`;
-  p2.drawText(txt, { x: expX + (boxW - fontBold.widthOfTextAtSize(txt, 24)) / 2, y: boxY + boxH - 60, size: 24, font: fontBold, color: red });
-  if (expenseChange !== 0) {
-    const arrow = expenseChange >= 0 ? '+' : '';
-    const clr = expenseChange <= 0 ? green : red;
-    txt = `${arrow}${expenseChange}% vs mois prec.`;
-    p2.drawText(txt, { x: expX + (boxW - font.widthOfTextAtSize(txt, 10)) / 2, y: boxY + 14, size: 10, font, color: clr });
-  }
+  drawCell(M, 'Revenus', `${income} EUR`, pos, incomeChange, incomeChange >= 0);
+  drawCell(M + cellW, 'Depenses', `${expenses} EUR`, neg, expenseChange, expenseChange <= 0);
+  drawCell(M + 2 * cellW, 'Net du mois', `${netStr} EUR`, net >= 0 ? pos : neg);
 
-  // Net box
-  const netBoxX = expX + boxW + boxGap;
-  const netClr = net >= 0 ? green : red;
-  p2.drawRectangle({ x: netBoxX, y: boxY, width: boxW, height: boxH, color: lightGray });
-  txt = 'NET';
-  p2.drawText(txt, { x: netBoxX + (boxW - fontBold.widthOfTextAtSize(txt, 11)) / 2, y: boxY + boxH - 28, size: 11, font: fontBold, color: gray });
-  txt = `${netStr} EUR`;
-  p2.drawText(txt, { x: netBoxX + (boxW - fontBold.widthOfTextAtSize(txt, 24)) / 2, y: boxY + boxH - 60, size: 24, font: fontBold, color: netClr });
+  // Total bar — set off by a 1px black rule above (matches the redesign).
+  const totBarY = cellBotY - 60;
+  p2.drawRectangle({ x: M, y: totBarY + 32, width: W - 2 * M, height: 1, color: ink });
+  p2.drawText('SOLDE TOTAL', { x: M, y: totBarY + 12, size: 11, font: mono, color: ink2 });
+  const balTxt = `${balance} EUR`;
+  p2.drawText(balTxt, {
+    x: rx(balTxt, 22, monoBold, M),
+    y: totBarY + 8, size: 22, font: monoBold, color: parseFloat(balance) >= 0 ? ink : neg,
+  });
 
-  // Balance bar
-  const balBarW = 3 * boxW + 2 * boxGap;
-  const balBarY = boxY - 55;
-  p2.drawRectangle({ x: boxStartX, y: balBarY, width: balBarW, height: 40, color: dark });
-  txt = 'SOLDE TOTAL';
-  p2.drawText(txt, { x: boxStartX + 22, y: balBarY + 14, size: 11, font, color: subtle });
-  txt = `${balance} EUR`;
-  p2.drawText(txt, { x: boxStartX + balBarW - 22 - fontBold.widthOfTextAtSize(txt, 22), y: balBarY + 11, size: 22, font: fontBold, color: white });
+  // Savings rate caption (small, mono, no card)
+  const srLine = `Taux d'epargne ${savingsRate}%  ·  ${txCount} transactions  ·  ${period}`;
+  p2.drawText(srLine, { x: M, y: totBarY - 30, size: 10, font: mono, color: mute });
 
-  // Savings rate indicator
-  const srBoxY = balBarY - 45;
-  p2.drawRectangle({ x: boxStartX, y: srBoxY, width: balBarW, height: 32, color: savingsRate >= 0 ? lightGreen : lightRed });
-  txt = `Taux d'epargne : ${savingsRate}%`;
-  p2.drawText(txt, { x: boxStartX + (balBarW - fontBold.widthOfTextAtSize(txt, 13)) / 2, y: srBoxY + 10, size: 13, font: fontBold, color: savingsRate >= 0 ? green : red });
-
-  drawPageNum(p2, pageNum, totalPages);
+  drawPageFoot(p2, pageNum, totalPages);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 3: CATEGORY BREAKDOWN
+  // PAGE 3: CATEGORIES — statement-style table with hairline rows + bar
   // ═══════════════════════════════════════════════════════════════════════════
   const topCats: any[] = data.topCategories || [];
   if (topCats.length > 0) {
     const p3 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawHeader(p3, 'REPARTITION DES DEPENSES');
+    drawSectionHeader(p3, '02 · Repartition', 'Categories');
 
-    const tX = 50;
-    const tW = W - 100;
-    const rowH = 34;
-    let curY = H - 65 - 18;
+    const tM = 50;
+    const tW = W - 2 * tM;
+    let curY = H - 120;
 
-    // Table header
-    curY -= rowH;
-    p3.drawRectangle({ x: tX, y: curY, width: tW, height: rowH, color: lightGray });
-    p3.drawText('CATEGORIE', { x: tX + 14, y: curY + 12, size: 9, font: fontBold, color: gray });
-    p3.drawText('MONTANT', { x: tX + tW * 0.42, y: curY + 12, size: 9, font: fontBold, color: gray });
-    p3.drawText('%', { x: tX + tW * 0.60, y: curY + 12, size: 9, font: fontBold, color: gray });
-    p3.drawText('REPARTITION', { x: tX + tW * 0.70, y: curY + 12, size: 9, font: fontBold, color: gray });
+    // Column headers (mono uppercase, no fill)
+    p3.drawText('CATEGORIE', { x: tM, y: curY, size: 9, font: mono, color: mute });
+    p3.drawText('MONTANT', { x: tM + tW * 0.42, y: curY, size: 9, font: mono, color: mute });
+    p3.drawText('%', { x: tM + tW * 0.58, y: curY, size: 9, font: mono, color: mute });
+    p3.drawText('REPARTITION', { x: tM + tW * 0.66, y: curY, size: 9, font: mono, color: mute });
+    curY -= 8;
+    rule(p3, tM, curY, tW, ink2);
+    curY -= 8;
 
+    const rowH = 28;
     for (const cat of topCats) {
+      if (curY - rowH < 60) break;
       curY -= rowH;
-      if (curY < 50) break;
 
-      // Row separator
-      p3.drawRectangle({ x: tX, y: curY + rowH - 0.5, width: tW, height: 0.5, color: divider });
+      const isOver = cat.budget != null && cat.spent > cat.budget;
+      const catName = String(cat.name ?? '').substring(0, 36);
+      p3.drawText(catName, { x: tM, y: curY + 8, size: 11, font: sansBold, color: ink });
+      if (isOver) {
+        p3.drawText('AU-DESSUS', {
+          x: tM + sansBold.widthOfTextAtSize(catName, 11) + 10,
+          y: curY + 8, size: 8, font: mono, color: neg,
+        });
+      }
 
-      // Alternating row bg
-      const rowBg = topCats.indexOf(cat) % 2 === 1 ? rgb(0.98, 0.98, 0.99) : white;
-      p3.drawRectangle({ x: tX, y: curY, width: tW, height: rowH - 0.5, color: rowBg });
+      const amt = `${Number(cat.spent).toFixed(2)} EUR`;
+      p3.drawText(amt, { x: tM + tW * 0.42, y: curY + 8, size: 11, font: monoBold, color: ink });
 
-      // Category name
-      const catName = String(cat.name ?? '').substring(0, 30);
-      p3.drawText(catName, { x: tX + 14, y: curY + 12, size: 11, font, color: textDark });
+      p3.drawText(`${cat.pct}%`, { x: tM + tW * 0.58, y: curY + 8, size: 10, font: mono, color: mute });
 
-      // Amount
-      txt = `${Number(cat.spent).toFixed(2)} EUR`;
-      p3.drawText(txt, { x: tX + tW * 0.42, y: curY + 12, size: 11, font: fontBold, color: textDark });
-
-      // Percentage
-      p3.drawText(`${cat.pct}%`, { x: tX + tW * 0.60, y: curY + 12, size: 10, font, color: gray });
-
-      // Bar
-      const barX = tX + tW * 0.70;
-      const barMaxW = tW * 0.26;
+      const barX = tM + tW * 0.66;
+      const barMaxW = tW * 0.32;
       const barW = Math.max(2, Math.min(cat.pct, 100) / 100 * barMaxW);
+      // 6px pill: a thin track + a fill, both rounded by being thin
+      p3.drawRectangle({ x: barX, y: curY + 8, width: barMaxW, height: 4, color: line2 });
+      p3.drawRectangle({ x: barX, y: curY + 8, width: barW, height: 4, color: isOver ? neg : ink });
 
-      // Bar background
-      p3.drawRectangle({ x: barX, y: curY + 11, width: barMaxW, height: 10, color: rgb(0.898, 0.906, 0.922) });
-
-      // Bar fill
-      const isOver = cat.budget && cat.spent > cat.budget;
-      p3.drawRectangle({ x: barX, y: curY + 11, width: barW, height: 10, color: isOver ? red : blue });
+      // Hairline between rows
+      rule(p3, tM, curY, tW, line);
     }
 
-    drawPageNum(p3, pageNum, totalPages);
+    drawPageFoot(p3, pageNum, totalPages);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 4: ACCOUNTS
+  // PAGE 4: COMPTES — flow + balance, total bar set off by a 1px ink rule
   // ═══════════════════════════════════════════════════════════════════════════
   const accounts: any[] = data.accounts || [];
   if (accounts.length > 0) {
     const p4 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawHeader(p4, 'SOLDES PAR COMPTE');
+    drawSectionHeader(p4, '03 · Comptes', 'Soldes par compte');
 
-    const tX = 50;
-    const tW = W - 100;
-    const rowH = 36;
-    let curY = H - 65 - 18;
+    const tM = 50;
+    const tW = W - 2 * tM;
+    let curY = H - 120;
 
-    // Header row
-    curY -= rowH;
-    p4.drawRectangle({ x: tX, y: curY, width: tW, height: rowH, color: lightGray });
-    p4.drawText('COMPTE', { x: tX + 14, y: curY + 13, size: 9, font: fontBold, color: gray });
-    p4.drawText('REVENUS', { x: tX + tW * 0.38, y: curY + 13, size: 9, font: fontBold, color: gray });
-    p4.drawText('DEPENSES', { x: tX + tW * 0.56, y: curY + 13, size: 9, font: fontBold, color: gray });
-    txt = 'SOLDE';
-    p4.drawText(txt, { x: tX + tW - 14 - fontBold.widthOfTextAtSize(txt, 9), y: curY + 13, size: 9, font: fontBold, color: gray });
+    p4.drawText('COMPTE', { x: tM, y: curY, size: 9, font: mono, color: mute });
+    p4.drawText('REVENUS', { x: tM + tW * 0.45, y: curY, size: 9, font: mono, color: mute });
+    p4.drawText('DEPENSES', { x: tM + tW * 0.62, y: curY, size: 9, font: mono, color: mute });
+    p4.drawText('SOLDE', { x: rx('SOLDE', 9, mono, tM), y: curY, size: 9, font: mono, color: mute });
+    curY -= 8;
+    rule(p4, tM, curY, tW, ink2);
+    curY -= 8;
 
+    const rowH = 30;
     for (const acc of accounts) {
+      if (curY - rowH < 100) break;
       curY -= rowH;
-      if (curY < 50) break;
 
-      p4.drawRectangle({ x: tX, y: curY + rowH - 0.5, width: tW, height: 0.5, color: divider });
+      const accName = String(acc.name ?? '').substring(0, 36);
+      p4.drawText(accName, { x: tM, y: curY + 9, size: 11, font: sansBold, color: ink });
 
-      const rowBg = accounts.indexOf(acc) % 2 === 1 ? rgb(0.98, 0.98, 0.99) : white;
-      p4.drawRectangle({ x: tX, y: curY, width: tW, height: rowH - 0.5, color: rowBg });
+      const inc = `+${Number(acc.income || 0).toFixed(0)} EUR`;
+      p4.drawText(inc, { x: tM + tW * 0.45, y: curY + 9, size: 11, font: mono, color: pos });
 
-      const accName = String(acc.name ?? '').substring(0, 30);
-      p4.drawText(accName, { x: tX + 14, y: curY + 13, size: 11, font: fontBold, color: textDark });
+      const exp = `-${Number(acc.expense || 0).toFixed(0)} EUR`;
+      p4.drawText(exp, { x: tM + tW * 0.62, y: curY + 9, size: 11, font: mono, color: neg });
 
-      txt = `+${Number(acc.income).toFixed(2)}`;
-      p4.drawText(txt, { x: tX + tW * 0.38, y: curY + 13, size: 11, font, color: green });
+      const balVal = Number(acc.balance);
+      const bal = `${balVal.toFixed(2)} EUR`;
+      p4.drawText(bal, {
+        x: rx(bal, 12, monoBold, tM),
+        y: curY + 9, size: 12, font: monoBold, color: balVal >= 0 ? ink : neg,
+      });
 
-      txt = `-${Number(acc.expense).toFixed(2)}`;
-      p4.drawText(txt, { x: tX + tW * 0.56, y: curY + 13, size: 11, font, color: red });
-
-      const balClr = Number(acc.balance) >= 0 ? green : red;
-      txt = `${Number(acc.balance).toFixed(2)} EUR`;
-      p4.drawText(txt, { x: tX + tW - 14 - fontBold.widthOfTextAtSize(txt, 12), y: curY + 13, size: 12, font: fontBold, color: balClr });
+      rule(p4, tM, curY, tW, line);
     }
 
-    // Total row
-    curY -= rowH + 4;
-    const totalW = tW;
-    p4.drawRectangle({ x: tX, y: curY, width: totalW, height: rowH, color: dark });
-    p4.drawText('TOTAL', { x: tX + 14, y: curY + 13, size: 11, font: fontBold, color: white });
-    txt = `${balance} EUR`;
-    p4.drawText(txt, { x: tX + totalW - 14 - fontBold.widthOfTextAtSize(txt, 14), y: curY + 12, size: 14, font: fontBold, color: white });
+    // Total — black hairline above + label/value row.
+    const totalY = curY - 30;
+    p4.drawRectangle({ x: tM, y: totalY + 22, width: tW, height: 1, color: ink });
+    p4.drawText('SOLDE TOTAL', { x: tM, y: totalY + 4, size: 11, font: mono, color: ink2 });
+    const balTotal = `${balance} EUR`;
+    p4.drawText(balTotal, {
+      x: rx(balTotal, 18, monoBold, tM),
+      y: totalY, size: 18, font: monoBold, color: parseFloat(balance) >= 0 ? ink : neg,
+    });
 
-    drawPageNum(p4, pageNum, totalPages);
+    drawPageFoot(p4, pageNum, totalPages);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 5: BUDGET ALERTS (conditional)
+  // PAGE 5: BUDGETS DEPASSES (conditional) — pace bar with budget tick
   // ═══════════════════════════════════════════════════════════════════════════
   const budgetOverspent: any[] = data.budgetOverspent || [];
   if (budgetOverspent.length > 0) {
     const p5 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawHeader(p5, 'ALERTES BUDGET');
+    drawSectionHeader(p5, '04 · Alertes', 'Budgets depasses');
 
-    let curY = H - 65 - 30;
+    const aM = 50;
+    let curY = H - 130;
+    const cardH = 70;
 
     for (const cat of budgetOverspent) {
-      const over = (cat.spent - cat.budget).toFixed(2);
+      if (curY - cardH < 60) break;
+      curY -= cardH + 12;
+
+      const over = Number(cat.spent) - Number(cat.budget);
       const pctUsed = cat.budget > 0 ? Math.round((cat.spent / cat.budget) * 100) : 0;
 
-      curY -= 70;
-      if (curY < 50) break;
-
-      // Alert card
-      p5.drawRectangle({ x: 50, y: curY, width: W - 100, height: 60, color: lightRed });
-
-      // Left red accent bar
-      p5.drawRectangle({ x: 50, y: curY, width: 5, height: 60, color: red });
-
-      // Name
-      p5.drawText(String(cat.name ?? ''), { x: 70, y: curY + 38, size: 15, font: fontBold, color: textDark });
-
-      // Details
-      txt = `${Number(cat.spent).toFixed(2)} / ${Number(cat.budget).toFixed(2)} EUR (${pctUsed}%)`;
-      p5.drawText(txt, { x: 70, y: curY + 16, size: 11, font, color: gray });
-
-      // Overspend
-      txt = `+${over} EUR`;
-      p5.drawText(txt, {
-        x: W - 50 - 20 - fontBold.widthOfTextAtSize(txt, 18),
-        y: curY + 28, size: 18, font: fontBold, color: red,
+      // Hairline-bordered card (no flat-fill panel — keeps statement aesthetic).
+      p5.drawRectangle({
+        x: aM, y: curY, width: W - 2 * aM, height: cardH,
+        borderColor: line, borderWidth: 0.75, color: paper,
       });
 
-      // Progress bar
-      const barX = 70;
-      const barMaxW = W - 300;
-      const barFillW = Math.min(pctUsed, 150) / 150 * barMaxW;
-      const budgetLineX = barX + (100 / 150) * barMaxW;
+      // Name + over chip
+      p5.drawText(String(cat.name ?? ''), {
+        x: aM + 18, y: curY + cardH - 24, size: 14, font: sansBold, color: ink,
+      });
+      const overTag = `+${over.toFixed(0)} EUR`;
+      p5.drawText(overTag, {
+        x: rx(overTag, 16, monoBold, aM + 18),
+        y: curY + cardH - 26, size: 16, font: monoBold, color: neg,
+      });
 
-      p5.drawRectangle({ x: barX, y: curY + 4, width: barMaxW, height: 6, color: rgb(0.898, 0.906, 0.922) });
-      p5.drawRectangle({ x: barX, y: curY + 4, width: Math.min(barFillW, barMaxW), height: 6, color: red });
-      // Budget limit line
-      p5.drawRectangle({ x: budgetLineX, y: curY + 2, width: 1.5, height: 10, color: textDark });
+      // Sub line (used / budget · pct)
+      const sub = `${Number(cat.spent).toFixed(2)} EUR / ${Number(cat.budget).toFixed(2)} EUR  ·  ${pctUsed}% utilise`;
+      p5.drawText(sub, { x: aM + 18, y: curY + cardH - 44, size: 10, font: mono, color: mute });
+
+      // Pace bar — 0..150% range so we can show overrun + budget tick at 100%.
+      const barX = aM + 18;
+      const barW = W - 2 * aM - 36;
+      const barY = curY + 14;
+      const fillW = Math.min(pctUsed, 150) / 150 * barW;
+      const budgetTickX = barX + (100 / 150) * barW;
+      p5.drawRectangle({ x: barX, y: barY, width: barW, height: 6, color: line2 });
+      p5.drawRectangle({ x: barX, y: barY, width: fillW, height: 6, color: neg });
+      // Black tick at the budget line.
+      p5.drawRectangle({ x: budgetTickX - 0.5, y: barY - 2, width: 1, height: 10, color: ink });
     }
 
-    drawPageNum(p5, pageNum, totalPages);
+    drawPageFoot(p5, pageNum, totalPages);
   }
 
   const pdfBytes = await pdfDoc.save();
@@ -393,7 +405,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: usersWithNotifs, error: usersError } = await supabaseAdmin
       .from('notification_preferences')
-      .select('user_id')
+      .select('user_id, date_type')
       .eq('monthly_reports', true);
 
     if (usersError) throw usersError;
@@ -401,7 +413,11 @@ const handler = async (req: Request): Promise<Response> => {
     const usersWithEmails = await Promise.all(
       (usersWithNotifs || []).map(async (pref: any) => {
         const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pref.user_id);
-        return { user_id: pref.user_id, email: authUser?.user?.email || null };
+        return {
+          user_id: pref.user_id,
+          email: authUser?.user?.email || null,
+          date_type: pref.date_type === 'value' ? 'value' : 'accounting',
+        };
       })
     );
 
@@ -421,27 +437,36 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const userPref of validUsers) {
       try {
+        // Use the user's preferred date column (accounting vs value).
+        const dateColumn = userPref.date_type === 'value' ? 'value_date' : 'transaction_date';
+        // Net spend per transaction: amount minus any refunded portion (clamped to 0).
+        const netExpense = (t: any) =>
+          Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
+
         // Fetch accounts
         const { data: accounts } = await supabaseAdmin
           .from('accounts')
           .select('id, name, balance')
           .eq('user_id', userPref.user_id);
 
-        // Fetch last month transactions with categories
+        // Fetch last month transactions — pull every column we need to filter
+        // out excluded transactions and net out refunds. Filter by the user's
+        // preferred date column (`value_date` falling back to
+        // `transaction_date`, mirroring the in-app `dateOf` helper).
         const { data: transactions } = await supabaseAdmin
           .from('transactions')
-          .select('amount, type, category_id, account_id, description, transaction_date')
+          .select('amount, type, category_id, account_id, description, transaction_date, value_date, include_in_stats, refunded_amount, refund_of_transaction_id, transfer_fee')
           .eq('user_id', userPref.user_id)
-          .gte('transaction_date', monthStart.toISOString().split('T')[0])
-          .lte('transaction_date', monthEnd.toISOString().split('T')[0]);
+          .gte(dateColumn, monthStart.toISOString().split('T')[0])
+          .lte(dateColumn, monthEnd.toISOString().split('T')[0]);
 
         // Fetch previous month transactions for comparison
         const { data: prevTransactions } = await supabaseAdmin
           .from('transactions')
-          .select('amount, type')
+          .select('amount, type, include_in_stats, refunded_amount, refund_of_transaction_id, transfer_fee')
           .eq('user_id', userPref.user_id)
-          .gte('transaction_date', prevMonthStart.toISOString().split('T')[0])
-          .lte('transaction_date', prevMonthEnd.toISOString().split('T')[0]);
+          .gte(dateColumn, prevMonthStart.toISOString().split('T')[0])
+          .lte(dateColumn, prevMonthEnd.toISOString().split('T')[0]);
 
         // Fetch categories
         const { data: categories } = await supabaseAdmin
@@ -449,27 +474,42 @@ const handler = async (req: Request): Promise<Response> => {
           .select('id, name, budget')
           .eq('user_id', userPref.user_id);
 
-        const txList = transactions || [];
-        const prevTxList = prevTransactions || [];
+        // Drop transactions explicitly excluded from stats — same rule the
+        // in-app analyses use so the email and the app agree on totals.
+        const txList = (transactions || []).filter((t: any) => t.include_in_stats !== false);
+        const prevTxList = (prevTransactions || []).filter((t: any) => t.include_in_stats !== false);
         const catList = categories || [];
         const accList = accounts || [];
 
-        // Calculate totals
-        const income = txList.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0);
-        const expenses = txList.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        // Calculate totals — income excludes refund-typed entries (those are
+        // already netted into the original expense), expenses use net amount
+        // after refunds, and transfer fees count as expenses.
+        const income = txList
+          .filter((t: any) => t.type === 'income' && !t.refund_of_transaction_id)
+          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const expenses = txList
+          .filter((t: any) => t.type === 'expense')
+          .reduce((s: number, t: any) => s + netExpense(t), 0);
+        const transferFees = txList
+          .filter((t: any) => t.type === 'transfer')
+          .reduce((s: number, t: any) => s + Number(t.transfer_fee || 0), 0);
         const totalBalance = accList.reduce((s: number, a: any) => s + Number(a.balance), 0);
 
-        const prevIncome = prevTxList.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0);
-        const prevExpenses = prevTxList.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const prevIncome = prevTxList
+          .filter((t: any) => t.type === 'income' && !t.refund_of_transaction_id)
+          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const prevExpenses = prevTxList
+          .filter((t: any) => t.type === 'expense')
+          .reduce((s: number, t: any) => s + netExpense(t), 0);
 
-        // Category breakdown
+        // Category breakdown — net of refunds.
         const catMap = new Map<string, { name: string; spent: number; budget: number | null }>();
         for (const cat of catList) {
           catMap.set(cat.id, { name: cat.name, spent: 0, budget: (cat as any).budget || null });
         }
         for (const tx of txList.filter((t: any) => t.type === 'expense' && t.category_id)) {
           const entry = catMap.get((tx as any).category_id);
-          if (entry) entry.spent += Number(tx.amount);
+          if (entry) entry.spent += netExpense(tx);
         }
 
         const allCategories = Array.from(catMap.values())
@@ -478,20 +518,29 @@ const handler = async (req: Request): Promise<Response> => {
           .sort((a, b) => b.spent - a.spent);
 
         const topCategories = allCategories.slice(0, 8);
+        // Strict over-budget: 100% exactly is on-target, only flag rows that
+        // crossed the line (mirrors the in-app `BudgetAlertsCard` rule).
         const budgetOverspent = allCategories.filter(c => c.budget && c.spent > c.budget);
 
-        // Per-account breakdown
+        // Per-account breakdown — same refund-aware totals.
         const accountSummaries = accList.map((acc: any) => {
           const accTx = txList.filter((t: any) => t.account_id === acc.id);
           return {
             name: acc.name,
             balance: Number(acc.balance),
-            income: accTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0),
-            expense: accTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0),
+            income: accTx
+              .filter((t: any) => t.type === 'income' && !t.refund_of_transaction_id)
+              .reduce((s: number, t: any) => s + Number(t.amount), 0),
+            expense: accTx
+              .filter((t: any) => t.type === 'expense')
+              .reduce((s: number, t: any) => s + netExpense(t), 0),
           };
         });
 
-        const savingsRate = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
+        // Savings rate uses the same net of (expenses + transfer fees) the
+        // in-app stats use — keeps app and email totals in agreement.
+        const savingsRate =
+          income > 0 ? Math.round(((income - expenses - transferFees) / income) * 100) : 0;
 
         const reportData = {
           period: periodLabel,

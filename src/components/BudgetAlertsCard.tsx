@@ -46,12 +46,14 @@ export const BudgetAlertsCard = () => {
         ...c,
         percent: (c.spent / c.budget) * 100,
       }))
-      .filter(c => c.percent >= 80)
+      // Exactly-at-budget (100%) is on-target, not a breach — exclude it so
+      // fixed monthlies like rent don't permanently sit in this card.
+      .filter(c => c.percent >= 80 && c.percent !== 100)
       .sort((a, b) => b.percent - a.percent);
   }, [categoryChartData]);
 
   const exceeded = alerts.filter(a => a.percent > 100);
-  const approaching = alerts.filter(a => a.percent <= 100);
+  const approaching = alerts.filter(a => a.percent < 100);
 
   const handleCategoryClick = (catName: string) => {
     setSelectedCategory(catName);

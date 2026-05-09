@@ -109,10 +109,12 @@ const handler = async (req: Request): Promise<Response> => {
             continue; // Skip this category, alert already sent
           }
 
-          // Get daily transactions for this category this month (for chart + total)
+          // Get daily transactions for this category this month (for chart + total).
+          // Pull `refunded_amount` so we can net it out — a fully-refunded
+          // expense should not count toward the budget.
           const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
-            .select('amount, transaction_date, value_date, description')
+            .select('amount, refunded_amount, transaction_date, value_date, description')
             .eq('user_id', userPref.user_id)
             .eq('category_id', category.id)
             .eq('type', 'expense')
@@ -126,14 +128,18 @@ const handler = async (req: Request): Promise<Response> => {
             continue;
           }
 
-          const totalSpent = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+          // Net amount per transaction = original - refunded (clamped to 0).
+          const netOf = (t: any) => Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
+
+          const totalSpent = transactions?.reduce((sum, t) => sum + netOf(t), 0) || 0;
           const budget = Number(category.budget);
 
-          // Build cumulative daily series for the SVG chart
+          // Build cumulative daily series for the SVG chart — uses net spend
+          // so the breach plot mirrors the same total we alert on.
           const dailyData: { date: string; cumulative: number }[] = [];
           let cumulative = 0;
           for (const t of (transactions || [])) {
-            cumulative += Number(t.amount);
+            cumulative += netOf(t);
             const txDate = dateType === 'value' ? (t.value_date || t.transaction_date) : t.transaction_date;
             const existing = dailyData.find(d => d.date === txDate);
             if (existing) {
@@ -168,12 +174,23 @@ const handler = async (req: Request): Promise<Response> => {
                     budget: budget.toFixed(2),
                     spent: totalSpent.toFixed(2),
                     overspent: overspent.toFixed(2),
+                    // Pace context for the new "day X of Y" treatment.
+                    dayOfMonth: now.getDate(),
+                    daysInMonth: monthEnd.getDate(),
+                    monthLabel: now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+                    transactionCount: (transactions || []).length,
                     dailyData,
-                    recentTransactions: (transactions || []).slice(-10).map(t => ({
-                      date: t.transaction_date,
-                      description: t.description,
-                      amount: Number(t.amount).toFixed(2)
-                    }))
+                    // Top drivers — sort by *net* amount descending, take 5.
+                    // Surface the *net* amount (after any partial refund) so the
+                    // numbers in the email match the budget total above.
+                    recentTransactions: [...(transactions || [])]
+                      .sort((a, b) => netOf(b) - netOf(a))
+                      .slice(0, 5)
+                      .map(t => ({
+                        date: dateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
+                        description: t.description,
+                        amount: netOf(t).toFixed(2)
+                      }))
                   }
                 })
               }
