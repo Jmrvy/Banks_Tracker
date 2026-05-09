@@ -1259,7 +1259,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   // preview + page-count estimate on the right (collapses to a stack on mobile).
   const content = (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 lg:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-5 md:gap-6">
         {/* ── Left: configuration ─────────────────────── */}
         <div className="space-y-5 min-w-0">
           {/* Period */}
@@ -1477,7 +1477,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         </div>
 
         {/* ── Right: live preview ─────────────────────── */}
-        <div className="hidden lg:flex flex-col gap-2 sticky top-0 self-start">
+        <div className="hidden md:flex flex-col gap-2 sticky top-0 self-start">
           <div className="text-[11px] text-fg-dim leading-relaxed">
             <b className="text-foreground font-medium">
               {t('reports.livePreview', { defaultValue: 'Live preview' })}

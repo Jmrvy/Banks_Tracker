@@ -1,10 +1,13 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, ArrowDown, Lock, Info } from "lucide-react";
+import { ArrowUp, ArrowDown, Lock, Info, CalendarClock } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useDebts } from "@/hooks/useDebts";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { projectMonthEndDelta } from "@/lib/projectMonthEndBalance";
 
 /**
  * Fintech-style net worth hero card.
@@ -14,7 +17,9 @@ import { parseLocalDate } from "@/lib/dateUtils";
  */
 export function HeroNetWorth() {
   const { t } = useTranslation();
-  const { accounts, transactions } = useFinancialData();
+  const { accounts, transactions, recurringTransactions } = useFinancialData();
+  const { installmentPayments } = useInstallmentPayments();
+  const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -31,6 +36,22 @@ export function HeroNetWorth() {
     () => accounts.reduce((sum, a) => sum + a.balance, 0),
     [accounts]
   );
+
+  // Projected end-of-month: current balance plus the signed sum of all
+  // remaining recurring occurrences in the current calendar month. Uses the
+  // same effective-amount rules the rest of the app applies.
+  const projectedEom = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const delta = projectMonthEndDelta(
+      recurringTransactions,
+      installmentPayments,
+      debts,
+      scheduledDebtPayments,
+      today
+    );
+    return { value: total + delta, delta };
+  }, [total, recurringTransactions, installmentPayments, debts, scheduledDebtPayments]);
 
   // Derive 90-day balance series by replaying transactions backward from today.
   const series = useMemo(() => {
@@ -126,6 +147,31 @@ export function HeroNetWorth() {
               </span>
               <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
             </div>
+            {/* Projected end-of-month — only meaningful when there are
+                outstanding recurring occurrences in the current month. */}
+            {Math.abs(projectedEom.delta) > 0.005 && (
+              <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px]">
+                <span className="inline-flex items-center gap-1.5 text-fg-dim uppercase tracking-[0.06em] font-mono text-[11px]">
+                  <CalendarClock className="h-3 w-3" />
+                  {t("dashboard.projectedEom", { defaultValue: "Projected end of month" })}
+                </span>
+                <span
+                  className={`font-mono font-semibold tabular-nums ${
+                    isPrivacyMode ? "blur-md select-none" : ""
+                  } ${projectedEom.value < 0 ? "text-destructive" : ""}`}
+                >
+                  {formatCurrency(projectedEom.value)}
+                </span>
+                <span
+                  className={`font-mono tabular-nums text-[11.5px] inline-flex items-center gap-1 ${
+                    projectedEom.delta >= 0 ? "text-pos" : "text-destructive"
+                  }`}
+                >
+                  {projectedEom.delta >= 0 ? "+" : "−"}
+                  {formatCurrency(Math.abs(projectedEom.delta))}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-3 border-t border-line text-xs text-muted-foreground">
             <Info className="h-3 w-3 flex-shrink-0" />

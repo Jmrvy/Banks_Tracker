@@ -140,13 +140,17 @@ const Reports = () => {
             </div>
           </div>
           <Button
-            variant="outline"
             size="sm"
             onClick={() => setShowExportModal(true)}
-            className="h-8 px-3 gap-1.5"
+            className="h-9 px-3.5 gap-1.5 text-xs"
           >
             <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('common.export', { defaultValue: 'Export PDF' })}</span>
+            <span className="hidden sm:inline">
+              {t('reports.generateReport', { defaultValue: 'Generate report' })}
+            </span>
+            <span className="sm:hidden">
+              {t('reports.generate', { defaultValue: 'Generate' })}
+            </span>
           </Button>
         </div>
 

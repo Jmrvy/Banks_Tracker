@@ -14,6 +14,7 @@ import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMo
 import { fr, enUS } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
+import { projectMonthEndDelta } from "@/lib/projectMonthEndBalance";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 
 interface ScheduledDebtPayment {
@@ -53,6 +54,26 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   }, [accounts]);
 
   const isPositive = totalBalance >= 0;
+
+  // Projected balance at end of month: current balance + signed sum of all
+  // remaining recurring occurrences in the current month.
+  const projectedEom = useMemo(() => {
+    const today = startOfToday();
+    const delta = projectMonthEndDelta(
+      recurringTransactions,
+      installmentPayments,
+      debts,
+      scheduledDebtPayments,
+      today
+    );
+    return { value: totalBalance + delta, delta };
+  }, [
+    totalBalance,
+    recurringTransactions,
+    installmentPayments,
+    debts,
+    scheduledDebtPayments,
+  ]);
 
   // Monthly income and expenses
   const monthlyStats = useMemo(() => {
@@ -157,6 +178,30 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               amount={formatCurrency(totalBalance)}
               className={`ft-hero-value mt-3 break-words ${isPositive ? "" : "text-destructive"}`}
             />
+            {/* Projected end-of-month balance — shown only when there are
+                future recurring occurrences in the current month, otherwise
+                the projection equals the current balance and is noise. */}
+            {Math.abs(projectedEom.delta) > 0.005 && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap text-xs sm:text-[13px]">
+                <span className="text-fg-dim uppercase tracking-[0.06em] font-mono">
+                  {t('quickPreview.projectedEom', { defaultValue: 'Projected end of month' })}
+                </span>
+                <BlurredAmount
+                  amount={formatCurrency(projectedEom.value)}
+                  className={`font-mono font-semibold tabular-nums ${
+                    projectedEom.value >= 0 ? '' : 'text-destructive'
+                  }`}
+                />
+                <span
+                  className={`font-mono tabular-nums text-[11.5px] inline-flex items-center gap-1 ${
+                    projectedEom.delta >= 0 ? 'text-pos' : 'text-destructive'
+                  }`}
+                >
+                  {projectedEom.delta >= 0 ? '+' : '−'}
+                  {formatCurrency(Math.abs(projectedEom.delta))}
+                </span>
+              </div>
+            )}
           </div>
           <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl grid place-items-center flex-shrink-0 mb-6 ${isPositive ? "bg-pos/12 text-pos" : "bg-neg/12 text-destructive"}`}>
             {isPositive ? <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" /> : <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />}
