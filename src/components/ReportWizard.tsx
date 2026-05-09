@@ -440,7 +440,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         body: summaryData.map(([label, value]) => [label, value]),
         theme: 'plain',
         headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-        styles: { fontSize: 11, cellPadding: 5, lineColor: lineCol, lineWidth: 0.2 },
+        styles: { fontSize: 11, cellPadding: 5, lineColor: lineCol, lineWidth: 0 },
         columnStyles: {
           0: { cellWidth: 90 },
           1: { halign: 'right', cellWidth: 80, font: 'courier', fontStyle: 'bold' },
@@ -448,7 +448,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         margin: { left: margin, right: margin },
         didParseCell: (data: any) => {
           if (data.section === 'body') {
-            // Hairline bottom border per row
+            // Hairline bottom border per row (object form only set per-cell —
+            // autoTable v5 ignores the object form at top-level styles).
             data.cell.styles.lineColor = lineCol;
             data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
             if (data.column.index === 1) {
@@ -486,8 +487,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         foot: [['', '', 'TOTAL', formatAmount(totalBalance)]],
         theme: 'plain',
         headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier', lineWidth: { top: 0.4, bottom: 0, left: 0, right: 0 }, lineColor: ink },
-        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
+        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier' },
+        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: 0 },
         columnStyles: {
           0: { cellWidth: 55 },
           1: { cellWidth: 45 },
@@ -495,6 +496,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           3: { halign: 'right', cellWidth: 45, font: 'courier', fontStyle: 'bold' }
         },
         margin: { left: margin, right: margin },
+        didParseCell: (data: any) => {
+          if (data.section === 'body') {
+            data.cell.styles.lineColor = lineCol;
+            data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
+          }
+          if (data.section === 'foot') {
+            data.cell.styles.lineColor = ink;
+            data.cell.styles.lineWidth = { top: 0.4, bottom: 0, left: 0, right: 0 };
+          }
+        },
       });
       yPos = (pdf as any).lastAutoTable.finalY + 15;
     }
@@ -542,13 +553,19 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           body: catData,
           theme: 'plain',
           headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-          styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
+          styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: 0 },
           columnStyles: {
             0: { cellWidth: 80 },
             1: { halign: 'right', cellWidth: 50, font: 'courier', fontStyle: 'bold' },
             2: { halign: 'center', cellWidth: 30, font: 'courier', textColor: mute }
           },
           margin: { left: margin, right: margin },
+          didParseCell: (data: any) => {
+            if (data.section === 'body') {
+              data.cell.styles.lineColor = lineCol;
+              data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
+            }
+          },
         });
         yPos = (pdf as any).lastAutoTable.finalY + 15;
       }
@@ -600,8 +617,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         foot: [['TOTAL', formatAmount(stats.income), '100%', '']],
         theme: 'plain',
         headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier', lineWidth: { top: 0.4, bottom: 0, left: 0, right: 0 }, lineColor: ink },
-        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
+        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier' },
+        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: 0 },
         columnStyles: {
           0: { cellWidth: 70 },
           1: { halign: 'right', cellWidth: 50, font: 'courier', fontStyle: 'bold', textColor: posCol },
@@ -609,6 +626,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           3: { halign: 'center', cellWidth: 20, font: 'courier', textColor: mute }
         },
         margin: { left: margin, right: margin },
+        didParseCell: (data: any) => {
+          if (data.section === 'body') {
+            data.cell.styles.lineColor = lineCol;
+            data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
+          }
+          if (data.section === 'foot') {
+            data.cell.styles.lineColor = ink;
+            data.cell.styles.lineWidth = { top: 0.4, bottom: 0, left: 0, right: 0 };
+          }
+        },
       });
       yPos = (pdf as any).lastAutoTable.finalY + 15;
     }
@@ -651,7 +678,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           body: budgetData,
           theme: 'plain',
           headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-          styles: { fontSize: 9, cellPadding: 3, textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.2, left: 0, right: 0 } },
+          styles: { fontSize: 9, cellPadding: 3, textColor: ink, lineColor: lineCol, lineWidth: 0 },
           columnStyles: {
             0: { cellWidth: 40 },
             1: { halign: 'right', cellWidth: 28, font: 'courier' },
@@ -662,6 +689,10 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           },
           margin: { left: margin, right: margin },
           didParseCell: (data: any) => {
+            if (data.section === 'body') {
+              data.cell.styles.lineColor = lineCol;
+              data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
+            }
             if (data.section === 'body' && data.column.index === 5) {
               const status = data.cell.raw;
               if (status === 'Depasse') data.cell.styles.textColor = negCol;
@@ -718,7 +749,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         body: txData,
         theme: 'plain',
         headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize', textColor: ink, lineColor: lineCol, lineWidth: { top: 0, bottom: 0.15, left: 0, right: 0 } },
+        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize', textColor: ink, lineColor: lineCol, lineWidth: 0 },
         columnStyles: {
           0: { cellWidth: 18, font: 'courier', textColor: mute },
           1: { cellWidth: 26 },
@@ -730,6 +761,10 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         margin: { left: margin, right: margin },
         showHead: 'everyPage',
         didParseCell: (data: any) => {
+          if (data.section === 'body') {
+            data.cell.styles.lineColor = lineCol;
+            data.cell.styles.lineWidth = { top: 0, bottom: 0.15, left: 0, right: 0 };
+          }
           if (data.section === 'body' && data.column.index === 4) {
             const value = String(data.cell.raw);
             if (value.startsWith('+')) data.cell.styles.textColor = posCol;
