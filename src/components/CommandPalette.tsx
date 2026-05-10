@@ -33,6 +33,7 @@ import {
   ArrowRightLeft,
   Sparkles,
   Lightbulb,
+  Clock,
   X,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -110,6 +111,47 @@ export const CommandPalette = () => {
   // Live input value — drives both cmdk filtering and the structured
   // parser that powers the "Search result" pinned row.
   const [input, setInput] = useState('');
+
+  // Recent searches (mobile design rec.): persist the last few
+  // successful queries so empty-state shows what the user actually
+  // searched for, not just generic suggestions. Stored verbatim in the
+  // language the user typed — we never translate user input.
+  const RECENTS_KEY = 'paletteRecents';
+  const RECENTS_MAX = 5;
+  const [recents, setRecents] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(RECENTS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string').slice(0, RECENTS_MAX) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const pushRecent = useCallback((q: string) => {
+    const trimmed = q.trim();
+    if (trimmed.length < 3) return;
+    setRecents((prev) => {
+      const dedup = [trimmed, ...prev.filter((r) => r.toLowerCase() !== trimmed.toLowerCase())].slice(0, RECENTS_MAX);
+      try {
+        localStorage.setItem(RECENTS_KEY, JSON.stringify(dedup));
+      } catch {
+        // localStorage unavailable / quota — ignore, recents are best-effort.
+      }
+      return dedup;
+    });
+  }, []);
+
+  const removeRecent = useCallback((q: string) => {
+    setRecents((prev) => {
+      const next = prev.filter((r) => r !== q);
+      try {
+        localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+      } catch { /* noop */ }
+      return next;
+    });
+  }, []);
 
   // When the user clicks the × on the period chip we override the
   // parser's resolved range with "all time". Reset whenever the input
@@ -264,6 +306,8 @@ export const CommandPalette = () => {
     setResultAccountNames(matchedAccountNames);
     setResultIncludeExcluded(false);
     setResultOpen(true);
+    // Capture the typed query so it surfaces in next-session recents.
+    pushRecent(input);
     closePalette();
   }, [
     effectiveQuery,
@@ -272,6 +316,8 @@ export const CommandPalette = () => {
     matchedCategoryNames,
     matchedAccountNames,
     closePalette,
+    pushRecent,
+    input,
   ]);
 
   const handleOpenInTransactions = useCallback(() => {
@@ -330,9 +376,36 @@ export const CommandPalette = () => {
           </div>
         </CommandEmpty>
 
-        {/* Empty-state suggestions: only show when the user hasn't
-            typed anything yet. Doubles as inline documentation for
-            the parser's grammar. */}
+        {/* Empty-state: recents (user's own past queries) + suggestions
+            (parser grammar examples). Both surfaces are hidden as soon
+            as the user starts typing. */}
+        {!input && recents.length > 0 && (
+          <CommandGroup heading={t('palette.recents', { defaultValue: 'Recent' })}>
+            {recents.map((q) => (
+              <CommandItem
+                key={`recent-${q}`}
+                value={`__recent__ ${q}`}
+                onSelect={() => setInput(q)}
+              >
+                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-mono text-foreground truncate">{q}</span>
+                <button
+                  type="button"
+                  aria-label={t('palette.removeRecent', { defaultValue: 'Remove from recents' })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    removeRecent(q);
+                  }}
+                  className="ml-auto p-1 rounded hover:bg-bg-hover text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         {!input && (
           <CommandGroup heading={t('palette.tryGroup', { defaultValue: 'Try a query' })}>
             {suggestions.map((s) => (

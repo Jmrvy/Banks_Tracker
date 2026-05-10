@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { Plus, Menu } from "lucide-react";
+import { Plus, Menu, Search } from "lucide-react";
 import { mainNavigation, accountsGroup, toolsGroup, settingsItem, mobileBottomNav } from "@/config/navigation";
+import { useCommandPalette } from "@/contexts/CommandPaletteContext";
 
 export const MobileNavigation = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { togglePalette } = useCommandPalette();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -63,6 +65,21 @@ export const MobileNavigation = () => {
             <span className={`text-xs leading-tight font-medium ${location.pathname === "/new-transaction" ? 'font-semibold' : ''}`}>
               {t('common.add')}
             </span>
+          </Button>
+
+          {/* Search button — opens the command palette as a full-screen
+              sheet on mobile. Per the mobile design review, search is
+              the 5th tab so it's reachable without leaving the bottom
+              nav or relying on a hidden ⌘K shortcut. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={togglePalette}
+            aria-label={t('common.search', { defaultValue: 'Search' })}
+            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-bg-hover"
+          >
+            <Search className="h-5 w-5" />
+            <span className="text-xs leading-tight font-medium">{t('common.search', { defaultValue: 'Search' })}</span>
           </Button>
 
           {/* Menu button */}

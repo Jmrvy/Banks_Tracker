@@ -1,10 +1,12 @@
 import * as React from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { type DialogProps } from "@radix-ui/react-dialog";
 import { Command as CommandPrimitive } from "cmdk";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -23,13 +25,69 @@ Command.displayName = CommandPrimitive.displayName;
 
 interface CommandDialogProps extends DialogProps {}
 
+/**
+ * Responsive shell:
+ *  – desktop: centered modal (Radix `DialogContent` default).
+ *  – mobile: full-screen sheet sliding from the top, leaving the
+ *    status-bar / dynamic-island area visible. Larger touch targets
+ *    on items.
+ *
+ * Per the mobile review design — a centered modal on a phone is
+ * cramped; the keyboard takes ~40% of the viewport and the result
+ * list collapses to two rows.
+ */
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
+  const isMobile = useIsMobile();
+
+  // Shared cmdk class bundle. On mobile we bump item padding to give a
+  // 56pt-ish touch target — well above the WCAG 44pt threshold.
+  const commandClasses = cn(
+    "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
+    "[&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2",
+    "[&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5",
+    "[&_[cmdk-input]]:h-12",
+    "[&_[cmdk-item]]:px-2",
+    isMobile ? "[&_[cmdk-item]]:py-4" : "[&_[cmdk-item]]:py-3",
+    "[&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+  );
+
+  if (isMobile) {
+    // Render Radix Dialog directly so we can fully control the
+    // content surface — DialogContent imposes a centered, max-width
+    // box that's wrong for a full-screen mobile sheet.
+    return (
+      <DialogPrimitive.Root {...props}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content
+            className={cn(
+              "fixed z-50 inset-x-0 top-0 bottom-0 bg-background text-foreground flex flex-col overflow-hidden",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out",
+              "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+              "data-[state=closed]:duration-200 data-[state=open]:duration-300"
+            )}
+          >
+            <DialogPrimitive.Title className="sr-only">Search</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Search transactions, accounts and pages
+            </DialogPrimitive.Description>
+            <Command className={commandClasses}>{children}</Command>
+            {/* Floating close affordance — the input gets a built-in
+                clear, but a phone user expects a clear exit too. */}
+            <DialogPrimitive.Close className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-bg-hover transition-colors">
+              <X className="h-5 w-5" />
+              <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+    );
+  }
+
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0 shadow-lg">
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
-          {children}
-        </Command>
+        <Command className={commandClasses}>{children}</Command>
       </DialogContent>
     </Dialog>
   );

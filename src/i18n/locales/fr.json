@@ -709,6 +709,8 @@
     "suggestionHint": "Insérer",
     "couldNotMatch": "Impossible d'interpréter",
     "removePeriod": "Retirer le filtre de période",
+    "recents": "Récents",
+    "removeRecent": "Retirer des récents",
     "newSavingsGoal": "Nouvel objectif d'épargne",
     "newDebt": "Nouvelle dette ou prêt",
     "kbdNavigate": "naviguer",

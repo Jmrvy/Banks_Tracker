@@ -709,6 +709,8 @@
     "suggestionHint": "Insert",
     "couldNotMatch": "Couldn't match",
     "removePeriod": "Remove period filter",
+    "recents": "Recent",
+    "removeRecent": "Remove from recents",
     "newSavingsGoal": "New savings goal",
     "newDebt": "New debt or loan",
     "kbdNavigate": "navigate",
