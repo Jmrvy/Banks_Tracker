@@ -209,11 +209,13 @@ const Reports = () => {
                 />
                 <Label htmlFor="upcoming-income" className="text-xs sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
                   <Clock className="h-3 w-3" />
-                  À venir
+                  {t('reports.upcoming', { defaultValue: 'Upcoming' })}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Date :</span>
+                <span className="text-xs text-muted-foreground">
+                  {t('reports.dateLabel', { defaultValue: 'Date' })}{':'}
+                </span>
                 <ToggleGroup 
                   type="single" 
                   value={incomeExpenseDateType} 
@@ -222,11 +224,11 @@ const Reports = () => {
                 >
                   <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
                     <Calendar className="h-3 w-3" />
-                    Comptable
+                    {t('settings.accountingDate', { defaultValue: 'Accounting' })}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
                     <CalendarCheck className="h-3 w-3" />
-                    Valeur
+                    {t('settings.valueDate', { defaultValue: 'Value' })}
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
@@ -252,11 +254,13 @@ const Reports = () => {
                 />
                 <Label htmlFor="upcoming-expenses" className="text-xs sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
                   <Clock className="h-3 w-3" />
-                  À venir
+                  {t('reports.upcoming', { defaultValue: 'Upcoming' })}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Date :</span>
+                <span className="text-xs text-muted-foreground">
+                  {t('reports.dateLabel', { defaultValue: 'Date' })}{':'}
+                </span>
                 <ToggleGroup
                   type="single"
                   value={incomeExpenseDateType}
@@ -265,11 +269,11 @@ const Reports = () => {
                 >
                   <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
                     <Calendar className="h-3 w-3" />
-                    Comptable
+                    {t('settings.accountingDate', { defaultValue: 'Accounting' })}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
                     <CalendarCheck className="h-3 w-3" />
-                    Valeur
+                    {t('settings.valueDate', { defaultValue: 'Value' })}
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>

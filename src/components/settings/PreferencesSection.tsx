@@ -18,6 +18,7 @@ interface UserPreferences {
   dateType: 'accounting' | 'value';
   enableNotifications: boolean;
   accountAliases: Record<string, string>;
+  quickPreviewOnLogin: boolean;
 }
 
 interface PreferencesSectionProps {
@@ -118,6 +119,25 @@ export const PreferencesSection = ({ accounts, preferences, updatePreferences }:
           <Switch
             checked={preferences.enableNotifications}
             onCheckedChange={(checked) => updatePreferences({ enableNotifications: checked })}
+          />
+        </div>
+
+        <div className="border-t border-line" />
+
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm">
+              {t('settings.quickPreviewOnLogin', { defaultValue: 'Show Quick Preview on login' })}
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t('settings.quickPreviewOnLoginDesc', {
+                defaultValue: "Greet you with the splash overview each session — disabled by default so the dashboard opens directly.",
+              })}
+            </p>
+          </div>
+          <Switch
+            checked={preferences.quickPreviewOnLogin}
+            onCheckedChange={(checked) => updatePreferences({ quickPreviewOnLogin: checked })}
           />
         </div>
 

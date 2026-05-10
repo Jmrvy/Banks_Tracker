@@ -30,7 +30,13 @@ import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, startOfDay } from "date-fns";
 
 
-const InstallmentPayments = () => {
+interface InstallmentPaymentsProps {
+  /** Strip the outer page chrome when rendered inside the unified
+   *  `/scheduled` page (which provides its own header). */
+  embedded?: boolean;
+}
+
+const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}) => {
   const { t } = useTranslation();
   const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions, detectOrphanedTransactions, deleteOrphanedTransactions } = useInstallmentPayments();
   const { accounts, categories, transactions, refetch } = useFinancialData();
@@ -474,27 +480,35 @@ const InstallmentPayments = () => {
     );
   }
 
+  const newButton = (
+    <Button
+      onClick={() => setShowNewModal(true)}
+      size="sm"
+      className="h-8 px-3 gap-1.5 font-semibold"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">{t('installments.newPlan', { defaultValue: 'New plan' })}</span>
+    </Button>
+  );
+
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <div className="ft-page">
-        {/* Page head */}
-        <div className="ft-page-head">
-          <div>
-            <div className="ft-eyebrow">{t('navigation.tools')}</div>
-            <h1 className="ft-page-title">{t('navigation.installmentPayments')}</h1>
-            <div className="ft-page-sub">
-              {t('installments.subtitle', { defaultValue: 'Track your installment plans funded by savings' })}
+    <div className={embedded ? "" : "min-h-screen bg-background pb-20 md:pb-12"}>
+      <div className={embedded ? "" : "ft-page"}>
+        {!embedded && (
+          /* Page head — only when running standalone. */
+          <div className="ft-page-head">
+            <div>
+              <div className="ft-eyebrow">{t('navigation.tools')}</div>
+              <h1 className="ft-page-title">{t('navigation.installmentPayments')}</h1>
+              <div className="ft-page-sub">
+                {t('installments.subtitle', { defaultValue: 'Track your installment plans funded by savings' })}
+              </div>
             </div>
+            {newButton}
           </div>
-          <Button
-            onClick={() => setShowNewModal(true)}
-            size="sm"
-            className="h-8 px-3 gap-1.5 font-semibold"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('installments.newPlan', { defaultValue: 'New plan' })}</span>
-          </Button>
-        </div>
+        )}
+
+        {embedded && <div className="flex justify-end mb-3">{newButton}</div>}
 
         {/* KPIs */}
         <div className="grid grid-cols-3 gap-3 md:gap-4">

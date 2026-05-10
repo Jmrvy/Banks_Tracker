@@ -20,7 +20,14 @@ import { startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
 import RecurringListCard from "@/components/RecurringListCard";
 
-const RecurringTransactions = () => {
+interface RecurringTransactionsProps {
+  /** When true, render only the body + modals, leaving the outer page chrome
+   *  (`min-h-screen`, `ft-page`, `ft-page-head`) to the caller. Used by the
+   *  unified `/scheduled` page so we don't duplicate the header. */
+  embedded?: boolean;
+}
+
+const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps = {}) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [showNewRecurring, setShowNewRecurring] = useState(false);
@@ -230,28 +237,43 @@ const RecurringTransactions = () => {
     };
   }, [installmentPayments, transactions, debts, debtPayments, scheduledDebtPayments]);
 
-  return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <div className="ft-page">
+  // The "Add recurring" CTA is shown either inside the page-head (standalone
+  // mode) or as a thin right-aligned bar above the tabs (embedded inside the
+  // unified `/scheduled` page).
+  const newButton = (
+    <Button
+      onClick={() => setShowNewRecurring(true)}
+      size="sm"
+      className="h-8 px-3 gap-1.5 font-semibold"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">{t('recurring.newRecurring', { defaultValue: 'Add recurring' })}</span>
+    </Button>
+  );
 
-        {/* Page head */}
-        <div className="ft-page-head">
-          <div>
-            <div className="ft-eyebrow">{t('navigation.tools')}</div>
-            <h1 className="ft-page-title">{t('navigation.recurringTransactions')}</h1>
-            <div className="ft-page-sub">
-              {t('recurring.subtitle', { defaultValue: 'Manage your automatic transactions' })}
+  return (
+    <div className={embedded ? "" : "min-h-screen bg-background pb-20 md:pb-12"}>
+      <div className={embedded ? "" : "ft-page"}>
+
+        {!embedded && (
+          /* Page head — only when running as a standalone route. */
+          <div className="ft-page-head">
+            <div>
+              <div className="ft-eyebrow">{t('navigation.tools')}</div>
+              <h1 className="ft-page-title">{t('navigation.recurringTransactions')}</h1>
+              <div className="ft-page-sub">
+                {t('recurring.subtitle', { defaultValue: 'Manage your automatic transactions' })}
+              </div>
             </div>
+            {newButton}
           </div>
-          <Button
-            onClick={() => setShowNewRecurring(true)}
-            size="sm"
-            className="h-8 px-3 gap-1.5 font-semibold"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('recurring.newRecurring', { defaultValue: 'Add recurring' })}</span>
-          </Button>
-        </div>
+        )}
+
+        {embedded && (
+          /* Embedded: surface the primary CTA above the tabs so the user can
+              still create a new recurring without the page head. */
+          <div className="flex justify-end mb-3">{newButton}</div>
+        )}
 
         {/* Tabs: Calendar / List */}
         <Tabs defaultValue="calendar" className="w-full">

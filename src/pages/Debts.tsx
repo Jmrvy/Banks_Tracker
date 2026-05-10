@@ -29,7 +29,13 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useTranslation } from 'react-i18next';
 
 
-const Debts = () => {
+interface DebtsProps {
+  /** Strip the outer page chrome when rendered inside the unified
+   *  `/scheduled` page (which provides its own header). */
+  embedded?: boolean;
+}
+
+const Debts = ({ embedded = false }: DebtsProps = {}) => {
   const { debts, payments, loading, deleteDebt, getDebtDeletionImpact, getNextScheduledAmount, getNextScheduledPayment } = useDebts();
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
@@ -111,29 +117,37 @@ const Debts = () => {
     return <LoadingSpinner text={t('common.loading')} />;
   }
 
+  const newButton = (
+    <Button
+      onClick={() => setNewDebtModalOpen(true)}
+      size="sm"
+      className="h-8 px-3 gap-1.5 font-semibold"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">{t('debts.newDebt', { defaultValue: 'New debt' })}</span>
+    </Button>
+  );
+
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <div className="ft-page">
-        {/* Page head */}
-        <div className="ft-page-head">
-          <div>
-            <div className="ft-eyebrow">{t('navigation.debts')}</div>
-            <h1 className="ft-page-title">{t('debts.pageTitle', { defaultValue: 'Loans & liabilities' })}</h1>
-            <div className="ft-page-sub">
-              {activeDebts.length} {t('debts.active', { defaultValue: 'active' })}
-              {' · '}
-              <span className="font-mono">{formatCurrency(totalRemaining)}</span> {t('debts.remaining', { defaultValue: 'remaining' })}
+    <div className={embedded ? "" : "min-h-screen bg-background pb-20 md:pb-12"}>
+      <div className={embedded ? "" : "ft-page"}>
+        {!embedded && (
+          /* Page head — only when running standalone. */
+          <div className="ft-page-head">
+            <div>
+              <div className="ft-eyebrow">{t('navigation.debts')}</div>
+              <h1 className="ft-page-title">{t('debts.pageTitle', { defaultValue: 'Loans & liabilities' })}</h1>
+              <div className="ft-page-sub">
+                {activeDebts.length} {t('debts.active', { defaultValue: 'active' })}
+                {' · '}
+                <span className="font-mono">{formatCurrency(totalRemaining)}</span> {t('debts.remaining', { defaultValue: 'remaining' })}
+              </div>
             </div>
+            {newButton}
           </div>
-          <Button
-            onClick={() => setNewDebtModalOpen(true)}
-            size="sm"
-            className="h-8 px-3 gap-1.5 font-semibold"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('debts.newDebt', { defaultValue: 'New debt' })}</span>
-          </Button>
-        </div>
+        )}
+
+        {embedded && <div className="flex justify-end mb-3">{newButton}</div>}
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">

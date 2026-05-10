@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DetailSheet,
+  DetailSheetHeader,
+  DetailSheetTitle,
+  DetailSheetBody,
+  DetailSheetFooter,
+} from "@/components/ui/detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -126,16 +132,15 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg">
-            {getTypeIcon()}
-            Détails de la transaction
-          </DialogTitle>
-        </DialogHeader>
+    <DetailSheet open={open} onOpenChange={onOpenChange}>
+      <DetailSheetHeader>
+        <DetailSheetTitle>
+          {getTypeIcon()}
+          {t('transactions.detailsTitle', { defaultValue: 'Transaction details' })}
+        </DetailSheetTitle>
+      </DetailSheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
+      <DetailSheetBody>
           {/* Description and amount */}
           <div className="text-center py-4 bg-bg-subtle  border border-line rounded-2xl">
             <p className="text-lg font-semibold mb-2">{transaction.description}</p>
@@ -331,50 +336,45 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               </div>
             </div>
           </div>
+      </DetailSheetBody>
 
-          {/* Action buttons */}
-          {(onEdit || onDelete || onRefund) && (
-            <>
-              <Separator />
-              <div className="flex flex-wrap gap-2 pt-1">
-                {onEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => { onEdit(transaction); onOpenChange(false); }}
-                  >
-                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
-                    Modifier
-                  </Button>
-                )}
-                {onRefund && transaction.type === 'expense' && remainingToRefund > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-green-600 border-green-500/30 hover:bg-green-500/10"
-                    onClick={() => { onRefund(transaction); onOpenChange(false); }}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-                    Rembourser
-                  </Button>
-                )}
-                {onDelete && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                    onClick={() => { onDelete(transaction); onOpenChange(false); }}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                    Supprimer
-                  </Button>
-                )}
-              </div>
-            </>
+      {(onEdit || onDelete || onRefund) && (
+        <DetailSheetFooter>
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => { onEdit(transaction); onOpenChange(false); }}
+            >
+              <Pencil className="w-3.5 h-3.5 mr-1.5" />
+              Modifier
+            </Button>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
+          {onRefund && transaction.type === 'expense' && remainingToRefund > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-green-600 border-green-500/30 hover:bg-green-500/10"
+              onClick={() => { onRefund(transaction); onOpenChange(false); }}
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              Rembourser
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+              onClick={() => { onDelete(transaction); onOpenChange(false); }}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              Supprimer
+            </Button>
+          )}
+        </DetailSheetFooter>
+      )}
+    </DetailSheet>
   );
 }

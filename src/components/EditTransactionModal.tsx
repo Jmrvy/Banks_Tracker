@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FormScaffold } from '@/components/ui/form-scaffold';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -178,13 +178,18 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">{t('transactions.editTransaction', { defaultValue: 'Edit transaction' })}</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+    <FormScaffold
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('transactions.editTransaction', { defaultValue: 'Edit transaction' })}
+      cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+      submit={{
+        formId: 'edit-transaction-form',
+        label: t('common.update', { defaultValue: 'Update' }),
+        pendingLabel: t('common.updating', { defaultValue: 'Updating...' }),
+        pending: loading,
+      }}
+    >
         <form id="edit-transaction-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="description">
@@ -351,23 +356,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           </div>
 
         </form>
-        </div>
 
-          <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="h-9 text-xs sm:text-sm"
-            >
-              Annuler
-            </Button>
-            <Button type="submit" form="edit-transaction-form" disabled={loading} className="h-9 text-xs sm:text-sm">
-              {loading ? 'Modification...' : 'Modifier'}
-            </Button>
-          </div>
-      </DialogContent>
-      
       {/* Adjustment Modal for Installment Payments */}
       {adjustmentData && (
         <AdjustInstallmentPlanModal
@@ -378,6 +367,6 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           newRemainingAmount={adjustmentData.newRemainingAmount}
         />
       )}
-    </Dialog>
+    </FormScaffold>
   );
 }

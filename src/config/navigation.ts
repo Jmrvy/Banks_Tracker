@@ -2,11 +2,9 @@ import {
   Home,
   BarChart3,
   Wallet,
-  CreditCard,
-  Receipt,
+  CalendarClock,
   Settings,
   History,
-  Scale,
   PiggyBank,
   Target,
   LucideIcon,
@@ -29,7 +27,9 @@ export const mainNavigation: NavigationItem[] = [
   { nameKey: "navigation.home", path: "/", icon: Home },
 ];
 
-// Comptes group - Account-related pages (includes Debts as requested)
+// Comptes group — Account-related pages.
+// Debts moved to the unified `/scheduled` page (loans tab) per the audit's
+// IA simplification: subscriptions / plans / loans share one mental model.
 export const accountsGroup: NavigationGroup = {
   labelKey: "navigation.accounts",
   icon: Wallet,
@@ -37,19 +37,19 @@ export const accountsGroup: NavigationGroup = {
     { nameKey: "navigation.accounts", path: "/accounts", icon: Wallet },
     { nameKey: "navigation.transactions", path: "/transactions", icon: History },
     { nameKey: "navigation.savings", path: "/savings", icon: PiggyBank },
-    { nameKey: "navigation.debts", path: "/debts", icon: Scale },
   ],
 };
 
-// Outils group - Tools and utilities
+// Outils group — Tools and utilities.
+// `Scheduled` consolidates the previous Recurring + Installments + Debts
+// entries into one item with sub-tabs.
 export const toolsGroup: NavigationGroup = {
   labelKey: "navigation.tools",
   icon: Settings,
   items: [
     { nameKey: "navigation.analyse", path: "/analyse", icon: BarChart3 },
     { nameKey: "navigation.budget", path: "/budget", icon: Target },
-    { nameKey: "navigation.recurringTransactions", path: "/recurring-transactions", icon: Receipt },
-    { nameKey: "navigation.installmentPayments", path: "/installment-payments", icon: CreditCard },
+    { nameKey: "navigation.scheduled", path: "/scheduled", icon: CalendarClock },
   ],
 };
 

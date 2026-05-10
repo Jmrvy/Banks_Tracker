@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Search, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCommandPalette } from "@/contexts/CommandPaletteContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import {
   mainNavigation,
@@ -16,6 +17,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { togglePalette } = useCommandPalette();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -55,14 +57,12 @@ export function AppSidebar() {
         </div>
       </div>
 
-      {/* Search shortcut */}
+      {/* Search shortcut — opens the global command palette directly through
+          context, not via a synthetic keyboard event (which was fragile and
+          relied on the document listener still being attached). */}
       <div className="px-3 pb-3">
         <button
-          onClick={() =>
-            document.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "k", metaKey: true })
-            )
-          }
+          onClick={togglePalette}
           className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
         >
           <Search className="h-3.5 w-3.5" />

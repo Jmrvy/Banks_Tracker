@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
+import { CommandPaletteProvider } from "./contexts/CommandPaletteContext";
 import { FinancialDataProvider } from "@/hooks/useFinancialData";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNavigation } from "@/components/MobileNavigation";
@@ -21,14 +22,15 @@ const Index = lazy(() => import("@/pages/Index"));
 // Lazy-loaded pages (loaded on navigation)
 const Reports = lazy(() => import("@/pages/Reports"));
 const Settings = lazy(() => import("@/pages/Settings"));
-const RecurringTransactions = lazy(() => import("@/pages/RecurringTransactions"));
 const NewTransaction = lazy(() => import("@/pages/NewTransaction"));
-const Debts = lazy(() => import("@/pages/Debts"));
 const Accounts = lazy(() => import("@/pages/Accounts"));
 const Transactions = lazy(() => import("@/pages/Transactions"));
-const InstallmentPayments = lazy(() => import("@/pages/InstallmentPayments"));
+// `RecurringTransactions`, `Debts`, `InstallmentPayments` are now reached
+// through the unified `/scheduled` page (which lazy-imports them itself);
+// the legacy paths only emit Navigate redirects in this router.
 const Savings = lazy(() => import("@/pages/Savings"));
 const Budget = lazy(() => import("@/pages/Budget"));
+const Scheduled = lazy(() => import("@/pages/Scheduled"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -128,13 +130,10 @@ function AppRoutes() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/recurring-transactions" 
-            element={
-              <ProtectedRoute>
-                <RecurringTransactions />
-              </ProtectedRoute>
-            } 
+          {/* Legacy route — redirect to /scheduled with the matching tab. */}
+          <Route
+            path="/recurring-transactions"
+            element={<Navigate to="/scheduled?tab=subscriptions" replace />}
           />
           <Route 
             path="/accounts" 
@@ -152,19 +151,18 @@ function AppRoutes() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/debts" 
-            element={
-              <ProtectedRoute>
-                <Debts />
-              </ProtectedRoute>
-            } 
-          />
+          {/* Legacy routes — both redirect into the unified Scheduled page.
+              Old links from emails / bookmarks land on the right tab. */}
+          <Route path="/debts" element={<Navigate to="/scheduled?tab=loans" replace />} />
           <Route
             path="/installment-payments"
+            element={<Navigate to="/scheduled?tab=plans" replace />}
+          />
+          <Route
+            path="/scheduled"
             element={
               <ProtectedRoute>
-                <InstallmentPayments />
+                <Scheduled />
               </ProtectedRoute>
             }
           />
@@ -212,8 +210,10 @@ const App = () => (
                 <FinancialDataProvider>
                 <PeriodProvider>
                   <PrivacyProvider>
-                    <AppRoutes />
-                    <OfflineIndicator />
+                    <CommandPaletteProvider>
+                      <AppRoutes />
+                      <OfflineIndicator />
+                    </CommandPaletteProvider>
                   </PrivacyProvider>
                 </PeriodProvider>
                 </FinancialDataProvider>

@@ -6,6 +6,10 @@ export interface UserPreferences {
   enableNotifications: boolean;
   dateType: 'accounting' | 'value'; // Date utilisée pour les calculs
   accountAliases: Record<string, string>; // account_id -> alias (e.g. "CB Gold" -> "SocGen")
+  /** When true, the Dashboard surfaces the Quick Preview splash on each
+   *  login/refresh. Defaults to false: power-user behaviour by default,
+   *  no daily-friction click. The toggle in Settings opts users back in. */
+  quickPreviewOnLogin: boolean;
 }
 
 const defaultPreferences: UserPreferences = {
@@ -13,7 +17,8 @@ const defaultPreferences: UserPreferences = {
   dateFormat: "DD/MM/YYYY",
   enableNotifications: true,
   dateType: "accounting", // Par défaut, utiliser la date comptable
-  accountAliases: {}
+  accountAliases: {},
+  quickPreviewOnLogin: false
 };
 
 export const useUserPreferences = () => {

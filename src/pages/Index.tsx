@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePeriod } from "@/contexts/PeriodContext";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -28,6 +29,7 @@ const Index = () => {
   const { loading } = useFinancialData();
   const { needsOnboarding } = useOnboarding();
   const { selectedPeriod, setSelectedPeriod, dateRange, periodLabel } = usePeriod();
+  const { preferences } = useUserPreferences();
   const { t } = useTranslation();
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
@@ -35,14 +37,16 @@ const Index = () => {
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [excludedTransactions, setExcludedTransactions] = useState<Transaction[]>([]);
 
-  // Show quick preview only once per session (on first login/refresh)
-  const [showQuickPreview, setShowQuickPreview] = useState(() => {
-    return sessionStorage.getItem('quickPreviewDismissed') !== 'true';
-  });
+  // Quick Preview no longer gates Dashboard on every refresh. The user opts
+  // in via a Settings toggle (`preferences.quickPreviewOnLogin`); a manual
+  // override (the "Quick Preview" button in the page-head) still lets anyone
+  // pop it open whenever they want.
+  const [showQuickPreview, setShowQuickPreview] = useState(
+    () => preferences.quickPreviewOnLogin
+  );
 
   const handleShowFullDashboard = () => {
     setShowQuickPreview(false);
-    sessionStorage.setItem('quickPreviewDismissed', 'true');
   };
 
   if (loading) {
@@ -73,6 +77,22 @@ const Index = () => {
     || user?.email?.split("@")[0]
     || "";
 
+  // Time-of-day-aware greeting key. The four buckets each have their own
+  // i18n key so French / English use the natural local form (no English
+  // template translated word-for-word).
+  const hour = new Date().getHours();
+  const greetingKey =
+    hour < 5 ? "dashboard.greetingNight"
+    : hour < 12 ? "dashboard.greetingMorning"
+    : hour < 18 ? "dashboard.greetingAfternoon"
+    : "dashboard.greetingEvening";
+  const greetingDefaults: Record<string, string> = {
+    "dashboard.greetingNight": "Up late, {{name}}",
+    "dashboard.greetingMorning": "Good morning, {{name}}",
+    "dashboard.greetingAfternoon": "Good afternoon, {{name}}",
+    "dashboard.greetingEvening": "Good evening, {{name}}",
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
       <DashboardHeader
@@ -87,7 +107,10 @@ const Index = () => {
             <div className="ft-eyebrow">{t('navigation.home')}</div>
             <h1 className="ft-page-title">
               {firstName
-                ? t('dashboard.greeting', { defaultValue: 'Good morning, {{name}}', name: firstName })
+                ? t(greetingKey, {
+                    defaultValue: greetingDefaults[greetingKey],
+                    name: firstName,
+                  })
                 : t('dashboard.title', { defaultValue: 'Dashboard' })}
             </h1>
             <div className="ft-page-sub">
@@ -121,8 +144,14 @@ const Index = () => {
           onExcludedTransactionsFiltered={setExcludedTransactions}
         />
 
-        {/* Compact alerts (recurring warnings + overdue debt) — 2-up on desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 [&>*:empty]:hidden empty:hidden">
+        {/* Compact alerts (recurring warnings + overdue debt). Auto-fit grid
+            so a single visible alert spans the full width instead of getting
+            stretched to half — fixes the awkward half-width when only one
+            of the two children is non-empty. */}
+        <div
+          className="grid gap-3 md:gap-4 [&>*:empty]:hidden empty:hidden"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))" }}
+        >
           <RecurringTransactionsWarning />
           <OverdueDebtPaymentsAlert />
         </div>

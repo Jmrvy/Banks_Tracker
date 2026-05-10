@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useCommandPalette } from '@/contexts/CommandPaletteContext';
 import {
   CommandDialog,
   CommandInput,
@@ -47,7 +48,10 @@ export const CommandPalette = () => {
     { name: 'Rapports', path: '/analyse', icon: BarChart3, keywords: 'analytics statistiques' },
     { name: 'Paramètres', path: '/settings', icon: Settings, keywords: 'préférences profil' },
   ];
-  const [open, setOpen] = useState(false);
+  // Open/closed state lives in the global CommandPaletteContext so the
+  // sidebar (and any future surface) can call `togglePalette()` directly
+  // instead of dispatching a synthetic keyboard event.
+  const { open, setOpen, togglePalette, closePalette } = useCommandPalette();
   const navigate = useNavigate();
   const { accounts, transactions, categories } = useFinancialData();
   const { debts } = useDebts();
@@ -58,17 +62,17 @@ export const CommandPalette = () => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen(prev => !prev);
+        togglePalette();
       }
     };
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
-  }, []);
+  }, [togglePalette]);
 
   const handleSelect = useCallback((path: string) => {
-    setOpen(false);
+    closePalette();
     navigate(path);
-  }, [navigate]);
+  }, [closePalette, navigate]);
 
   const recentTransactions = useMemo(() => {
     return transactions
