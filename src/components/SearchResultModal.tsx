@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, Calendar, Receipt, Tag, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, Calendar, Receipt, Search, Tag, Wallet } from "lucide-react";
 
 import {
   DetailSheet,
@@ -119,6 +119,16 @@ export function SearchResultModal({
             <Badge key={`acc-${name}`} variant="secondary" className="text-xs">
               <Wallet className="w-3 h-3 mr-1" />
               {name}
+            </Badge>
+          ))}
+          {query.descriptionTokens.map((tok) => (
+            <Badge
+              key={`desc-${tok}`}
+              variant="outline"
+              className="text-xs bg-info/10 text-info border-info/30"
+            >
+              <Search className="w-3 h-3 mr-1" />
+              {tok}
             </Badge>
           ))}
           <Badge variant="outline" className="text-xs">

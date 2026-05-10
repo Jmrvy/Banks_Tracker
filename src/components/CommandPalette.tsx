@@ -34,11 +34,12 @@ import {
   Sparkles,
   Lightbulb,
   Clock,
+  Search,
   X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { parseQuery, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
+import { parseQuery, normalise, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
 import { SearchResultModal } from '@/components/SearchResultModal';
 
 /** Recent-transaction icon driven by transaction type so colorblind
@@ -240,48 +241,51 @@ export const CommandPalette = () => {
     };
   }, [parsed, periodOverride]);
 
+  // Shared predicate for both filter passes — the only difference
+  // between them is whether out-of-stats transactions count.
+  const matchPredicate = useCallback(
+    (q: ParsedQuery, tx: typeof transactions[number]): boolean => {
+      if (q.type && tx.type !== q.type) return false;
+      if (q.categoryIds.length && !(tx.category && q.categoryIds.includes(tx.category.id))) return false;
+      if (q.accountIds.length && !q.accountIds.includes(tx.account_id)) return false;
+      // Free-text description filter — every token must appear in the
+      // normalised description. Matches the rest of the parser's
+      // case/accent folding so "uber" hits "Uber Eats" and "café"
+      // hits "Cafe Loustic".
+      if (q.descriptionTokens.length) {
+        const desc = normalise(tx.description ?? '');
+        for (const tok of q.descriptionTokens) {
+          if (!desc.includes(tok)) return false;
+        }
+      }
+      const d =
+        preferences.dateType === 'value'
+          ? parseLocalDate(tx.value_date || tx.transaction_date)
+          : parseLocalDate(tx.transaction_date);
+      if (d < q.dateRange.start || d > q.dateRange.end) return false;
+      return true;
+    },
+    [preferences.dateType]
+  );
+
   // Filter transactions for the effective query — used by the headline
   // figure in the pinned result row and by the result modal.
   const matched = useMemo(() => {
     if (!effectiveQuery?.hasSignal) return { txs: [], total: 0 };
-    const dateOf = (tx: typeof transactions[number]) =>
-      preferences.dateType === 'value'
-        ? parseLocalDate(tx.value_date || tx.transaction_date)
-        : parseLocalDate(tx.transaction_date);
-    const txs = transactions.filter((tx) => {
-      if (effectiveQuery.type && tx.type !== effectiveQuery.type) return false;
-      if (effectiveQuery.categoryIds.length && !(tx.category && effectiveQuery.categoryIds.includes(tx.category.id)))
-        return false;
-      if (effectiveQuery.accountIds.length && !effectiveQuery.accountIds.includes(tx.account_id)) return false;
-      const d = dateOf(tx);
-      if (d < effectiveQuery.dateRange.start || d > effectiveQuery.dateRange.end) return false;
-      // Excluded transactions don't belong in totals — they're explicitly out of stats.
-      if (!tx.include_in_stats) return false;
-      return true;
-    });
+    const txs = transactions.filter(
+      (tx) => tx.include_in_stats && matchPredicate(effectiveQuery, tx)
+    );
     const total = txs.reduce((acc, tx) => acc + Number(tx.amount), 0);
     return { txs, total };
-  }, [effectiveQuery, transactions, preferences.dateType]);
+  }, [effectiveQuery, transactions, matchPredicate]);
 
   // Same query but including out-of-stats transactions — handed to the
   // result modal so its "Include excluded" toggle can swap datasets
   // without re-filtering on every render.
   const matchedWithExcluded = useMemo(() => {
     if (!effectiveQuery?.hasSignal) return [];
-    const dateOf = (tx: typeof transactions[number]) =>
-      preferences.dateType === 'value'
-        ? parseLocalDate(tx.value_date || tx.transaction_date)
-        : parseLocalDate(tx.transaction_date);
-    return transactions.filter((tx) => {
-      if (effectiveQuery.type && tx.type !== effectiveQuery.type) return false;
-      if (effectiveQuery.categoryIds.length && !(tx.category && effectiveQuery.categoryIds.includes(tx.category.id)))
-        return false;
-      if (effectiveQuery.accountIds.length && !effectiveQuery.accountIds.includes(tx.account_id)) return false;
-      const d = dateOf(tx);
-      if (d < effectiveQuery.dateRange.start || d > effectiveQuery.dateRange.end) return false;
-      return true;
-    });
-  }, [effectiveQuery, transactions, preferences.dateType]);
+    return transactions.filter((tx) => matchPredicate(effectiveQuery, tx));
+  }, [effectiveQuery, transactions, matchPredicate]);
 
   const matchedCategoryNames = useMemo(
     () => effectiveQuery?.categoryIds.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean) as string[]
@@ -466,6 +470,18 @@ export const CommandPalette = () => {
                   {matchedAccountNames.map((name) => (
                     <span key={`acc-${name}`} className="px-1.5 py-0.5 rounded bg-bg-subtle border border-line">
                       {name}
+                    </span>
+                  ))}
+                  {/* Description-token chips — distinct from category /
+                      account chips because they're free-text filters
+                      against the description column, not entity links. */}
+                  {effectiveQuery.descriptionTokens.map((tok) => (
+                    <span
+                      key={`desc-${tok}`}
+                      className="px-1.5 py-0.5 rounded bg-info/10 border border-info/30 text-info inline-flex items-center gap-1"
+                    >
+                      <Search className="h-2.5 w-2.5" />
+                      {tok}
                     </span>
                   ))}
                   {/* Period chip — removable when the parser silently

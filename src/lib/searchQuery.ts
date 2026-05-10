@@ -32,6 +32,11 @@ export interface ParsedQuery {
   type?: QueryType;
   categoryIds: string[];
   accountIds: string[];
+  /** Tokens that didn't match a type/period/entity but should be used
+   *  as an AND-filter against transaction descriptions. Stored in
+   *  normalised form (lowercased, accent-stripped) so consumers can
+   *  match them directly against `normalise(tx.description)`. */
+  descriptionTokens: string[];
   /** Inclusive date window for the matched period. */
   dateRange: { start: Date; end: Date };
   /** Stable i18n key + default for rendering "Year to date", "March 2025"… */
@@ -63,8 +68,11 @@ interface ParseOptions {
   locale?: "fr" | "en";
 }
 
-/** Strip diacritics and lowercase for forgiving matching. */
-const normalise = (s: string) =>
+/** Strip diacritics and lowercase for forgiving matching. Exported so
+ *  consumers (the palette filter, the result modal) can fold transaction
+ *  descriptions the same way the parser folds the input — "Société
+ *  Générale" matches "societe generale" and the inverse. */
+export const normalise = (s: string) =>
   s
     .toLowerCase()
     .normalize("NFD")
@@ -581,7 +589,16 @@ export function parseQuery(
     working = working.replace(/\s+/g, " ").trim();
   }
 
-  const unmatchedTokens = working.split(/\s+/).filter(Boolean);
+  const leftover = working.split(/\s+/).filter(Boolean);
+
+  // Tokens of length ≥ 2 become description-search tokens. Shorter
+  // ones (stray punctuation, single characters) stay in
+  // `unmatchedTokens` so the diagnostic line can flag them.
+  const descriptionTokens = leftover.filter((t) => t.length >= 2);
+  const unmatchedTokens = leftover.filter((t) => t.length < 2);
+  if (descriptionTokens.length) {
+    matchedDescription.push(`description:${descriptionTokens.join(",")}`);
+  }
 
   // Default: if no period token, fall back to YTD — most common framing
   // for personal-finance "how much have I spent on X" questions.
@@ -596,15 +613,22 @@ export function parseQuery(
     literalMonth
   );
 
-  // hasSignal — at least one of type / period / category / account hit.
+  // hasSignal — at least one of type / period / category / account /
+  // description hit. Description-only queries (e.g. "uber") are valid:
+  // they roll up every transaction with "uber" in its description.
   const hasSignal = Boolean(
-    type || periodKind !== "all_time" || catMatch.ids.length || accMatch.ids.length
+    type ||
+      periodKind !== "all_time" ||
+      catMatch.ids.length ||
+      accMatch.ids.length ||
+      descriptionTokens.length
   );
 
   return {
     type,
     categoryIds: catMatch.ids,
     accountIds: accMatch.ids,
+    descriptionTokens,
     dateRange: { start: range.start, end: range.end },
     periodLabelKey: range.labelKey,
     periodLabelDefault: range.labelDefault,
