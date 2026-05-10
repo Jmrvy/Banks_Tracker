@@ -662,5 +662,34 @@
     "upcoming7d": "Upcoming (7d)",
     "noUpcomingTransactions": "No scheduled transactions",
     "fullDashboard": "Full dashboard"
+  },
+  "search": {
+    "resultGroup": "Search result",
+    "transactionCount_one": "{{count}} transaction",
+    "transactionCount_other": "{{count}} transactions",
+    "matchingTransactions": "Matching transactions",
+    "breakdown": "Breakdown by category",
+    "openInTransactions": "Open in Transactions",
+    "noResults": "No transactions match this query.",
+    "truncated_one": "+{{count}} more — open in Transactions to see all",
+    "truncated_other": "+{{count}} more — open in Transactions to see all",
+    "type": {
+      "all": "All transactions",
+      "income": "Income",
+      "expense": "Expenses",
+      "transfer": "Transfers"
+    },
+    "period": {
+      "ytd": "Year to date",
+      "mtd": "Month to date",
+      "thisWeek": "This week",
+      "lastWeek": "Last week",
+      "lastMonth": "Last month",
+      "lastYear": "Last year",
+      "last3Months": "Last 3 months",
+      "last6Months": "Last 6 months",
+      "last12Months": "Last 12 months",
+      "allTime": "All time"
+    }
   }
 }

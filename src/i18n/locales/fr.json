@@ -662,5 +662,34 @@
     "upcoming7d": "À venir (7j)",
     "noUpcomingTransactions": "Aucune transaction prévue",
     "fullDashboard": "Tableau de bord complet"
+  },
+  "search": {
+    "resultGroup": "Résultat de recherche",
+    "transactionCount_one": "{{count}} transaction",
+    "transactionCount_other": "{{count}} transactions",
+    "matchingTransactions": "Transactions correspondantes",
+    "breakdown": "Répartition par catégorie",
+    "openInTransactions": "Ouvrir dans Transactions",
+    "noResults": "Aucune transaction ne correspond à cette requête.",
+    "truncated_one": "+{{count}} de plus — ouvrez dans Transactions pour tout voir",
+    "truncated_other": "+{{count}} de plus — ouvrez dans Transactions pour tout voir",
+    "type": {
+      "all": "Toutes les transactions",
+      "income": "Revenus",
+      "expense": "Dépenses",
+      "transfer": "Virements"
+    },
+    "period": {
+      "ytd": "Depuis le début de l'année",
+      "mtd": "Mois en cours",
+      "thisWeek": "Cette semaine",
+      "lastWeek": "Semaine dernière",
+      "lastMonth": "Mois dernier",
+      "lastYear": "Année dernière",
+      "last3Months": "3 derniers mois",
+      "last6Months": "6 derniers mois",
+      "last12Months": "12 derniers mois",
+      "allTime": "Tout l'historique"
+    }
   }
 }
