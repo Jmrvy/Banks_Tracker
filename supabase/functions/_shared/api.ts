@@ -23,11 +23,21 @@ export interface ApiError {
   details?: unknown;
 }
 
-export const errorResponse = (status: number, error: ApiError): Response =>
-  new Response(JSON.stringify({ success: false, error, version: API_VERSION }), {
+export const errorResponse = (status: number, error: ApiError): Response => {
+  // Log raw details server-side; never include them in the response payload.
+  if (error.details !== undefined) {
+    try {
+      console.error(`[api ${status}] ${error.code}: ${error.message}`, error.details);
+    } catch (_) {
+      // ignore logging errors
+    }
+  }
+  const safeError: ApiError = { code: error.code, message: error.message };
+  return new Response(JSON.stringify({ success: false, error: safeError, version: API_VERSION }), {
     status,
     headers: jsonHeaders,
   });
+};
 
 export const successResponse = (payload: Record<string, unknown>): Response =>
   new Response(JSON.stringify({ success: true, version: API_VERSION, ...payload }), {
