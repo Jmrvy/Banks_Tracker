@@ -120,11 +120,17 @@ export const CommandPalette = () => {
   }, [input]);
 
   // Result-sheet state: opened when the user activates the parsed-query
-  // row. We snapshot the resolved query so closing the palette doesn't
-  // strip the modal of its data.
+  // row. We snapshot *everything* the modal needs (query, both
+  // transaction sets, matched names) at click time — closing the
+  // palette clears `input`, which would otherwise re-derive the live
+  // matched lists to empty and blank out the modal.
   const [resultOpen, setResultOpen] = useState(false);
   const [resultQuery, setResultQuery] = useState<ParsedQuery | null>(null);
   const [resultIncludeExcluded, setResultIncludeExcluded] = useState(false);
+  const [resultTxs, setResultTxs] = useState<typeof transactions>([]);
+  const [resultTxsAll, setResultTxsAll] = useState<typeof transactions>([]);
+  const [resultCategoryNames, setResultCategoryNames] = useState<string[]>([]);
+  const [resultAccountNames, setResultAccountNames] = useState<string[]>([]);
 
   // Reset input + override when the palette closes so the next open
   // starts fresh.
@@ -248,11 +254,25 @@ export const CommandPalette = () => {
 
   const openResult = useCallback(() => {
     if (!effectiveQuery?.hasSignal) return;
+    // Snapshot live derivations into state. closePalette() clears
+    // `input`, which re-runs the useMemo chain and would otherwise
+    // hand the modal an empty transaction list.
     setResultQuery(effectiveQuery);
+    setResultTxs(matched.txs);
+    setResultTxsAll(matchedWithExcluded);
+    setResultCategoryNames(matchedCategoryNames);
+    setResultAccountNames(matchedAccountNames);
     setResultIncludeExcluded(false);
     setResultOpen(true);
     closePalette();
-  }, [effectiveQuery, closePalette]);
+  }, [
+    effectiveQuery,
+    matched.txs,
+    matchedWithExcluded,
+    matchedCategoryNames,
+    matchedAccountNames,
+    closePalette,
+  ]);
 
   const handleOpenInTransactions = useCallback(() => {
     setResultOpen(false);
@@ -567,13 +587,13 @@ export const CommandPalette = () => {
       open={resultOpen}
       onOpenChange={setResultOpen}
       query={resultQuery}
-      transactions={resultIncludeExcluded ? matchedWithExcluded : matched.txs}
-      matchedCategoryNames={matchedCategoryNames}
-      matchedAccountNames={matchedAccountNames}
+      transactions={resultIncludeExcluded ? resultTxsAll : resultTxs}
+      matchedCategoryNames={resultCategoryNames}
+      matchedAccountNames={resultAccountNames}
       onOpenTransactions={handleOpenInTransactions}
       includeExcluded={resultIncludeExcluded}
       onIncludeExcludedChange={setResultIncludeExcluded}
-      excludedCount={matchedWithExcluded.length - matched.txs.length}
+      excludedCount={resultTxsAll.length - resultTxs.length}
     />
     </>
   );
