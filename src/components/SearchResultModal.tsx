@@ -57,12 +57,31 @@ export function SearchResultModal({
   excludedCount = 0,
 }: SearchResultModalProps) {
   const { t } = useTranslation();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const dateLocale = useDateFnsLocale();
 
+  // Net amount: expenses are reduced by any refunded portion so the
+  // figure reflects what actually left the account. Income / transfer
+  // amounts pass through unchanged.
+  const netAmount = (tx: Transaction): number => {
+    const raw = Number(tx.amount);
+    if (tx.type === "expense") return raw - Number(tx.refunded_amount || 0);
+    return raw;
+  };
+
+  // Display date respects the user's accounting-vs-value preference,
+  // matching how StatsCards and the rest of the app pick a date.
+  const displayDate = (tx: Transaction): Date =>
+    preferences.dateType === "value"
+      ? parseLocalDate(tx.value_date || tx.transaction_date)
+      : parseLocalDate(tx.transaction_date);
+
   const totals = useMemo(() => {
-    const sum = transactions.reduce((acc, tx) => acc + Number(tx.amount), 0);
+    const sum = transactions.reduce((acc, tx) => acc + netAmount(tx), 0);
     return { sum, count: transactions.length };
+    // netAmount is defined inline above and only depends on tx, so the
+    // dep array is just transactions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactions]);
 
   const breakdown = useMemo(() => {
@@ -73,13 +92,14 @@ export function SearchResultModal({
       const name = tx.category?.name ?? t("transactions.uncategorized", { defaultValue: "Uncategorized" });
       const color = tx.category?.color ?? "var(--muted-foreground)";
       const entry = map.get(key) ?? { name, color, total: 0, count: 0 };
-      entry.total += Number(tx.amount);
+      entry.total += netAmount(tx);
       entry.count += 1;
       map.set(key, entry);
     }
     return Array.from(map.values())
       .sort((a, b) => b.total - a.total)
       .slice(0, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactions, query, t]);
 
   if (!query) return null;
@@ -235,36 +255,69 @@ export function SearchResultModal({
             </p>
           ) : (
             <div className="space-y-1.5">
-              {transactions.slice(0, 50).map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-line bg-card hover:bg-bg-subtle/40 transition-colors"
-                >
-                  {typeIcon(tx.type)}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{tx.description}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {format(parseLocalDate(tx.transaction_date), "d MMM yyyy", {
-                        locale: dateLocale,
-                      })}
-                      {tx.account?.name ? ` · ${tx.account.name}` : ""}
-                      {tx.category?.name ? ` · ${tx.category.name}` : ""}
-                    </p>
-                  </div>
-                  <span
-                    className={`text-sm font-semibold tabular-nums flex-shrink-0 ${
-                      tx.type === "income"
-                        ? "text-pos"
-                        : tx.type === "expense"
-                        ? "text-neg"
-                        : ""
-                    }`}
+              {transactions.slice(0, 50).map((tx) => {
+                const net = netAmount(tx);
+                const wasRefunded =
+                  tx.type === "expense" && (Number(tx.refunded_amount) || 0) > 0;
+                return (
+                  <div
+                    key={tx.id}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-line bg-card hover:bg-bg-subtle/40 transition-colors"
                   >
-                    {tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}
-                    {formatCurrency(Math.abs(Number(tx.amount)))}
-                  </span>
-                </div>
-              ))}
+                    {typeIcon(tx.type)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{tx.description}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          {format(displayDate(tx), "d MMM yyyy", { locale: dateLocale })}
+                        </span>
+                        {tx.account?.name && (
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            · {tx.account.name}
+                          </span>
+                        )}
+                        {tx.category?.name && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
+                            style={{
+                              backgroundColor: `${tx.category.color}1f`,
+                              color: tx.category.color,
+                            }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: tx.category.color }}
+                            />
+                            {tx.category.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <span
+                        className={`text-sm font-semibold tabular-nums ${
+                          tx.type === "income"
+                            ? "text-pos"
+                            : tx.type === "expense"
+                            ? "text-neg"
+                            : ""
+                        }`}
+                      >
+                        {tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}
+                        {formatCurrency(Math.abs(net))}
+                      </span>
+                      {wasRefunded && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {t("search.refundedHint", {
+                            refunded: formatCurrency(Number(tx.refunded_amount) || 0),
+                            defaultValue: `net of ${formatCurrency(Number(tx.refunded_amount) || 0)} refunded`,
+                          })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {transactions.length > 50 && (
                 <p className="text-[11px] text-muted-foreground text-center py-2">
                   {t("search.truncated", {

@@ -695,7 +695,8 @@
     },
     "includeExcluded": "Inclure les transactions exclues",
     "includeExcludedHint_one": "+{{count}} exclue des statistiques",
-    "includeExcludedHint_other": "+{{count}} exclues des statistiques"
+    "includeExcludedHint_other": "+{{count}} exclues des statistiques",
+    "refundedHint": "net de {{refunded}} remboursé"
   },
   "palette": {
     "pages": "Pages",
