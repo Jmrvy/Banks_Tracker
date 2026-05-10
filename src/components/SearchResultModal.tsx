@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { fr, enUS } from "date-fns/locale";
 import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, Calendar, Receipt, Tag, Wallet } from "lucide-react";
 
 import {
@@ -12,7 +11,10 @@ import {
 } from "@/components/ui/detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useDateFnsLocale } from "@/hooks/useDateFnsLocale";
 import type { Transaction } from "@/hooks/useFinancialData";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { ParsedQuery } from "@/lib/searchQuery";
@@ -28,6 +30,12 @@ interface SearchResultModalProps {
   matchedAccountNames: string[];
   /** Optional: open the full Transactions page with the same filters. */
   onOpenTransactions?: () => void;
+  /** When true, the parent is feeding rows that include
+   *  `include_in_stats === false`. The toggle below lets the user flip this. */
+  includeExcluded?: boolean;
+  onIncludeExcludedChange?: (next: boolean) => void;
+  /** Number of transactions that would be added by enabling the toggle. */
+  excludedCount?: number;
 }
 
 const typeIcon = (type: Transaction["type"]) => {
@@ -44,10 +52,13 @@ export function SearchResultModal({
   matchedCategoryNames,
   matchedAccountNames,
   onOpenTransactions,
+  includeExcluded,
+  onIncludeExcludedChange,
+  excludedCount = 0,
 }: SearchResultModalProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { formatCurrency } = useUserPreferences();
-  const dateLocale = i18n.language === "fr" ? fr : enUS;
+  const dateLocale = useDateFnsLocale();
 
   const totals = useMemo(() => {
     const sum = transactions.reduce((acc, tx) => acc + Number(tx.amount), 0);
@@ -133,6 +144,31 @@ export function SearchResultModal({
             })}
           </p>
         </div>
+
+        {/* Power-user diagnostic: include rows that are explicitly
+            excluded from stats (e.g. internal transfers tagged out).
+            Hidden when there's nothing to add. */}
+        {onIncludeExcludedChange && excludedCount > 0 && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-line bg-bg-subtle/30">
+            <div className="min-w-0">
+              <Label className="text-xs">
+                {t("search.includeExcluded", {
+                  defaultValue: "Include excluded transactions",
+                })}
+              </Label>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {t("search.includeExcludedHint", {
+                  count: excludedCount,
+                  defaultValue: `+${excludedCount} excluded from stats`,
+                })}
+              </p>
+            </div>
+            <Switch
+              checked={!!includeExcluded}
+              onCheckedChange={onIncludeExcludedChange}
+            />
+          </div>
+        )}
 
         {/* Category breakdown — only when we have non-transfer rows */}
         {breakdown.length > 1 && (

@@ -23,6 +23,9 @@ export type PeriodKind =
   | "last_12_months"
   | "year"
   | "quarter"
+  | "today"
+  | "yesterday"
+  | "named_month"
   | "all_time";
 
 export interface ParsedQuery {
@@ -36,6 +39,9 @@ export interface ParsedQuery {
   periodLabelDefault: string;
   /** Resolved period kind (useful for chip highlighting). */
   periodKind: PeriodKind;
+  /** True when the user did not type any period token, so we silently
+   *  fell back to YTD. The UI uses this to show a removable hint chip. */
+  periodWasDefault: boolean;
   /** Original input, normalised (accent-stripped, lower-cased). */
   normalisedInput: string;
   /** Anything we did not consume — useful for diagnostics. */
@@ -51,6 +57,10 @@ interface ParseOptions {
   accounts: { id: string; name: string }[];
   /** Override "today" — useful for tests / deterministic snapshots. */
   today?: Date;
+  /** UI locale used for human-readable defaults (e.g. month names in
+   *  the named-month label). The parser's matching is locale-agnostic;
+   *  this only affects labels that fall back to `defaultValue`. */
+  locale?: "fr" | "en";
 }
 
 /** Strip diacritics and lowercase for forgiving matching. */
@@ -158,6 +168,35 @@ const PERIOD_VOCAB: { kind: PeriodKind; phrases: string[] }[] = [
       "lw", "w1",
     ],
   },
+  {
+    kind: "yesterday",
+    phrases: ["yesterday", "hier"],
+  },
+  {
+    kind: "today",
+    phrases: ["today", "aujourd hui", "aujourd'hui"],
+  },
+];
+
+/**
+ * Named-month vocabulary — both English and French, with their
+ * accent-stripped forms. Order matters only insofar as we iterate
+ * 0..11 to find a match; the working string has already been
+ * normalised so accent-folded entries are sufficient.
+ */
+const MONTH_NAMES: { phrases: string[]; index: number }[] = [
+  { index: 0, phrases: ["january", "jan", "janvier", "janv"] },
+  { index: 1, phrases: ["february", "feb", "fevrier", "fev"] },
+  { index: 2, phrases: ["march", "mar", "mars"] },
+  { index: 3, phrases: ["april", "apr", "avril", "avr"] },
+  { index: 4, phrases: ["may", "mai"] },
+  { index: 5, phrases: ["june", "jun", "juin"] },
+  { index: 6, phrases: ["july", "jul", "juillet", "juil"] },
+  { index: 7, phrases: ["august", "aug", "aout"] },
+  { index: 8, phrases: ["september", "sept", "sep", "septembre"] },
+  { index: 9, phrases: ["october", "oct", "octobre"] },
+  { index: 10, phrases: ["november", "nov", "novembre"] },
+  { index: 11, phrases: ["december", "dec", "decembre"] },
 ];
 
 /** Quarter literal: q1..q4 (optionally prefixed/suffixed by a year). */
@@ -198,7 +237,8 @@ function rangeFor(
   today: Date,
   locale: "fr" | "en",
   literalYear?: number,
-  literalQuarter?: number
+  literalQuarter?: number,
+  literalMonth?: number
 ): { start: Date; end: Date; labelKey: string; labelDefault: string } {
   const t = startOfDay(today);
   const year = t.getFullYear();
@@ -312,6 +352,34 @@ function rangeFor(
         labelDefault: `Q${q} ${y}`,
       };
     }
+    case "today":
+      return {
+        start: startOfDay(t),
+        end: endOfDay(t),
+        labelKey: "search.period.today",
+        labelDefault: "Today",
+      };
+    case "yesterday": {
+      const y = new Date(t);
+      y.setDate(t.getDate() - 1);
+      return {
+        start: startOfDay(y),
+        end: endOfDay(y),
+        labelKey: "search.period.yesterday",
+        labelDefault: "Yesterday",
+      };
+    }
+    case "named_month": {
+      const m = literalMonth ?? month;
+      const y = literalYear ?? year;
+      const start = new Date(y, m, 1, 0, 0, 0, 0);
+      return {
+        start,
+        end: endOfDay(new Date(y, m + 1, 0)),
+        labelKey: "search.period.namedMonth",
+        labelDefault: monthName(start, locale),
+      };
+    }
     case "all_time":
     default:
       return {
@@ -337,6 +405,35 @@ function detectPeriodPhrase(
       const match = working.match(re);
       if (match) {
         return { kind: entry.kind, consumed: match[0] };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Match a named month, optionally adjacent to a year. Returns the
+ * 0-indexed month, the optional year, and the consumed substring so
+ * the caller can strip it from the working string.
+ */
+function detectNamedMonth(
+  working: string
+): { index: number; year?: number; consumed: string } | null {
+  for (const m of MONTH_NAMES) {
+    for (const phrase of m.phrases) {
+      // Year optionally on either side: "march 2025", "2024 august".
+      const re = new RegExp(
+        `(?:(\\d{4})\\s+)?\\b${phrase}\\b(?:\\s+(\\d{4}))?`,
+        "i"
+      );
+      const match = working.match(re);
+      if (match) {
+        const year = match[1]
+          ? parseInt(match[1], 10)
+          : match[2]
+          ? parseInt(match[2], 10)
+          : undefined;
+        return { index: m.index, year, consumed: match[0].trim() };
       }
     }
   }
@@ -427,6 +524,7 @@ export function parseQuery(
   let periodKind: PeriodKind = "all_time";
   let literalYear: number | undefined;
   let literalQuarter: number | undefined;
+  let literalMonth: number | undefined;
   const qMatch = working.match(QUARTER_RE);
   if (qMatch) {
     periodKind = "quarter";
@@ -440,12 +538,24 @@ export function parseQuery(
       periodKind = phraseMatch.kind;
       working = working.replace(new RegExp(`\\b${phraseMatch.consumed.replace(/\s+/g, "\\s+")}\\b`, "i"), " ").trim();
     } else {
-      // 4. Bare 4-digit year
-      const yMatch = working.match(YEAR_RE);
-      if (yMatch) {
-        periodKind = "year";
-        literalYear = parseInt(yMatch[1], 10);
-        working = working.replace(YEAR_RE, " ").trim();
+      // 4. Named month (optionally with a year): "march", "mars 2025", "2024 august"
+      const monthMatch = detectNamedMonth(working);
+      if (monthMatch) {
+        periodKind = "named_month";
+        literalMonth = monthMatch.index;
+        literalYear = monthMatch.year;
+        working = working
+          .replace(new RegExp(`\\b${monthMatch.consumed}\\b`, "i"), " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      } else {
+        // 5. Bare 4-digit year
+        const yMatch = working.match(YEAR_RE);
+        if (yMatch) {
+          periodKind = "year";
+          literalYear = parseInt(yMatch[1], 10);
+          working = working.replace(YEAR_RE, " ").trim();
+        }
       }
     }
   }
@@ -475,8 +585,16 @@ export function parseQuery(
 
   // Default: if no period token, fall back to YTD — most common framing
   // for personal-finance "how much have I spent on X" questions.
-  const effectiveKind: PeriodKind = periodKind === "all_time" ? "ytd" : periodKind;
-  const range = rangeFor(effectiveKind, today, "en", literalYear, literalQuarter);
+  const periodWasDefault = periodKind === "all_time";
+  const effectiveKind: PeriodKind = periodWasDefault ? "ytd" : periodKind;
+  const range = rangeFor(
+    effectiveKind,
+    today,
+    options.locale ?? "en",
+    literalYear,
+    literalQuarter,
+    literalMonth
+  );
 
   // hasSignal — at least one of type / period / category / account hit.
   const hasSignal = Boolean(
@@ -491,6 +609,7 @@ export function parseQuery(
     periodLabelKey: range.labelKey,
     periodLabelDefault: range.labelDefault,
     periodKind: effectiveKind,
+    periodWasDefault,
     normalisedInput: normalise(trimmed),
     unmatchedTokens,
     hasSignal,

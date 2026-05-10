@@ -689,7 +689,31 @@
       "last3Months": "3 derniers mois",
       "last6Months": "6 derniers mois",
       "last12Months": "12 derniers mois",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
       "allTime": "Tout l'historique"
-    }
+    },
+    "includeExcluded": "Inclure les transactions exclues",
+    "includeExcludedHint_one": "+{{count}} exclue des statistiques",
+    "includeExcludedHint_other": "+{{count}} exclues des statistiques"
+  },
+  "palette": {
+    "pages": "Pages",
+    "quickActions": "Actions rapides",
+    "activeDebts": "Dettes actives",
+    "tryGroup": "Essayez une requête",
+    "suggestion1": "dépenses cette année",
+    "suggestion2": "revenus mois dernier",
+    "suggestion3": "dépenses {{cat}} ce mois",
+    "suggestion4": "revenus 2025",
+    "suggestionHint": "Insérer",
+    "couldNotMatch": "Impossible d'interpréter",
+    "removePeriod": "Retirer le filtre de période",
+    "newSavingsGoal": "Nouvel objectif d'épargne",
+    "newDebt": "Nouvelle dette ou prêt",
+    "kbdNavigate": "naviguer",
+    "kbdOpen": "ouvrir",
+    "kbdClose": "fermer",
+    "kbdToggle": "afficher"
   }
 }

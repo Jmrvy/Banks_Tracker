@@ -689,7 +689,31 @@
       "last3Months": "Last 3 months",
       "last6Months": "Last 6 months",
       "last12Months": "Last 12 months",
+      "today": "Today",
+      "yesterday": "Yesterday",
       "allTime": "All time"
-    }
+    },
+    "includeExcluded": "Include excluded transactions",
+    "includeExcludedHint_one": "+{{count}} excluded from stats",
+    "includeExcludedHint_other": "+{{count}} excluded from stats"
+  },
+  "palette": {
+    "pages": "Pages",
+    "quickActions": "Quick actions",
+    "activeDebts": "Active debts",
+    "tryGroup": "Try a query",
+    "suggestion1": "expenses ytd",
+    "suggestion2": "income last month",
+    "suggestion3": "expenses {{cat}} this month",
+    "suggestion4": "income 2025",
+    "suggestionHint": "Insert",
+    "couldNotMatch": "Couldn't match",
+    "removePeriod": "Remove period filter",
+    "newSavingsGoal": "New savings goal",
+    "newDebt": "New debt or loan",
+    "kbdNavigate": "navigate",
+    "kbdOpen": "open",
+    "kbdClose": "close",
+    "kbdToggle": "toggle"
   }
 }

@@ -15,6 +15,7 @@ import { useFinancialData } from '@/hooks/useFinancialData';
 import { useDebts } from '@/hooks/useDebts';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useDateFnsLocale } from '@/hooks/useDateFnsLocale';
 import {
   Home,
   Wallet,
@@ -27,29 +28,75 @@ import {
   Settings,
   Plus,
   ArrowRight,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowRightLeft,
   Sparkles,
+  Lightbulb,
+  X,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { parseQuery, type ParsedQuery } from '@/lib/searchQuery';
+import { parseQuery, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
 import { SearchResultModal } from '@/components/SearchResultModal';
 
-export const CommandPalette = () => {
-  const { t } = useTranslation();
+/** Recent-transaction icon driven by transaction type so colorblind
+ *  users get a directional cue alongside the colour. */
+const recentIcon = (type: 'income' | 'expense' | 'transfer') => {
+  if (type === 'income') return <ArrowDownLeft className="mr-2 h-4 w-4 text-pos" />;
+  if (type === 'expense') return <ArrowUpRight className="mr-2 h-4 w-4 text-neg" />;
+  return <ArrowRightLeft className="mr-2 h-4 w-4 text-info" />;
+};
 
+export const CommandPalette = () => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = useDateFnsLocale();
+  const uiLocale: 'fr' | 'en' = i18n.language === 'fr' ? 'fr' : 'en';
+
+  // Pages map to i18n keys + bilingual keyword strings so the palette
+  // is fully localized and still searchable in either language.
   const pages = [
-    { name: t('dashboard.title'), path: '/', icon: Home, keywords: 'accueil dashboard home' },
-    { name: 'Comptes', path: '/accounts', icon: Wallet, keywords: 'banque account' },
-    { name: 'Transactions', path: '/transactions', icon: History, keywords: 'historique dépenses revenus' },
-    { name: 'Nouvelle transaction', path: '/new-transaction', icon: Plus, keywords: 'ajouter créer' },
-    { name: 'Transactions récurrentes', path: '/recurring-transactions', icon: Receipt, keywords: 'abonnements' },
-    { name: 'Paiements échelonnés', path: '/installment-payments', icon: CreditCard, keywords: 'mensualités' },
-    { name: 'Dettes & Prêts', path: '/debts', icon: Scale, keywords: 'emprunts loans' },
-    { name: 'Épargne', path: '/savings', icon: PiggyBank, keywords: 'objectifs goals' },
-    { name: 'Rapports', path: '/analyse', icon: BarChart3, keywords: 'analytics statistiques' },
-    { name: 'Paramètres', path: '/settings', icon: Settings, keywords: 'préférences profil' },
+    { key: 'home', name: t('navigation.home'), path: '/', icon: Home, keywords: 'accueil dashboard home' },
+    { key: 'accounts', name: t('navigation.accounts'), path: '/accounts', icon: Wallet, keywords: 'comptes accounts banque bank' },
+    { key: 'transactions', name: t('navigation.transactions'), path: '/transactions', icon: History, keywords: 'historique history depenses revenus expenses income' },
+    { key: 'recurring', name: t('navigation.recurringTransactions'), path: '/recurring-transactions', icon: Receipt, keywords: 'recurrentes abonnements subscriptions recurring' },
+    { key: 'installments', name: t('navigation.installmentPayments'), path: '/installment-payments', icon: CreditCard, keywords: 'echelonnes mensualites installments payments' },
+    { key: 'debts', name: t('navigation.debts'), path: '/debts', icon: Scale, keywords: 'dettes prets emprunts loans' },
+    { key: 'savings', name: t('navigation.savings'), path: '/savings', icon: PiggyBank, keywords: 'epargne objectifs goals savings' },
+    { key: 'reports', name: t('navigation.analyse'), path: '/analyse', icon: BarChart3, keywords: 'rapports analyse analytics statistiques reports' },
+    { key: 'settings', name: t('navigation.settings'), path: '/settings', icon: Settings, keywords: 'parametres preferences profil settings preferences' },
   ];
+
+  // Quick-action create rows. Single-key shortcut hints (kbd) are
+  // visual only — typing the letter goes into the cmdk input by
+  // design, not into a hotkey listener. Selecting via ↵ navigates.
+  const quickActions = [
+    {
+      key: 'new-transaction',
+      name: t('dashboard.newTransaction', { defaultValue: 'New transaction' }),
+      path: '/new-transaction',
+      icon: Plus,
+      shortcut: 'N',
+      keywords: 'nouvelle transaction new add ajouter create creer',
+    },
+    {
+      key: 'new-savings-goal',
+      name: t('palette.newSavingsGoal', { defaultValue: 'New savings goal' }),
+      path: '/savings',
+      icon: PiggyBank,
+      shortcut: 'G',
+      keywords: 'nouvel objectif epargne savings goal',
+    },
+    {
+      key: 'new-debt',
+      name: t('palette.newDebt', { defaultValue: 'New debt or loan' }),
+      path: '/debts',
+      icon: Scale,
+      shortcut: 'D',
+      keywords: 'nouvelle dette pret loan debt',
+    },
+  ];
+
   // Open/closed state lives in the global CommandPaletteContext so the
   // sidebar (and any future surface) can call `togglePalette()` directly
   // instead of dispatching a synthetic keyboard event.
@@ -64,15 +111,28 @@ export const CommandPalette = () => {
   // parser that powers the "Search result" pinned row.
   const [input, setInput] = useState('');
 
+  // When the user clicks the × on the period chip we override the
+  // parser's resolved range with "all time". Reset whenever the input
+  // changes, since a new query gets a fresh evaluation.
+  const [periodOverride, setPeriodOverride] = useState<PeriodKind | null>(null);
+  useEffect(() => {
+    setPeriodOverride(null);
+  }, [input]);
+
   // Result-sheet state: opened when the user activates the parsed-query
   // row. We snapshot the resolved query so closing the palette doesn't
   // strip the modal of its data.
   const [resultOpen, setResultOpen] = useState(false);
   const [resultQuery, setResultQuery] = useState<ParsedQuery | null>(null);
+  const [resultIncludeExcluded, setResultIncludeExcluded] = useState(false);
 
-  // Reset input when the palette closes so the next open starts fresh.
+  // Reset input + override when the palette closes so the next open
+  // starts fresh.
   useEffect(() => {
-    if (!open) setInput('');
+    if (!open) {
+      setInput('');
+      setPeriodOverride(null);
+    }
   }, [open]);
 
   useEffect(() => {
@@ -91,11 +151,14 @@ export const CommandPalette = () => {
     navigate(path);
   }, [closePalette, navigate]);
 
+  // Recent transactions: feeding more rows to cmdk lets its built-in
+  // fuzzy filter find older charges (e.g. "netflix" from two months
+  // ago) instead of being capped at 5. cmdk handles thousands fine.
   const recentTransactions = useMemo(() => {
     return transactions
       .slice()
       .sort((a, b) => parseLocalDate(b.transaction_date).getTime() - parseLocalDate(a.transaction_date).getTime())
-      .slice(0, 5);
+      .slice(0, 200);
   }, [transactions]);
 
   const activeDebts = useMemo(() => {
@@ -109,64 +172,117 @@ export const CommandPalette = () => {
     return parseQuery(input, {
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
       accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
+      locale: uiLocale,
     });
-  }, [input, categories, accounts]);
+  }, [input, categories, accounts, uiLocale]);
 
-  // Filter transactions for the parsed query — used by the headline
+  // The "effective" query merges the parser output with the user's
+  // override. When the override is set to all_time, we widen the date
+  // range to include everything regardless of what the parser thought.
+  const effectiveQuery = useMemo<ParsedQuery | null>(() => {
+    if (!parsed) return null;
+    if (periodOverride !== 'all_time') return parsed;
+    return {
+      ...parsed,
+      periodKind: 'all_time',
+      periodWasDefault: false,
+      periodLabelKey: 'search.period.allTime',
+      periodLabelDefault: 'All time',
+      dateRange: { start: new Date(1970, 0, 1), end: new Date(2999, 11, 31) },
+    };
+  }, [parsed, periodOverride]);
+
+  // Filter transactions for the effective query — used by the headline
   // figure in the pinned result row and by the result modal.
   const matched = useMemo(() => {
-    if (!parsed?.hasSignal) return { txs: [], total: 0 };
+    if (!effectiveQuery?.hasSignal) return { txs: [], total: 0 };
     const dateOf = (tx: typeof transactions[number]) =>
       preferences.dateType === 'value'
         ? parseLocalDate(tx.value_date || tx.transaction_date)
         : parseLocalDate(tx.transaction_date);
     const txs = transactions.filter((tx) => {
-      if (parsed.type && tx.type !== parsed.type) return false;
-      if (parsed.categoryIds.length && !(tx.category && parsed.categoryIds.includes(tx.category.id)))
+      if (effectiveQuery.type && tx.type !== effectiveQuery.type) return false;
+      if (effectiveQuery.categoryIds.length && !(tx.category && effectiveQuery.categoryIds.includes(tx.category.id)))
         return false;
-      if (parsed.accountIds.length && !parsed.accountIds.includes(tx.account_id)) return false;
+      if (effectiveQuery.accountIds.length && !effectiveQuery.accountIds.includes(tx.account_id)) return false;
       const d = dateOf(tx);
-      if (d < parsed.dateRange.start || d > parsed.dateRange.end) return false;
+      if (d < effectiveQuery.dateRange.start || d > effectiveQuery.dateRange.end) return false;
       // Excluded transactions don't belong in totals — they're explicitly out of stats.
       if (!tx.include_in_stats) return false;
       return true;
     });
     const total = txs.reduce((acc, tx) => acc + Number(tx.amount), 0);
     return { txs, total };
-  }, [parsed, transactions, preferences.dateType]);
+  }, [effectiveQuery, transactions, preferences.dateType]);
+
+  // Same query but including out-of-stats transactions — handed to the
+  // result modal so its "Include excluded" toggle can swap datasets
+  // without re-filtering on every render.
+  const matchedWithExcluded = useMemo(() => {
+    if (!effectiveQuery?.hasSignal) return [];
+    const dateOf = (tx: typeof transactions[number]) =>
+      preferences.dateType === 'value'
+        ? parseLocalDate(tx.value_date || tx.transaction_date)
+        : parseLocalDate(tx.transaction_date);
+    return transactions.filter((tx) => {
+      if (effectiveQuery.type && tx.type !== effectiveQuery.type) return false;
+      if (effectiveQuery.categoryIds.length && !(tx.category && effectiveQuery.categoryIds.includes(tx.category.id)))
+        return false;
+      if (effectiveQuery.accountIds.length && !effectiveQuery.accountIds.includes(tx.account_id)) return false;
+      const d = dateOf(tx);
+      if (d < effectiveQuery.dateRange.start || d > effectiveQuery.dateRange.end) return false;
+      return true;
+    });
+  }, [effectiveQuery, transactions, preferences.dateType]);
 
   const matchedCategoryNames = useMemo(
-    () => parsed?.categoryIds.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean) as string[]
+    () => effectiveQuery?.categoryIds.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean) as string[]
       ?? [],
-    [parsed, categories]
+    [effectiveQuery, categories]
   );
   const matchedAccountNames = useMemo(
-    () => parsed?.accountIds.map((id) => accounts.find((a) => a.id === id)?.name).filter(Boolean) as string[]
+    () => effectiveQuery?.accountIds.map((id) => accounts.find((a) => a.id === id)?.name).filter(Boolean) as string[]
       ?? [],
-    [parsed, accounts]
+    [effectiveQuery, accounts]
   );
 
   const openResult = useCallback(() => {
-    if (!parsed?.hasSignal) return;
-    setResultQuery(parsed);
+    if (!effectiveQuery?.hasSignal) return;
+    setResultQuery(effectiveQuery);
+    setResultIncludeExcluded(false);
     setResultOpen(true);
     closePalette();
-  }, [parsed, closePalette]);
+  }, [effectiveQuery, closePalette]);
 
   const handleOpenInTransactions = useCallback(() => {
     setResultOpen(false);
     navigate('/transactions');
   }, [navigate]);
 
-  const periodLabel = parsed
-    ? t(parsed.periodLabelKey, { defaultValue: parsed.periodLabelDefault })
+  const periodLabel = effectiveQuery
+    ? t(effectiveQuery.periodLabelKey, { defaultValue: effectiveQuery.periodLabelDefault })
     : '';
-  const typeLabel = parsed?.type
-    ? t(`search.type.${parsed.type}`, {
+  const typeLabel = effectiveQuery?.type
+    ? t(`search.type.${effectiveQuery.type}`, {
         defaultValue:
-          parsed.type === 'income' ? 'Income' : parsed.type === 'expense' ? 'Expenses' : 'Transfers',
+          effectiveQuery.type === 'income' ? 'Income' : effectiveQuery.type === 'expense' ? 'Expenses' : 'Transfers',
       })
     : t('search.type.all', { defaultValue: 'All transactions' });
+
+  // Empty-state suggestions teach the parser's grammar in-context.
+  // Selecting a suggestion fills the input so the user can iterate.
+  const suggestions = useMemo(
+    () => [
+      { hint: t('palette.suggestion1', { defaultValue: 'expenses ytd' }), q: 'expenses ytd' },
+      { hint: t('palette.suggestion2', { defaultValue: 'income last month' }), q: 'income last month' },
+      {
+        hint: t('palette.suggestion3', { defaultValue: 'expenses {{cat}} this month', cat: categories[0]?.name ?? 'rent' }),
+        q: `expenses ${categories[0]?.name ?? 'rent'} this month`,
+      },
+      { hint: t('palette.suggestion4', { defaultValue: 'income 2025' }), q: 'income 2025' },
+    ],
+    [t, categories]
+  );
 
   return (
     <>
@@ -176,6 +292,16 @@ export const CommandPalette = () => {
         onValueChange={setInput}
         placeholder={t('common.searchPalettePlaceholder', { defaultValue: 'Search pages, transactions, accounts, debts…' })}
       />
+
+      {/* Diagnostic line: surfaces tokens the parser couldn't match so
+          the user can see what was/wasn't understood. */}
+      {parsed && parsed.unmatchedTokens.length > 0 && (
+        <div className="px-4 py-1.5 border-b border-line bg-bg-subtle/50 text-[11px] text-muted-foreground">
+          {t('palette.couldNotMatch', { defaultValue: "Couldn't match" })}:{' '}
+          <span className="font-mono text-foreground">{parsed.unmatchedTokens.join(' ')}</span>
+        </div>
+      )}
+
       <CommandList>
         <CommandEmpty>
           <div className="py-8 text-center">
@@ -184,13 +310,36 @@ export const CommandPalette = () => {
           </div>
         </CommandEmpty>
 
-        {parsed?.hasSignal && (
+        {/* Empty-state suggestions: only show when the user hasn't
+            typed anything yet. Doubles as inline documentation for
+            the parser's grammar. */}
+        {!input && (
+          <CommandGroup heading={t('palette.tryGroup', { defaultValue: 'Try a query' })}>
+            {suggestions.map((s) => (
+              <CommandItem
+                key={s.q}
+                value={`__suggestion__ ${s.q}`}
+                onSelect={() => setInput(s.q)}
+              >
+                <Lightbulb className="mr-2 h-4 w-4 text-warning" />
+                <span className="text-sm font-mono text-foreground">{s.hint}</span>
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {t('palette.suggestionHint', { defaultValue: 'Insert' })}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {effectiveQuery?.hasSignal && (
           <>
             <CommandGroup heading={t('search.resultGroup', { defaultValue: 'Search result' })}>
               <CommandItem
                 // Use the raw input as the cmdk value so it always matches
                 // (cmdk filters items against the input — pinning by
-                // matching against the input itself is the simplest path).
+                // matching against the input itself is the simplest path
+                // that keeps the row visible regardless of what the user
+                // typed).
                 value={input + ' __search_result__'}
                 onSelect={openResult}
                 className="flex-col items-stretch gap-1.5 py-3"
@@ -204,14 +353,14 @@ export const CommandPalette = () => {
                   </span>
                   <span
                     className={`ml-auto text-base font-semibold tabular-nums ${
-                      parsed.type === 'income'
+                      effectiveQuery.type === 'income'
                         ? 'text-pos'
-                        : parsed.type === 'expense'
+                        : effectiveQuery.type === 'expense'
                         ? 'text-neg'
                         : ''
                     }`}
                   >
-                    {parsed.type === 'income' ? '+' : parsed.type === 'expense' ? '-' : ''}
+                    {effectiveQuery.type === 'income' ? '+' : effectiveQuery.type === 'expense' ? '-' : ''}
                     {formatCurrency(Math.abs(matched.total))}
                   </span>
                 </div>
@@ -226,6 +375,30 @@ export const CommandPalette = () => {
                       {name}
                     </span>
                   ))}
+                  {/* Period chip — removable when the parser silently
+                      defaulted to YTD, so the user can see and override
+                      the auto-default. The × button click is captured
+                      via stopPropagation so it doesn't activate the
+                      surrounding row. */}
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-bg-subtle border border-line"
+                  >
+                    {periodLabel}
+                    {effectiveQuery.periodWasDefault && periodOverride !== 'all_time' && (
+                      <button
+                        type="button"
+                        aria-label={t('palette.removePeriod', { defaultValue: 'Remove period filter' })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setPeriodOverride('all_time');
+                        }}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    )}
+                  </span>
                   <span>
                     {t('search.transactionCount', {
                       count: matched.txs.length,
@@ -239,7 +412,7 @@ export const CommandPalette = () => {
           </>
         )}
 
-        <CommandGroup heading="Pages">
+        <CommandGroup heading={t('palette.pages', { defaultValue: 'Pages' })}>
           {pages.map((page) => {
             const Icon = page.icon;
             return (
@@ -256,6 +429,26 @@ export const CommandPalette = () => {
           })}
         </CommandGroup>
 
+        <CommandSeparator />
+        <CommandGroup heading={t('palette.quickActions', { defaultValue: 'Quick actions' })}>
+          {quickActions.map((qa) => {
+            const Icon = qa.icon;
+            return (
+              <CommandItem
+                key={qa.key}
+                value={`${qa.name} ${qa.keywords}`}
+                onSelect={() => handleSelect(qa.path)}
+              >
+                <Icon className="mr-2 h-4 w-4 text-primary" />
+                <span>{qa.name}</span>
+                <kbd className="ml-auto inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded border border-line bg-card text-[10px] font-medium text-muted-foreground">
+                  {qa.shortcut}
+                </kbd>
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+
         {accounts.length > 0 && (
           <>
             <CommandSeparator />
@@ -263,7 +456,7 @@ export const CommandPalette = () => {
               {accounts.map((account) => (
                 <CommandItem
                   key={account.id}
-                  value={`${account.name} ${account.bank} compte`}
+                  value={`${account.name} ${account.bank} compte account`}
                   onSelect={() => handleSelect('/accounts')}
                 >
                   <Wallet className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -278,11 +471,11 @@ export const CommandPalette = () => {
         {activeDebts.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Dettes actives">
+            <CommandGroup heading={t('palette.activeDebts', { defaultValue: 'Active debts' })}>
               {activeDebts.map((debt) => (
                 <CommandItem
                   key={debt.id}
-                  value={`${debt.description} ${debt.contact_name || ''} dette prêt`}
+                  value={`${debt.description} ${debt.contact_name || ''} dette pret debt loan`}
                   onSelect={() => handleSelect('/debts')}
                 >
                   <Scale className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -301,7 +494,7 @@ export const CommandPalette = () => {
               {goals.map((goal) => (
                 <CommandItem
                   key={goal.id}
-                  value={`${goal.name} épargne objectif`}
+                  value={`${goal.name} epargne objectif savings goal`}
                   onSelect={() => handleSelect('/savings')}
                 >
                   <PiggyBank className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -322,19 +515,24 @@ export const CommandPalette = () => {
               {recentTransactions.map((tx) => (
                 <CommandItem
                   key={tx.id}
-                  value={`${tx.description} ${tx.amount} ${tx.account?.name || ''} transaction`}
+                  value={`${tx.description} ${tx.amount} ${tx.account?.name || ''} ${tx.category?.name || ''} transaction`}
                   onSelect={() => handleSelect('/transactions')}
                 >
-                  <History className="mr-2 h-4 w-4 text-muted-foreground" />
+                  {recentIcon(tx.type)}
                   <div className="flex-1 min-w-0">
                     <span className="truncate block">{tx.description}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {format(parseLocalDate(tx.transaction_date), 'dd MMM', { locale: fr })}
+                      {format(parseLocalDate(tx.transaction_date), 'd MMM', { locale: dateLocale })}
                       {tx.account && ` · ${tx.account.name}`}
                     </span>
                   </div>
-                  <span className={`text-xs font-medium ${tx.type === 'income' ? 'text-green-500' : tx.type === 'expense' ? 'text-red-500' : ''}`}>
-                    {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}{formatCurrency(tx.amount)}
+                  <span
+                    className={`text-xs font-medium tabular-nums ${
+                      tx.type === 'income' ? 'text-pos' : tx.type === 'expense' ? 'text-neg' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}
+                    {formatCurrency(tx.amount)}
                   </span>
                 </CommandItem>
               ))}
@@ -342,15 +540,40 @@ export const CommandPalette = () => {
           </>
         )}
       </CommandList>
+
+      {/* Keyboard footer — teaches the shortcuts without being a
+          tutorial overlay. Stays present at the bottom of the dialog. */}
+      <div className="flex items-center gap-3 px-4 py-2 border-t border-line text-[11px] text-muted-foreground bg-bg-subtle/40">
+        <span className="inline-flex items-center gap-1">
+          <kbd className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded border border-line bg-card font-medium">↑</kbd>
+          <kbd className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded border border-line bg-card font-medium">↓</kbd>
+          {t('palette.kbdNavigate', { defaultValue: 'navigate' })}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <kbd className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded border border-line bg-card font-medium">↵</kbd>
+          {t('palette.kbdOpen', { defaultValue: 'open' })}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <kbd className="inline-flex items-center justify-center h-4 min-w-[20px] px-1 rounded border border-line bg-card font-medium">esc</kbd>
+          {t('palette.kbdClose', { defaultValue: 'close' })}
+        </span>
+        <span className="ml-auto inline-flex items-center gap-1">
+          <kbd className="inline-flex items-center justify-center h-4 min-w-[20px] px-1 rounded border border-line bg-card font-medium">⌘K</kbd>
+          {t('palette.kbdToggle', { defaultValue: 'toggle' })}
+        </span>
+      </div>
     </CommandDialog>
     <SearchResultModal
       open={resultOpen}
       onOpenChange={setResultOpen}
       query={resultQuery}
-      transactions={matched.txs}
+      transactions={resultIncludeExcluded ? matchedWithExcluded : matched.txs}
       matchedCategoryNames={matchedCategoryNames}
       matchedAccountNames={matchedAccountNames}
       onOpenTransactions={handleOpenInTransactions}
+      includeExcluded={resultIncludeExcluded}
+      onIncludeExcludedChange={setResultIncludeExcluded}
+      excludedCount={matchedWithExcluded.length - matched.txs.length}
     />
     </>
   );
