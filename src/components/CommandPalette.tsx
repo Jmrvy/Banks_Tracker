@@ -631,7 +631,13 @@ export const CommandPalette = () => {
                   <div className="flex-1 min-w-0">
                     <span className="truncate block">{tx.description}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {format(parseLocalDate(tx.transaction_date), 'd MMM', { locale: dateLocale })}
+                      {format(
+                        preferences.dateType === 'value'
+                          ? parseLocalDate(tx.value_date || tx.transaction_date)
+                          : parseLocalDate(tx.transaction_date),
+                        'd MMM',
+                        { locale: dateLocale }
+                      )}
                       {tx.account && ` · ${tx.account.name}`}
                     </span>
                   </div>
