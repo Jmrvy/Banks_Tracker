@@ -76,6 +76,16 @@ export function SearchResultModal({
       ? parseLocalDate(tx.value_date || tx.transaction_date)
       : parseLocalDate(tx.transaction_date);
 
+  // Sort by the user's preferred date, newest first. Supabase returns
+  // transactions ordered by transaction_date desc, which is wrong for
+  // a value-date user — their list would jump around chronologically.
+  const sortedTransactions = useMemo(
+    () => [...transactions].sort((a, b) => displayDate(b).getTime() - displayDate(a).getTime()),
+    // displayDate is defined inline; it only varies with preferences.dateType.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, preferences.dateType]
+  );
+
   const totals = useMemo(() => {
     const sum = transactions.reduce((acc, tx) => acc + netAmount(tx), 0);
     return { sum, count: transactions.length };
@@ -255,7 +265,7 @@ export function SearchResultModal({
             </p>
           ) : (
             <div className="space-y-1.5">
-              {transactions.slice(0, 50).map((tx) => {
+              {sortedTransactions.slice(0, 50).map((tx) => {
                 const net = netAmount(tx);
                 const wasRefunded =
                   tx.type === "expense" && (Number(tx.refunded_amount) || 0) > 0;
