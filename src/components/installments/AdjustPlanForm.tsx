@@ -58,8 +58,13 @@ export function AdjustPlanForm({ plan }: Props) {
   const [reconcileFirst, setReconcileFirst] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reseed inputs whenever the underlying plan changes (e.g. after Apply
-  // succeeds and the hook refetches).
+  // Reseed inputs from the current plan whenever:
+  //  - the underlying plan changes (e.g. after Apply succeeds and the
+  //    hook refetches), OR
+  //  - the user switches modify mode — so the editable field always
+  //    starts from the live plan state (notably: count always defaults
+  //    to the remaining occurrences of the current plan, not whatever
+  //    the user may have typed in a previous mode visit).
   useEffect(() => {
     setTotalStr(plan.total_amount.toString());
     setAmountStr(plan.installment_amount.toString());
@@ -68,7 +73,7 @@ export function AdjustPlanForm({ plan }: Props) {
         ? Math.max(1, Math.ceil(plan.remaining_amount / plan.installment_amount)).toString()
         : '1'
     );
-  }, [plan.id, plan.total_amount, plan.installment_amount, plan.remaining_amount]);
+  }, [modifyField, plan.id, plan.total_amount, plan.installment_amount, plan.remaining_amount]);
 
   useEffect(() => {
     let cancelled = false;
