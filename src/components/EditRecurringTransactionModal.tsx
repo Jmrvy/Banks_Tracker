@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,11 +32,30 @@ interface EditRecurringTransactionModalProps {
 export function EditRecurringTransactionModal({ open, onOpenChange, transaction }: EditRecurringTransactionModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { formatCurrency } = useUserPreferences();
   const { accounts, categories, updateRecurringTransaction } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
   const { debts } = useDebts();
   const { user } = useAuth();
+
+  // Defense-in-depth: never edit a plan-linked recurring here. If the modal
+  // is opened with one, close immediately and route the user to the owner.
+  useEffect(() => {
+    if (!open || !transaction) return;
+    if (transaction.installment_payment_id) {
+      toast({
+        title: t('recurring.lockedByPlanTitle', { defaultValue: 'Managed by an installment plan' }),
+        description: t('recurring.lockedByPlanDesc', {
+          defaultValue: 'Open the plan to make changes.',
+        }),
+      });
+      onOpenChange(false);
+      navigate(`/installment-payments/${transaction.installment_payment_id}`);
+    }
+    // Debt-linked: close silently; the caller's handleEditAttempt is the
+    // proper redirect path. If we got here it's likely a stale ref.
+  }, [open, transaction?.id, transaction?.installment_payment_id]);
 
   interface ScheduledDebtPayment {
     debt_id: string;

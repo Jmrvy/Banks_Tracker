@@ -368,7 +368,35 @@ function useFinancialDataInternal() {
 
   const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date' | 'type' | 'account_id' | 'category_id' | 'recurrence_type' | 'start_date'>>) => {
     if (!user) return;
-    
+
+    // Safeguard: plan-linked recurring rows (installment plan or debt) are
+    // driven by their parent; direct edits silently desync. Refuse the
+    // update and surface a clear error so callers route the user to the
+    // parent instead.
+    const { data: linkCheck } = await supabase
+      .from('recurring_transactions')
+      .select('installment_payment_id, debt_id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (linkCheck?.installment_payment_id) {
+      return {
+        error: {
+          message: 'linked_to_installment',
+          installment_payment_id: linkCheck.installment_payment_id as string,
+        } as Error & { installment_payment_id?: string },
+      };
+    }
+    if (linkCheck?.debt_id) {
+      return {
+        error: {
+          message: 'linked_to_debt',
+          debt_id: linkCheck.debt_id as string,
+        } as Error & { debt_id?: string },
+      };
+    }
+
     // Recalculate next_due_date if start_date or recurrence_type is being updated
     let updatedData: Record<string, unknown> = {
       ...updates,
@@ -418,6 +446,33 @@ function useFinancialDataInternal() {
 
   const deleteRecurringTransaction = async (id: string) => {
     if (!user) return;
+
+    // Safeguard: plan-linked recurring rows are owned by their parent.
+    // Deleting them out from under the plan strands it with no schedule.
+    const { data: linkCheck } = await supabase
+      .from('recurring_transactions')
+      .select('installment_payment_id, debt_id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (linkCheck?.installment_payment_id) {
+      return {
+        error: {
+          message: 'linked_to_installment',
+          installment_payment_id: linkCheck.installment_payment_id as string,
+        } as Error & { installment_payment_id?: string },
+      };
+    }
+    if (linkCheck?.debt_id) {
+      return {
+        error: {
+          message: 'linked_to_debt',
+          debt_id: linkCheck.debt_id as string,
+        } as Error & { debt_id?: string },
+      };
+    }
+
     const { error } = await supabase
       .from('recurring_transactions')
       .delete()

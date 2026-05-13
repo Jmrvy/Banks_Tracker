@@ -1,9 +1,10 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Repeat, Trash2, Pause, Play, Pencil, ChevronDown, Clock } from "lucide-react";
+import { Repeat, Trash2, Pause, Play, Pencil, ChevronDown, Clock, Lock, ArrowRight, CreditCard, Scale } from "lucide-react";
 import { RecurringTransaction, Transaction } from "@/hooks/useFinancialData";
 import { DebtPayment } from "@/hooks/useDebts";
 import { differenceInDays, startOfDay } from "date-fns";
@@ -61,6 +62,8 @@ interface RecurringListCardProps {
   onEdit: (transaction: RecurringTransaction) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string, description: string) => void;
+  /** Open the debt detail modal when a debt-linked card's CTA is clicked. */
+  onOpenDebt?: (debtId: string) => void;
 }
 
 const RecurringListCard = React.memo(({
@@ -77,10 +80,23 @@ const RecurringListCard = React.memo(({
   onEdit,
   onToggleActive,
   onDelete,
+  onOpenDebt,
 }: RecurringListCardProps) => {
+  const navigate = useNavigate();
   const nextDue = parseLocalDate(recurring.next_due_date);
   const today = startOfDay(new Date());
   const daysUntil = differenceInDays(nextDue, today);
+
+  // Plan-linked rows are managed by their parent (installment plan or
+  // debt). The Recurring page exposes a read-only view + a single CTA
+  // routing to the owner, never inline edit/delete/toggle actions.
+  const isPlanLinked = !!installmentInfo || !!debtInfo;
+  const linkLabel = installmentInfo
+    ? 'Plan d’échelonnement'
+    : debtInfo
+    ? (debtInfo.debt.type === 'loan_received' ? 'Dette' : 'Prêt')
+    : '';
+  const LinkIcon = installmentInfo ? CreditCard : Scale;
 
   return (
     <Card
@@ -107,6 +123,16 @@ const RecurringListCard = React.memo(({
             <p className={`text-sm sm:text-base font-semibold truncate ${!recurring.is_active ? 'text-muted-foreground' : ''}`}>
               {resolveNamePlaceholders(recurring.description, parseLocalDate(recurring.next_due_date))}
             </p>
+            {isPlanLinked && (
+              <Badge
+                variant="outline"
+                className="gap-1 text-[9px] px-1.5 py-0 flex-shrink-0 border-primary/40 text-primary"
+                title={installmentInfo ? 'Géré par un plan d’échelonnement' : 'Géré par une dette/prêt'}
+              >
+                <Lock className="h-2.5 w-2.5" />
+                {linkLabel}
+              </Badge>
+            )}
           {!recurring.is_active && (() => {
             const isCompleted = installmentInfo?.isCompleted;
             return (
@@ -308,21 +334,49 @@ const RecurringListCard = React.memo(({
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-2 pt-2 border-t border-border/50">
-            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-              onClick={() => onEdit(recurring)}>
-              <Pencil className="h-3.5 w-3.5" /> Modifier
-            </Button>
-            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
-              onClick={() => onToggleActive(recurring.id, recurring.is_active)}>
-              {recurring.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-              {recurring.is_active ? 'Désactiver' : 'Activer'}
-            </Button>
-            <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
-              onClick={() => onDelete(recurring.id, recurring.description)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          {isPlanLinked ? (
+            <div className="pt-2 border-t border-border/50 space-y-2">
+              <p className="text-[11px] text-muted-foreground leading-snug flex items-start gap-1.5">
+                <Lock className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <span>
+                  {installmentInfo
+                    ? "Cette récurrente est gérée par un plan d'échelonnement. Modifiez-la depuis la fiche du plan."
+                    : "Cette récurrente est gérée par une dette/prêt. Modifiez-la depuis la fiche correspondante."}
+                </span>
+              </p>
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs gap-1.5"
+                onClick={() => {
+                  if (installmentInfo) {
+                    navigate(`/installment-payments/${installmentInfo.ip.id}`);
+                  } else if (debtInfo && onOpenDebt) {
+                    onOpenDebt(debtInfo.debt.id);
+                  }
+                }}
+              >
+                <LinkIcon className="h-3.5 w-3.5" />
+                {installmentInfo ? 'Ouvrir le plan' : 'Ouvrir la dette'}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2 pt-2 border-t border-border/50">
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => onEdit(recurring)}>
+                <Pencil className="h-3.5 w-3.5" /> Modifier
+              </Button>
+              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1.5"
+                onClick={() => onToggleActive(recurring.id, recurring.is_active)}>
+                {recurring.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {recurring.is_active ? 'Désactiver' : 'Activer'}
+              </Button>
+              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5 px-3"
+                onClick={() => onDelete(recurring.id, recurring.description)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </Card>
