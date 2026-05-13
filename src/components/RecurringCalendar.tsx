@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect, memo } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, TrendingDown, TrendingUp, Wallet, ChevronDown, Pencil, Pause, Play, Trash2, Clock, Link, AlertTriangle, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1095,21 +1095,42 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             )}
 
             {/* Action buttons */}
-            <div className="flex gap-2 pt-2 border-t border-border/50">
-              <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
-                onClick={() => onEdit(transaction)}>
-                <Pencil className="h-3.5 w-3.5" /> Modifier
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
-                onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
-                {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {transaction.is_active ? 'Désactiver' : 'Activer'}
-              </Button>
-              <Button size="sm" variant="destructive" className="h-9 text-xs gap-1.5 px-3"
-                onClick={() => onDelete(transaction.id, transaction.description)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            {(installmentInfo || debtInfo) ? (
+              <div className="pt-2 border-t border-border/50 space-y-2">
+                <p className="text-[11px] text-muted-foreground leading-snug flex items-start gap-1.5">
+                  <Lock className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  <span>
+                    {installmentInfo
+                      ? "Cette récurrente est gérée par un plan d'échelonnement."
+                      : "Cette récurrente est gérée par une dette/prêt."}
+                  </span>
+                </p>
+                <Button
+                  size="sm"
+                  className="w-full h-9 text-xs gap-1.5"
+                  onClick={() => onEdit(transaction)}
+                >
+                  {installmentInfo ? 'Ouvrir le plan' : 'Ouvrir la dette'}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2 pt-2 border-t border-border/50">
+                <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
+                  onClick={() => onEdit(transaction)}>
+                  <Pencil className="h-3.5 w-3.5" /> Modifier
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
+                  onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
+                  {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                  {transaction.is_active ? 'Désactiver' : 'Activer'}
+                </Button>
+                <Button size="sm" variant="destructive" className="h-9 text-xs gap-1.5 px-3"
+                  onClick={() => onDelete(transaction.id, transaction.description)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>

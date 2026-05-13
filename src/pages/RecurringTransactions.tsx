@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Repeat, Calendar, Pause, Play, Plus, List, CalendarDays } from "lucide-react";
@@ -16,6 +17,7 @@ import RecurringCalendar from "@/components/RecurringCalendar";
 import { RecurringMonthlySummary } from "@/components/RecurringMonthlySummary";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { DebtDetailsModal } from "@/components/DebtDetailsModal";
+import { DeleteRecurringDialog } from "@/components/DeleteRecurringDialog";
 import { startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
 import RecurringListCard from "@/components/RecurringListCard";
@@ -30,11 +32,13 @@ interface RecurringTransactionsProps {
 const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps = {}) => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [recordPaymentForId, setRecordPaymentForId] = useState<string | null>(null);
   const [managingDebtId, setManagingDebtId] = useState<string | null>(null);
+  const [deletingRecurring, setDeletingRecurring] = useState<RecurringTransaction | null>(null);
   const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, payments: debtPayments } = useDebts();
@@ -70,10 +74,36 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
     fetchScheduledDebtPayments();
   }, [user]);
 
+  const redirectIfLinked = (err: unknown): boolean => {
+    const e = err as { message?: string; installment_payment_id?: string; debt_id?: string } | null | undefined;
+    if (e?.message === 'linked_to_installment' && e.installment_payment_id) {
+      toast({
+        title: t('recurring.lockedByPlanTitle', { defaultValue: 'Managed by an installment plan' }),
+        description: t('recurring.lockedByPlanDesc', {
+          defaultValue: 'Open the plan to make changes.',
+        }),
+      });
+      navigate(`/installment-payments/${e.installment_payment_id}`);
+      return true;
+    }
+    if (e?.message === 'linked_to_debt' && e.debt_id) {
+      toast({
+        title: t('recurring.lockedByDebtTitle', { defaultValue: 'Managed by a debt' }),
+        description: t('recurring.lockedByDebtDesc', {
+          defaultValue: 'Open the debt to make changes.',
+        }),
+      });
+      setManagingDebtId(e.debt_id);
+      return true;
+    }
+    return false;
+  };
+
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     const result = await updateRecurringTransaction(id, { is_active: !currentStatus });
 
     if (result?.error) {
+      if (redirectIfLinked(result.error)) return;
       toast({
         title: t('common.error'),
         description: t('recurring.cannotChangeStatus'),
@@ -88,26 +118,33 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
     }
   };
 
-  const handleDelete = async (id: string, description: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer définitivement la transaction récurrente "${description}" ?`)) {
+  const handleDelete = async (id: string, _description: string) => {
+    const rt = recurringTransactions.find((r) => r.id === id);
+    if (!rt) return;
+    // Plan-linked rows shouldn't even render the delete button; if a stale
+    // path calls here, redirect via the hook's typed error path instead of
+    // popping the dialog.
+    if (rt.installment_payment_id || rt.debt_id) {
+      const result = await deleteRecurringTransaction(id);
+      if (result?.error && redirectIfLinked(result.error)) return;
       return;
     }
+    setDeletingRecurring(rt);
+  };
 
-    const result = await deleteRecurringTransaction(id);
-
-    if (result?.error) {
-      toast({
-        title: t('common.error'),
-        description: t('recurring.cannotDelete'),
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: t('recurring.transactionDeleted'),
-        description: t('recurring.deletedDescription'),
-      });
-      fetchRecurringTransactions();
+  // When the calendar or list tries to open the edit modal on a plan-linked
+  // row, redirect to the owner instead.
+  const handleEditAttempt = (recurring: RecurringTransaction) => {
+    if (recurring.installment_payment_id) {
+      navigate(`/installment-payments/${recurring.installment_payment_id}`);
+      return;
     }
+    const debt = resolveDebt(recurring);
+    if (debt) {
+      setManagingDebtId(debt.id);
+      return;
+    }
+    setEditingTransaction(recurring);
   };
 
   const handleExecuteEarly = async (transactionId: string, executionDate: string) => {
@@ -326,7 +363,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                   debts={debts}
                   debtPayments={debtPayments}
                   scheduledDebtPayments={scheduledDebtPayments}
-                  onEdit={setEditingTransaction}
+                  onEdit={handleEditAttempt}
                   onToggleActive={handleToggleActive}
                   onDelete={handleDelete}
                   onExecuteEarly={handleExecuteEarly}
@@ -419,9 +456,10 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                             installmentPaymentHistory={props.installmentPaymentHistory}
                             debtPaymentHistory={props.debtPaymentHistory}
                             formatCurrency={formatCurrency}
-                            onEdit={setEditingTransaction}
+                            onEdit={handleEditAttempt}
                             onToggleActive={handleToggleActive}
                             onDelete={handleDelete}
+                            onOpenDebt={setManagingDebtId}
                           />
                         );
                       })}
@@ -456,9 +494,10 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                             installmentPaymentHistory={props.installmentPaymentHistory}
                             debtPaymentHistory={props.debtPaymentHistory}
                             formatCurrency={formatCurrency}
-                            onEdit={setEditingTransaction}
+                            onEdit={handleEditAttempt}
                             onToggleActive={handleToggleActive}
                             onDelete={handleDelete}
+                            onOpenDebt={setManagingDebtId}
                           />
                         );
                       })}
@@ -499,6 +538,16 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
           onEdit={() => {}}
         />
       )}
+
+      <DeleteRecurringDialog
+        open={!!deletingRecurring}
+        onOpenChange={(open) => !open && setDeletingRecurring(null)}
+        recurring={deletingRecurring}
+        onDeleted={() => {
+          setDeletingRecurring(null);
+          fetchRecurringTransactions();
+        }}
+      />
     </div>
   );
 };

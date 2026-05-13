@@ -368,7 +368,35 @@ function useFinancialDataInternal() {
 
   const updateRecurringTransaction = async (id: string, updates: Partial<Pick<RecurringTransaction, 'is_active' | 'description' | 'amount' | 'end_date' | 'type' | 'account_id' | 'category_id' | 'recurrence_type' | 'start_date'>>) => {
     if (!user) return;
-    
+
+    // Safeguard: plan-linked recurring rows (installment plan or debt) are
+    // driven by their parent; direct edits silently desync. Refuse the
+    // update and surface a clear error so callers route the user to the
+    // parent instead.
+    const { data: linkCheck } = await supabase
+      .from('recurring_transactions')
+      .select('installment_payment_id, debt_id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (linkCheck?.installment_payment_id) {
+      return {
+        error: {
+          message: 'linked_to_installment',
+          installment_payment_id: linkCheck.installment_payment_id as string,
+        } as Error & { installment_payment_id?: string },
+      };
+    }
+    if (linkCheck?.debt_id) {
+      return {
+        error: {
+          message: 'linked_to_debt',
+          debt_id: linkCheck.debt_id as string,
+        } as Error & { debt_id?: string },
+      };
+    }
+
     // Recalculate next_due_date if start_date or recurrence_type is being updated
     let updatedData: Record<string, unknown> = {
       ...updates,
@@ -416,8 +444,92 @@ function useFinancialDataInternal() {
     return { error };
   };
 
-  const deleteRecurringTransaction = async (id: string) => {
+  // Preview the linked transactions that delete-cascade would remove. Used
+  // by the delete-recurring confirmation dialog so the user can see what
+  // will be touched, opt into the cascade, and see the per-account
+  // balance delta before committing. Includes transfer fields so the
+  // dialog can compute the effect on both legs of any transfer rows.
+  const getRecurringDeletionImpact = async (id: string) => {
+    if (!user) return {
+      error: new Error('Not authenticated') as Error,
+      transactions: [] as Array<{
+        id: string; description: string; amount: number; transaction_date: string;
+        account_id: string; type: string;
+        transfer_to_account_id: string | null; transfer_fee: number | null;
+      }>,
+    };
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, description, amount, transaction_date, account_id, type, transfer_to_account_id, transfer_fee')
+      .eq('recurring_transaction_id', id)
+      .eq('user_id', user.id)
+      .order('transaction_date', { ascending: false });
+
+    if (error) return { error, transactions: [] };
+    return { error: null, transactions: data || [] };
+  };
+
+  const deleteRecurringTransaction = async (
+    id: string,
+    options: { deleteLinkedTransactions?: boolean } = {}
+  ) => {
     if (!user) return;
+
+    // Safeguard: plan-linked recurring rows are owned by their parent.
+    // Deleting them out from under the plan strands it with no schedule.
+    const { data: linkCheck } = await supabase
+      .from('recurring_transactions')
+      .select('installment_payment_id, debt_id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (linkCheck?.installment_payment_id) {
+      return {
+        error: {
+          message: 'linked_to_installment',
+          installment_payment_id: linkCheck.installment_payment_id as string,
+        } as Error & { installment_payment_id?: string },
+      };
+    }
+    if (linkCheck?.debt_id) {
+      return {
+        error: {
+          message: 'linked_to_debt',
+          debt_id: linkCheck.debt_id as string,
+        } as Error & { debt_id?: string },
+      };
+    }
+
+    // Optionally cascade-delete the transactions this schedule generated.
+    // If it fails, abort before touching the schedule so the user can
+    // retry from a known state.
+    let deletedCount = 0;
+    if (options.deleteLinkedTransactions) {
+      const { data: linked, error: fetchError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('recurring_transaction_id', id)
+        .eq('user_id', user.id);
+
+      if (fetchError) {
+        return { error: fetchError };
+      }
+
+      if (linked && linked.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('transactions')
+          .delete()
+          .in('id', linked.map((t) => t.id))
+          .eq('user_id', user.id);
+        if (deleteError) {
+          return { error: deleteError };
+        }
+        deletedCount = linked.length;
+      }
+    }
+
     const { error } = await supabase
       .from('recurring_transactions')
       .delete()
@@ -426,8 +538,14 @@ function useFinancialDataInternal() {
 
     if (!error) {
       fetchRecurringTransactions();
+      if (deletedCount > 0) {
+        // Linked transactions were removed; refresh the global feed +
+        // account balances (the trigger updates accounts on each delete).
+        fetchTransactions();
+        fetchAccounts();
+      }
     }
-    return { error };
+    return { error, deletedTransactionsCount: deletedCount };
   };
 
   const updateTransaction = async (id: string, updates: {
@@ -1382,6 +1500,7 @@ function useFinancialDataInternal() {
     createRecurringTransaction,
     updateRecurringTransaction,
     deleteRecurringTransaction,
+    getRecurringDeletionImpact,
     updateTransaction,
     deleteTransaction,
     createRefund,

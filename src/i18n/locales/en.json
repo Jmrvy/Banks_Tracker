@@ -353,9 +353,9 @@
   },
   "scheduled": {
     "pageTitle": "Scheduled",
-    "subtitle": "Money on a schedule — subscriptions, plans, and loans in one place.",
+    "subtitle": "Money on a schedule — recurring transactions, plans, and loans in one place.",
     "tabs": "Scheduled tools",
-    "subscriptions": "Subscriptions",
+    "subscriptions": "Recurring",
     "plans": "Plans",
     "loans": "Loans"
   },
