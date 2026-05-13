@@ -164,17 +164,26 @@ const Accounts = () => {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-[240px]">
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
+                    disabled={accounts.length <= 1}
+                    className="text-destructive focus:text-destructive data-[disabled]:text-muted-foreground"
                     onSelect={(e) => {
                       e.preventDefault();
+                      if (accounts.length <= 1) return;
                       setShowDeleteModal(true);
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" />
                     {t("accounts.delete", { defaultValue: "Delete account" })}
                   </DropdownMenuItem>
+                  {accounts.length <= 1 && (
+                    <div className="px-2 pt-1 pb-1.5 text-[11px] text-muted-foreground leading-snug">
+                      {t("accounts.cannotDeleteLast", {
+                        defaultValue: "You must keep at least one account.",
+                      })}
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

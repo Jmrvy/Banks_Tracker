@@ -77,9 +77,18 @@ export function DeleteAccountModal({ open, onOpenChange, account, onDeleted }: D
     const { error } = await deleteAccount(account.id);
     setSubmitting(false);
     if (error) {
+      const description = /cannot_delete_last_account/i.test(error.message)
+        ? t('accounts.cannotDeleteLast', {
+            defaultValue: 'You must keep at least one account.',
+          })
+        : /account_not_found_or_unauthorized/i.test(error.message)
+        ? t('accounts.deleteUnauthorized', {
+            defaultValue: 'Account not found or you do not have access.',
+          })
+        : error.message;
       toast({
         title: t('accounts.deleteFailed', { defaultValue: 'Could not delete account' }),
-        description: error.message,
+        description,
         variant: 'destructive',
       });
       return;
