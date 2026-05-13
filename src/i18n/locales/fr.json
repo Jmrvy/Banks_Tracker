@@ -353,9 +353,9 @@
   },
   "scheduled": {
     "pageTitle": "Échéancier",
-    "subtitle": "Argent programmé — abonnements, échelonnés et prêts au même endroit.",
+    "subtitle": "Argent programmé — récurrents, échelonnés et prêts au même endroit.",
     "tabs": "Outils d'échéancier",
-    "subscriptions": "Abonnements",
+    "subscriptions": "Récurrents",
     "plans": "Échelonnés",
     "loans": "Prêts"
   },

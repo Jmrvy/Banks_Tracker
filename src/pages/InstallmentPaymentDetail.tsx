@@ -5,6 +5,7 @@ import { differenceInDays, format, parseISO, startOfDay } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   History as HistoryIcon,
@@ -16,6 +17,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
+import type { TFunction } from 'i18next';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,7 +72,6 @@ const InstallmentPaymentDetail = () => {
     deleteInstallmentPayment,
     completeInstallmentPayment,
     fetchPaymentHistory,
-    deleteHistoryEntry,
     revertInstallmentHistoryEntry,
     fetchTransactionsSinceEntry,
     fetchLinkedTransactions,
@@ -472,8 +473,26 @@ const InstallmentPaymentDetail = () => {
                   entry.change_type !== 'deleted' &&
                   !!entry.old_values &&
                   Object.keys(entry.old_values).length > 0;
+
+                // Render fields that have an old → new pair. Falls back to
+                // old_values keys for change types (recalculated, completed,
+                // reactivated) that don't always populate new_values.
+                const diffKeys = new Set<string>([
+                  ...Object.keys(entry.new_values || {}),
+                  ...Object.keys(entry.old_values || {}),
+                ]);
+                const diffRows = Array.from(diffKeys)
+                  .filter((field) => fieldLabel(field, t) !== null)
+                  .map((field) => ({
+                    field,
+                    label: fieldLabel(field, t)!,
+                    oldVal: entry.old_values?.[field],
+                    newVal: entry.new_values?.[field],
+                  }))
+                  .filter((r) => r.oldVal !== undefined || r.newVal !== undefined);
+
                 return (
-                  <div key={entry.id} className="ft-card p-3 group">
+                  <div key={entry.id} className="ft-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${typeInfo.color}`} />
@@ -481,7 +500,7 @@ const InstallmentPaymentDetail = () => {
                           {typeInfo.label}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {format(parseISO(entry.created_at), 'PP p', { locale: dateLocale })}
                         </span>
@@ -491,33 +510,41 @@ const InstallmentPaymentDetail = () => {
                               e.stopPropagation();
                               setRevertingEntry(entry);
                             }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-primary/10"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-primary hover:bg-primary/10 transition-colors"
                             aria-label={t('installments.undoEntry', {
                               defaultValue: 'Undo this change',
                             })}
-                            title={t('installments.undoEntry', {
-                              defaultValue: 'Undo this change',
-                            })}
                           >
-                            <RotateCcw className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                            <RotateCcw className="w-3 h-3" />
+                            <span className="hidden sm:inline">
+                              {t('installments.undoShort', { defaultValue: 'Undo' })}
+                            </span>
                           </button>
                         )}
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            const { error } = await deleteHistoryEntry(entry.id);
-                            if (!error) setHistory((prev) => prev.filter((h) => h.id !== entry.id));
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
-                          aria-label={t('installments.deleteEntry', {
-                            defaultValue: 'Delete entry',
-                          })}
-                        >
-                          <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                        </button>
                       </div>
                     </div>
-                    {entry.change_description && (
+
+                    {diffRows.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {diffRows.map((r) => (
+                          <div
+                            key={r.field}
+                            className="flex items-baseline gap-1.5 flex-wrap text-[11px] sm:text-xs"
+                          >
+                            <span className="text-muted-foreground">{r.label}</span>
+                            <span className="font-mono tabular-nums text-destructive line-through opacity-80">
+                              {formatHistoryValue(r.oldVal, r.field, formatCurrency, t)}
+                            </span>
+                            <ArrowRight className="h-2.5 w-2.5 text-muted-foreground flex-shrink-0" />
+                            <span className="font-mono tabular-nums text-pos font-medium">
+                              {formatHistoryValue(r.newVal, r.field, formatCurrency, t)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {entry.change_description && diffRows.length === 0 && (
                       <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
                         {entry.change_description}
                       </p>
@@ -835,5 +862,67 @@ const InstallmentPaymentDetail = () => {
     </div>
   );
 };
+
+const NUMERIC_FIELDS = new Set(['total_amount', 'installment_amount', 'remaining_amount', 'total_paid']);
+const BOOLEAN_FIELDS = new Set(['is_active']);
+const DATE_FIELDS = new Set(['next_payment_date', 'start_date', 'end_date']);
+
+function fieldLabel(field: string, t: TFunction): string | null {
+  const map: Record<string, string> = {
+    total_amount: t('installments.total', { defaultValue: 'Total' }),
+    installment_amount: t('installments.perInstallment', { defaultValue: 'Per installment' }),
+    remaining_amount: t('installments.remaining', { defaultValue: 'Remaining' }),
+    frequency: t('installments.frequency', { defaultValue: 'Frequency' }),
+    description: t('common.description', { defaultValue: 'Description' }),
+    next_payment_date: t('installments.nextCharge', { defaultValue: 'Next charge' }),
+    start_date: t('installments.startDate', { defaultValue: 'Start date' }),
+    end_date: t('installments.endDate', { defaultValue: 'End date' }),
+    is_active: t('installments.status', { defaultValue: 'Status' }),
+    payment_type: t('installments.type', { defaultValue: 'Type' }),
+    account_id: t('common.account', { defaultValue: 'Account' }),
+    category_id: t('common.category', { defaultValue: 'Category' }),
+    total_paid: t('installments.paidSoFar', { defaultValue: 'Paid so far' }),
+  };
+  return map[field] ?? null;
+}
+
+function formatHistoryValue(
+  raw: unknown,
+  field: string,
+  formatCurrency: (n: number) => string,
+  t: TFunction
+): string {
+  if (raw === null || raw === undefined) return '—';
+  if (NUMERIC_FIELDS.has(field) && typeof raw === 'number') {
+    return formatCurrency(raw);
+  }
+  if (BOOLEAN_FIELDS.has(field)) {
+    return raw
+      ? t('installments.active', { defaultValue: 'Active' })
+      : t('installments.completed', { defaultValue: 'Completed' });
+  }
+  if (DATE_FIELDS.has(field) && typeof raw === 'string') {
+    try {
+      return new Date(raw).toLocaleDateString();
+    } catch {
+      return raw;
+    }
+  }
+  if (field === 'frequency' && typeof raw === 'string') {
+    return raw === 'weekly'
+      ? t('installments.weekly', { defaultValue: 'Weekly' })
+      : raw === 'quarterly'
+      ? t('installments.quarterly', { defaultValue: 'Quarterly' })
+      : raw === 'monthly'
+      ? t('installments.monthly', { defaultValue: 'Monthly' })
+      : raw;
+  }
+  if (field === 'payment_type' && typeof raw === 'string') {
+    return raw === 'reimbursement'
+      ? t('installments.reimbursement', { defaultValue: 'Reimbursement' })
+      : t('installments.payment', { defaultValue: 'Payment' });
+  }
+  return typeof raw === 'string' ? raw : JSON.stringify(raw);
+}
 
 export default InstallmentPaymentDetail;
