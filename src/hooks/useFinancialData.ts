@@ -446,13 +446,22 @@ function useFinancialDataInternal() {
 
   // Preview the linked transactions that delete-cascade would remove. Used
   // by the delete-recurring confirmation dialog so the user can see what
-  // will be touched and opt into the cascade.
+  // will be touched, opt into the cascade, and see the per-account
+  // balance delta before committing. Includes transfer fields so the
+  // dialog can compute the effect on both legs of any transfer rows.
   const getRecurringDeletionImpact = async (id: string) => {
-    if (!user) return { error: new Error('Not authenticated') as Error, transactions: [] as Array<{ id: string; description: string; amount: number; transaction_date: string; account_id: string; type: string }> };
+    if (!user) return {
+      error: new Error('Not authenticated') as Error,
+      transactions: [] as Array<{
+        id: string; description: string; amount: number; transaction_date: string;
+        account_id: string; type: string;
+        transfer_to_account_id: string | null; transfer_fee: number | null;
+      }>,
+    };
 
     const { data, error } = await supabase
       .from('transactions')
-      .select('id, description, amount, transaction_date, account_id, type')
+      .select('id, description, amount, transaction_date, account_id, type, transfer_to_account_id, transfer_fee')
       .eq('recurring_transaction_id', id)
       .eq('user_id', user.id)
       .order('transaction_date', { ascending: false });

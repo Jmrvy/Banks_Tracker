@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { AlertTriangle, Loader2, Receipt } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, Receipt, Wallet } from 'lucide-react';
 
 import {
   AlertDialog,
@@ -33,6 +33,41 @@ interface LinkedTx {
   transaction_date: string;
   account_id: string;
   type: string;
+  transfer_to_account_id: string | null;
+  transfer_fee: number | null;
+}
+
+// Compute the balance change each affected account will see if the
+// listed transactions are deleted. Mirrors the update_account_balance
+// trigger: deleting a transaction reverses its effect on the balance.
+function computeBalanceDeltas(linked: LinkedTx[]): Map<string, number> {
+  const deltas = new Map<string, number>();
+  const bump = (accountId: string, delta: number) => {
+    deltas.set(accountId, (deltas.get(accountId) ?? 0) + delta);
+  };
+  for (const tx of linked) {
+    const amt = Number(tx.amount) || 0;
+    const fee = Number(tx.transfer_fee) || 0;
+    if (tx.type === 'income') {
+      // income added +amt to account; deleting reverses → -amt
+      bump(tx.account_id, -amt);
+    } else if (tx.type === 'expense') {
+      // expense subtracted amt; deleting → +amt
+      bump(tx.account_id, amt);
+    } else if (tx.type === 'transfer') {
+      // transfer subtracted (amt + fee) from source and added amt to dest;
+      // deleting reverses both legs.
+      bump(tx.account_id, amt + fee);
+      if (tx.transfer_to_account_id) {
+        bump(tx.transfer_to_account_id, -amt);
+      }
+    }
+  }
+  // Drop near-zero entries (floating-point dust)
+  for (const [id, delta] of deltas) {
+    if (Math.abs(delta) < 0.005) deltas.delete(id);
+  }
+  return deltas;
 }
 
 export function DeleteRecurringDialog({
@@ -51,6 +86,27 @@ export function DeleteRecurringDialog({
   const [loadingImpact, setLoadingImpact] = useState(false);
   const [deleteLinked, setDeleteLinked] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  // Pre-cascade balance snapshot: for every account touched by the linked
+  // transactions, project the new balance after delete.
+  const balanceImpact = useMemo(() => {
+    if (!linked.length) return [];
+    const deltas = computeBalanceDeltas(linked);
+    const rows: Array<{ id: string; name: string; current: number; next: number; delta: number }> = [];
+    for (const [accountId, delta] of deltas) {
+      const acc = accounts.find((a) => a.id === accountId);
+      if (!acc) continue;
+      rows.push({
+        id: accountId,
+        name: acc.name,
+        current: Number(acc.balance) || 0,
+        next: (Number(acc.balance) || 0) + delta,
+        delta,
+      });
+    }
+    rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    return rows;
+  }, [linked, accounts]);
 
   useEffect(() => {
     if (!open || !recurring) {
@@ -204,6 +260,43 @@ export function DeleteRecurringDialog({
                       })}
                     </span>
                   </label>
+                  {deleteLinked && balanceImpact.length > 0 && (
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                        <Wallet className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        {t('recurring.deleteBalancePreview', {
+                          defaultValue: 'Account balances after delete:',
+                        })}
+                      </div>
+                      <div className="divide-y divide-amber-500/20 rounded bg-background/40">
+                        {balanceImpact.map((row) => (
+                          <div
+                            key={row.id}
+                            className="grid grid-cols-[1fr_auto] items-center gap-2 px-2 py-1 text-[11px]"
+                          >
+                            <span className="truncate font-medium">{row.name}</span>
+                            <div className="flex items-center gap-1.5 font-mono tabular-nums whitespace-nowrap">
+                              <span className="text-muted-foreground line-through opacity-80">
+                                {formatCurrency(row.current)}
+                              </span>
+                              <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
+                              <span className="font-semibold">{formatCurrency(row.next)}</span>
+                              <span
+                                className={`ml-0.5 text-[10px] px-1 py-px rounded ${
+                                  row.delta >= 0
+                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                                    : 'bg-destructive/15 text-destructive'
+                                }`}
+                              >
+                                {row.delta >= 0 ? '+' : '−'}
+                                {formatCurrency(Math.abs(row.delta))}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {!deleteLinked && (
                     <p className="text-[10.5px] text-muted-foreground leading-relaxed">
                       {t('recurring.deleteKeepNote', {
