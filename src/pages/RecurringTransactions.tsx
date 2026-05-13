@@ -17,6 +17,7 @@ import RecurringCalendar from "@/components/RecurringCalendar";
 import { RecurringMonthlySummary } from "@/components/RecurringMonthlySummary";
 import { RecordRecurringPaymentModal } from "@/components/RecordRecurringPaymentModal";
 import { DebtDetailsModal } from "@/components/DebtDetailsModal";
+import { DeleteRecurringDialog } from "@/components/DeleteRecurringDialog";
 import { startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
 import RecurringListCard from "@/components/RecurringListCard";
@@ -37,6 +38,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [recordPaymentForId, setRecordPaymentForId] = useState<string | null>(null);
   const [managingDebtId, setManagingDebtId] = useState<string | null>(null);
+  const [deletingRecurring, setDeletingRecurring] = useState<RecurringTransaction | null>(null);
   const { formatCurrency } = useUserPreferences();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, payments: debtPayments } = useDebts();
@@ -116,27 +118,18 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
     }
   };
 
-  const handleDelete = async (id: string, description: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer définitivement la transaction récurrente "${description}" ?`)) {
+  const handleDelete = async (id: string, _description: string) => {
+    const rt = recurringTransactions.find((r) => r.id === id);
+    if (!rt) return;
+    // Plan-linked rows shouldn't even render the delete button; if a stale
+    // path calls here, redirect via the hook's typed error path instead of
+    // popping the dialog.
+    if (rt.installment_payment_id || rt.debt_id) {
+      const result = await deleteRecurringTransaction(id);
+      if (result?.error && redirectIfLinked(result.error)) return;
       return;
     }
-
-    const result = await deleteRecurringTransaction(id);
-
-    if (result?.error) {
-      if (redirectIfLinked(result.error)) return;
-      toast({
-        title: t('common.error'),
-        description: t('recurring.cannotDelete'),
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: t('recurring.transactionDeleted'),
-        description: t('recurring.deletedDescription'),
-      });
-      fetchRecurringTransactions();
-    }
+    setDeletingRecurring(rt);
   };
 
   // When the calendar or list tries to open the edit modal on a plan-linked
@@ -545,6 +538,16 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
           onEdit={() => {}}
         />
       )}
+
+      <DeleteRecurringDialog
+        open={!!deletingRecurring}
+        onOpenChange={(open) => !open && setDeletingRecurring(null)}
+        recurring={deletingRecurring}
+        onDeleted={() => {
+          setDeletingRecurring(null);
+          fetchRecurringTransactions();
+        }}
+      />
     </div>
   );
 };
