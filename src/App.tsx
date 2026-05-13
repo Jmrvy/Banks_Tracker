@@ -31,6 +31,7 @@ const Transactions = lazy(() => import("@/pages/Transactions"));
 const Savings = lazy(() => import("@/pages/Savings"));
 const Budget = lazy(() => import("@/pages/Budget"));
 const Scheduled = lazy(() => import("@/pages/Scheduled"));
+const InstallmentPaymentDetail = lazy(() => import("@/pages/InstallmentPaymentDetail"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -157,6 +158,14 @@ function AppRoutes() {
           <Route
             path="/installment-payments"
             element={<Navigate to="/scheduled?tab=plans" replace />}
+          />
+          <Route
+            path="/installment-payments/:id"
+            element={
+              <ProtectedRoute>
+                <InstallmentPaymentDetail />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/scheduled"

@@ -1,20 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseLocalDate } from "@/lib/dateUtils";
-import { useSearchParams } from "react-router-dom";
-import { CreditCard, Plus, Pencil, Trash2, CheckCircle2, Receipt, RefreshCw, History, Wallet, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  CreditCard,
+  Plus,
+  CheckCircle2,
+  Wallet,
+  Clock,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
+import {
+  useInstallmentPayments,
+  InstallmentPayment,
+} from "@/hooks/useInstallmentPayments";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { NewInstallmentPaymentModal } from "@/components/NewInstallmentPaymentModal";
-import { EditInstallmentPaymentModal } from "@/components/EditInstallmentPaymentModal";
-import { RecordInstallmentPaymentModal } from "@/components/RecordInstallmentPaymentModal";
-import { AdjustInstallmentPlanModal } from "@/components/AdjustInstallmentPlanModal";
-import { InstallmentTransactionsModal } from "@/components/InstallmentTransactionsModal";
-import { InstallmentPaymentDetailsModal } from "@/components/InstallmentPaymentDetailsModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +34,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, startOfDay } from "date-fns";
 
-
 interface InstallmentPaymentsProps {
   /** Strip the outer page chrome when rendered inside the unified
    *  `/scheduled` page (which provides its own header). */
@@ -38,35 +42,27 @@ interface InstallmentPaymentsProps {
 
 const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}) => {
   const { t } = useTranslation();
-  const { installmentPayments, loading, deleteInstallmentPayment, completeInstallmentPayment, recalculateInstallmentPayment, fetchLinkedTransactions, detectOrphanedTransactions, deleteOrphanedTransactions } = useInstallmentPayments();
-  const { accounts, categories, transactions, refetch } = useFinancialData();
+  const navigate = useNavigate();
+  const {
+    installmentPayments,
+    loading,
+    detectOrphanedTransactions,
+    deleteOrphanedTransactions,
+  } = useInstallmentPayments();
+  const { accounts, transactions, refetch } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { toast } = useToast();
+
   const [showNewModal, setShowNewModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showRecordModal, setShowRecordModal] = useState(false);
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<InstallmentPayment | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
-  const [linkedTransactionsToDelete, setLinkedTransactionsToDelete] = useState<Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; account_id: string }>>([]);
-  const [loadingLinkedTransactions, setLoadingLinkedTransactions] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [adjustmentData, setAdjustmentData] = useState<{
-    payment: InstallmentPayment;
-    paymentAmount: number;
-    newRemainingAmount: number;
-  } | null>(null);
-  const [orphanedTransactions, setOrphanedTransactions] = useState<Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; account_id: string }>>([]);
+  const [orphanedTransactions, setOrphanedTransactions] = useState<
+    Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; account_id: string }>
+  >([]);
   const [orphanDialogOpen, setOrphanDialogOpen] = useState(false);
 
-  // Detect orphaned transactions on load
   useEffect(() => {
     if (loading) return;
     const checkOrphans = async () => {
@@ -79,34 +75,18 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
     checkOrphans();
   }, [loading]);
 
-  // Keep selectedPayment in sync with refreshed installmentPayments
-  useEffect(() => {
-    if (selectedPayment) {
-      const updated = installmentPayments.find(ip => ip.id === selectedPayment.id);
-      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPayment)) {
-        setSelectedPayment(updated);
-      }
-    }
-  }, [installmentPayments]);
-
-  // Deep-link: expand and scroll to highlighted payment from URL param
   useEffect(() => {
     const id = searchParams.get('highlight');
     if (id && installmentPayments.length > 0) {
       const payment = installmentPayments.find(ip => ip.id === id);
       if (payment) {
-        // Switch filter to show the payment
         if (!payment.is_active) setFilter('all');
-        setExpandedId(id);
         setHighlightId(id);
-        // Clean up URL param
         searchParams.delete('highlight');
         setSearchParams(searchParams, { replace: true });
-        // Scroll after a short delay to let DOM render
         setTimeout(() => {
           highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 300);
-        // Remove highlight after animation
         setTimeout(() => setHighlightId(null), 3000);
       }
     }
@@ -114,116 +94,16 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
 
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
-      case 'weekly': return 'Hebdomadaire';
-      case 'monthly': return 'Mensuel';
-      case 'quarterly': return 'Trimestriel';
+      case 'weekly': return t('installments.weekly', { defaultValue: 'Weekly' });
+      case 'monthly': return t('installments.monthly', { defaultValue: 'Monthly' });
+      case 'quarterly': return t('installments.quarterly', { defaultValue: 'Quarterly' });
       default: return frequency;
     }
   };
 
-  const handleRecordPayment = (payment: InstallmentPayment) => {
-    setSelectedPayment(payment);
-    setShowRecordModal(true);
-  };
+  const getPaymentHistory = (paymentId: string) =>
+    transactions.filter(tx => tx.installment_payment_id === paymentId);
 
-  const handleEdit = (payment: InstallmentPayment) => {
-    setSelectedPayment(payment);
-    setShowEditModal(true);
-  };
-
-  const handleViewTransactions = (payment: InstallmentPayment) => {
-    setSelectedPayment(payment);
-    setShowTransactionsModal(true);
-  };
-
-  const handleViewDetails = (payment: InstallmentPayment) => {
-    setSelectedPayment(payment);
-    setShowDetailsModal(true);
-  };
-
-  const handleRecalculate = async (payment: InstallmentPayment) => {
-    const { error, result } = await recalculateInstallmentPayment(payment.id);
-
-    if (error) {
-      toast({
-        title: t('common.error'),
-        description: t('installments.cannotRecalc'),
-        variant: "destructive",
-      });
-    } else if (result) {
-      toast({
-        title: "Recalcul effectué",
-        description: `${result.linkedTransactionsCount} transaction(s) prise(s) en compte. Nouveau restant: ${formatCurrency(result.newRemainingAmount)}, mensualité: ${formatCurrency(result.newInstallmentAmount)}`,
-      });
-    }
-  };
-
-  const handleDeleteClick = async (paymentId: string) => {
-    setPaymentToDelete(paymentId);
-    setLinkedTransactionsToDelete([]);
-    setLoadingLinkedTransactions(true);
-    setDeleteDialogOpen(true);
-
-    const linked = await fetchLinkedTransactions(paymentId);
-    setLinkedTransactionsToDelete(linked);
-    setLoadingLinkedTransactions(false);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!paymentToDelete) return;
-
-    const { error } = await deleteInstallmentPayment(paymentToDelete);
-
-    if (error) {
-      toast({
-        title: t('common.error'),
-        description: t('installments.ipCannotDelete'),
-        variant: "destructive",
-      });
-    } else {
-      const txCount = linkedTransactionsToDelete.length;
-      // Refetch accounts & transactions since linked transactions were deleted
-      if (txCount > 0) {
-        await refetch();
-      }
-      toast({
-        title: "Paiement supprimé",
-        description: txCount > 0
-          ? `Le paiement échelonné, sa transaction récurrente et ${txCount} transaction(s) associée(s) ont été supprimés.`
-          : "Le paiement échelonné et sa transaction récurrente associée ont été supprimés.",
-      });
-    }
-
-    setDeleteDialogOpen(false);
-    setPaymentToDelete(null);
-    setLinkedTransactionsToDelete([]);
-  };
-
-  const handleComplete = async (payment: InstallmentPayment) => {
-    const { error } = await completeInstallmentPayment(payment.id);
-
-    if (error) {
-      toast({
-        title: t('common.error'),
-        description: t('installments.ipCannotMarkDone'),
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Paiement terminé",
-        description: "Le paiement échelonné a été marqué comme terminé et archivé.",
-      });
-    }
-  };
-
-  // Get payment history for a specific installment
-  const getPaymentHistory = (paymentId: string) => {
-    return transactions
-      .filter(tx => tx.installment_payment_id === paymentId)
-      .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
-  };
-
-  // Filter payments based on selected tab
   const filteredPayments = installmentPayments.filter(payment => {
     if (filter === 'active') return payment.is_active;
     if (filter === 'completed') return !payment.is_active;
@@ -231,45 +111,57 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
   });
 
   const renderPaymentCard = (payment: InstallmentPayment) => {
-    const account = accounts.find(a => a.id === payment.account_id);
-    const category = categories.find(c => c.id === payment.category_id);
     const paid = payment.total_amount - payment.remaining_amount;
-    const progress = payment.total_amount > 0 ? Math.min(100, Math.round((paid / payment.total_amount) * 1000) / 10) : 0;
-    const isExpanded = expandedId === payment.id;
+    const progress = payment.total_amount > 0
+      ? Math.min(100, Math.round((paid / payment.total_amount) * 1000) / 10)
+      : 0;
     const nextDue = parseLocalDate(payment.next_payment_date);
     const today = startOfDay(new Date());
     const daysUntil = differenceInDays(nextDue, today);
     const paidCount = getPaymentHistory(payment.id).length;
-    const rawTotalCount = payment.installment_amount > 0 ? Math.ceil(payment.total_amount / payment.installment_amount) : 0;
-    // When payment is completed (remaining_amount <= 0), totalCount should equal paidCount
+    const rawTotalCount = payment.installment_amount > 0
+      ? Math.ceil(payment.total_amount / payment.installment_amount)
+      : 0;
     const totalCount = payment.remaining_amount <= 0 ? paidCount : rawTotalCount;
-    const paymentHistory = getPaymentHistory(payment.id);
-
     const isHighlighted = highlightId === payment.id;
 
     return (
-      <div
+      <button
         key={payment.id}
         ref={isHighlighted ? highlightRef : undefined}
-        className={`ft-card overflow-hidden transition-all duration-500 ${!payment.is_active ? 'opacity-70' : ''} ${isHighlighted ? 'ring-2 ring-primary/50 shadow-lg shadow-primary/10' : ''}`}
+        type="button"
+        onClick={() => navigate(`/installment-payments/${payment.id}`)}
+        className={`ft-card w-full text-left p-3 sm:p-4 transition-all duration-300 hover:bg-muted/30 ${
+          !payment.is_active ? 'opacity-70' : ''
+        } ${isHighlighted ? 'ring-2 ring-primary/50 shadow-lg shadow-primary/10' : ''}`}
       >
-        {/* Main row */}
-        <div
-          className="flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-          onClick={() => setExpandedId(isExpanded ? null : payment.id)}
-        >
-          {/* Type indicator */}
-          <div className={`flex-shrink-0 w-10 sm:w-12 h-10 sm:h-12 rounded-xl flex flex-col items-center justify-center ${
-            !payment.is_active ? 'bg-muted/30' : payment.payment_type === 'reimbursement' ? 'bg-success/10' : 'bg-orange-500/10'
-          }`}>
-            <CreditCard className={`h-4 w-4 sm:h-5 sm:w-5 ${
-              !payment.is_active ? 'text-muted-foreground' : payment.payment_type === 'reimbursement' ? 'text-success' : 'text-orange-500'
-            }`} />
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div
+            className={`flex-shrink-0 w-10 sm:w-12 h-10 sm:h-12 rounded-xl flex items-center justify-center ${
+              !payment.is_active
+                ? 'bg-muted/30'
+                : payment.payment_type === 'reimbursement'
+                ? 'bg-success/10'
+                : 'bg-orange-500/10'
+            }`}
+          >
+            <CreditCard
+              className={`h-4 w-4 sm:h-5 sm:w-5 ${
+                !payment.is_active
+                  ? 'text-muted-foreground'
+                  : payment.payment_type === 'reimbursement'
+                  ? 'text-success'
+                  : 'text-orange-500'
+              }`}
+            />
           </div>
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
-            <p className={`text-sm sm:text-base font-semibold truncate ${!payment.is_active ? 'text-muted-foreground' : ''}`}>
+            <p
+              className={`text-sm sm:text-base font-semibold truncate ${
+                !payment.is_active ? 'text-muted-foreground' : ''
+              }`}
+            >
               {payment.description}
             </p>
             <div className="flex items-center gap-1 mt-0.5 truncate">
@@ -277,10 +169,13 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                 <>
                   <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                    {daysUntil < 0 ? 'En retard' :
-                     daysUntil === 0 ? "Auj." :
-                     daysUntil === 1 ? 'Demain' :
-                     `${daysUntil}j`}
+                    {daysUntil < 0
+                      ? t('installments.overdue', { defaultValue: 'Overdue' })
+                      : daysUntil === 0
+                      ? t('installments.today', { defaultValue: 'Today' })
+                      : daysUntil === 1
+                      ? t('installments.tomorrow', { defaultValue: 'Tomorrow' })
+                      : `${daysUntil}j`}
                   </span>
                   <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                     · {getFrequencyLabel(payment.frequency)}
@@ -289,183 +184,41 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
               ) : (
                 <>
                   <CheckCircle2 className="h-3 w-3 text-success flex-shrink-0" />
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">Terminé</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    {t('installments.completed', { defaultValue: 'Completed' })}
+                  </span>
                 </>
               )}
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-              {paidCount}/{totalCount} payé · {formatCurrency(payment.installment_amount)}/éch.
+              {paidCount}/{totalCount} ·{' '}
+              {formatCurrency(payment.installment_amount)}/
+              {payment.frequency === 'weekly'
+                ? t('installments.wk', { defaultValue: 'wk' })
+                : payment.frequency === 'quarterly'
+                ? t('installments.qtr', { defaultValue: 'qtr' })
+                : t('installments.mo', { defaultValue: 'mo' })}
             </p>
+            <Progress value={progress} className="h-1 mt-1.5" />
           </div>
 
-          {/* Amount + chevron */}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <div className="text-right">
-              <span className={`text-xs sm:text-base font-bold whitespace-nowrap ${
-                !payment.is_active ? 'text-muted-foreground' : 'text-orange-500'
-              }`}>
+              <span
+                className={`text-xs sm:text-base font-bold whitespace-nowrap ${
+                  !payment.is_active ? 'text-muted-foreground' : 'text-orange-500'
+                }`}
+              >
                 {formatCurrency(payment.remaining_amount)}
               </span>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground">restant</p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                {t('installments.remaining', { defaultValue: 'remaining' })}
+              </p>
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           </div>
         </div>
-
-        {/* Expanded detail */}
-        {isExpanded && (
-          <div className="border-t border-border/50 p-3 sm:p-4 space-y-3 sm:space-y-4 bg-muted/10">
-            {/* Progress bar */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-xs sm:text-base font-bold">{formatCurrency(paid)}</p>
-                  <p className="text-[9px] sm:text-xs text-muted-foreground">Payé</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs sm:text-base font-bold">{formatCurrency(payment.remaining_amount)}</p>
-                  <p className="text-[9px] sm:text-xs text-muted-foreground">Restant</p>
-                </div>
-              </div>
-              <Progress value={progress} className="h-2" />
-            </div>
-
-            {/* Details */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Total</span>
-                <span className="font-bold text-[11px] sm:text-sm">{formatCurrency(payment.total_amount)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Échéance</span>
-                <span className="font-medium text-[11px] sm:text-sm">{formatCurrency(payment.installment_amount)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Fréquence</span>
-                <span className="font-medium text-[11px] sm:text-sm">{getFrequencyLabel(payment.frequency)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Prochain</span>
-                <span className={`font-medium text-[11px] sm:text-sm whitespace-nowrap ${daysUntil < 0 ? 'text-warning' : ''}`}>
-                  {nextDue.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-              {account && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-[11px] sm:text-xs">Compte</span>
-                  <span className="font-medium text-[11px] sm:text-sm truncate ml-2">{account.name}</span>
-                </div>
-              )}
-              {category && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-[11px] sm:text-xs">Catégorie</span>
-                  <Badge variant="outline" className="gap-1 text-[10px] sm:text-xs max-w-[50%] truncate">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
-                    <span className="truncate">{category.name}</span>
-                  </Badge>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Type</span>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] sm:text-xs ${payment.payment_type === 'reimbursement' ? 'border-success text-success' : ''}`}
-                >
-                  {payment.payment_type === 'reimbursement' ? 'Remb.' : 'Paiement'}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground text-[11px] sm:text-xs">Statut</span>
-                <Badge variant={payment.is_active ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
-                  {payment.is_active ? 'Actif' : 'Terminé'}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Payment timeline */}
-            {paymentHistory.length > 0 && (
-              <div className="space-y-0.5">
-                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1.5">Historique</p>
-                {paymentHistory.map((tx) => (
-                  <div key={tx.id} className="flex items-center gap-2 py-1">
-                    <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                      <svg className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-success-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-[11px] sm:text-sm flex-1">
-                      {parseLocalDate(tx.transaction_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                    </span>
-                    <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">{formatCurrency(tx.amount)}</span>
-                  </div>
-                ))}
-                {/* Next pending payment */}
-                {payment.is_active && payment.remaining_amount > 0 && (
-                  <div className="flex items-center gap-2 py-1">
-                    <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-muted-foreground flex-shrink-0" />
-                    <span className="text-[11px] sm:text-sm flex-1">
-                      {nextDue.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                    </span>
-                    <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">
-                      {formatCurrency(payment.installment_amount)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Record payment button */}
-            {payment.is_active && (
-              <Button
-                size="sm"
-                className="w-full h-8 sm:h-9 text-[11px] sm:text-sm gap-1.5"
-                onClick={() => handleRecordPayment(payment)}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Enregistrer un paiement
-              </Button>
-            )}
-
-            {/* Action buttons */}
-            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 pt-2 border-t border-border/50">
-              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
-                onClick={() => handleViewDetails(payment)}>
-                <History className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                <span className="hidden sm:inline">Détails</span>
-              </Button>
-              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
-                onClick={() => handleViewTransactions(payment)}>
-                <Receipt className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                <span className="hidden sm:inline">Transactions</span>
-              </Button>
-              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
-                onClick={() => handleEdit(payment)}>
-                <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                <span className="hidden sm:inline">Modifier</span>
-              </Button>
-              <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
-                onClick={() => handleRecalculate(payment)}>
-                <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                <span className="hidden sm:inline">Recalculer</span>
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-              {payment.is_active && (
-                <Button size="sm" variant="outline" className="h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3"
-                  onClick={() => handleComplete(payment)}>
-                  <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                  <span className="truncate">Terminer</span>
-                </Button>
-              )}
-              <Button size="sm" variant="destructive" className={`h-8 text-[10px] sm:text-xs gap-1 px-1.5 sm:px-3 ${!payment.is_active ? 'col-span-2' : ''}`}
-                onClick={() => handleDeleteClick(payment.id)}>
-                <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                <span className="truncate">Supprimer</span>
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+      </button>
     );
   };
 
@@ -473,8 +226,13 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" role="status"></div>
-          <p className="text-sm text-muted-foreground">{t('installments.loading', { defaultValue: 'Loading installment payments…' })}</p>
+          <div
+            className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"
+            role="status"
+          ></div>
+          <p className="text-sm text-muted-foreground">
+            {t('installments.loading', { defaultValue: 'Loading installment payments…' })}
+          </p>
         </div>
       </div>
     );
@@ -487,7 +245,9 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
       className="h-8 px-3 gap-1.5 font-semibold"
     >
       <Plus className="h-3.5 w-3.5" />
-      <span className="hidden sm:inline">{t('installments.newPlan', { defaultValue: 'New plan' })}</span>
+      <span className="hidden sm:inline">
+        {t('installments.newPlan', { defaultValue: 'New plan' })}
+      </span>
     </Button>
   );
 
@@ -495,13 +255,14 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
     <div className={embedded ? "" : "min-h-screen bg-background pb-20 md:pb-12"}>
       <div className={embedded ? "" : "ft-page"}>
         {!embedded && (
-          /* Page head — only when running standalone. */
           <div className="ft-page-head">
             <div>
               <div className="ft-eyebrow">{t('navigation.tools')}</div>
               <h1 className="ft-page-title">{t('navigation.installmentPayments')}</h1>
               <div className="ft-page-sub">
-                {t('installments.subtitle', { defaultValue: 'Track your installment plans funded by savings' })}
+                {t('installments.subtitle', {
+                  defaultValue: 'Track your installment plans funded by savings',
+                })}
               </div>
             </div>
             {newButton}
@@ -510,190 +271,142 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
 
         {embedded && <div className="flex justify-end mb-3">{newButton}</div>}
 
-        {/* KPIs */}
         <div className="grid grid-cols-3 gap-3 md:gap-4">
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon warn"><Wallet className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('installments.totalDue', { defaultValue: 'Total due' })}</span>
+              <div className="ft-kpi-icon warn">
+                <Wallet className="h-4 w-4" />
+              </div>
+              <span className="ft-kpi-label">
+                {t('installments.totalDue', { defaultValue: 'Total due' })}
+              </span>
             </div>
             <div className="ft-kpi-value truncate">
-              {formatCurrency(installmentPayments.filter(p => p.is_active).reduce((sum, p) => sum + p.remaining_amount, 0))}
+              {formatCurrency(
+                installmentPayments
+                  .filter((p) => p.is_active)
+                  .reduce((sum, p) => sum + p.remaining_amount, 0)
+              )}
             </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon pos"><CreditCard className="h-4 w-4" /></div>
-              <span className="ft-kpi-label">{t('installments.active', { defaultValue: 'Active' })}</span>
+              <div className="ft-kpi-icon pos">
+                <CreditCard className="h-4 w-4" />
+              </div>
+              <span className="ft-kpi-label">
+                {t('installments.active', { defaultValue: 'Active' })}
+              </span>
             </div>
-            <div className="ft-kpi-value">{installmentPayments.filter(p => p.is_active).length}</div>
+            <div className="ft-kpi-value">
+              {installmentPayments.filter((p) => p.is_active).length}
+            </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon"><Clock className="h-4 w-4 text-muted-foreground" /></div>
-              <span className="ft-kpi-label">{t('installments.completed', { defaultValue: 'Completed' })}</span>
+              <div className="ft-kpi-icon">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <span className="ft-kpi-label">
+                {t('installments.completed', { defaultValue: 'Completed' })}
+              </span>
             </div>
-            <div className="ft-kpi-value">{installmentPayments.filter(p => !p.is_active).length}</div>
+            <div className="ft-kpi-value">
+              {installmentPayments.filter((p) => !p.is_active).length}
+            </div>
           </div>
         </div>
 
-        {/* Schedule timeline now lives inside the per-plan detail modal — open
-            a plan to see its payment schedule alongside the existing details. */}
-
-        {/* Filter Tabs */}
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
+        <Tabs
+          value={filter}
+          onValueChange={(v) => setFilter(v as typeof filter)}
+          className="w-full"
+        >
           <TabsList className="grid w-full max-w-md grid-cols-3 h-9 sm:h-10">
-            <TabsTrigger value="active" className="text-[11px] sm:text-sm px-1 sm:px-3">Actifs ({installmentPayments.filter(p => p.is_active).length})</TabsTrigger>
-            <TabsTrigger value="completed" className="text-[11px] sm:text-sm px-1 sm:px-3">Terminés ({installmentPayments.filter(p => !p.is_active).length})</TabsTrigger>
-            <TabsTrigger value="all" className="text-[11px] sm:text-sm px-1 sm:px-3">Tous ({installmentPayments.length})</TabsTrigger>
+            <TabsTrigger value="active" className="text-[11px] sm:text-sm px-1 sm:px-3">
+              {t('installments.active', { defaultValue: 'Active' })} (
+              {installmentPayments.filter((p) => p.is_active).length})
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="text-[11px] sm:text-sm px-1 sm:px-3">
+              {t('installments.completed', { defaultValue: 'Completed' })} (
+              {installmentPayments.filter((p) => !p.is_active).length})
+            </TabsTrigger>
+            <TabsTrigger value="all" className="text-[11px] sm:text-sm px-1 sm:px-3">
+              {t('common.all', { defaultValue: 'All' })} ({installmentPayments.length})
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
-        {/* Payments List */}
         {filteredPayments.length === 0 ? (
           <div className="ft-card p-8 sm:p-12 text-center">
             <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 sm:mb-4 grid place-items-center">
               <CreditCard className="h-6 w-6 text-muted-foreground" />
             </div>
-            <h3 className="text-base sm:text-lg font-medium mb-2">{t('installments.empty', { defaultValue: 'No installment plans' })}</h3>
+            <h3 className="text-base sm:text-lg font-medium mb-2">
+              {t('installments.empty', { defaultValue: 'No installment plans' })}
+            </h3>
             <p className="text-muted-foreground text-xs sm:text-sm mb-4">
-              {t('installments.emptyHint', { defaultValue: 'Create your first multi-payment plan to get started' })}
+              {t('installments.emptyHint', {
+                defaultValue: 'Create your first multi-payment plan to get started',
+              })}
             </p>
-            <Button onClick={() => setShowNewModal(true)} size="sm" className="h-8 text-sm gap-1.5">
+            <Button
+              onClick={() => setShowNewModal(true)}
+              size="sm"
+              className="h-8 text-sm gap-1.5"
+            >
               <Plus className="h-3.5 w-3.5" />
               {t('installments.newPlan', { defaultValue: 'New plan' })}
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredPayments.map(renderPaymentCard)}
-          </div>
+          <div className="space-y-2">{filteredPayments.map(renderPaymentCard)}</div>
         )}
       </div>
 
-      <NewInstallmentPaymentModal
-        open={showNewModal}
-        onOpenChange={setShowNewModal}
-      />
-
-      {selectedPayment && (
-        <>
-          <EditInstallmentPaymentModal
-            open={showEditModal}
-            onOpenChange={setShowEditModal}
-            installmentPayment={selectedPayment}
-          />
-
-          <RecordInstallmentPaymentModal
-            open={showRecordModal}
-            onOpenChange={setShowRecordModal}
-            installmentPaymentId={selectedPayment.id}
-          />
-
-          <InstallmentTransactionsModal
-            open={showTransactionsModal}
-            onOpenChange={setShowTransactionsModal}
-            installmentPayment={selectedPayment}
-          />
-
-          <InstallmentPaymentDetailsModal
-            open={showDetailsModal}
-            onOpenChange={setShowDetailsModal}
-            installmentPayment={selectedPayment}
-          />
-        </>
-      )}
-
-      {adjustmentData && (
-        <AdjustInstallmentPlanModal
-          open={showAdjustModal}
-          onOpenChange={setShowAdjustModal}
-          installmentPayment={adjustmentData.payment}
-          paymentAmount={adjustmentData.paymentAmount}
-          newRemainingAmount={adjustmentData.newRemainingAmount}
-        />
-      )}
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
-        setDeleteDialogOpen(open);
-        if (!open) {
-          setPaymentToDelete(null);
-          setLinkedTransactionsToDelete([]);
-        }
-      }}>
-        <AlertDialogContent className="max-h-[85vh] flex flex-col">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('installments.deleteConfirmTitle', { defaultValue: 'Delete installment plan?' })}</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>Cette action est irréversible. Le paiement échelonné et sa transaction récurrente associée seront définitivement supprimés.</p>
-                {loadingLinkedTransactions && (
-                  <p className="text-muted-foreground text-sm">{t('installments.loadingLinkedTxns', { defaultValue: 'Loading linked transactions…' })}</p>
-                )}
-                {!loadingLinkedTransactions && linkedTransactionsToDelete.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="font-medium text-destructive">
-                      {linkedTransactionsToDelete.length} transaction(s) associée(s) seront également supprimée(s) :
-                    </p>
-                    <div className="max-h-[200px] overflow-y-auto rounded-md border bg-muted/50 divide-y">
-                      {linkedTransactionsToDelete.map((tx) => {
-                        const accountName = accounts.find(a => a.id === tx.account_id)?.name;
-                        return (
-                          <div key={tx.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                            <div className="flex flex-col min-w-0 flex-1 mr-2">
-                              <span className="truncate font-medium text-foreground">{tx.description}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(tx.transaction_date + 'T00:00:00').toLocaleDateString('fr-FR')}
-                                {accountName && ` · ${accountName}`}
-                              </span>
-                            </div>
-                            <span className={`font-medium whitespace-nowrap ${tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'}`}>
-                              {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {!loadingLinkedTransactions && linkedTransactionsToDelete.length === 0 && (
-                  <p className="text-muted-foreground text-sm">Aucune transaction liée à supprimer.</p>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Supprimer{linkedTransactionsToDelete.length > 0 ? ` (${linkedTransactionsToDelete.length + 1} éléments)` : ''}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <NewInstallmentPaymentModal open={showNewModal} onOpenChange={setShowNewModal} />
 
       <AlertDialog open={orphanDialogOpen} onOpenChange={setOrphanDialogOpen}>
         <AlertDialogContent className="max-h-[85vh] flex flex-col">
           <AlertDialogHeader>
-            <AlertDialogTitle>Transactions orphelines détectées</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('installments.orphanTitle', { defaultValue: 'Orphan transactions detected' })}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  {orphanedTransactions.length} transaction(s) sont liées à des paiements échelonnés qui n'existent plus. Souhaitez-vous les supprimer ?
+                  {t('installments.orphanDesc', {
+                    defaultValue:
+                      '{{n}} transaction(s) link to installment plans that no longer exist. Delete them?',
+                    n: orphanedTransactions.length,
+                  })}
                 </p>
                 <div className="max-h-[250px] overflow-y-auto rounded-md border bg-muted/50 divide-y">
                   {orphanedTransactions.map((tx) => {
-                    const accountName = accounts.find(a => a.id === tx.account_id)?.name;
+                    const accountName = accounts.find((a) => a.id === tx.account_id)?.name;
                     return (
-                      <div key={tx.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                      <div
+                        key={tx.id}
+                        className="flex items-center justify-between px-3 py-2 text-sm"
+                      >
                         <div className="flex flex-col min-w-0 flex-1 mr-2">
-                          <span className="truncate font-medium text-foreground">{tx.description}</span>
+                          <span className="truncate font-medium text-foreground">
+                            {tx.description}
+                          </span>
                           <span className="text-xs text-muted-foreground">
-                            {new Date(tx.transaction_date + 'T00:00:00').toLocaleDateString('fr-FR')}
+                            {new Date(tx.transaction_date + 'T00:00:00').toLocaleDateString(
+                              'fr-FR'
+                            )}
                             {accountName && ` · ${accountName}`}
                           </span>
                         </div>
-                        <span className={`font-medium whitespace-nowrap ${tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'}`}>
-                          {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                        <span
+                          className={`font-medium whitespace-nowrap ${
+                            tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'
+                          }`}
+                        >
+                          {tx.type === 'income' ? '+' : '−'}
+                          {formatCurrency(tx.amount)}
                         </span>
                       </div>
                     );
@@ -703,30 +416,37 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setOrphanedTransactions([])}>Conserver</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setOrphanedTransactions([])}>
+              {t('common.keep', { defaultValue: 'Keep' })}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
-                const ids = orphanedTransactions.map(tx => tx.id);
+                const ids = orphanedTransactions.map((tx) => tx.id);
                 const { error } = await deleteOrphanedTransactions(ids);
                 if (error) {
                   toast({
                     title: t('common.error'),
                     description: t('recurring.cannotDeleteOrphans'),
-                    variant: "destructive",
+                    variant: 'destructive',
                   });
                 } else {
                   await refetch();
                   toast({
-                    title: "Transactions supprimées",
-                    description: `${ids.length} transaction(s) orpheline(s) supprimée(s).`,
+                    title: t('installments.orphanDeletedTitle', {
+                      defaultValue: 'Transactions deleted',
+                    }),
+                    description: t('installments.orphanDeletedDesc', {
+                      defaultValue: '{{n}} orphan transaction(s) deleted.',
+                      n: ids.length,
+                    }),
                   });
                 }
                 setOrphanedTransactions([]);
                 setOrphanDialogOpen(false);
               }}
             >
-              Supprimer ({orphanedTransactions.length})
+              {t('common.delete', { defaultValue: 'Delete' })} ({orphanedTransactions.length})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
