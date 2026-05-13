@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
@@ -71,6 +72,7 @@ const InstallmentPaymentDetail = () => {
     fetchPaymentHistory,
     deleteHistoryEntry,
     revertInstallmentHistoryEntry,
+    fetchTransactionsSinceEntry,
     fetchLinkedTransactions,
   } = useInstallmentPayments();
   const { accounts, categories, transactions, refetch } = useFinancialData();
@@ -92,6 +94,11 @@ const InstallmentPaymentDetail = () => {
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const [revertingEntry, setRevertingEntry] = useState<InstallmentPaymentHistory | null>(null);
   const [revertSubmitting, setRevertSubmitting] = useState(false);
+  const [transactionsSince, setTransactionsSince] = useState<
+    Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; created_at: string; account_id: string }>
+  >([]);
+  const [loadingTransactionsSince, setLoadingTransactionsSince] = useState(false);
+  const [deleteTransactionsSince, setDeleteTransactionsSince] = useState(true);
   const tabParam = searchParams.get('tab');
   const initialTab: 'schedule' | 'adjust' | 'history' =
     tabParam === 'adjust' || tabParam === 'history' ? tabParam : 'schedule';
@@ -110,6 +117,26 @@ const InstallmentPaymentDetail = () => {
     () => (plan && plan.category_id ? categories.find((c) => c.id === plan.category_id) : null),
     [categories, plan]
   );
+
+  // When opening the undo dialog, fetch transactions created since that entry
+  useEffect(() => {
+    if (!revertingEntry) {
+      setTransactionsSince([]);
+      setDeleteTransactionsSince(true);
+      return;
+    }
+    let cancelled = false;
+    setLoadingTransactionsSince(true);
+    fetchTransactionsSinceEntry(revertingEntry.id).then(({ transactions: txs }) => {
+      if (!cancelled) {
+        setTransactionsSince(txs);
+        setLoadingTransactionsSince(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [revertingEntry?.id]);
 
   // Refresh history when the plan changes (id or any field that history might log)
   useEffect(() => {
@@ -678,12 +705,76 @@ const InstallmentPaymentDetail = () => {
                     })}
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground">
-                  {t('installments.undoDriftNote', {
-                    defaultValue:
-                      'Undoing an older edit may create drift between the plan and its linked transactions; the Adjust tab will flag it.',
-                  })}
-                </p>
+
+                {loadingTransactionsSince ? (
+                  <div className="flex items-center justify-center py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : transactionsSince.length > 0 ? (
+                  <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
+                    <div className="flex items-start gap-2">
+                      <Receipt className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-[12px] leading-relaxed">
+                        <p className="font-medium">
+                          {t('installments.undoTxnsSince', {
+                            defaultValue:
+                              '{{n}} transaction(s) have been linked to this plan since the change:',
+                            n: transactionsSince.length,
+                          })}
+                        </p>
+                        <p className="text-muted-foreground mt-0.5">
+                          {t('installments.undoTxnsSinceHint', {
+                            defaultValue:
+                              'If kept, they will no longer match the reverted plan. The Adjust tab will flag the drift.',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="max-h-[160px] overflow-y-auto rounded bg-background/50 divide-y divide-border">
+                      {transactionsSince.map((tx) => {
+                        const accountName = accounts.find((a) => a.id === tx.account_id)?.name;
+                        return (
+                          <div
+                            key={tx.id}
+                            className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px]"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">{tx.description}</p>
+                              <p className="text-muted-foreground">
+                                {format(parseISO(tx.transaction_date), 'PP', { locale: dateLocale })}
+                                {accountName && ` · ${accountName}`}
+                              </p>
+                            </div>
+                            <span className="font-mono font-semibold whitespace-nowrap text-destructive">
+                              −{formatCurrency(tx.amount)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <label className="flex items-start gap-2 cursor-pointer pt-1">
+                      <Checkbox
+                        checked={deleteTransactionsSince}
+                        onCheckedChange={(v) => setDeleteTransactionsSince(v === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-[12px] leading-relaxed">
+                        {t('installments.undoDeleteTxns', {
+                          defaultValue:
+                            'Also delete these {{n}} transaction(s). Account balances will be recomputed.',
+                          n: transactionsSince.length,
+                        })}
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('installments.undoDriftNote', {
+                      defaultValue:
+                        'Undoing an older edit may create drift between the plan and its linked transactions; the Adjust tab will flag it.',
+                    })}
+                  </p>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -692,11 +783,14 @@ const InstallmentPaymentDetail = () => {
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={revertSubmitting}
+              disabled={revertSubmitting || loadingTransactionsSince}
               onClick={async () => {
                 if (!revertingEntry) return;
                 setRevertSubmitting(true);
-                const { error } = await revertInstallmentHistoryEntry(revertingEntry.id);
+                const { error, deletedTransactionsCount } = await revertInstallmentHistoryEntry(
+                  revertingEntry.id,
+                  { deleteTransactionsAfter: deleteTransactionsSince && transactionsSince.length > 0 }
+                );
                 setRevertSubmitting(false);
                 if (error) {
                   toast({
@@ -708,17 +802,32 @@ const InstallmentPaymentDetail = () => {
                 }
                 toast({
                   title: t('installments.undoneTitle', { defaultValue: 'Change reverted' }),
-                  description: t('installments.undoneDesc', {
-                    defaultValue: 'Previous values restored.',
-                  }),
+                  description:
+                    deletedTransactionsCount > 0
+                      ? t('installments.undoneWithTxnsDesc', {
+                          defaultValue:
+                            'Previous values restored and {{n}} linked transaction(s) deleted.',
+                          n: deletedTransactionsCount,
+                        })
+                      : t('installments.undoneDesc', {
+                          defaultValue: 'Previous values restored.',
+                        }),
                 });
                 setRevertingEntry(null);
+                // The transactions deletion has already mutated the global feed
+                // via Supabase realtime, but force-refresh just in case.
+                if (deletedTransactionsCount > 0) await refetch();
                 const data = await fetchPaymentHistory(plan.id);
                 setHistory(data);
               }}
             >
               {revertSubmitting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-              {t('installments.undoConfirm', { defaultValue: 'Undo change' })}
+              {transactionsSince.length > 0 && deleteTransactionsSince
+                ? t('installments.undoConfirmWithTxns', {
+                    defaultValue: 'Undo + delete {{n}} txns',
+                    n: transactionsSince.length,
+                  })
+                : t('installments.undoConfirm', { defaultValue: 'Undo change' })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

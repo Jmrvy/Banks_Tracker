@@ -1001,12 +1001,49 @@ export const useInstallmentPayments = () => {
     });
   };
 
+  // Linked transactions that entered the system after a given history
+  // entry — used when undoing to show the user what happened "since" and
+  // optionally clean up.
+  const fetchTransactionsSinceEntry = async (entryId: string) => {
+    if (!user) return { error: null, transactions: [] as Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; created_at: string; account_id: string }> };
+
+    const { data: entry, error: entryError } = await supabase
+      .from('installment_payment_history' as any)
+      .select('installment_payment_id, created_at')
+      .eq('id', entryId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (entryError || !entry) {
+      return { error: entryError || new Error('History entry not found'), transactions: [] };
+    }
+
+    const typed = entry as unknown as { installment_payment_id: string; created_at: string };
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, description, amount, type, transaction_date, created_at, account_id')
+      .eq('installment_payment_id', typed.installment_payment_id)
+      .eq('user_id', user.id)
+      .gte('created_at', typed.created_at)
+      .order('created_at', { ascending: false });
+
+    if (error) return { error, transactions: [] };
+    return { error: null, transactions: data || [] };
+  };
+
   // Revert a single history entry: applies the entry's old_values back to
   // the plan. updateInstallmentPayment logs a new history entry, so the
-  // undo is itself undoable. Returns an error for entries that can't be
-  // reverted (no old_values, or the change_type doesn't carry one).
-  const revertInstallmentHistoryEntry = async (entryId: string) => {
-    if (!user) return { error: new Error('User not authenticated') };
+  // undo is itself undoable. When `deleteTransactionsAfter` is true,
+  // linked transactions created after the entry are also deleted so the
+  // plan's remaining/paid is consistent with the reverted state.
+  // Returns an error for entries that can't be reverted (no old_values,
+  // or the change_type doesn't carry one).
+  const revertInstallmentHistoryEntry = async (
+    entryId: string,
+    options: { deleteTransactionsAfter?: boolean } = {}
+  ) => {
+    if (!user) return { error: new Error('User not authenticated'), deletedTransactionsCount: 0 };
 
     const { data: entry, error: fetchError } = await supabase
       .from('installment_payment_history' as any)
@@ -1016,18 +1053,18 @@ export const useInstallmentPayments = () => {
       .single();
 
     if (fetchError || !entry) {
-      return { error: fetchError || new Error('History entry not found') };
+      return { error: fetchError || new Error('History entry not found'), deletedTransactionsCount: 0 };
     }
 
     const typed = entry as unknown as InstallmentPaymentHistory;
 
     if (typed.change_type === 'created' || typed.change_type === 'deleted') {
-      return { error: new Error('Cannot undo this kind of change') };
+      return { error: new Error('Cannot undo this kind of change'), deletedTransactionsCount: 0 };
     }
 
     const oldValues = typed.old_values;
     if (!oldValues || Object.keys(oldValues).length === 0) {
-      return { error: new Error('This entry has no previous values to restore') };
+      return { error: new Error('This entry has no previous values to restore'), deletedTransactionsCount: 0 };
     }
 
     // Filter to fields updateInstallmentPayment knows about.
@@ -1045,10 +1082,34 @@ export const useInstallmentPayments = () => {
     }
 
     if (Object.keys(updates).length === 0) {
-      return { error: new Error('No revertible fields in this entry') };
+      return { error: new Error('No revertible fields in this entry'), deletedTransactionsCount: 0 };
     }
 
-    return updateInstallmentPayment(typed.installment_payment_id, updates);
+    // Delete transactions-since first so the trigger that recalculates
+    // account balance doesn't see a flipped plan state mid-flight. If
+    // we asked for cleanup but the deletion fails, abort before touching
+    // the plan — leaves the user in the original state, retryable.
+    let deletedCount = 0;
+    if (options.deleteTransactionsAfter) {
+      const { transactions: toDelete, error: fetchTxError } = await fetchTransactionsSinceEntry(entryId);
+      if (fetchTxError) {
+        return { error: fetchTxError, deletedTransactionsCount: 0 };
+      }
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('transactions')
+          .delete()
+          .in('id', toDelete.map((tx) => tx.id))
+          .eq('user_id', user.id);
+        if (deleteError) {
+          return { error: deleteError, deletedTransactionsCount: 0 };
+        }
+        deletedCount = toDelete.length;
+      }
+    }
+
+    const { error: updateError } = await updateInstallmentPayment(typed.installment_payment_id, updates);
+    return { error: updateError, deletedTransactionsCount: deletedCount };
   };
 
   return {
@@ -1064,6 +1125,7 @@ export const useInstallmentPayments = () => {
     fetchPaymentHistory,
     deleteHistoryEntry,
     revertInstallmentHistoryEntry,
+    fetchTransactionsSinceEntry,
     fetchLinkedTransactions,
     detectOrphanedTransactions,
     deleteOrphanedTransactions,
