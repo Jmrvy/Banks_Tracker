@@ -5,6 +5,10 @@ import { roundCurrency } from '@/lib/currency';
 
 export type PlanLockField = 'total' | 'amount' | 'count';
 
+/** Which single field the user is modifying. The other two are derived using
+ *  fixed rules (see `applyPlanAdjustment` for the rules). */
+export type PlanModifyField = 'total' | 'amount' | 'count';
+
 export interface PlanDrift {
   totalAmount: number;
   remainingAmount: number;
@@ -198,6 +202,7 @@ export const useInstallmentPayments = () => {
     }
 
     await fetchInstallmentPayments();
+    window.dispatchEvent(new CustomEvent('installment-updated'));
     repairStaleLinks(); // fire-and-forget after mutation
     return { error: null };
   };
@@ -422,6 +427,7 @@ export const useInstallmentPayments = () => {
     }
 
     await fetchInstallmentPayments();
+    window.dispatchEvent(new CustomEvent('installment-updated'));
     repairStaleLinks(); // fire-and-forget after mutation
     return { error: null };
   };
@@ -602,6 +608,7 @@ export const useInstallmentPayments = () => {
       .eq('user_id', user.id);
 
     await fetchInstallmentPayments();
+    window.dispatchEvent(new CustomEvent('installment-updated'));
     repairStaleLinks(); // fire-and-forget after mutation
 
     return {
@@ -680,6 +687,7 @@ export const useInstallmentPayments = () => {
     }
 
     await fetchInstallmentPayments();
+    window.dispatchEvent(new CustomEvent('installment-updated'));
     repairStaleLinks(); // fire-and-forget after mutation
     return { error: null };
   };
@@ -813,8 +821,15 @@ export const useInstallmentPayments = () => {
         )
         .subscribe();
 
+      // Local synchronous notify path so every consumer instance refetches
+      // immediately after a write done in this tab (realtime is the
+      // cross-tab path; this is the same-tab fast path).
+      const handleLocalUpdate = () => fetchInstallmentPayments();
+      window.addEventListener('installment-updated', handleLocalUpdate);
+
       return () => {
         installmentPaymentsSubscription.unsubscribe();
+        window.removeEventListener('installment-updated', handleLocalUpdate);
         if (refetchTimer) clearTimeout(refetchTimer);
       };
     }
@@ -892,11 +907,16 @@ export const useInstallmentPayments = () => {
     };
   };
 
-  // High-level plan adjustment that enforces T - P = N * A.
-  // Caller passes which field is "locked" (kept fixed) and the new value of
-  // exactly one of the remaining two; the third is derived. The last
-  // installment absorbs any rounding remainder so the schedule lands exactly
-  // on the new total.
+  // High-level plan adjustment. The caller specifies a single field they
+  // are modifying; the other two are derived using fixed rules that honor
+  // the typed value exactly:
+  //   - modifyField='total': A stays; N = ceil((T_new - P) / A); the last
+  //     installment absorbs the rounding remainder so the schedule lands
+  //     exactly on T_new.
+  //   - modifyField='amount': T stays; N = ceil((T - P) / A_new); the last
+  //     installment absorbs the remainder.
+  //   - modifyField='count': A stays; T = P + N_new * A. The new total is
+  //     a clean N×A multiple.
   //
   // `reconcileFromTxns`: when true, P (paid) is recomputed from the sum of
   // linked transactions before solving — use this when the user has clicked
@@ -905,7 +925,7 @@ export const useInstallmentPayments = () => {
   const applyPlanAdjustment = async (
     id: string,
     args: {
-      lockField: PlanLockField;
+      modifyField: PlanModifyField;
       total_amount?: number;
       installment_amount?: number;
       num_installments?: number;
@@ -940,42 +960,36 @@ export const useInstallmentPayments = () => {
     );
     const P = args.reconcileFromTxns ? paidFromTxns : paidFromState;
 
-    // Seed T / A / N from current state, then overlay whatever the caller sent.
+    // Seed T / A from current state. N is whatever the rule says.
     let T = Number(row.total_amount);
     let A = Number(row.installment_amount);
-    const currentRemaining = roundCurrency(T - P);
-    let N = A > 0 ? Math.max(1, Math.ceil(currentRemaining / A)) : 1;
 
-    if (args.total_amount !== undefined) T = roundCurrency(args.total_amount);
-    if (args.installment_amount !== undefined) A = roundCurrency(args.installment_amount);
-    if (args.num_installments !== undefined) N = Math.max(1, Math.floor(args.num_installments));
-
-    // Resolve the unspecified field from the lock.
-    switch (args.lockField) {
-      case 'total':
-        // T fixed: derive N from A, or A from N
-        if (args.installment_amount !== undefined && args.num_installments === undefined) {
-          N = A > 0 ? Math.max(1, Math.ceil((T - P) / A)) : 1;
-        } else if (args.num_installments !== undefined && args.installment_amount === undefined) {
-          A = N > 0 ? roundCurrency((T - P) / N) : 0;
+    switch (args.modifyField) {
+      case 'total': {
+        // User typed a new total; per-installment stays; count adjusts.
+        if (args.total_amount === undefined) {
+          return { error: new Error('total_amount is required when modifying total') };
         }
+        T = roundCurrency(args.total_amount);
         break;
-      case 'amount':
-        // A fixed: derive N from T, or T from N
-        if (args.total_amount !== undefined && args.num_installments === undefined) {
-          N = A > 0 ? Math.max(1, Math.ceil((T - P) / A)) : 1;
-        } else if (args.num_installments !== undefined && args.total_amount === undefined) {
-          T = roundCurrency(P + N * A);
+      }
+      case 'amount': {
+        // User typed a new per-installment; total stays; count adjusts.
+        if (args.installment_amount === undefined) {
+          return { error: new Error('installment_amount is required when modifying amount') };
         }
+        A = roundCurrency(args.installment_amount);
         break;
-      case 'count':
-        // N fixed: derive A from T, or T from A
-        if (args.total_amount !== undefined && args.installment_amount === undefined) {
-          A = N > 0 ? roundCurrency((T - P) / N) : 0;
-        } else if (args.installment_amount !== undefined && args.total_amount === undefined) {
-          T = roundCurrency(P + N * A);
+      }
+      case 'count': {
+        // User typed a new count; per-installment stays; total = P + N*A.
+        if (args.num_installments === undefined) {
+          return { error: new Error('num_installments is required when modifying count') };
         }
+        const N = Math.max(1, Math.floor(args.num_installments));
+        T = roundCurrency(P + N * A);
         break;
+      }
     }
 
     const newRemaining = Math.max(0, roundCurrency(T - P));
@@ -1108,7 +1122,22 @@ export const useInstallmentPayments = () => {
       }
     }
 
-    const { error: updateError } = await updateInstallmentPayment(typed.installment_payment_id, updates);
+    // Apply the revert via updateInstallmentPayment with skipHistory=true so
+    // it doesn't auto-log a new "revert" entry. Then drop the original
+    // history row too, leaving the timeline clean — both the change AND
+    // the undo disappear from the user's view.
+    const { error: updateError } = await updateInstallmentPayment(
+      typed.installment_payment_id,
+      updates,
+      /* skipHistory */ true
+    );
+    if (!updateError) {
+      await supabase
+        .from('installment_payment_history' as any)
+        .delete()
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+    }
     return { error: updateError, deletedTransactionsCount: deletedCount };
   };
 

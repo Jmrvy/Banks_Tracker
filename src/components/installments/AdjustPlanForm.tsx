@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addMonths, addQuarters, addWeeks, format, parseISO } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { AlertTriangle, Calculator, Lock, RefreshCw, Wand2 } from 'lucide-react';
+import { AlertTriangle, Calculator, Lock, Pencil, RefreshCw, Wand2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
   useInstallmentPayments,
   InstallmentPayment,
   PlanDrift,
-  PlanLockField,
+  PlanModifyField,
 } from '@/hooks/useInstallmentPayments';
 
 interface Props {
@@ -41,19 +41,25 @@ export function AdjustPlanForm({ plan }: Props) {
   const { applyPlanAdjustment, computePlanDrift, recalculateInstallmentPayment } =
     useInstallmentPayments();
 
-  const [lockField, setLockField] = useState<PlanLockField>('amount');
+  // Single source of truth: which field is the user modifying right now.
+  // The other two are auto-derived using fixed rules (see `applyPlanAdjustment`).
+  const [modifyField, setModifyField] = useState<PlanModifyField>('total');
+
+  // The editable field's typed value. The other two display computed previews.
   const [totalStr, setTotalStr] = useState(plan.total_amount.toString());
   const [amountStr, setAmountStr] = useState(plan.installment_amount.toString());
-  const [countStr, setCountStr] = useState(
+  const initialCount =
     plan.installment_amount > 0
-      ? Math.max(1, Math.ceil(plan.remaining_amount / plan.installment_amount)).toString()
-      : '1'
-  );
+      ? Math.max(1, Math.ceil(plan.remaining_amount / plan.installment_amount))
+      : 1;
+  const [countStr, setCountStr] = useState(initialCount.toString());
 
   const [drift, setDrift] = useState<PlanDrift | null>(null);
   const [reconcileFirst, setReconcileFirst] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Reseed inputs whenever the underlying plan changes (e.g. after Apply
+  // succeeds and the hook refetches).
   useEffect(() => {
     setTotalStr(plan.total_amount.toString());
     setAmountStr(plan.installment_amount.toString());
@@ -74,57 +80,60 @@ export function AdjustPlanForm({ plan }: Props) {
     };
   }, [plan.id, plan.total_amount, plan.remaining_amount, plan.installment_amount]);
 
-  // Preview the constraint solver in-form so the user sees what will happen.
+  // Derived preview using the same fixed rules as `applyPlanAdjustment`.
+  //   modifyField='total'  → A stays, N = ceil((T - P) / A), last installment absorbs.
+  //   modifyField='amount' → T stays, N = ceil((T - P) / A), last installment absorbs.
+  //   modifyField='count'  → A stays, T = P + N * A (clean multiple).
   const preview = useMemo(() => {
-    const T = parseFloat(totalStr) || 0;
-    const A = parseFloat(amountStr) || 0;
-    const N = Math.max(1, Math.floor(parseFloat(countStr) || 0));
     const paid = reconcileFirst && drift ? drift.paidFromTxns : roundCurrency(
       plan.total_amount - plan.remaining_amount
     );
 
-    let resolvedT = T;
-    let resolvedA = A;
-    let resolvedN = N;
+    // Start from current state; overlay the editable field.
+    let T = Number(plan.total_amount) || 0;
+    let A = Number(plan.installment_amount) || 0;
+    let N =
+      A > 0
+        ? Math.max(1, Math.ceil(Math.max(0, T - paid) / A))
+        : 1;
 
-    switch (lockField) {
-      case 'total':
-        resolvedT = T;
-        if (A > 0) resolvedN = Math.max(1, Math.ceil((T - paid) / A));
-        resolvedA = resolvedN > 0 ? roundCurrency((T - paid) / resolvedN) : 0;
-        break;
-      case 'amount':
-        resolvedA = A;
-        if (A > 0) resolvedN = Math.max(1, Math.ceil((T - paid) / A));
-        resolvedT = roundCurrency(paid + resolvedN * A);
-        break;
-      case 'count':
-        resolvedN = N;
-        if (N > 0) resolvedA = roundCurrency((T - paid) / N);
-        resolvedT = roundCurrency(paid + N * resolvedA);
-        break;
+    if (modifyField === 'total') {
+      T = parseFloat(totalStr) || 0;
+      N = A > 0 ? Math.max(1, Math.ceil(Math.max(0, T - paid) / A)) : 1;
+    } else if (modifyField === 'amount') {
+      A = parseFloat(amountStr) || 0;
+      N = A > 0 ? Math.max(1, Math.ceil(Math.max(0, T - paid) / A)) : 1;
+    } else {
+      N = Math.max(1, Math.floor(parseFloat(countStr) || 0));
+      T = roundCurrency(paid + N * A);
     }
 
-    const remaining = Math.max(0, roundCurrency(resolvedT - paid));
-    const evenInstallment = resolvedN > 0 ? roundCurrency(remaining / resolvedN) : 0;
-    const lastInstallment = roundCurrency(remaining - evenInstallment * (resolvedN - 1));
-    const installmentsDiffer = Math.abs(lastInstallment - evenInstallment) > 0.01;
+    const remaining = Math.max(0, roundCurrency(T - paid));
+    // For 'total' / 'amount' modes the typed value is honored exactly, with
+    // a last installment absorbing the rounding remainder. For 'count' the
+    // schedule is N * A exactly (no last-installment quirk).
+    const lastInstallment =
+      modifyField === 'count'
+        ? A
+        : roundCurrency(Math.max(0, remaining - A * Math.max(0, N - 1)));
+    const installmentsDiffer =
+      modifyField !== 'count' && N > 1 && Math.abs(lastInstallment - A) > 0.01;
 
-    // Project end date by walking the schedule from next_payment_date
+    // Project the schedule end date by walking from next_payment_date.
     let endDate: Date | null = null;
-    if (resolvedN > 0 && plan.next_payment_date) {
+    if (N > 0 && plan.next_payment_date) {
       let cur = parseISO(plan.next_payment_date);
-      for (let i = 1; i < resolvedN; i++) cur = addInterval(cur, plan.frequency);
+      for (let i = 1; i < N; i++) cur = addInterval(cur, plan.frequency);
       endDate = cur;
     }
 
     return {
       paid,
-      total: resolvedT,
-      amount: evenInstallment,
+      total: T,
+      amount: A,
       lastAmount: lastInstallment,
       installmentsDiffer,
-      count: resolvedN,
+      count: N,
       remaining,
       endDate,
     };
@@ -132,10 +141,11 @@ export function AdjustPlanForm({ plan }: Props) {
     totalStr,
     amountStr,
     countStr,
-    lockField,
+    modifyField,
     reconcileFirst,
     drift,
     plan.total_amount,
+    plan.installment_amount,
     plan.remaining_amount,
     plan.next_payment_date,
     plan.frequency,
@@ -169,22 +179,15 @@ export function AdjustPlanForm({ plan }: Props) {
   const handleApply = async () => {
     setSubmitting(true);
     const payload: Parameters<typeof applyPlanAdjustment>[1] = {
-      lockField,
+      modifyField,
       reconcileFromTxns: reconcileFirst,
     };
-    if (lockField !== 'total') payload.total_amount = parseFloat(totalStr) || plan.total_amount;
-    if (lockField !== 'amount') payload.installment_amount = parseFloat(amountStr) || plan.installment_amount;
-    if (lockField !== 'count') {
-      const n = Math.max(1, Math.floor(parseFloat(countStr) || 0));
-      payload.num_installments = n;
-    }
-    // For the locked field, send the form value too so the solver has the
-    // user's intent rather than the stale row.
-    if (lockField === 'total') payload.total_amount = parseFloat(totalStr) || plan.total_amount;
-    if (lockField === 'amount') payload.installment_amount = parseFloat(amountStr) || plan.installment_amount;
-    if (lockField === 'count') {
-      const n = Math.max(1, Math.floor(parseFloat(countStr) || 0));
-      payload.num_installments = n;
+    if (modifyField === 'total') {
+      payload.total_amount = parseFloat(totalStr) || plan.total_amount;
+    } else if (modifyField === 'amount') {
+      payload.installment_amount = parseFloat(amountStr) || plan.installment_amount;
+    } else {
+      payload.num_installments = Math.max(1, Math.floor(parseFloat(countStr) || 0));
     }
 
     const { error } = await applyPlanAdjustment(plan.id, payload);
@@ -207,6 +210,36 @@ export function AdjustPlanForm({ plan }: Props) {
     });
     setReconcileFirst(false);
   };
+
+  // Render helpers
+  const fieldConfig: Array<{
+    key: PlanModifyField;
+    label: string;
+    helper: string;
+  }> = [
+    {
+      key: 'total',
+      label: t('installments.total', { defaultValue: 'Total' }),
+      helper: t('installments.modifyTotalHint', {
+        defaultValue: 'Per-installment stays fixed; count adjusts.',
+      }),
+    },
+    {
+      key: 'amount',
+      label: t('installments.perInstallment', { defaultValue: 'Per installment' }),
+      helper: t('installments.modifyAmountHint', {
+        defaultValue: 'Total stays fixed; count adjusts.',
+      }),
+    },
+    {
+      key: 'count',
+      label: t('installments.installmentsLeft', { defaultValue: 'Installments left' }),
+      helper: t('installments.modifyCountHint', {
+        defaultValue: 'Per-installment stays fixed; total adjusts.',
+      }),
+    },
+  ];
+  const activeConfig = fieldConfig.find((c) => c.key === modifyField)!;
 
   return (
     <div className="space-y-4">
@@ -260,102 +293,85 @@ export function AdjustPlanForm({ plan }: Props) {
         </div>
       )}
 
-      {/* Lock toggle */}
+      {/* Modify-field picker */}
       <div className="space-y-2">
         <Label className="text-xs sm:text-sm flex items-center gap-1.5">
-          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-          {t('installments.lockField', { defaultValue: 'Keep this field fixed' })}
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+          {t('installments.modifyWhich', { defaultValue: 'Which field do you want to modify?' })}
         </Label>
         <div className="grid grid-cols-3 gap-2">
-          {(['total', 'amount', 'count'] as PlanLockField[]).map((f) => (
+          {fieldConfig.map((c) => (
             <Button
-              key={f}
+              key={c.key}
               type="button"
-              variant={lockField === f ? 'default' : 'outline'}
+              variant={modifyField === c.key ? 'default' : 'outline'}
               size="sm"
               className="h-9 text-[11px] sm:text-xs"
-              onClick={() => setLockField(f)}
+              onClick={() => setModifyField(c.key)}
             >
-              {f === 'total'
-                ? t('installments.total', { defaultValue: 'Total' })
-                : f === 'amount'
-                ? t('installments.perInstallment', { defaultValue: 'Per installment' })
-                : t('installments.installmentsLeft', { defaultValue: 'Installments left' })}
+              {c.label}
             </Button>
           ))}
         </div>
-        <p className="text-[10px] sm:text-xs text-muted-foreground">
-          {lockField === 'total' &&
-            t('installments.lockTotalHint', {
-              defaultValue:
-                'Total stays at the chosen value; per-installment and count adjust to fit.',
-            })}
-          {lockField === 'amount' &&
-            t('installments.lockAmountHint', {
-              defaultValue:
-                'Per-installment stays fixed; total and count adjust to fit.',
-            })}
-          {lockField === 'count' &&
-            t('installments.lockCountHint', {
-              defaultValue:
-                'Number of installments left stays fixed; per-installment splits the remainder.',
-            })}
-        </p>
+        <p className="text-[10px] sm:text-xs text-muted-foreground">{activeConfig.helper}</p>
       </div>
 
-      {/* Three fields */}
+      {/* Three fields — only the one matching modifyField is editable */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-[11px] sm:text-xs">
-            {t('installments.total', { defaultValue: 'Total' })}
-            {lockField === 'total' && (
-              <span className="ml-1 text-primary">
-                <Lock className="inline h-2.5 w-2.5" />
-              </span>
-            )}
-          </Label>
-          <AmountInput
-            placeholder="0.00"
-            value={totalStr}
-            onChange={setTotalStr}
-            className="h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-[11px] sm:text-xs">
-            {t('installments.perInstallment', { defaultValue: 'Per installment' })}
-            {lockField === 'amount' && (
-              <span className="ml-1 text-primary">
-                <Lock className="inline h-2.5 w-2.5" />
-              </span>
-            )}
-          </Label>
-          <AmountInput
-            placeholder="0.00"
-            value={amountStr}
-            onChange={setAmountStr}
-            className="h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-[11px] sm:text-xs">
-            {t('installments.installmentsLeft', { defaultValue: 'Installments left' })}
-            {lockField === 'count' && (
-              <span className="ml-1 text-primary">
-                <Lock className="inline h-2.5 w-2.5" />
-              </span>
-            )}
-          </Label>
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={240}
-            value={countStr}
-            onChange={(e) => setCountStr(e.target.value)}
-            className="h-9 text-sm"
-          />
-        </div>
+        <FieldBlock
+          label={t('installments.total', { defaultValue: 'Total' })}
+          editable={modifyField === 'total'}
+          tooltip={t('installments.fieldLocked', { defaultValue: 'Locked: auto-computed.' })}
+        >
+          {modifyField === 'total' ? (
+            <AmountInput
+              placeholder="0.00"
+              value={totalStr}
+              onChange={setTotalStr}
+              className="h-9 text-sm"
+              autoFocus
+            />
+          ) : (
+            <ReadOnlyValue value={formatCurrency(preview.total)} />
+          )}
+        </FieldBlock>
+        <FieldBlock
+          label={t('installments.perInstallment', { defaultValue: 'Per installment' })}
+          editable={modifyField === 'amount'}
+          tooltip={t('installments.fieldLocked', { defaultValue: 'Locked: auto-computed.' })}
+        >
+          {modifyField === 'amount' ? (
+            <AmountInput
+              placeholder="0.00"
+              value={amountStr}
+              onChange={setAmountStr}
+              className="h-9 text-sm"
+              autoFocus
+            />
+          ) : (
+            <ReadOnlyValue value={formatCurrency(preview.amount)} />
+          )}
+        </FieldBlock>
+        <FieldBlock
+          label={t('installments.installmentsLeft', { defaultValue: 'Installments left' })}
+          editable={modifyField === 'count'}
+          tooltip={t('installments.fieldLocked', { defaultValue: 'Locked: auto-computed.' })}
+        >
+          {modifyField === 'count' ? (
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={240}
+              value={countStr}
+              onChange={(e) => setCountStr(e.target.value)}
+              className="h-9 text-sm"
+              autoFocus
+            />
+          ) : (
+            <ReadOnlyValue value={String(preview.count)} />
+          )}
+        </FieldBlock>
       </div>
 
       {/* Preview */}
@@ -429,6 +445,39 @@ export function AdjustPlanForm({ plan }: Props) {
           ? t('common.saving', { defaultValue: 'Saving…' })
           : t('installments.applyChanges', { defaultValue: 'Apply changes' })}
       </Button>
+    </div>
+  );
+}
+
+function FieldBlock({
+  label,
+  editable,
+  tooltip,
+  children,
+}: {
+  label: string;
+  editable: boolean;
+  tooltip: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label
+        className="text-[11px] sm:text-xs flex items-center gap-1"
+        title={editable ? undefined : tooltip}
+      >
+        {label}
+        {!editable && <Lock className="h-2.5 w-2.5 text-muted-foreground" />}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function ReadOnlyValue({ value }: { value: string }) {
+  return (
+    <div className="h-9 px-3 flex items-center text-sm font-mono tabular-nums rounded-md border border-input bg-muted/40 text-muted-foreground">
+      {value}
     </div>
   );
 }
