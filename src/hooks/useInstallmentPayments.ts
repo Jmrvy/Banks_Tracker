@@ -1001,6 +1001,56 @@ export const useInstallmentPayments = () => {
     });
   };
 
+  // Revert a single history entry: applies the entry's old_values back to
+  // the plan. updateInstallmentPayment logs a new history entry, so the
+  // undo is itself undoable. Returns an error for entries that can't be
+  // reverted (no old_values, or the change_type doesn't carry one).
+  const revertInstallmentHistoryEntry = async (entryId: string) => {
+    if (!user) return { error: new Error('User not authenticated') };
+
+    const { data: entry, error: fetchError } = await supabase
+      .from('installment_payment_history' as any)
+      .select('*')
+      .eq('id', entryId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchError || !entry) {
+      return { error: fetchError || new Error('History entry not found') };
+    }
+
+    const typed = entry as unknown as InstallmentPaymentHistory;
+
+    if (typed.change_type === 'created' || typed.change_type === 'deleted') {
+      return { error: new Error('Cannot undo this kind of change') };
+    }
+
+    const oldValues = typed.old_values;
+    if (!oldValues || Object.keys(oldValues).length === 0) {
+      return { error: new Error('This entry has no previous values to restore') };
+    }
+
+    // Filter to fields updateInstallmentPayment knows about.
+    const allowedFields: Array<keyof InstallmentPayment> = [
+      'description', 'total_amount', 'installment_amount', 'frequency',
+      'next_payment_date', 'account_id', 'category_id', 'payment_type',
+      'is_active', 'remaining_amount', 'end_date',
+    ];
+
+    const updates: Partial<InstallmentPayment> = {};
+    for (const field of allowedFields) {
+      if (oldValues[field] !== undefined) {
+        (updates as Record<string, unknown>)[field] = oldValues[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return { error: new Error('No revertible fields in this entry') };
+    }
+
+    return updateInstallmentPayment(typed.installment_payment_id, updates);
+  };
+
   return {
     installmentPayments,
     loading,
@@ -1013,6 +1063,7 @@ export const useInstallmentPayments = () => {
     recalculateInstallmentPayment,
     fetchPaymentHistory,
     deleteHistoryEntry,
+    revertInstallmentHistoryEntry,
     fetchLinkedTransactions,
     detectOrphanedTransactions,
     deleteOrphanedTransactions,

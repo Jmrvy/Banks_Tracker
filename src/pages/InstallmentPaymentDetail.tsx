@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Receipt,
   RefreshCw,
+  RotateCcw,
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
@@ -69,6 +70,7 @@ const InstallmentPaymentDetail = () => {
     completeInstallmentPayment,
     fetchPaymentHistory,
     deleteHistoryEntry,
+    revertInstallmentHistoryEntry,
     fetchLinkedTransactions,
   } = useInstallmentPayments();
   const { accounts, categories, transactions, refetch } = useFinancialData();
@@ -88,6 +90,8 @@ const InstallmentPaymentDetail = () => {
   const [loadingLinked, setLoadingLinked] = useState(false);
   const [viewingTxn, setViewingTxn] = useState<Transaction | null>(null);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
+  const [revertingEntry, setRevertingEntry] = useState<InstallmentPaymentHistory | null>(null);
+  const [revertSubmitting, setRevertSubmitting] = useState(false);
   const tabParam = searchParams.get('tab');
   const initialTab: 'schedule' | 'adjust' | 'history' =
     tabParam === 'adjust' || tabParam === 'history' ? tabParam : 'schedule';
@@ -436,6 +440,11 @@ const InstallmentPaymentDetail = () => {
             ) : (
               history.map((entry) => {
                 const typeInfo = getChangeTypeLabel(entry.change_type);
+                const isRevertible =
+                  entry.change_type !== 'created' &&
+                  entry.change_type !== 'deleted' &&
+                  !!entry.old_values &&
+                  Object.keys(entry.old_values).length > 0;
                 return (
                   <div key={entry.id} className="ft-card p-3 group">
                     <div className="flex items-start justify-between gap-2">
@@ -449,6 +458,23 @@ const InstallmentPaymentDetail = () => {
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {format(parseISO(entry.created_at), 'PP p', { locale: dateLocale })}
                         </span>
+                        {isRevertible && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRevertingEntry(entry);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-primary/10"
+                            aria-label={t('installments.undoEntry', {
+                              defaultValue: 'Undo this change',
+                            })}
+                            title={t('installments.undoEntry', {
+                              defaultValue: 'Undo this change',
+                            })}
+                          >
+                            <RotateCcw className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                          </button>
+                        )}
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
@@ -589,6 +615,110 @@ const InstallmentPaymentDetail = () => {
             >
               {t('common.delete', { defaultValue: 'Delete' })}
               {linkedForDelete.length > 0 ? ` (${linkedForDelete.length + 1})` : ''}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!revertingEntry}
+        onOpenChange={(open) => !open && setRevertingEntry(null)}
+      >
+        <AlertDialogContent className="max-h-[85vh] flex flex-col">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-primary" />
+              {t('installments.undoTitle', { defaultValue: 'Undo this change?' })}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  {t('installments.undoIntro', {
+                    defaultValue:
+                      'The plan will be restored to its state before this change. Later changes stay applied — you can keep undoing them one by one.',
+                  })}
+                </p>
+                {revertingEntry?.old_values && (
+                  <div className="rounded-md border bg-muted/40 divide-y divide-border text-[12px]">
+                    {Object.entries(revertingEntry.old_values).map(([field, value]) => {
+                      const labels: Record<string, string> = {
+                        total_amount: t('installments.total', { defaultValue: 'Total' }),
+                        installment_amount: t('installments.perInstallment', {
+                          defaultValue: 'Per installment',
+                        }),
+                        remaining_amount: t('installments.remaining', {
+                          defaultValue: 'Remaining',
+                        }),
+                        frequency: t('installments.frequency', { defaultValue: 'Frequency' }),
+                        description: t('common.description', { defaultValue: 'Description' }),
+                        next_payment_date: t('installments.nextCharge', {
+                          defaultValue: 'Next charge',
+                        }),
+                        is_active: t('installments.status', { defaultValue: 'Status' }),
+                        payment_type: t('installments.type', { defaultValue: 'Type' }),
+                      };
+                      const label = labels[field] || field;
+                      const display =
+                        typeof value === 'number'
+                          ? formatCurrency(value)
+                          : typeof value === 'boolean'
+                          ? value
+                            ? t('installments.active', { defaultValue: 'Active' })
+                            : t('installments.completed', { defaultValue: 'Completed' })
+                          : String(value);
+                      return (
+                        <div
+                          key={field}
+                          className="flex items-center justify-between px-3 py-1.5"
+                        >
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-mono font-medium tabular-nums">{display}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  {t('installments.undoDriftNote', {
+                    defaultValue:
+                      'Undoing an older edit may create drift between the plan and its linked transactions; the Adjust tab will flag it.',
+                  })}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revertSubmitting}>
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={revertSubmitting}
+              onClick={async () => {
+                if (!revertingEntry) return;
+                setRevertSubmitting(true);
+                const { error } = await revertInstallmentHistoryEntry(revertingEntry.id);
+                setRevertSubmitting(false);
+                if (error) {
+                  toast({
+                    title: t('common.error'),
+                    description: error.message,
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                toast({
+                  title: t('installments.undoneTitle', { defaultValue: 'Change reverted' }),
+                  description: t('installments.undoneDesc', {
+                    defaultValue: 'Previous values restored.',
+                  }),
+                });
+                setRevertingEntry(null);
+                const data = await fetchPaymentHistory(plan.id);
+                setHistory(data);
+              }}
+            >
+              {revertSubmitting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              {t('installments.undoConfirm', { defaultValue: 'Undo change' })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
