@@ -908,15 +908,17 @@ export const useInstallmentPayments = () => {
   };
 
   // High-level plan adjustment. The caller specifies a single field they
-  // are modifying; the other two are derived using fixed rules that honor
-  // the typed value exactly:
-  //   - modifyField='total': A stays; N = ceil((T_new - P) / A); the last
-  //     installment absorbs the rounding remainder so the schedule lands
-  //     exactly on T_new.
-  //   - modifyField='amount': T stays; N = ceil((T - P) / A_new); the last
-  //     installment absorbs the remainder.
-  //   - modifyField='count': A stays; T = P + N_new * A. The new total is
-  //     a clean N×A multiple.
+  // are modifying; the OTHER two are derived using these rules — the rule
+  // is "keep the field the user didn't touch":
+  //   - modifyField='total':  N stays at its current value, A is recomputed
+  //                           so that paid + N*A lands exactly on T_new.
+  //   - modifyField='amount': T stays, N = ceil((T - P) / A_new), with the
+  //                           last installment absorbing any remainder.
+  //   - modifyField='count':  T stays, A = (T - P) / N_new.
+  //
+  // In all three cases the typed value is honored exactly. Schedule math
+  // handles rounding by letting the last installment differ slightly when
+  // (T - P) doesn't divide cleanly.
   //
   // `reconcileFromTxns`: when true, P (paid) is recomputed from the sum of
   // linked transactions before solving — use this when the user has clicked
@@ -960,34 +962,39 @@ export const useInstallmentPayments = () => {
     );
     const P = args.reconcileFromTxns ? paidFromTxns : paidFromState;
 
-    // Seed T / A from current state. N is whatever the rule says.
     let T = Number(row.total_amount);
     let A = Number(row.installment_amount);
+    const currentRemaining = roundCurrency(T - P);
+    const currentN = A > 0 ? Math.max(1, Math.ceil(currentRemaining / A)) : 1;
 
     switch (args.modifyField) {
       case 'total': {
-        // User typed a new total; per-installment stays; count adjusts.
+        // User typed a new total; count stays; per-installment adjusts.
         if (args.total_amount === undefined) {
           return { error: new Error('total_amount is required when modifying total') };
         }
         T = roundCurrency(args.total_amount);
+        const N = currentN;
+        A = N > 0 ? roundCurrency(Math.max(0, T - P) / N) : 0;
         break;
       }
       case 'amount': {
-        // User typed a new per-installment; total stays; count adjusts.
+        // User typed a new per-installment; total stays; count adjusts
+        // (the last installment absorbs the rounding remainder).
         if (args.installment_amount === undefined) {
           return { error: new Error('installment_amount is required when modifying amount') };
         }
         A = roundCurrency(args.installment_amount);
+        // T stays as-is.
         break;
       }
       case 'count': {
-        // User typed a new count; per-installment stays; total = P + N*A.
+        // User typed a new count; total stays; per-installment adjusts.
         if (args.num_installments === undefined) {
           return { error: new Error('num_installments is required when modifying count') };
         }
         const N = Math.max(1, Math.floor(args.num_installments));
-        T = roundCurrency(P + N * A);
+        A = N > 0 ? roundCurrency(Math.max(0, T - P) / N) : 0;
         break;
       }
     }
