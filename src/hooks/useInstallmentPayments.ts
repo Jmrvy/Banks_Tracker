@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { roundCurrency } from '@/lib/currency';
+
+export type PlanLockField = 'total' | 'amount' | 'count';
+
+export interface PlanDrift {
+  totalAmount: number;
+  remainingAmount: number;
+  paidFromState: number;       // total - remaining (what the row says)
+  paidFromTxns: number;        // sum(linked transactions)
+  drift: number;               // paidFromState - paidFromTxns; ~0 means consistent
+  linkedTransactionsCount: number;
+}
 
 export interface InstallmentPayment {
   id: string;
@@ -230,14 +242,22 @@ export const useInstallmentPayments = () => {
       }
     }
 
-    // If total_amount is being updated, recalculate remaining_amount
-    if (dbUpdates.total_amount !== undefined) {
+    // If total_amount changes but the caller didn't specify a remaining_amount,
+    // re-derive it from paid = oldTotal - oldRemaining. Callers that already
+    // know the correct remaining (e.g. applyPlanAdjustment) pass it explicitly.
+    if (dbUpdates.total_amount !== undefined && dbUpdates.remaining_amount === undefined) {
       const amountAlreadyPaid = currentInstallment.total_amount - currentInstallment.remaining_amount;
       const newRemaining = Math.max(0, (dbUpdates.total_amount as number) - amountAlreadyPaid);
       dbUpdates.remaining_amount = newRemaining;
       if (newRemaining <= 0) {
         dbUpdates.is_active = false;
       }
+    } else if (
+      dbUpdates.remaining_amount !== undefined &&
+      (dbUpdates.remaining_amount as number) <= 0 &&
+      dbUpdates.is_active === undefined
+    ) {
+      dbUpdates.is_active = false;
     }
 
     if (Object.keys(dbUpdates).length === 0) {
@@ -833,44 +853,152 @@ export const useInstallmentPayments = () => {
     return { error: null };
   };
 
-  const adjustInstallmentPlan = async (
+  // Compute drift between the stored remaining_amount and the sum of linked
+  // transactions. Used by the Ajuster UI to surface a banner when the plan
+  // is out of sync (e.g. user paid 110€ when scheduled was 100€).
+  const computePlanDrift = async (id: string): Promise<PlanDrift | null> => {
+    if (!user) return null;
+
+    const [ipResult, txResult] = await Promise.all([
+      supabase
+        .from('installment_payments')
+        .select('total_amount, remaining_amount')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single(),
+      supabase
+        .from('transactions')
+        .select('amount')
+        .eq('installment_payment_id', id)
+        .eq('user_id', user.id),
+    ]);
+
+    if (ipResult.error || !ipResult.data) return null;
+
+    const totalAmount = Number(ipResult.data.total_amount);
+    const remainingAmount = Number(ipResult.data.remaining_amount);
+    const paidFromState = roundCurrency(totalAmount - remainingAmount);
+    const paidFromTxns = roundCurrency(
+      (txResult.data || []).reduce((sum, tx) => sum + Number(tx.amount), 0)
+    );
+
+    return {
+      totalAmount,
+      remainingAmount,
+      paidFromState,
+      paidFromTxns,
+      drift: roundCurrency(paidFromState - paidFromTxns),
+      linkedTransactionsCount: (txResult.data || []).length,
+    };
+  };
+
+  // High-level plan adjustment that enforces T - P = N * A.
+  // Caller passes which field is "locked" (kept fixed) and the new value of
+  // exactly one of the remaining two; the third is derived. The last
+  // installment absorbs any rounding remainder so the schedule lands exactly
+  // on the new total.
+  //
+  // `reconcileFromTxns`: when true, P (paid) is recomputed from the sum of
+  // linked transactions before solving — use this when the user has clicked
+  // "Recalculate first" on a drift banner. When false, P is taken from the
+  // stored row (total - remaining), trusting the form.
+  const applyPlanAdjustment = async (
     id: string,
-    adjustmentType: 'keep_current' | 'reduce_amount' | 'reduce_count' | 'custom',
-    newInstallmentAmount: number
+    args: {
+      lockField: PlanLockField;
+      total_amount?: number;
+      installment_amount?: number;
+      num_installments?: number;
+      next_payment_date?: string;
+      reconcileFromTxns?: boolean;
+    }
   ) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    const { data: freshData, error: fetchError } = await supabase
-      .from('installment_payments')
-      .select('installment_amount')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
+    const [ipResult, txResult] = await Promise.all([
+      supabase
+        .from('installment_payments')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single(),
+      supabase
+        .from('transactions')
+        .select('amount')
+        .eq('installment_payment_id', id)
+        .eq('user_id', user.id),
+    ]);
 
-    if (fetchError || !freshData) return { error: fetchError || new Error('Installment payment not found') };
+    if (ipResult.error || !ipResult.data) {
+      return { error: ipResult.error || new Error('Installment payment not found') };
+    }
 
-    let updatedAmount = freshData.installment_amount;
+    const row = ipResult.data;
+    const paidFromState = roundCurrency(Number(row.total_amount) - Number(row.remaining_amount));
+    const paidFromTxns = roundCurrency(
+      (txResult.data || []).reduce((sum, tx) => sum + Number(tx.amount), 0)
+    );
+    const P = args.reconcileFromTxns ? paidFromTxns : paidFromState;
 
-    switch (adjustmentType) {
-      case 'keep_current':
-      case 'reduce_count':
-        updatedAmount = freshData.installment_amount;
+    // Seed T / A / N from current state, then overlay whatever the caller sent.
+    let T = Number(row.total_amount);
+    let A = Number(row.installment_amount);
+    const currentRemaining = roundCurrency(T - P);
+    let N = A > 0 ? Math.max(1, Math.ceil(currentRemaining / A)) : 1;
+
+    if (args.total_amount !== undefined) T = roundCurrency(args.total_amount);
+    if (args.installment_amount !== undefined) A = roundCurrency(args.installment_amount);
+    if (args.num_installments !== undefined) N = Math.max(1, Math.floor(args.num_installments));
+
+    // Resolve the unspecified field from the lock.
+    switch (args.lockField) {
+      case 'total':
+        // T fixed: derive N from A, or A from N
+        if (args.installment_amount !== undefined && args.num_installments === undefined) {
+          N = A > 0 ? Math.max(1, Math.ceil((T - P) / A)) : 1;
+        } else if (args.num_installments !== undefined && args.installment_amount === undefined) {
+          A = N > 0 ? roundCurrency((T - P) / N) : 0;
+        }
         break;
-      case 'reduce_amount':
-      case 'custom':
-        updatedAmount = newInstallmentAmount;
+      case 'amount':
+        // A fixed: derive N from T, or T from N
+        if (args.total_amount !== undefined && args.num_installments === undefined) {
+          N = A > 0 ? Math.max(1, Math.ceil((T - P) / A)) : 1;
+        } else if (args.num_installments !== undefined && args.total_amount === undefined) {
+          T = roundCurrency(P + N * A);
+        }
+        break;
+      case 'count':
+        // N fixed: derive A from T, or T from A
+        if (args.total_amount !== undefined && args.installment_amount === undefined) {
+          A = N > 0 ? roundCurrency((T - P) / N) : 0;
+        } else if (args.installment_amount !== undefined && args.total_amount === undefined) {
+          T = roundCurrency(P + N * A);
+        }
         break;
     }
 
-    const { error: updateError } = await updateInstallmentPayment(id, {
-      installment_amount: updatedAmount,
+    const newRemaining = Math.max(0, roundCurrency(T - P));
+
+    // Sanity: refuse to apply something patently broken
+    if (T <= 0 || A < 0) {
+      return { error: new Error('Plan values must be positive') };
+    }
+    if (T < P) {
+      return {
+        error: new Error(
+          `New total (${T.toFixed(2)}) is below the amount already paid (${P.toFixed(2)})`
+        ),
+      };
+    }
+
+    return updateInstallmentPayment(id, {
+      total_amount: T,
+      installment_amount: A,
+      remaining_amount: newRemaining,
+      is_active: newRemaining > 0,
+      ...(args.next_payment_date ? { next_payment_date: args.next_payment_date } : {}),
     });
-
-    if (updateError) {
-      return { error: updateError };
-    }
-
-    return { error: null };
   };
 
   return {
@@ -880,7 +1008,8 @@ export const useInstallmentPayments = () => {
     updateInstallmentPayment,
     deleteInstallmentPayment,
     completeInstallmentPayment,
-    adjustInstallmentPlan,
+    applyPlanAdjustment,
+    computePlanDrift,
     recalculateInstallmentPayment,
     fetchPaymentHistory,
     deleteHistoryEntry,

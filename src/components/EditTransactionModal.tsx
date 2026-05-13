@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { FormScaffold } from '@/components/ui/form-scaffold';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,9 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
-import { useInstallmentPayments, InstallmentPayment } from '@/hooks/useInstallmentPayments';
-import { AdjustInstallmentPlanModal } from '@/components/AdjustInstallmentPlanModal';
-import { supabase } from '@/integrations/supabase/client';
 import { parseLocalDate } from '@/lib/dateUtils';
 
 interface EditTransactionModalProps {
@@ -25,9 +23,9 @@ interface EditTransactionModalProps {
 export function EditTransactionModal({ open, onOpenChange, transaction }: EditTransactionModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { accounts, categories, updateTransaction } = useFinancialData();
-  const { installmentPayments } = useInstallmentPayments();
-  
+
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -41,14 +39,6 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     include_in_stats: true
   });
   const [loading, setLoading] = useState(false);
-  
-  // State for adjustment modal
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [adjustmentData, setAdjustmentData] = useState<{
-    payment: InstallmentPayment;
-    paymentAmount: number;
-    newRemainingAmount: number;
-  } | null>(null);
 
   // Update form data when transaction changes
   useEffect(() => {
@@ -138,42 +128,18 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         title: t('common.success'),
         description: t('transactions.updateSuccess'),
       });
-      
-      // If amount changed and transaction is linked to an installment payment, show adjustment modal
-      if (amountChanged && hasInstallmentPayment && transaction.installment_payment_id) {
-        // Fetch the updated installment payment to get current remaining amount
-        const { data: updatedInstallment } = await supabase
-          .from('installment_payments')
-          .select('*')
-          .eq('id', transaction.installment_payment_id)
-          .single();
-        
-        if (updatedInstallment) {
-          const installmentPayment = installmentPayments.find(ip => ip.id === transaction.installment_payment_id) || updatedInstallment as InstallmentPayment;
-          const amountDifference = newAmount - originalAmount;
-          
-          setAdjustmentData({
-            payment: {
-              ...installmentPayment,
-              remaining_amount: updatedInstallment.remaining_amount
-            },
-            paymentAmount: amountDifference,
-            newRemainingAmount: updatedInstallment.remaining_amount
-          });
-          
-          resetForm();
-          onOpenChange(false);
-          setShowAdjustModal(true);
-        } else {
-          resetForm();
-          onOpenChange(false);
-        }
-      } else {
-        resetForm();
-        onOpenChange(false);
-      }
-      
+
+      resetForm();
+      onOpenChange(false);
       setLoading(false);
+
+      // If amount changed on a transaction linked to an installment plan, the
+      // plan is now drifted (paid_from_txns != stored remaining). Send the
+      // user to the plan's Adjust tab — the drift banner will surface and
+      // they can choose to reconcile or restructure with the constraint solver.
+      if (amountChanged && hasInstallmentPayment && transaction.installment_payment_id) {
+        navigate(`/installment-payments/${transaction.installment_payment_id}?tab=adjust`);
+      }
     }
   };
 
@@ -356,17 +322,6 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           </div>
 
         </form>
-
-      {/* Adjustment Modal for Installment Payments */}
-      {adjustmentData && (
-        <AdjustInstallmentPlanModal
-          open={showAdjustModal}
-          onOpenChange={setShowAdjustModal}
-          installmentPayment={adjustmentData.payment}
-          paymentAmount={adjustmentData.paymentAmount}
-          newRemainingAmount={adjustmentData.newRemainingAmount}
-        />
-      )}
     </FormScaffold>
   );
 }
