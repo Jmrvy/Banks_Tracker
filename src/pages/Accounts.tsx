@@ -8,8 +8,16 @@ import {
   Eye,
   EyeOff,
   Filter,
+  MoreVertical,
+  Trash2,
   Wallet,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePeriod } from "@/contexts/PeriodContext";
@@ -17,6 +25,7 @@ import { useAccountSeries } from "@/hooks/useAccountSeries";
 import { AccountSparkline } from "@/components/AccountSparkline";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { AccountDetails } from "@/components/AccountDetails";
+import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import { BANK_COLORS, getBankLabel, getAccountTypeLabel } from "@/lib/constants";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
@@ -43,6 +52,7 @@ const Accounts = () => {
   );
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const seriesByAccount = useAccountSeries(accounts, transactions, 90);
 
@@ -148,8 +158,34 @@ const Accounts = () => {
               >
                 {hideBalances ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setShowDeleteModal(true);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    {t("accounts.delete", { defaultValue: "Delete account" })}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+
+          <DeleteAccountModal
+            open={showDeleteModal}
+            onOpenChange={setShowDeleteModal}
+            account={selectedAccount}
+            onDeleted={() => setSelectedAccountId(null)}
+          />
 
           {/* Mini-stats hero strip */}
           <div className="ft-card relative overflow-hidden">

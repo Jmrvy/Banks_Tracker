@@ -226,6 +226,40 @@ function useFinancialDataInternal() {
     return { error };
   };
 
+  const getAccountDeletionImpact = async (accountId: string) => {
+    if (!user) return { error: new Error('Not authenticated') as Error, impact: null };
+    const { data, error } = await supabase.rpc(
+      'get_account_deletion_impact' as never,
+      { p_account_id: accountId } as never
+    );
+    if (error) return { error, impact: null };
+    const impact = data as {
+      error?: string;
+      account_name?: string;
+      transactions?: number;
+      inbound_transfers?: number;
+      recurring?: number;
+      installments?: number;
+      installment_history?: number;
+    } | null;
+    if (impact?.error) {
+      return { error: new Error(impact.error), impact: null };
+    }
+    return { error: null, impact };
+  };
+
+  const deleteAccount = async (accountId: string) => {
+    if (!user) return { error: new Error('Not authenticated') as Error };
+    const { error } = await supabase.rpc(
+      'delete_account_cascade' as never,
+      { p_account_id: accountId } as never
+    );
+    if (error) return { error };
+    // Refresh everything that could have been touched by the cascade.
+    refetch();
+    return { error: null };
+  };
+
   const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null }) => {
     if (!user) return;
 
@@ -1340,6 +1374,8 @@ function useFinancialDataInternal() {
     recurringTransactions,
     loading,
     createAccount,
+    deleteAccount,
+    getAccountDeletionImpact,
     createTransaction,
     createTransfer,
     createCategory,
