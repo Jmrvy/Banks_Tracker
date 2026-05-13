@@ -1,7 +1,21 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, Calendar, Receipt, Search, Tag, Wallet } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowRightLeft,
+  ArrowUpRight,
+  Calendar,
+  CheckCircle2,
+  Crown,
+  Receipt,
+  Search,
+  Tag,
+  Target,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 
 import {
   DetailSheet,
@@ -18,6 +32,33 @@ import { useDateFnsLocale } from "@/hooks/useDateFnsLocale";
 import type { Transaction } from "@/hooks/useFinancialData";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { ParsedQuery } from "@/lib/searchQuery";
+
+/** Per-category budget summary used by the budget intent. */
+export interface BudgetSummaryRow {
+  categoryId: string;
+  categoryName: string;
+  color: string;
+  /** Monthly budget configured on the category, or null if unbudgeted. */
+  monthlyBudget: number | null;
+  /** Budget × number of months in the queried period. */
+  expectedBudget: number | null;
+  /** Spent in the period (net of refunds). */
+  spent: number;
+  /** Fraction of expected used, 0..N. Null when there's no budget. */
+  pctUsed: number | null;
+  /** True when `spent > expectedBudget`. */
+  breached: boolean;
+}
+
+/** Average-stats panel data. */
+export interface AverageStats {
+  total: number;
+  count: number;
+  days: number;
+  perDay: number;
+  perWeek: number;
+  perMonth: number;
+}
 
 interface SearchResultModalProps {
   open: boolean;
@@ -36,6 +77,10 @@ interface SearchResultModalProps {
   onIncludeExcludedChange?: (next: boolean) => void;
   /** Number of transactions that would be added by enabling the toggle. */
   excludedCount?: number;
+  /** Budget intent: per-category breakdown. Provided by the parent. */
+  budgetRows?: BudgetSummaryRow[];
+  /** Average intent: aggregated stats over the period. */
+  averageStats?: AverageStats | null;
 }
 
 const typeIcon = (type: Transaction["type"]) => {
@@ -55,6 +100,8 @@ export function SearchResultModal({
   includeExcluded,
   onIncludeExcludedChange,
   excludedCount = 0,
+  budgetRows = [],
+  averageStats = null,
 }: SearchResultModalProps) {
   const { t } = useTranslation();
   const { formatCurrency, preferences } = useUserPreferences();
@@ -79,12 +126,16 @@ export function SearchResultModal({
   // Sort by the user's preferred date, newest first. Supabase returns
   // transactions ordered by transaction_date desc, which is wrong for
   // a value-date user — their list would jump around chronologically.
-  const sortedTransactions = useMemo(
-    () => [...transactions].sort((a, b) => displayDate(b).getTime() - displayDate(a).getTime()),
+  // For the "top" intent we override this and sort by absolute amount
+  // descending so the user sees the biggest hits first.
+  const sortedTransactions = useMemo(() => {
+    if (query?.intent === "top") {
+      return [...transactions].sort((a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount)));
+    }
+    return [...transactions].sort((a, b) => displayDate(b).getTime() - displayDate(a).getTime());
     // displayDate is defined inline; it only varies with preferences.dateType.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transactions, preferences.dateType]
-  );
+  }, [transactions, preferences.dateType, query?.intent]);
 
   const totals = useMemo(() => {
     const sum = transactions.reduce((acc, tx) => acc + netAmount(tx), 0);
@@ -122,6 +173,21 @@ export function SearchResultModal({
       })
     : t("search.type.all", { defaultValue: "All transactions" });
 
+  const intentTitle = (() => {
+    switch (query.intent) {
+      case "budget":
+        return query.breachesOnly
+          ? t("search.intent.budgetBreaches", { defaultValue: "Budget breaches" })
+          : t("search.intent.budget", { defaultValue: "Budget" });
+      case "top":
+        return t("search.intent.top", { defaultValue: "Top {{n}} expenses", n: query.topN });
+      case "average":
+        return t("search.intent.average", { defaultValue: "Average" });
+      default:
+        return typeLabel;
+    }
+  })();
+
   const totalColor =
     query.type === "income"
       ? "text-pos"
@@ -129,12 +195,26 @@ export function SearchResultModal({
       ? "text-neg"
       : "text-foreground";
 
+  // Filter the budget rows for breaches-only requests right at render
+  // time so the parent can hand us the full set without recomputing.
+  const displayBudgetRows = query.breachesOnly
+    ? budgetRows.filter((r) => r.breached)
+    : budgetRows;
+
   return (
     <DetailSheet open={open} onOpenChange={onOpenChange}>
       <DetailSheetHeader>
         <DetailSheetTitle>
-          <Receipt className="w-5 h-5 text-primary" />
-          {typeLabel}
+          {query.intent === "budget" ? (
+            <Target className="w-5 h-5 text-primary" />
+          ) : query.intent === "top" ? (
+            <Crown className="w-5 h-5 text-primary" />
+          ) : query.intent === "average" ? (
+            <TrendingUp className="w-5 h-5 text-primary" />
+          ) : (
+            <Receipt className="w-5 h-5 text-primary" />
+          )}
+          {intentTitle}
           <span className="text-muted-foreground font-normal">·</span>
           <span className="font-normal text-muted-foreground">{periodLabel}</span>
         </DetailSheetTitle>
@@ -171,19 +251,195 @@ export function SearchResultModal({
       </DetailSheetHeader>
 
       <DetailSheetBody>
-        {/* Headline figure */}
-        <div className="text-center py-5 bg-bg-subtle border border-line rounded-2xl">
-          <p className={`text-3xl font-bold tabular-nums ${totalColor}`}>
-            {query.type === "income" ? "+" : query.type === "expense" ? "-" : ""}
-            {formatCurrency(Math.abs(totals.sum))}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1.5">
-            {t("search.transactionCount", {
-              count: totals.count,
-              defaultValue: `${totals.count} transaction${totals.count === 1 ? "" : "s"}`,
-            })}
-          </p>
-        </div>
+        {/* BUDGET INTENT — progress bar per category */}
+        {query.intent === "budget" && (
+          <div className="space-y-2">
+            {displayBudgetRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                {query.breachesOnly
+                  ? t("search.noBreaches", {
+                      defaultValue: "No budget breaches in this period.",
+                    })
+                  : t("search.noBudgets", {
+                      defaultValue: "No category has a budget set.",
+                    })}
+              </p>
+            ) : (
+              displayBudgetRows.map((row) => {
+                const pct = row.pctUsed ?? 0;
+                const barPct = Math.min(100, pct * 100);
+                const barColor = row.breached
+                  ? "bg-neg"
+                  : pct >= 0.8
+                  ? "bg-warning"
+                  : "bg-pos";
+                return (
+                  <div
+                    key={row.categoryId}
+                    className="px-3 py-3 rounded-xl border border-line bg-card"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: row.color }}
+                        />
+                        <span className="text-sm font-medium truncate">{row.categoryName}</span>
+                        {row.breached ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-neg/40 text-neg bg-neg/10 px-1.5 py-0 h-4"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+                            {t("search.breachBadge", { defaultValue: "Over budget" })}
+                          </Badge>
+                        ) : row.pctUsed !== null && pct >= 0.8 ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-warning/40 text-warning bg-warning/10 px-1.5 py-0 h-4"
+                          >
+                            {t("search.budgetCloseBadge", { defaultValue: "Close" })}
+                          </Badge>
+                        ) : row.monthlyBudget !== null ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-pos/40 text-pos bg-pos/10 px-1.5 py-0 h-4"
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" />
+                            {t("search.budgetOnTrackBadge", { defaultValue: "On track" })}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {row.pctUsed !== null ? `${(pct * 100).toFixed(0)}%` : "—"}
+                      </span>
+                    </div>
+                    {row.expectedBudget !== null ? (
+                      <>
+                        <div className="h-1.5 rounded-full bg-bg-subtle overflow-hidden">
+                          <div
+                            className={`h-full transition-all ${barColor}`}
+                            style={{ width: `${barPct}%` }}
+                          />
+                          {row.breached && (
+                            <div
+                              className="h-full bg-neg/40 -mt-1.5"
+                              style={{
+                                width: `${Math.min(50, ((pct - 1) * 100))}%`,
+                                marginLeft: "100%",
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                          <span>
+                            <span className="text-foreground font-medium">
+                              {formatCurrency(row.spent)}
+                            </span>
+                            {" / "}
+                            {formatCurrency(row.expectedBudget)}
+                          </span>
+                          <span className={row.breached ? "text-neg font-medium" : ""}>
+                            {row.breached
+                              ? `+${formatCurrency(row.spent - row.expectedBudget)} ${t("search.overBy", {
+                                  defaultValue: "over",
+                                })}`
+                              : `${formatCurrency(row.expectedBudget - row.spent)} ${t("search.left", {
+                                  defaultValue: "left",
+                                })}`}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("search.noBudgetSet", {
+                          defaultValue: "No budget set · spent {{spent}}",
+                          spent: formatCurrency(row.spent),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* AVERAGE INTENT — per-day / per-week / per-month figures */}
+        {query.intent === "average" && averageStats && (
+          <div className="space-y-3">
+            <div className="text-center py-5 bg-bg-subtle border border-line rounded-2xl">
+              <p className={`text-3xl font-bold tabular-nums ${totalColor}`}>
+                {query.type === "income" ? "+" : query.type === "expense" ? "-" : ""}
+                {formatCurrency(Math.abs(averageStats.perDay))}
+                <span className="text-base font-normal text-muted-foreground ml-1">
+                  / {t("search.perDay", { defaultValue: "day" })}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {t("search.averageOver", {
+                  defaultValue: "Over {{days}} days · {{count}} transactions",
+                  days: averageStats.days,
+                  count: averageStats.count,
+                })}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="px-3 py-3 rounded-xl border border-line bg-card">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {t("search.perWeek", { defaultValue: "Per week" })}
+                </p>
+                <p className="text-base font-semibold tabular-nums mt-1">
+                  {formatCurrency(Math.abs(averageStats.perWeek))}
+                </p>
+              </div>
+              <div className="px-3 py-3 rounded-xl border border-line bg-card">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {t("search.perMonth", { defaultValue: "Per month" })}
+                </p>
+                <p className="text-base font-semibold tabular-nums mt-1">
+                  {formatCurrency(Math.abs(averageStats.perMonth))}
+                </p>
+              </div>
+              <div className="px-3 py-3 rounded-xl border border-line bg-card">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {t("search.totalLabel", { defaultValue: "Total" })}
+                </p>
+                <p className="text-base font-semibold tabular-nums mt-1">
+                  {formatCurrency(Math.abs(averageStats.total))}
+                </p>
+              </div>
+              <div className="px-3 py-3 rounded-xl border border-line bg-card">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {t("search.countLabel", { defaultValue: "Count" })}
+                </p>
+                <p className="text-base font-semibold tabular-nums mt-1">{averageStats.count}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DEFAULT (transactions / top) — headline figure */}
+        {(query.intent === "transactions" || query.intent === "top") && (
+          <div className="text-center py-5 bg-bg-subtle border border-line rounded-2xl">
+            <p className={`text-3xl font-bold tabular-nums ${totalColor}`}>
+              {query.type === "income" ? "+" : query.type === "expense" ? "-" : ""}
+              {formatCurrency(Math.abs(totals.sum))}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {query.intent === "top"
+                ? t("search.topSummary", {
+                    defaultValue: "Top {{n}} of {{count}} transactions",
+                    n: Math.min(query.topN, totals.count),
+                    count: totals.count,
+                  })
+                : t("search.transactionCount", {
+                    count: totals.count,
+                    defaultValue: `${totals.count} transaction${totals.count === 1 ? "" : "s"}`,
+                  })}
+            </p>
+          </div>
+        )}
 
         {/* Power-user diagnostic: include rows that are explicitly
             excluded from stats (e.g. internal transfers tagged out).
@@ -210,8 +466,8 @@ export function SearchResultModal({
           </div>
         )}
 
-        {/* Category breakdown — only when we have non-transfer rows */}
-        {breakdown.length > 1 && (
+        {/* Category breakdown — only for the default transactions view */}
+        {query.intent === "transactions" && breakdown.length > 1 && (
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
               {t("search.breakdown", { defaultValue: "Breakdown by category" })}
@@ -242,11 +498,19 @@ export function SearchResultModal({
           </div>
         )}
 
-        {/* Transaction list */}
+        {/* Transaction list — shown for default transactions view and
+            for the top intent. Hidden for budget/average since their
+            panels are the answer in themselves. */}
+        {(query.intent === "transactions" || query.intent === "top") && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              {t("search.matchingTransactions", { defaultValue: "Matching transactions" })}
+              {query.intent === "top"
+                ? t("search.topList", {
+                    defaultValue: "Top {{n}}",
+                    n: Math.min(query.topN, transactions.length),
+                  })
+                : t("search.matchingTransactions", { defaultValue: "Matching transactions" })}
             </p>
             {onOpenTransactions && transactions.length > 0 && (
               <Button
@@ -265,7 +529,7 @@ export function SearchResultModal({
             </p>
           ) : (
             <div className="space-y-1.5">
-              {sortedTransactions.slice(0, 50).map((tx) => {
+              {sortedTransactions.slice(0, query.intent === "top" ? query.topN : 50).map((tx) => {
                 const net = netAmount(tx);
                 const wasRefunded =
                   tx.type === "expense" && (Number(tx.refunded_amount) || 0) > 0;
@@ -328,7 +592,7 @@ export function SearchResultModal({
                   </div>
                 );
               })}
-              {transactions.length > 50 && (
+              {query.intent !== "top" && transactions.length > 50 && (
                 <p className="text-[11px] text-muted-foreground text-center py-2">
                   {t("search.truncated", {
                     count: transactions.length - 50,
@@ -339,6 +603,7 @@ export function SearchResultModal({
             </div>
           )}
         </div>
+        )}
       </DetailSheetBody>
     </DetailSheet>
   );
