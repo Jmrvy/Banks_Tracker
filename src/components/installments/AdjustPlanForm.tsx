@@ -80,44 +80,53 @@ export function AdjustPlanForm({ plan }: Props) {
     };
   }, [plan.id, plan.total_amount, plan.remaining_amount, plan.installment_amount]);
 
-  // Derived preview using the same fixed rules as `applyPlanAdjustment`.
-  //   modifyField='total'  → A stays, N = ceil((T - P) / A), last installment absorbs.
-  //   modifyField='amount' → T stays, N = ceil((T - P) / A), last installment absorbs.
-  //   modifyField='count'  → A stays, T = P + N * A (clean multiple).
+  // Derived preview using the same rules as `applyPlanAdjustment`:
+  // keep the field the user didn't touch.
+  //   modifyField='total'  → N stays; A = (T_new - P) / N
+  //   modifyField='amount' → T stays; N = ceil((T - P) / A_new), last installment absorbs
+  //   modifyField='count'  → T stays; A = (T - P) / N_new
   const preview = useMemo(() => {
     const paid = reconcileFirst && drift ? drift.paidFromTxns : roundCurrency(
       plan.total_amount - plan.remaining_amount
     );
 
-    // Start from current state; overlay the editable field.
-    let T = Number(plan.total_amount) || 0;
-    let A = Number(plan.installment_amount) || 0;
-    let N =
-      A > 0
-        ? Math.max(1, Math.ceil(Math.max(0, T - paid) / A))
+    // Anchor values from the current plan state.
+    const baseT = Number(plan.total_amount) || 0;
+    const baseA = Number(plan.installment_amount) || 0;
+    const baseN =
+      baseA > 0
+        ? Math.max(1, Math.ceil(Math.max(0, baseT - paid) / baseA))
         : 1;
+
+    let T = baseT;
+    let A = baseA;
+    let N = baseN;
 
     if (modifyField === 'total') {
       T = parseFloat(totalStr) || 0;
-      N = A > 0 ? Math.max(1, Math.ceil(Math.max(0, T - paid) / A)) : 1;
+      // N stays at the current value; A flexes.
+      N = baseN;
+      A = N > 0 ? roundCurrency(Math.max(0, T - paid) / N) : 0;
     } else if (modifyField === 'amount') {
       A = parseFloat(amountStr) || 0;
+      // T stays; N flexes (rounded up, last installment absorbs remainder).
       N = A > 0 ? Math.max(1, Math.ceil(Math.max(0, T - paid) / A)) : 1;
     } else {
       N = Math.max(1, Math.floor(parseFloat(countStr) || 0));
-      T = roundCurrency(paid + N * A);
+      // T stays; A flexes.
+      A = N > 0 ? roundCurrency(Math.max(0, T - paid) / N) : 0;
     }
 
     const remaining = Math.max(0, roundCurrency(T - paid));
-    // For 'total' / 'amount' modes the typed value is honored exactly, with
-    // a last installment absorbing the rounding remainder. For 'count' the
-    // schedule is N * A exactly (no last-installment quirk).
+    // For 'amount' mode the typed A doesn't divide T-P evenly, so the
+    // last installment is the residual. For 'total' / 'count' modes A is
+    // recomputed to divide cleanly, so 'last installment' == A modulo
+    // 1-cent rounding.
     const lastInstallment =
-      modifyField === 'count'
-        ? A
-        : roundCurrency(Math.max(0, remaining - A * Math.max(0, N - 1)));
-    const installmentsDiffer =
-      modifyField !== 'count' && N > 1 && Math.abs(lastInstallment - A) > 0.01;
+      N > 0
+        ? roundCurrency(Math.max(0, remaining - A * Math.max(0, N - 1)))
+        : 0;
+    const installmentsDiffer = N > 1 && Math.abs(lastInstallment - A) > 0.01;
 
     // Project the schedule end date by walking from next_payment_date.
     let endDate: Date | null = null;
@@ -211,7 +220,8 @@ export function AdjustPlanForm({ plan }: Props) {
     setReconcileFirst(false);
   };
 
-  // Render helpers
+  // Render helpers — helper text reflects the "keep the field the user
+  // didn't touch" rules in applyPlanAdjustment.
   const fieldConfig: Array<{
     key: PlanModifyField;
     label: string;
@@ -221,21 +231,21 @@ export function AdjustPlanForm({ plan }: Props) {
       key: 'total',
       label: t('installments.total', { defaultValue: 'Total' }),
       helper: t('installments.modifyTotalHint', {
-        defaultValue: 'Per-installment stays fixed; count adjusts.',
+        defaultValue: 'Count stays the same; per-installment adjusts.',
       }),
     },
     {
       key: 'amount',
       label: t('installments.perInstallment', { defaultValue: 'Per installment' }),
       helper: t('installments.modifyAmountHint', {
-        defaultValue: 'Total stays fixed; count adjusts.',
+        defaultValue: 'Total stays the same; count adjusts.',
       }),
     },
     {
       key: 'count',
       label: t('installments.installmentsLeft', { defaultValue: 'Installments left' }),
       helper: t('installments.modifyCountHint', {
-        defaultValue: 'Per-installment stays fixed; total adjusts.',
+        defaultValue: 'Total stays the same; per-installment adjusts.',
       }),
     },
   ];
