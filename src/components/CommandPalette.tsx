@@ -40,6 +40,7 @@ import {
 import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { parseQuery, normalise, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
+import { aggregateTransactions } from '@/lib/transactionMath';
 import { SearchResultModal } from '@/components/SearchResultModal';
 
 /** Recent-transaction icon driven by transaction type so colorblind
@@ -269,13 +270,16 @@ export const CommandPalette = () => {
   );
 
   // Filter transactions for the effective query — used by the headline
-  // figure in the pinned result row and by the result modal.
+  // figure in the pinned result row and by the result modal. The total
+  // is a SIGNED net (expenses subtract net of refunds, transfers contribute
+  // zero), so the displayed figure matches the search result modal's sum
+  // and reflects true cash flow direction.
   const matched = useMemo(() => {
     if (!effectiveQuery?.hasSignal) return { txs: [], total: 0 };
     const txs = transactions.filter(
       (tx) => tx.include_in_stats && matchPredicate(effectiveQuery, tx)
     );
-    const total = txs.reduce((acc, tx) => acc + Number(tx.amount), 0);
+    const total = aggregateTransactions(txs).net;
     return { txs, total };
   }, [effectiveQuery, transactions, matchPredicate]);
 
@@ -450,14 +454,10 @@ export const CommandPalette = () => {
                   </span>
                   <span
                     className={`ml-auto text-base font-semibold tabular-nums ${
-                      effectiveQuery.type === 'income'
-                        ? 'text-pos'
-                        : effectiveQuery.type === 'expense'
-                        ? 'text-neg'
-                        : ''
+                      matched.total > 0 ? 'text-pos' : matched.total < 0 ? 'text-neg' : ''
                     }`}
                   >
-                    {effectiveQuery.type === 'income' ? '+' : effectiveQuery.type === 'expense' ? '-' : ''}
+                    {matched.total > 0 ? '+' : matched.total < 0 ? '−' : ''}
                     {formatCurrency(Math.abs(matched.total))}
                   </span>
                 </div>

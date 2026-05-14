@@ -18,6 +18,7 @@ import { useDateFnsLocale } from "@/hooks/useDateFnsLocale";
 import type { Transaction } from "@/hooks/useFinancialData";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { ParsedQuery } from "@/lib/searchQuery";
+import { aggregateTransactions, signedNet } from "@/lib/transactionMath";
 
 interface SearchResultModalProps {
   open: boolean;
@@ -60,15 +61,6 @@ export function SearchResultModal({
   const { formatCurrency, preferences } = useUserPreferences();
   const dateLocale = useDateFnsLocale();
 
-  // Net amount: expenses are reduced by any refunded portion so the
-  // figure reflects what actually left the account. Income / transfer
-  // amounts pass through unchanged.
-  const netAmount = (tx: Transaction): number => {
-    const raw = Number(tx.amount);
-    if (tx.type === "expense") return raw - Number(tx.refunded_amount || 0);
-    return raw;
-  };
-
   // Display date respects the user's accounting-vs-value preference,
   // matching how StatsCards and the rest of the app pick a date.
   const displayDate = (tx: Transaction): Date =>
@@ -86,30 +78,33 @@ export function SearchResultModal({
     [transactions, preferences.dateType]
   );
 
+  // Signed totals from the shared aggregator. `net` is the headline
+  // figure; positive when matched rows are net inflow, negative when net
+  // outflow. Transfers between user accounts contribute 0 by design.
   const totals = useMemo(() => {
-    const sum = transactions.reduce((acc, tx) => acc + netAmount(tx), 0);
-    return { sum, count: transactions.length };
-    // netAmount is defined inline above and only depends on tx, so the
-    // dep array is just transactions.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const agg = aggregateTransactions(transactions);
+    return { sum: agg.net, count: agg.count, transferCount: agg.transferCount };
   }, [transactions]);
 
+  // Category breakdown uses the signed net per transaction and excludes
+  // transfers (they're internal movements, not category spend/income).
+  // Magnitudes are displayed; sign is reflected via colour in the row.
   const breakdown = useMemo(() => {
     if (!query || query.type === "transfer") return [];
     const map = new Map<string, { name: string; color: string; total: number; count: number }>();
     for (const tx of transactions) {
+      if (tx.type === "transfer") continue;
       const key = tx.category?.id ?? "__none__";
       const name = tx.category?.name ?? t("transactions.uncategorized", { defaultValue: "Uncategorized" });
       const color = tx.category?.color ?? "var(--muted-foreground)";
       const entry = map.get(key) ?? { name, color, total: 0, count: 0 };
-      entry.total += netAmount(tx);
+      entry.total += signedNet(tx);
       entry.count += 1;
       map.set(key, entry);
     }
     return Array.from(map.values())
-      .sort((a, b) => b.total - a.total)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
       .slice(0, 6);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactions, query, t]);
 
   if (!query) return null;
@@ -122,12 +117,12 @@ export function SearchResultModal({
       })
     : t("search.type.all", { defaultValue: "All transactions" });
 
+  // Color + sign follow the actual signed net so a mixed query (e.g.
+  // "easyjet" matching expenses + a funding transfer) shows the right
+  // direction without needing an explicit type filter.
   const totalColor =
-    query.type === "income"
-      ? "text-pos"
-      : query.type === "expense"
-      ? "text-neg"
-      : "text-foreground";
+    totals.sum > 0 ? "text-pos" : totals.sum < 0 ? "text-neg" : "text-foreground";
+  const totalSign = totals.sum > 0 ? "+" : totals.sum < 0 ? "−" : "";
 
   return (
     <DetailSheet open={open} onOpenChange={onOpenChange}>
@@ -174,7 +169,7 @@ export function SearchResultModal({
         {/* Headline figure */}
         <div className="text-center py-5 bg-bg-subtle border border-line rounded-2xl">
           <p className={`text-3xl font-bold tabular-nums ${totalColor}`}>
-            {query.type === "income" ? "+" : query.type === "expense" ? "-" : ""}
+            {totalSign}
             {formatCurrency(Math.abs(totals.sum))}
           </p>
           <p className="text-xs text-muted-foreground mt-1.5">
@@ -182,6 +177,15 @@ export function SearchResultModal({
               count: totals.count,
               defaultValue: `${totals.count} transaction${totals.count === 1 ? "" : "s"}`,
             })}
+            {totals.transferCount > 0 && (
+              <>
+                {" · "}
+                {t("search.includesTransfers", {
+                  count: totals.transferCount,
+                  defaultValue: `includes ${totals.transferCount} transfer${totals.transferCount === 1 ? "" : "s"} (net 0)`,
+                })}
+              </>
+            )}
           </p>
         </div>
 
@@ -211,36 +215,45 @@ export function SearchResultModal({
         )}
 
         {/* Category breakdown — only when we have non-transfer rows */}
-        {breakdown.length > 1 && (
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              {t("search.breakdown", { defaultValue: "Breakdown by category" })}
-            </p>
-            <div className="space-y-1.5">
-              {breakdown.map((row) => {
-                const pct = totals.sum ? (row.total / totals.sum) * 100 : 0;
-                return (
-                  <div
-                    key={row.name}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-subtle/50 border border-line"
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: row.color }}
-                    />
-                    <span className="text-sm flex-1 truncate">{row.name}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {pct.toFixed(0)}%
-                    </span>
-                    <span className="text-sm font-medium tabular-nums">
-                      {formatCurrency(row.total)}
-                    </span>
-                  </div>
-                );
-              })}
+        {breakdown.length > 1 && (() => {
+          // Percentages are based on the sum of absolute row totals so
+          // each category's share is a positive number even when some
+          // rows are income and others expense.
+          const breakdownAbsTotal = breakdown.reduce((acc, r) => acc + Math.abs(r.total), 0);
+          return (
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                {t("search.breakdown", { defaultValue: "Breakdown by category" })}
+              </p>
+              <div className="space-y-1.5">
+                {breakdown.map((row) => {
+                  const pct = breakdownAbsTotal ? (Math.abs(row.total) / breakdownAbsTotal) * 100 : 0;
+                  const rowColor =
+                    row.total > 0 ? "text-pos" : row.total < 0 ? "text-neg" : "";
+                  return (
+                    <div
+                      key={row.name}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-subtle/50 border border-line"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: row.color }}
+                      />
+                      <span className="text-sm flex-1 truncate">{row.name}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {pct.toFixed(0)}%
+                      </span>
+                      <span className={`text-sm font-medium tabular-nums ${rowColor}`}>
+                        {row.total > 0 ? "+" : row.total < 0 ? "−" : ""}
+                        {formatCurrency(Math.abs(row.total))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Transaction list */}
         <div className="space-y-2">
