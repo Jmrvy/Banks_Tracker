@@ -40,6 +40,7 @@ import {
 import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { parseQuery, normalise, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
+import { aggregateTransactions } from '@/lib/transactionMath';
 import {
   SearchResultModal,
   type BudgetSummaryRow,
@@ -275,13 +276,16 @@ export const CommandPalette = () => {
   );
 
   // Filter transactions for the effective query — used by the headline
-  // figure in the pinned result row and by the result modal.
+  // figure in the pinned result row and by the result modal. The total
+  // is a SIGNED net (expenses subtract net of refunds, transfers contribute
+  // zero), so the displayed figure matches the search result modal's sum
+  // and reflects true cash flow direction.
   const matched = useMemo(() => {
     if (!effectiveQuery?.hasSignal) return { txs: [], total: 0 };
     const txs = transactions.filter(
       (tx) => tx.include_in_stats && matchPredicate(effectiveQuery, tx)
     );
-    const total = txs.reduce((acc, tx) => acc + Number(tx.amount), 0);
+    const total = aggregateTransactions(txs).net;
     return { txs, total };
   }, [effectiveQuery, transactions, matchPredicate]);
 
@@ -486,13 +490,17 @@ export const CommandPalette = () => {
           figure: `${formatCurrency(Math.abs(averageStats.perDay))}/${t('search.perDayShort', { defaultValue: 'd' })}`,
         };
       }
-      default:
+      default: {
+        // Sign follows the actual signed net (matched.total comes from
+        // aggregateTransactions: income +, expense −, transfer 0), so
+        // mixed queries like "easyjet" — expenses + a funding transfer —
+        // show the real direction instead of inflating with the transfer.
+        const sign = matched.total > 0 ? '+' : matched.total < 0 ? '−' : '';
         return {
           headline: `${typeLabel}`,
-          figure: `${
-            effectiveQuery.type === 'income' ? '+' : effectiveQuery.type === 'expense' ? '-' : ''
-          }${formatCurrency(Math.abs(matched.total))}`,
+          figure: `${sign}${formatCurrency(Math.abs(matched.total))}`,
         };
+      }
     }
   })();
 
@@ -607,9 +615,15 @@ export const CommandPalette = () => {
                   </span>
                   <span
                     className={`ml-auto text-base font-semibold tabular-nums ${
-                      effectiveQuery.intent === 'transactions' && effectiveQuery.type === 'income'
+                      // For transactions/top intents, color follows the
+                      // real sign of matched.total (which is the signed
+                      // net). Other intents (budget, average) don't carry
+                      // a sign meaning here.
+                      (effectiveQuery.intent === 'transactions' || effectiveQuery.intent === 'top') &&
+                      matched.total > 0
                         ? 'text-pos'
-                        : effectiveQuery.intent === 'transactions' && effectiveQuery.type === 'expense'
+                        : (effectiveQuery.intent === 'transactions' || effectiveQuery.intent === 'top') &&
+                          matched.total < 0
                         ? 'text-neg'
                         : ''
                     }`}
