@@ -547,7 +547,15 @@ export function SearchResultModal({
           ) : (
             <div className="space-y-1.5">
               {sortedTransactions.slice(0, query.intent === "top" ? query.topN : 50).map((tx) => {
-                const net = netAmount(tx);
+                // Per-row magnitude: expense rows display net-of-refund;
+                // income / transfer rows display the raw amount. Sign is
+                // shown separately based on type, so this is always
+                // positive. Note: this differs from signedNet() (used for
+                // the headline) which collapses transfers to 0.
+                const net =
+                  tx.type === "expense"
+                    ? Number(tx.amount) - Number(tx.refunded_amount || 0)
+                    : Number(tx.amount);
                 const wasRefunded =
                   tx.type === "expense" && (Number(tx.refunded_amount) || 0) > 0;
                 return (
