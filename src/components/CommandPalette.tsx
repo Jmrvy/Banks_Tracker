@@ -41,7 +41,11 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { parseQuery, normalise, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
 import { aggregateTransactions } from '@/lib/transactionMath';
-import { SearchResultModal } from '@/components/SearchResultModal';
+import {
+  SearchResultModal,
+  type BudgetSummaryRow,
+  type AverageStats,
+} from '@/components/SearchResultModal';
 
 /** Recent-transaction icon driven by transaction type so colorblind
  *  users get a directional cue alongside the colour. */
@@ -175,6 +179,8 @@ export const CommandPalette = () => {
   const [resultTxsAll, setResultTxsAll] = useState<typeof transactions>([]);
   const [resultCategoryNames, setResultCategoryNames] = useState<string[]>([]);
   const [resultAccountNames, setResultAccountNames] = useState<string[]>([]);
+  const [resultBudgetRows, setResultBudgetRows] = useState<BudgetSummaryRow[]>([]);
+  const [resultAverageStats, setResultAverageStats] = useState<AverageStats | null>(null);
 
   // Reset input + override when the palette closes so the next open
   // starts fresh.
@@ -291,6 +297,92 @@ export const CommandPalette = () => {
     return transactions.filter((tx) => matchPredicate(effectiveQuery, tx));
   }, [effectiveQuery, transactions, matchPredicate]);
 
+  // Budget rows: for every relevant category, compute spent (net of
+  // refunds) over the period and compare to monthly_budget × months.
+  // Targeted to the user-named categories when they specified some,
+  // else all categories.
+  const budgetRows = useMemo<BudgetSummaryRow[]>(() => {
+    if (!effectiveQuery || effectiveQuery.intent !== 'budget') return [];
+    const targetIds = effectiveQuery.categoryIds.length
+      ? new Set(effectiveQuery.categoryIds)
+      : null;
+    const candidates = targetIds
+      ? categories.filter((c) => targetIds.has(c.id))
+      : categories;
+
+    // Months covered by the date range, used to scale a monthly budget
+    // to the queried period. At least 1 month so a single-day query
+    // still has a sensible bar.
+    const start = effectiveQuery.dateRange.start;
+    const end = effectiveQuery.dateRange.end;
+    const months = Math.max(
+      1,
+      (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1
+    );
+
+    return candidates
+      .map((cat) => {
+        const txs = transactions.filter(
+          (tx) =>
+            tx.include_in_stats &&
+            tx.type === 'expense' &&
+            tx.category?.id === cat.id &&
+            matchPredicate(
+              // Force expense type + category for this row regardless of
+              // the user's typed type — budget views are inherently
+              // about category spend.
+              { ...effectiveQuery, type: 'expense', categoryIds: [cat.id] },
+              tx
+            )
+        );
+        const spent = txs.reduce(
+          (acc, tx) => acc + (Number(tx.amount) - Number(tx.refunded_amount || 0)),
+          0
+        );
+        const monthlyBudget = cat.budget && cat.budget > 0 ? Number(cat.budget) : null;
+        const expectedBudget = monthlyBudget !== null ? monthlyBudget * months : null;
+        const pctUsed = expectedBudget !== null && expectedBudget > 0 ? spent / expectedBudget : null;
+        const breached = expectedBudget !== null && spent > expectedBudget;
+        return {
+          categoryId: cat.id,
+          categoryName: cat.name,
+          color: cat.color,
+          monthlyBudget,
+          expectedBudget,
+          spent,
+          pctUsed,
+          breached,
+        } satisfies BudgetSummaryRow;
+      })
+      // For a multi-category budget view, surface budgeted categories
+      // first and sort breaches to the top.
+      .sort((a, b) => {
+        if (a.breached !== b.breached) return a.breached ? -1 : 1;
+        const ap = a.pctUsed ?? -1;
+        const bp = b.pctUsed ?? -1;
+        return bp - ap;
+      });
+  }, [effectiveQuery, categories, transactions, matchPredicate]);
+
+  // Average stats over the queried period: total / day / week / month.
+  const averageStats = useMemo<AverageStats | null>(() => {
+    if (!effectiveQuery || effectiveQuery.intent !== 'average') return null;
+    const total = matched.txs.reduce(
+      (acc, tx) => acc + (Number(tx.amount) - Number(tx.refunded_amount || 0)),
+      0
+    );
+    const ms = effectiveQuery.dateRange.end.getTime() - effectiveQuery.dateRange.start.getTime();
+    const days = Math.max(1, Math.round(ms / 86400000));
+    return {
+      total,
+      count: matched.txs.length,
+      days,
+      perDay: total / days,
+      perWeek: (total / days) * 7,
+      perMonth: (total / days) * 30,
+    };
+  }, [effectiveQuery, matched.txs]);
+
   const matchedCategoryNames = useMemo(
     () => effectiveQuery?.categoryIds.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean) as string[]
       ?? [],
@@ -312,6 +404,8 @@ export const CommandPalette = () => {
     setResultTxsAll(matchedWithExcluded);
     setResultCategoryNames(matchedCategoryNames);
     setResultAccountNames(matchedAccountNames);
+    setResultBudgetRows(budgetRows);
+    setResultAverageStats(averageStats);
     setResultIncludeExcluded(false);
     setResultOpen(true);
     // Capture the typed query so it surfaces in next-session recents.
@@ -323,6 +417,8 @@ export const CommandPalette = () => {
     matchedWithExcluded,
     matchedCategoryNames,
     matchedAccountNames,
+    budgetRows,
+    averageStats,
     closePalette,
     pushRecent,
     input,
@@ -342,6 +438,71 @@ export const CommandPalette = () => {
           effectiveQuery.type === 'income' ? 'Income' : effectiveQuery.type === 'expense' ? 'Expenses' : 'Transfers',
       })
     : t('search.type.all', { defaultValue: 'All transactions' });
+
+  // Pinned-row preview content varies by intent — the single line in
+  // the palette should already hint at what the modal will show.
+  const intentPreview = (() => {
+    if (!effectiveQuery) return { headline: '', figure: '' };
+    switch (effectiveQuery.intent) {
+      case 'budget': {
+        if (effectiveQuery.breachesOnly) {
+          const breaches = budgetRows.filter((r) => r.breached);
+          return {
+            headline: t('search.intent.budgetBreaches', { defaultValue: 'Budget breaches' }),
+            figure: t('search.breachCount', {
+              count: breaches.length,
+              defaultValue: `${breaches.length} categor${breaches.length === 1 ? 'y' : 'ies'} over`,
+            }),
+          };
+        }
+        if (budgetRows.length === 1) {
+          const r = budgetRows[0];
+          if (r.expectedBudget !== null && r.pctUsed !== null) {
+            return {
+              headline: `${t('search.intent.budget', { defaultValue: 'Budget' })} · ${r.categoryName}`,
+              figure: `${(r.pctUsed * 100).toFixed(0)}% · ${formatCurrency(
+                Math.max(0, r.expectedBudget - r.spent)
+              )} ${t('search.left', { defaultValue: 'left' })}`,
+            };
+          }
+          return {
+            headline: `${t('search.intent.budget', { defaultValue: 'Budget' })} · ${r.categoryName}`,
+            figure: formatCurrency(r.spent),
+          };
+        }
+        return {
+          headline: t('search.intent.budget', { defaultValue: 'Budget' }),
+          figure: t('search.budgetCategoryCount', {
+            count: budgetRows.length,
+            defaultValue: `${budgetRows.length} categor${budgetRows.length === 1 ? 'y' : 'ies'}`,
+          }),
+        };
+      }
+      case 'top':
+        return {
+          headline: t('search.intent.top', { defaultValue: 'Top {{n}} expenses', n: effectiveQuery.topN }),
+          figure: formatCurrency(Math.abs(matched.total)),
+        };
+      case 'average': {
+        if (!averageStats) return { headline: '', figure: '' };
+        return {
+          headline: `${t('search.intent.average', { defaultValue: 'Average' })} · ${typeLabel}`,
+          figure: `${formatCurrency(Math.abs(averageStats.perDay))}/${t('search.perDayShort', { defaultValue: 'd' })}`,
+        };
+      }
+      default: {
+        // Sign follows the actual signed net (matched.total comes from
+        // aggregateTransactions: income +, expense −, transfer 0), so
+        // mixed queries like "easyjet" — expenses + a funding transfer —
+        // show the real direction instead of inflating with the transfer.
+        const sign = matched.total > 0 ? '+' : matched.total < 0 ? '−' : '';
+        return {
+          headline: `${typeLabel}`,
+          figure: `${sign}${formatCurrency(Math.abs(matched.total))}`,
+        };
+      }
+    }
+  })();
 
   // Empty-state suggestions teach the parser's grammar in-context.
   // Selecting a suggestion fills the input so the user can iterate.
@@ -448,17 +609,26 @@ export const CommandPalette = () => {
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">
-                    {typeLabel}
+                    {intentPreview.headline}
                     <span className="text-muted-foreground font-normal"> · </span>
                     <span className="text-muted-foreground font-normal">{periodLabel}</span>
                   </span>
                   <span
                     className={`ml-auto text-base font-semibold tabular-nums ${
-                      matched.total > 0 ? 'text-pos' : matched.total < 0 ? 'text-neg' : ''
+                      // For transactions/top intents, color follows the
+                      // real sign of matched.total (which is the signed
+                      // net). Other intents (budget, average) don't carry
+                      // a sign meaning here.
+                      (effectiveQuery.intent === 'transactions' || effectiveQuery.intent === 'top') &&
+                      matched.total > 0
+                        ? 'text-pos'
+                        : (effectiveQuery.intent === 'transactions' || effectiveQuery.intent === 'top') &&
+                          matched.total < 0
+                        ? 'text-neg'
+                        : ''
                     }`}
                   >
-                    {matched.total > 0 ? '+' : matched.total < 0 ? '−' : ''}
-                    {formatCurrency(Math.abs(matched.total))}
+                    {intentPreview.figure}
                   </span>
                 </div>
                 <div className="text-[11px] text-muted-foreground pl-6 flex flex-wrap items-center gap-1.5">
@@ -689,6 +859,8 @@ export const CommandPalette = () => {
       includeExcluded={resultIncludeExcluded}
       onIncludeExcludedChange={setResultIncludeExcluded}
       excludedCount={resultTxsAll.length - resultTxs.length}
+      budgetRows={resultBudgetRows}
+      averageStats={resultAverageStats}
     />
     </>
   );

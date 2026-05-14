@@ -11,6 +11,16 @@
 
 export type QueryType = "income" | "expense" | "transfer";
 
+/**
+ * What the user is asking the search to do. Default is "transactions"
+ * — list / sum matching rows. Other intents trigger dedicated panels
+ * in the result modal:
+ *  - "budget":   progress vs. category budget for the period
+ *  - "top":      ranked list of the N largest transactions
+ *  - "average":  per-day / per-week / per-month averages
+ */
+export type QueryIntent = "transactions" | "budget" | "top" | "average";
+
 export type PeriodKind =
   | "ytd"
   | "mtd"
@@ -29,6 +39,13 @@ export type PeriodKind =
   | "all_time";
 
 export interface ParsedQuery {
+  /** What the user wants — see QueryIntent. */
+  intent: QueryIntent;
+  /** When intent === "budget", true if the user asked specifically for
+   *  *breaches* (over-budget categories) rather than a status read. */
+  breachesOnly: boolean;
+  /** When intent === "top", how many rows to surface. Defaults to 5. */
+  topN: number;
   type?: QueryType;
   categoryIds: string[];
   accountIds: string[];
@@ -519,6 +536,44 @@ export function parseQuery(
   let working = normalise(trimmed);
   const matchedDescription: string[] = [];
 
+  // 0. Intent token (budget / breaches / top / average). Detected
+  // before everything else so the intent keyword doesn't poison
+  // type / entity / description matching.
+  let intent: QueryIntent = "transactions";
+  let breachesOnly = false;
+  let topN = 5;
+
+  const breachRe = /\b(breaches|breach|exceeded|over\s+budget|depassements|depassement|depasses|depasse)\b/i;
+  if (breachRe.test(working)) {
+    intent = "budget";
+    breachesOnly = true;
+    working = working.replace(breachRe, " ").trim();
+    matchedDescription.push("intent:budget_breaches");
+  }
+
+  const budgetRe = /\bbudgets?\b/i;
+  if (budgetRe.test(working)) {
+    intent = "budget";
+    working = working.replace(budgetRe, " ").trim();
+    if (!breachesOnly) matchedDescription.push("intent:budget");
+  }
+
+  const topRe = /\b(top|biggest|largest|plus\s+grosses?|plus\s+grandes?)(?:\s+(\d{1,3}))?\b/i;
+  const topMatch = working.match(topRe);
+  if (topMatch && intent === "transactions") {
+    intent = "top";
+    if (topMatch[2]) topN = Math.max(1, Math.min(50, parseInt(topMatch[2], 10)));
+    working = working.replace(topMatch[0], " ").trim();
+    matchedDescription.push(`intent:top:${topN}`);
+  }
+
+  const avgRe = /\b(average|avg|moyenne|moy)\b\.?/i;
+  if (avgRe.test(working) && intent === "transactions") {
+    intent = "average";
+    working = working.replace(avgRe, " ").trim();
+    matchedDescription.push("intent:average");
+  }
+
   // 1. Type token
   const typeMatch = detectType(working);
   let type: QueryType | undefined;
@@ -600,10 +655,15 @@ export function parseQuery(
     matchedDescription.push(`description:${descriptionTokens.join(",")}`);
   }
 
-  // Default: if no period token, fall back to YTD — most common framing
-  // for personal-finance "how much have I spent on X" questions.
+  // Default period: budgets are monthly by nature, so a bare "budget
+  // shopping" or "budget breaches" should answer "for *this month*".
+  // Everything else falls back to YTD ("how much have I spent on X").
   const periodWasDefault = periodKind === "all_time";
-  const effectiveKind: PeriodKind = periodWasDefault ? "ytd" : periodKind;
+  const effectiveKind: PeriodKind = periodWasDefault
+    ? intent === "budget"
+      ? "mtd"
+      : "ytd"
+    : periodKind;
   const range = rangeFor(
     effectiveKind,
     today,
@@ -613,11 +673,21 @@ export function parseQuery(
     literalMonth
   );
 
-  // hasSignal — at least one of type / period / category / account /
-  // description hit. Description-only queries (e.g. "uber") are valid:
-  // they roll up every transaction with "uber" in its description.
+  // Budget / top intents implicitly target expenses unless the user
+  // explicitly says otherwise — "top may 2026" almost always means
+  // "top expenses in May", not "top of everything".
+  const effectiveType: QueryType | undefined =
+    type ?? ((intent === "budget" || intent === "top") ? "expense" : undefined);
+
+  // hasSignal — at least one of intent / type / period / category /
+  // account / description hit. Description-only queries (e.g. "uber")
+  // are valid: they roll up every transaction with "uber" in its
+  // description. Non-default intent alone is a valid signal too —
+  // "budget breaches" with no period falls back to MTD and still has
+  // something to show.
   const hasSignal = Boolean(
-    type ||
+    intent !== "transactions" ||
+      type ||
       periodKind !== "all_time" ||
       catMatch.ids.length ||
       accMatch.ids.length ||
@@ -625,7 +695,10 @@ export function parseQuery(
   );
 
   return {
-    type,
+    intent,
+    breachesOnly,
+    topN,
+    type: effectiveType,
     categoryIds: catMatch.ids,
     accountIds: accMatch.ids,
     descriptionTokens,

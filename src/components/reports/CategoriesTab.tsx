@@ -2,7 +2,6 @@ import { useMemo, useState, useCallback } from "react";
 import { addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChartTooltip } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
@@ -41,6 +40,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  // Hovered slice index, or null when the cursor is outside the donut.
+  // Drives the center label so it morphs into the hovered slice's
+  // figures instead of letting a tooltip overlap the static total.
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const handleCategoryClick = (categoryName: string) => {
     setSelectedCategory(categoryName);
@@ -266,52 +269,52 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                     dataKey="value"
                     paddingAngle={2}
                     strokeWidth={0}
+                    onMouseLeave={() => setHoveredIndex(null)}
                   >
                     {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={entry.color}
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                        className="cursor-pointer transition-opacity"
+                        style={{
+                          opacity: hoveredIndex === null || hoveredIndex === index ? 1 : 0.55,
+                        }}
+                        onMouseEnter={() => setHoveredIndex(index)}
                         onClick={() => handleCategoryClick(entry.name)}
                       />
                     ))}
                   </Pie>
-                  <ChartTooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        const percentage = ((data.value / totalSpent) * 100).toFixed(1);
-                        return (
-                          <div className="rounded-lg border bg-background/95  p-2 shadow-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div 
-                                className="w-2.5 h-2.5 rounded-full" 
-                                style={{ backgroundColor: data.color }}
-                              />
-                              <span className="font-medium text-xs">{data.name}</span>
-                            </div>
-                            <div className="text-xs">
-                              <div className="font-semibold text-foreground">
-                                {formatCurrency(data.value)}
-                              </div>
-                              <div className="text-muted-foreground text-[10px]">
-                                {percentage}% {t('reports.ofTotal')}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Center Text */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-lg sm:text-xl font-bold">{formatCurrency(totalSpent)}</span>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">
-                  {includeUpcoming ? t('reports.totalExpected') : t('reports.totalLabel')}
-                </span>
+              {/* Center Text — morphs into the hovered slice's info to
+                  avoid overlapping with a floating tooltip. */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2 text-center">
+                {hoveredIndex !== null && chartData[hoveredIndex] ? (
+                  <>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: chartData[hoveredIndex].color }}
+                      />
+                      <span className="text-[11px] sm:text-xs font-medium truncate max-w-[100px]">
+                        {chartData[hoveredIndex].name}
+                      </span>
+                    </div>
+                    <span className="text-base sm:text-lg font-bold tabular-nums leading-tight">
+                      {formatCurrency(chartData[hoveredIndex].value)}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">
+                      {((chartData[hoveredIndex].value / totalSpent) * 100).toFixed(1)}% {t('reports.ofTotal')}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg sm:text-xl font-bold tabular-nums">{formatCurrency(totalSpent)}</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      {includeUpcoming ? t('reports.totalExpected') : t('reports.totalLabel')}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
