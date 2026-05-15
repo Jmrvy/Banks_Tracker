@@ -117,15 +117,20 @@ END;
 $$;
 
 -- 3. Remove internal functions from the public API surface -------------------
--- Trigger/helper functions should never be reachable via PostgREST RPC.
-REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.prevent_quick_duplicate_transactions() FROM anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.update_account_balance() FROM anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.update_debt_remaining_amount() FROM anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM anon, authenticated;
+-- Postgres grants EXECUTE to PUBLIC by default and anon/authenticated
+-- inherit that, so revoking from those roles alone is ineffective - the
+-- grant must be removed from PUBLIC.
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prevent_quick_duplicate_transactions() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_account_balance() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_debt_remaining_amount() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_account_balance_at_date(UUID, DATE) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.recalculate_account_balances() FROM PUBLIC;
 
 -- The two reporting functions stay callable by signed-in users (the app
--- uses recalculate_account_balances from Settings) but must never be
--- reachable anonymously.
-REVOKE EXECUTE ON FUNCTION public.get_account_balance_at_date(UUID, DATE) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.recalculate_account_balances() FROM anon;
+-- uses recalculate_account_balances from Settings); they self-scope to
+-- auth.uid() internally. Trigger functions need no grant - triggers fire
+-- as the table owner regardless of EXECUTE privilege.
+GRANT EXECUTE ON FUNCTION public.get_account_balance_at_date(UUID, DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.recalculate_account_balances() TO authenticated;
