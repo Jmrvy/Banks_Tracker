@@ -1090,7 +1090,12 @@ function useFinancialDataInternal() {
         .from('installment_payments')
         .select('id, total_amount, installment_amount, remaining_amount, payment_type, is_active')
         .in('id', installmentIds);
-      for (const ip of data || []) installmentMap.set(ip.id, ip);
+      for (const ip of data || [])
+        installmentMap.set(ip.id, {
+          ...ip,
+          payment_type: ip.payment_type ?? 'payment',
+          is_active: ip.is_active ?? true,
+        });
     }
 
     const debtPaymentsMap = new Map<string, { id: string; scheduled_date: string; scheduled_amount: number; principal_amount: number; interest_amount: number; is_paid: boolean | null }[]>();

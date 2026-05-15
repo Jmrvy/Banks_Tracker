@@ -48,6 +48,18 @@ export interface InstallmentPaymentHistory {
   created_at: string;
 }
 
+// Supabase columns are nullable at the type level even though the DB
+// defaults guarantee a value at runtime. Normalize a raw row into the
+// non-null InstallmentPayment shape the app relies on.
+const toInstallmentPayment = (row: any): InstallmentPayment => ({
+  ...row,
+  frequency: row.frequency as 'weekly' | 'monthly' | 'quarterly',
+  payment_type: (row.payment_type as 'reimbursement' | 'payment') || 'payment',
+  is_active: row.is_active ?? true,
+  created_at: row.created_at ?? '',
+  updated_at: row.updated_at ?? '',
+});
+
 export const useInstallmentPayments = () => {
   const { user } = useAuth();
   const [installmentPayments, setInstallmentPayments] = useState<InstallmentPayment[]>([]);
@@ -65,11 +77,7 @@ export const useInstallmentPayments = () => {
     if (error) {
       console.error('Error fetching installment payments:', error);
     } else {
-      const processedData: InstallmentPayment[] = (data || []).map((ip) => ({
-        ...ip,
-        frequency: ip.frequency as 'weekly' | 'monthly' | 'quarterly',
-        payment_type: (ip.payment_type as 'reimbursement' | 'payment') || 'payment'
-      }));
+      const processedData: InstallmentPayment[] = (data || []).map(toInstallmentPayment);
       setInstallmentPayments(processedData);
     }
   };
@@ -227,11 +235,7 @@ export const useInstallmentPayments = () => {
       return { error: fetchError || new Error('Installment payment not found') };
     }
 
-    const currentInstallment: InstallmentPayment = {
-      ...freshData,
-      frequency: freshData.frequency as 'weekly' | 'monthly' | 'quarterly',
-      payment_type: (freshData.payment_type as 'reimbursement' | 'payment') || 'payment',
-    };
+    const currentInstallment: InstallmentPayment = toInstallmentPayment(freshData);
 
     // Build the update payload — send all provided fields
     const dbUpdates: Record<string, unknown> = {};
@@ -465,9 +469,7 @@ export const useInstallmentPayments = () => {
     }
 
     const currentInstallment: InstallmentPayment = {
-      ...ipResult.data,
-      frequency: ipResult.data.frequency as 'weekly' | 'monthly' | 'quarterly',
-      payment_type: (ipResult.data.payment_type as 'reimbursement' | 'payment') || 'payment',
+      ...toInstallmentPayment(ipResult.data),
     };
 
     const { data: linkedTransactions, error: txError } = txResult;
