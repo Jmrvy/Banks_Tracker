@@ -744,5 +744,218 @@
     "kbdOpen": "ouvrir",
     "kbdClose": "fermer",
     "kbdToggle": "afficher"
+  },
+  "onboarding": {
+    "guide": {
+      "title": "Découvrir l'application",
+      "description": "Touchez une fonctionnalité pour apprendre à l'utiliser",
+      "howTo": "Comment l'utiliser",
+      "preview": "Aperçu de l'interface",
+      "tips": "Astuces"
+    },
+    "featureGuides": {
+      "dashboard": {
+        "title": "Tableau de bord",
+        "desc": "Vue d'ensemble : solde total, revenus et dépenses du mois, courbes d'évolution et répartition par catégorie.",
+        "steps": [
+          "Consultez votre solde total en haut de la page d'accueil — il se met à jour en temps réel.",
+          "Visualisez revenus et dépenses du mois en cours via les cartes KPI colorées.",
+          "Explorez la courbe d'évolution du solde pour suivre vos finances sur plusieurs mois.",
+          "Inspectez le donut de répartition par catégorie pour identifier vos principaux postes.",
+          "Activez l'aperçu rapide via le bouton dédié (ou le toggle dans les Paramètres) pour avoir une vue d'ensemble avant le tableau de bord complet."
+        ],
+        "tips": [
+          "Le tableau de bord se rafraîchit automatiquement après chaque transaction.",
+          "Cliquez sur une carte KPI pour ouvrir les transactions correspondantes.",
+          "L'aperçu rapide à la connexion est désactivé par défaut — activez-le depuis Paramètres → Préférences si vous préférez l'écran d'accueil."
+        ]
+      },
+      "palette": {
+        "title": "Palette de commandes (⌘K)",
+        "desc": "Recherche en langage naturel qui sert aussi de calculatrice : trouvez des transactions, vérifiez vos budgets, listez les plus grosses dépenses, calculez des moyennes — sans quitter le clavier.",
+        "steps": [
+          "Ouvrez la palette avec ⌘K / Ctrl+K, le bouton Rechercher de la barre latérale, ou l'onglet Recherche de la navigation mobile.",
+          "Tapez des requêtes libres mélangeant type, catégorie, période et marchand — ex : \"dépenses loyer cette année\", \"uber mai 2026\", \"easyjet avril\".",
+          "Lancez des analyses avec les mots-clés d'intention : \"budget shopping mai 2026\", \"budgets dépassés\", \"top 10 cette année\", \"moyenne dépenses 2026\".",
+          "Activez le résultat épinglé pour ouvrir une fiche détaillée : totaux, répartition par catégorie, barres de progression (budget) ou moyennes par jour (moyenne).",
+          "La période par défaut est l'année en cours — cliquez sur la × du chip pour élargir à toute la période."
+        ],
+        "tips": [
+          "Le parseur est bilingue : \"dépenses loyer cette année\" et \"expenses rent ytd\" fonctionnent quelle que soit la langue de l'interface.",
+          "Vos requêtes récentes sont stockées localement pour rejouer celles d'hier en un tap.",
+          "Les mots-clés non reconnus comme catégorie (ex : \"uber\") tombent en recherche libre sur la description."
+        ]
+      },
+      "accounts": {
+        "title": "Comptes",
+        "desc": "Gérez tous vos comptes bancaires, consultez les soldes individuels et l'historique par compte.",
+        "steps": [
+          "Tous vos comptes apparaissent sur la page Comptes avec leur solde actuel.",
+          "Cliquez sur un compte pour voir le détail : graphiques et historique complet des transactions.",
+          "Ajoutez un nouveau compte à tout moment via le bouton « + » en haut de page.",
+          "Modifiez nom, banque ou type depuis le menu trois points du compte.",
+          "Définissez des alias dans Paramètres → Préférences pour des libellés plus courts dans les virements."
+        ],
+        "tips": [
+          "Chaque solde se recalcule automatiquement à la moindre transaction.",
+          "Utilisez la section Alias des comptes pour raccourcir « CB Gold » en « SocGen » dans les descriptions de virements."
+        ]
+      },
+      "transactions": {
+        "title": "Transactions",
+        "desc": "Enregistrez dépenses, revenus et virements. Liez les remboursements, excluez les cas particuliers des statistiques, recherchez et filtrez l'historique.",
+        "steps": [
+          "Appuyez sur « + » pour créer une transaction et choisissez son type (dépense, revenu, virement).",
+          "Renseignez montant, compte, catégorie et description ; pour un virement, choisissez source et destination.",
+          "Liez un remboursement à la dépense d'origine pour que le montant net reste juste partout dans l'app.",
+          "Désactivez « inclure dans les statistiques » pour les cas particuliers à ne pas compter dans les KPI.",
+          "Utilisez la barre de recherche et les filtres en haut de la page pour cibler rapidement."
+        ],
+        "tips": [
+          "Pour les requêtes complexes, ⌘K / Rechercher est plus rapide que le panneau de filtres — essayez \"dépenses Carrefour avril\".",
+          "Les virements entre vos comptes ne changent pas votre solde global, seulement la répartition.",
+          "Les remboursements partiels sont gérés : la dépense d'origine suit combien a déjà été remboursé."
+        ]
+      },
+      "budget": {
+        "title": "Budget",
+        "desc": "Définissez des budgets mensuels par catégorie, suivez les dépenses réelles vs. projetées, et soyez prévenu quand vous approchez ou dépassez.",
+        "steps": [
+          "Ouvrez la page Budget depuis la barre latérale : dépenses réelles, projection fin de mois et budget total côte à côte.",
+          "Définissez un budget mensuel sur une catégorie depuis sa fiche (ou en lot depuis la page Budget).",
+          "Visualisez la part de chaque catégorie via le donut — survolez une tranche pour voir montant et pourcentage au centre.",
+          "Repérez les dépassements depuis ⌘K : tapez \"budgets dépassés\" ou \"budget shopping mai 2026\" pour les mêmes données en ligne.",
+          "Activez les alertes budget par email dans Paramètres → Notifications pour être prévenu en cas de dépassement."
+        ],
+        "tips": [
+          "Le graphique cumulé par catégorie indique si vous êtes en avance ou en retard sur le budget en milieu de mois.",
+          "Les budgets sont mensuels — pour une requête YTD, l'app multiplie le budget par le nombre de mois de la période.",
+          "Une catégorie sans budget apparaît tout de même dans les répartitions ; elle ne déclenche simplement pas d'alerte."
+        ]
+      },
+      "savings": {
+        "title": "Épargne",
+        "desc": "Suivez l'épargne dérivée de chaque transaction en catégorie investissement, avec objectifs et projections.",
+        "steps": [
+          "Toute transaction (dépense ou revenu) avec une catégorie de type investissement est comptabilisée dans Épargne.",
+          "Consultez épargne nette, dépôts, retraits et remboursements depuis la vue Épargne.",
+          "Créez des objectifs en indiquant un nom et un montant cible.",
+          "Suivez la progression de chaque objectif et la projection (mois restants, contribution mensuelle nécessaire)."
+        ],
+        "tips": [
+          "Définissez des objectifs réalistes basés sur votre épargne mensuelle moyenne visible dans les Rapports.",
+          "Un revenu en catégorie « Investissement » est un dépôt ; une dépense en catégorie « Investissement » est un retrait."
+        ]
+      },
+      "debts": {
+        "title": "Dettes",
+        "desc": "Suivez prêts et crédits avec échéancier, répartition capital/intérêts, progression et paiements automatiques.",
+        "steps": [
+          "Créez une dette en précisant le type (prêt donné ou contracté), le montant total et le taux d'intérêt.",
+          "Importez un échéancier CSV depuis votre banque pour obtenir la répartition capital/intérêts par échéance.",
+          "Activez le paiement récurrent automatique pour comptabiliser chaque échéance sans intervention.",
+          "Suivez la progression en temps réel : montant payé, restant, barre de progression et historique complet.",
+          "Ouvrez la fiche d'une dette pour voir l'échéancier complet."
+        ],
+        "tips": [
+          "L'import CSV détecte automatiquement le format de votre banque (séparateur, format de date, décimales).",
+          "Les échéances en retard apparaissent en rouge dans le calendrier des récurrentes.",
+          "Chaque paiement de dette est lié à sa transaction — modifier ou supprimer l'un met à jour l'autre."
+        ]
+      },
+      "recurring": {
+        "title": "Récurrentes",
+        "desc": "Programmez vos dépenses et revenus réguliers (loyer, salaire, abonnements). Calendrier visuel et traitement automatique.",
+        "steps": [
+          "Ajoutez une transaction récurrente : montant, fréquence (quotidien, hebdomadaire, mensuel, trimestriel, annuel) et compte.",
+          "Visualisez toutes les échéances dans le calendrier — cliquez sur un jour pour voir ce qui est prévu.",
+          "Le traitement automatique crée la transaction à la date prévue ; les échéances passées sont rattrapées au prochain lancement.",
+          "Exécutez une échéance en avance depuis la carte, ou mettez-la en pause sans la supprimer.",
+          "Dettes et paiements échelonnés génèrent automatiquement leurs récurrences liées."
+        ],
+        "tips": [
+          "Les échéances de dettes en retard apparaissent en rouge dans le calendrier pour une visibilité immédiate.",
+          "Le compteur « 7 jours » en haut de page vous alerte des échéances à venir dans la semaine.",
+          "Basculez entre vue Calendrier et vue Liste selon que vous voulez la chronologie ou le détail."
+        ]
+      },
+      "installments": {
+        "title": "Paiements échelonnés",
+        "desc": "Suivez vos achats en plusieurs fois et remboursements en cours avec barres de progression, historique et transaction récurrente automatique.",
+        "steps": [
+          "Créez un plan en précisant montant total, mensualité, fréquence et date de début.",
+          "Choisissez le sens : paiement (vous payez) ou remboursement (vous recevez).",
+          "Une transaction récurrente est créée et liée au plan automatiquement.",
+          "Suivez la progression via la barre de complétion, le montant payé et le restant.",
+          "Ajustez le plan en cours de route : modifiez la mensualité ou le nombre d'échéances restantes."
+        ],
+        "tips": [
+          "Le menu ⋯ sur chaque carte donne accès aux détails, à l'historique et au recalcul du plan.",
+          "L'historique affiche chaque paiement avec son statut (payé, à venir) et le lien vers la transaction.",
+          "Quand toutes les échéances sont payées, le plan passe automatiquement au statut « terminé »."
+        ]
+      },
+      "reports": {
+        "title": "Analyse",
+        "desc": "Analysez vos finances en profondeur : évolution du solde, répartition par catégorie, récurrentes, sources de revenus et rapports exportables.",
+        "steps": [
+          "Ouvrez la page Analyse depuis la barre latérale (aussi accessible via \"reports\" dans ⌘K).",
+          "Sélectionnez une période — 1 mois, 3 mois, depuis le 1er janvier, 1 an, ou plage personnalisée.",
+          "Explorez les onglets : Évolution, Catégories, Récurrentes, Revenus — chacun avec ses propres visualisations.",
+          "Survolez le donut des catégories pour inspecter le montant et la part d'une tranche sans perdre le total.",
+          "Exportez en PDF ou Excel depuis le menu d'export, ou construisez un rapport personnalisé via l'assistant."
+        ],
+        "tips": [
+          "Comparez deux périodes d'un mois sur l'autre pour identifier ce qui change.",
+          "Le graphique cumulé par catégorie complète très bien la page Budget pour un point en milieu de mois."
+        ]
+      },
+      "notifications": {
+        "title": "Notifications par email",
+        "desc": "Recevez des alertes de dépassement de budget et un rapport financier mensuel par email.",
+        "steps": [
+          "Activez les notifications dans Paramètres → Notifications.",
+          "Activez les alertes budget pour être prévenu lorsqu'une catégorie dépasse son plafond mensuel.",
+          "Activez les rapports mensuels pour recevoir un résumé financier complet chaque début de mois.",
+          "Le rapport mensuel inclut un PDF avec revenus, dépenses, répartition par catégorie et tendances."
+        ],
+        "tips": [
+          "Les alertes budget sont envoyées une seule fois par catégorie par mois pour éviter le spam.",
+          "Le rapport mensuel se compare automatiquement au mois précédent pour mettre les tendances en évidence.",
+          "Définissez d'abord des budgets par catégorie — les alertes en dépendent."
+        ]
+      },
+      "privacy": {
+        "title": "Confidentialité & appareil",
+        "desc": "Contrôlez ce qui s'affiche à l'écran, installez l'app sur cet appareil et surveillez l'état de synchronisation.",
+        "steps": [
+          "Activez le mode privé dans Paramètres → Confidentialité & données pour flouter montants et soldes à l'écran.",
+          "Exportez vos transactions en CSV depuis le même panneau.",
+          "Demandez la suppression de votre compte via l'action destructive du panneau (passe par le support email).",
+          "Installez Spending Tracker en PWA depuis Paramètres → Appareil & synchro pour un accès plein écran et hors ligne.",
+          "L'état de synchronisation en direct (en ligne / hors ligne / modifications en file) est aussi visible dans Appareil & synchro."
+        ],
+        "tips": [
+          "Le mode privé est utile en public — basculez-le depuis l'icône de la barre latérale pour un accès rapide.",
+          "Une fois installée en PWA, l'app fonctionne hors ligne et empile les modifications pour la prochaine synchro.",
+          "Les Paramètres sont réactifs : tout changement se propage instantanément dans l'app, sans recharger."
+        ]
+      },
+      "settings": {
+        "title": "Paramètres",
+        "desc": "Personnalisez l'app : profil, devise, format de date, comptes, catégories, notifications, confidentialité, appareil et langue.",
+        "steps": [
+          "Naviguez via la barre latérale (desktop) ou la bande horizontale (mobile) entre Profil, Préférences, Notifications, Comptes, Confidentialité & données, Appareil & synchro, Guide et Déconnexion.",
+          "Dans Préférences : choisissez devise, format de date, type de date pour les calculs (comptable vs. valeur), langue, et l'aperçu rapide à la connexion (optionnel).",
+          "Dans Confidentialité & données : mode privé, export CSV et demande de suppression du compte.",
+          "Dans Appareil & synchro : point d'entrée d'installation PWA et état de synchronisation en direct.",
+          "Revoyez ce guide à tout moment depuis Paramètres → Guide."
+        ],
+        "tips": [
+          "Utiliser la date de valeur au lieu de la date comptable change la façon dont les graphiques et KPI répartissent les transactions sur les mois.",
+          "Les alias de comptes raccourcissent les descriptions de virements (« CB Gold » → « SocGen ») dans toute l'app."
+        ]
+      }
+    }
   }
 }

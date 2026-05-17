@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import {
   Bell, Mail, FileText, Settings, Filter, Pause, Play,
   ArrowUpRight, ArrowDownRight, MousePointerClick,
   Search, Download, Pencil, Trash2, MoreVertical,
-  ChevronDown, CheckCircle2, Upload, Clock
+  ChevronDown, CheckCircle2, Upload, Clock,
+  Command, ShieldCheck, EyeOff, Smartphone, Wifi, AlertTriangle
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -845,184 +846,237 @@ const FeatureMockup = ({ id }: { id: string }) => {
         </div>
       );
 
+    /* ── Command Palette: bilingual NL search + pinned result ── */
+    case 'palette':
+      return (
+        <div className={mockupWrapper}>
+          {/* Mock cmdk surface */}
+          <div className="px-3 py-2 border-b flex items-center gap-2">
+            <Search className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[11px] font-mono text-foreground">expenses loyer ytd</span>
+            <span className="ml-auto inline-flex items-center gap-1">
+              <span className="text-[9px] font-mono px-1 py-0.5 rounded border bg-muted text-muted-foreground">⌘K</span>
+            </span>
+          </div>
+          {/* Pinned result row */}
+          <div className="px-3 py-2 border-b bg-primary/5">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+              <Sparkles className="h-2.5 w-2.5 text-primary" />
+              Search result
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium">Expenses</span>
+              <span className="text-[10px] text-muted-foreground">· Year to date</span>
+              <span className="ml-auto text-[12px] font-bold text-destructive font-mono">-2 840,00 €</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 mt-1">
+              <span className="text-[8px] px-1 py-0.5 rounded bg-muted border">Loyer</span>
+              <span className="text-[8px] px-1 py-0.5 rounded bg-muted border inline-flex items-center gap-0.5">
+                Year to date <X className="h-2 w-2" />
+              </span>
+              <span className="text-[8px] text-muted-foreground ml-auto">8 transactions</span>
+            </div>
+          </div>
+          {/* Suggested intent rows */}
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Try a query</p>
+          </div>
+          {[
+            { q: 'budget shopping may', hint: 'budget · category · month' },
+            { q: 'top 10 ytd', hint: 'biggest expenses' },
+            { q: 'average expenses 2026', hint: 'per day / week / month' },
+          ].map((s, i) => (
+            <div key={i} className="px-3 py-1.5 border-b last:border-b-0 flex items-center gap-2 hover:bg-accent/30">
+              <Sparkles className="h-2.5 w-2.5 text-primary" />
+              <span className="text-[10px] font-mono">{s.q}</span>
+              <span className="text-[8px] text-muted-foreground ml-auto">{s.hint}</span>
+            </div>
+          ))}
+          {/* Keyboard footer */}
+          <div className="px-3 py-1.5 border-t flex items-center gap-2 text-[9px] text-muted-foreground bg-muted/40">
+            <span className="inline-flex items-center gap-0.5"><span className="font-mono px-1 rounded border">↑</span><span className="font-mono px-1 rounded border">↓</span> navigate</span>
+            <span className="inline-flex items-center gap-0.5"><span className="font-mono px-1 rounded border">↵</span> open</span>
+            <span className="inline-flex items-center gap-0.5 ml-auto"><span className="font-mono px-1 rounded border">esc</span> close</span>
+          </div>
+        </div>
+      );
+
+    /* ── Budget: KPI strip + donut summary + progress bar list ── */
+    case 'budget':
+      return (
+        <div className={mockupWrapper}>
+          {/* Header */}
+          <div className="px-3 py-2 border-b flex items-center gap-1.5">
+            <Target className="h-3.5 w-3.5 text-primary" />
+            <span className="font-semibold">Budget</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">Mai 2026</span>
+          </div>
+          {/* 3 KPI cards */}
+          <div className="grid grid-cols-3 gap-1.5 p-3 border-b">
+            <div className="rounded-lg border p-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <ArrowUpRight className="h-2.5 w-2.5 text-destructive" />
+                <span className="text-[9px] text-muted-foreground">Réel</span>
+              </div>
+              <p className="font-bold text-[11px] text-destructive">2 406,95 €</p>
+            </div>
+            <div className="rounded-lg border p-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Clock className="h-2.5 w-2.5 text-primary" />
+                <span className="text-[9px] text-muted-foreground">Projeté</span>
+              </div>
+              <p className="font-bold text-[11px]">125,43 €</p>
+            </div>
+            <div className="rounded-lg border p-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Target className="h-2.5 w-2.5 text-success" />
+                <span className="text-[9px] text-muted-foreground">Budget</span>
+              </div>
+              <p className="font-bold text-[11px]">2 725,00 €</p>
+            </div>
+          </div>
+          {/* Progress bars per category */}
+          <div className="px-3 py-2 space-y-2">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Catégories</p>
+            {[
+              { name: 'Shopping', pct: 84, breached: false, spent: '420 €', budget: '500 €' },
+              { name: 'Loyer', pct: 100, breached: false, spent: '850 €', budget: '850 €' },
+              { name: 'Sorties', pct: 130, breached: true, spent: '195 €', budget: '150 €' },
+            ].map((row, i) => (
+              <div key={i} className="rounded-lg border p-2">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${row.breached ? 'bg-destructive' : 'bg-success'}`} />
+                    <span className="text-[10px] font-medium">{row.name}</span>
+                    {row.breached && (
+                      <span className="inline-flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10">
+                        <AlertTriangle className="h-2 w-2" />
+                        Dépassé
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-muted-foreground font-mono">{row.pct}%</span>
+                </div>
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full ${row.breached ? 'bg-destructive' : row.pct >= 80 ? 'bg-warning' : 'bg-success'}`}
+                    style={{ width: `${Math.min(100, row.pct)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-1 text-[9px] text-muted-foreground">
+                  <span className="font-mono">{row.spent} / {row.budget}</span>
+                  {row.breached
+                    ? <span className="text-destructive font-medium">+45 € de dépassement</span>
+                    : <span>80 € restants</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-3 pb-2 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Tapez « budgets dépassés » dans ⌘K pour les voir partout</span>
+          </div>
+        </div>
+      );
+
+    /* ── Privacy & device: privacy toggle + export + PWA install + sync ── */
+    case 'privacy':
+      return (
+        <div className={mockupWrapper}>
+          {/* Privacy & data card */}
+          <div className="px-3 py-2 border-b flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            <span className="font-semibold">Confidentialité & données</span>
+          </div>
+          <div className="px-3 py-2 space-y-2 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <EyeOff className="h-3 w-3 text-muted-foreground" />
+                <div>
+                  <p className="text-[10px] font-medium">Mode privé</p>
+                  <p className="text-[9px] text-muted-foreground">Floute montants & soldes</p>
+                </div>
+              </div>
+              <div className="h-3.5 w-7 rounded-full bg-primary p-0.5">
+                <div className="h-2.5 w-2.5 rounded-full bg-white ml-auto" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t pt-2">
+              <div>
+                <p className="text-[10px] font-medium">Exporter les données</p>
+                <p className="text-[9px] text-muted-foreground">Téléchargez vos transactions en CSV</p>
+              </div>
+              <span className="text-[9px] px-2 py-0.5 rounded border inline-flex items-center gap-1">
+                <Download className="h-2.5 w-2.5" />
+                Exporter
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t pt-2">
+              <div>
+                <p className="text-[10px] font-medium text-destructive">Supprimer le compte</p>
+                <p className="text-[9px] text-muted-foreground">Suppression définitive</p>
+              </div>
+              <span className="text-[9px] px-2 py-0.5 rounded border border-destructive/40 text-destructive">
+                Demander
+              </span>
+            </div>
+          </div>
+          {/* Device & sync card */}
+          <div className="px-3 py-2 border-b flex items-center gap-1.5">
+            <Smartphone className="h-3.5 w-3.5 text-primary" />
+            <span className="font-semibold">Appareil & synchro</span>
+          </div>
+          <div className="px-3 py-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium">État de synchro</p>
+                <p className="text-[9px] text-success inline-flex items-center gap-1">
+                  <Wifi className="h-2.5 w-2.5" />
+                  En ligne · toutes les modifications enregistrées
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t pt-2">
+              <div>
+                <p className="text-[10px] font-medium">Installer Spending Tracker</p>
+                <p className="text-[9px] text-muted-foreground">Ajouter à l'écran d'accueil, hors-ligne</p>
+              </div>
+              <span className="text-[9px] px-2 py-0.5 rounded border">Installer…</span>
+            </div>
+          </div>
+          <div className="px-3 py-2 flex items-center gap-1.5">
+            <MousePointerClick className="h-3 w-3 text-primary" />
+            <span className="text-[10px] text-primary font-medium">Toutes ces actions vivent dans Paramètres → Confidentialité & Appareil</span>
+          </div>
+        </div>
+      );
+
     default:
       return null;
   }
 };
 
-const featureGuides = [
-  {
-    id: 'dashboard',
-    icon: TrendingUp,
-    title: "Tableau de bord",
-    desc: "Vue d'ensemble avec solde total, revenus et depenses du mois, graphiques d'evolution et repartition par categorie.",
-    steps: [
-      "Consultez votre solde total en haut de la page d'accueil, mis a jour en temps reel.",
-      "Visualisez vos revenus et depenses du mois en cours avec les indicateurs colores.",
-      "Explorez le graphique d'evolution pour suivre vos finances sur plusieurs mois.",
-      "Consultez la repartition par categorie pour identifier vos principaux postes de depenses."
-    ],
-    tips: [
-      "Le tableau de bord s'actualise automatiquement a chaque nouvelle transaction.",
-      "Cliquez sur le graphique pour voir le detail d'un mois specifique."
-    ]
-  },
-  {
-    id: 'accounts',
-    icon: Wallet,
-    title: "Comptes",
-    desc: "Gerez tous vos comptes bancaires, consultez les soldes individuels et l'historique par compte.",
-    steps: [
-      "Retrouvez tous vos comptes bancaires avec leur solde respectif sur la page Comptes.",
-      "Cliquez sur un compte pour voir son detail et l'historique de ses transactions.",
-      "Ajoutez un nouveau compte a tout moment via le bouton '+' en haut de la page.",
-      "Modifiez le nom, la banque ou le type d'un compte depuis ses parametres."
-    ],
-    tips: [
-      "Vous pouvez definir des alias pour vos comptes dans les parametres pour un affichage plus court.",
-      "Le solde de chaque compte est automatiquement mis a jour a chaque transaction."
-    ]
-  },
-  {
-    id: 'transactions',
-    icon: History,
-    title: "Transactions",
-    desc: "Enregistrez revenus, depenses et virements entre comptes. Filtrez et recherchez dans votre historique.",
-    steps: [
-      "Appuyez sur le bouton '+' pour creer une nouvelle transaction.",
-      "Choisissez le type : depense, revenu ou virement entre comptes.",
-      "Renseignez le montant, la categorie, le compte et une description.",
-      "Pour un virement, selectionnez le compte source et le compte destination.",
-      "Retrouvez toutes vos transactions dans la liste avec filtres et recherche."
-    ],
-    tips: [
-      "Utilisez les filtres pour retrouver rapidement une transaction par categorie, compte ou periode.",
-      "Les virements entre comptes n'affectent pas votre solde global, seulement la repartition entre comptes.",
-      "Vous pouvez exclure une transaction des statistiques si c'est un remboursement ou un cas particulier."
-    ]
-  },
-  {
-    id: 'savings',
-    icon: PiggyBank,
-    title: "Epargne",
-    desc: "Suivez votre epargne basee sur toutes les transactions categoriees en investissement, avec objectifs et projections.",
-    steps: [
-      "Toutes les transactions (depenses et revenus) avec une categorie de type investissement sont automatiquement comptabilisees dans l'onglet Epargne.",
-      "Consultez vos statistiques d'epargne : epargne nette, depots, retraits et remboursements.",
-      "Creez des objectifs d'epargne en indiquant le nom et le montant cible.",
-      "Suivez la progression de chaque objectif et les projections (mois restants, montant mensuel necessaire)."
-    ],
-    tips: [
-      "Pour qu'une transaction apparaisse ici, il suffit de lui attribuer une categorie de type investissement (ex: Epargne, Investissement).",
-      "Les revenus en categorie investissement sont comptabilises comme depots, les depenses comme retraits.",
-      "Definissez des objectifs realistes bases sur votre epargne mensuelle moyenne visible dans les rapports."
-    ]
-  },
-  {
-    id: 'debts',
-    icon: Scale,
-    title: "Dettes",
-    desc: "Suivez vos prets et credits avec echeancier, repartition capital/interets, progression et paiements automatiques.",
-    steps: [
-      "Creez une dette en precisant le type (pret donne ou contracte), le montant total et le taux d'interet.",
-      "Importez un echeancier CSV depuis votre banque pour obtenir la repartition capital/interets de chaque echeance.",
-      "Activez le paiement recurrent automatique pour que chaque echeance soit comptabilisee sans intervention.",
-      "Suivez la progression en temps reel : montant paye, restant, barre de progression et historique des paiements.",
-      "Consultez le detail de chaque dette pour voir l'echeancier complet et l'historique."
-    ],
-    tips: [
-      "L'import CSV detecte automatiquement le format de votre banque (separateur, format de date, decimales).",
-      "Les echeances en retard apparaissent en rouge dans le calendrier des transactions recurrentes.",
-      "Chaque paiement de dette est lie a la transaction correspondante — modifier ou supprimer l'un met a jour l'autre."
-    ]
-  },
-  {
-    id: 'recurring',
-    icon: Receipt,
-    title: "Recurrentes",
-    desc: "Programmez vos depenses et revenus reguliers (loyer, salaire, abonnements...). Calendrier visuel et traitement automatique.",
-    steps: [
-      "Ajoutez une transaction recurrente en precisant le montant, la frequence (quotidien, hebdomadaire, mensuel, trimestriel, annuel) et le compte.",
-      "Visualisez toutes vos echeances dans le calendrier : cliquez sur un jour pour voir les transactions prevues.",
-      "Le traitement automatique cree la transaction a la date prevue — les echeances passees sont traitees au prochain lancement.",
-      "Executez une echeance en avance depuis la carte ou mettez-la en pause sans la supprimer.",
-      "Les dettes et paiements echelonnes creent automatiquement leurs recurrences liees."
-    ],
-    tips: [
-      "Les echeances en retard (dettes) apparaissent en rouge dans le calendrier pour une visibilite immediate.",
-      "Le compteur '7 jours' en haut de page vous alerte des echeances a venir dans la semaine.",
-      "Basculez entre vue Calendrier et vue Liste selon votre preference — la liste affiche les details complets."
-    ]
-  },
-  {
-    id: 'installments',
-    icon: CreditCard,
-    title: "Paiements echelonnes",
-    desc: "Suivez vos achats en plusieurs fois et remboursements en cours avec progression, historique et transaction recurrente automatique.",
-    steps: [
-      "Creez un paiement echelonne en precisant le montant total, la mensualite, la frequence et la date de debut.",
-      "Choisissez le type : paiement (vous payez) ou remboursement (vous recevez).",
-      "Une transaction recurrente est automatiquement creee et liee au paiement echelonne.",
-      "Suivez la progression avec la barre de completion, le montant paye et le restant.",
-      "Ajustez le plan en cours de route : modifiez la mensualite ou le nombre d'echeances restantes."
-    ],
-    tips: [
-      "Le menu ··· sur chaque carte donne acces aux details, a l'historique et au recalcul du plan.",
-      "L'historique affiche chaque paiement avec son statut (paye, a venir) et le lien vers la transaction.",
-      "Quand toutes les echeances sont payees, le paiement passe automatiquement en statut termine."
-    ]
-  },
-  {
-    id: 'reports',
-    icon: PieChart,
-    title: "Rapports",
-    desc: "Analyses detaillees de vos finances : tendances, repartition, evolution dans le temps.",
-    steps: [
-      "Accedez a la page Rapports depuis le menu de navigation.",
-      "Selectionnez la periode d'analyse souhaitee (mois, trimestre, annee).",
-      "Explorez les 4 onglets : Evolution, Revenus, Depenses et Recurrentes.",
-      "Exportez vos rapports pour les conserver ou les partager."
-    ],
-    tips: [
-      "Comparez vos depenses d'un mois a l'autre pour identifier les tendances.",
-      "Utilisez les rapports pour ajuster vos habitudes de depenses."
-    ]
-  },
-  {
-    id: 'notifications',
-    icon: Bell,
-    title: "Notifications par email",
-    desc: "Recevez des alertes de depassement de budget et un rapport financier mensuel par email.",
-    steps: [
-      "Activez les notifications dans Parametres > Notifications par Email.",
-      "Activez les alertes de budget pour etre prevenu quand une categorie depasse son plafond.",
-      "Activez les rapports mensuels pour recevoir un resume financier complet chaque debut de mois.",
-      "Le rapport mensuel inclut un PDF avec vos revenus, depenses, repartition par categorie et evolution."
-    ],
-    tips: [
-      "Les alertes de budget sont envoyees une seule fois par categorie par mois pour eviter le spam.",
-      "Le rapport mensuel compare automatiquement avec le mois precedent pour identifier les tendances.",
-      "Definissez d'abord des budgets par categorie dans vos comptes pour que les alertes fonctionnent."
-    ]
-  },
-  {
-    id: 'settings',
-    icon: Settings,
-    title: "Parametres",
-    desc: "Personnalisez l'application : devise, comptes, categories, notifications et preferences.",
-    steps: [
-      "Modifiez votre devise et votre compte par defaut dans les preferences.",
-      "Gerez vos comptes bancaires : ajoutez, modifiez ou supprimez des comptes.",
-      "Personnalisez vos categories de depenses et revenus avec des couleurs.",
-      "Configurez vos notifications email (alertes budget et rapports mensuels).",
-      "Relisez le guide de l'application a tout moment depuis cette page."
-    ],
-    tips: [
-      "Definir un compte par defaut accelere la saisie de vos transactions.",
-      "Vous pouvez creer des alias pour vos comptes afin d'avoir des noms plus courts dans l'app."
-    ]
-  },
+// Icon + id only. All localised copy (title, description, steps, tips)
+// lives in i18n under `onboarding.featureGuides.<id>` — see en.json /
+// fr.json. The component composes the full guide list at render time
+// via the `useGuideContent()` hook below so language toggles take
+// effect immediately.
+const GUIDE_META: { id: string; icon: typeof TrendingUp }[] = [
+  { id: 'dashboard', icon: TrendingUp },
+  { id: 'palette', icon: Command },
+  { id: 'accounts', icon: Wallet },
+  { id: 'transactions', icon: History },
+  { id: 'budget', icon: Target },
+  { id: 'savings', icon: PiggyBank },
+  { id: 'debts', icon: Scale },
+  { id: 'recurring', icon: Receipt },
+  { id: 'installments', icon: CreditCard },
+  { id: 'reports', icon: PieChart },
+  { id: 'notifications', icon: Bell },
+  { id: 'privacy', icon: ShieldCheck },
+  { id: 'settings', icon: Settings },
 ];
+
 
 interface AccountDraft {
   name: string;
@@ -1034,9 +1088,36 @@ interface AccountDraft {
 const Onboarding = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { createAccount, createCategory, accounts: existingAccounts, categories: existingCategories } = useFinancialData();
   const { updatePreferences } = useUserPreferences();
+
+  // Compose the full guide list from `GUIDE_META` (icons + ids) and
+  // i18n keys (title, description, steps, tips). Recomputes when the
+  // user toggles language so the sheet content switches live.
+  const featureGuides = useMemo(
+    () =>
+      GUIDE_META.map((meta) => {
+        const steps = t(`onboarding.featureGuides.${meta.id}.steps`, {
+          returnObjects: true,
+          defaultValue: [],
+        }) as unknown;
+        const tips = t(`onboarding.featureGuides.${meta.id}.tips`, {
+          returnObjects: true,
+          defaultValue: [],
+        }) as unknown;
+        return {
+          ...meta,
+          title: t(`onboarding.featureGuides.${meta.id}.title`, { defaultValue: meta.id }),
+          desc: t(`onboarding.featureGuides.${meta.id}.desc`, { defaultValue: '' }),
+          steps: Array.isArray(steps) ? (steps as string[]) : [],
+          tips: Array.isArray(tips) ? (tips as string[]) : [],
+        };
+      }),
+    // i18n.language is the actual signal — t() is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [i18n.language, t]
+  );
 
   // Review mode: existing user revisiting the guide from settings
   const isReviewMode = existingAccounts.length > 0 || existingCategories.length > 0;

@@ -744,5 +744,218 @@
     "kbdOpen": "open",
     "kbdClose": "close",
     "kbdToggle": "toggle"
+  },
+  "onboarding": {
+    "guide": {
+      "title": "Discover the app",
+      "description": "Tap a feature to learn how to use it",
+      "howTo": "How to use it",
+      "preview": "Interface preview",
+      "tips": "Tips"
+    },
+    "featureGuides": {
+      "dashboard": {
+        "title": "Dashboard",
+        "desc": "Overview with total balance, monthly income and expenses, evolution charts and category breakdown.",
+        "steps": [
+          "Check your total balance at the top of the home page — it updates in real time as you add transactions.",
+          "Review this month's income and expenses with the colored KPI cards.",
+          "Explore the balance-evolution chart to follow your finances across recent months.",
+          "Inspect the category distribution donut to identify your biggest spending areas.",
+          "Use the Quick Preview button (or the Settings toggle) to see a splash overview before opening the full dashboard."
+        ],
+        "tips": [
+          "The dashboard refreshes automatically after every new transaction.",
+          "Click any KPI card to drill into the matching transactions for the period.",
+          "Quick Preview on login is off by default — opt in from Settings → Preferences if you prefer the splash screen."
+        ]
+      },
+      "palette": {
+        "title": "Command Palette (⌘K)",
+        "desc": "Natural-language search that doubles as a calculator: find transactions, check budgets, list top expenses, compute averages — without leaving the keyboard.",
+        "steps": [
+          "Open the palette with ⌘K / Ctrl+K, the sidebar Search button, or the Search tab in the mobile bottom nav.",
+          "Type free-form queries that mix type, category, period and merchant — e.g. \"expenses loyer ytd\", \"uber may 2026\", \"easyjet april\".",
+          "Run analytics with intent keywords: \"budget shopping may 2026\", \"budget breaches\", \"top 10 ytd\", \"average expenses 2026\".",
+          "Activate the pinned Result row to open a sheet with totals, category breakdown, progress bars (budget) or per-day averages (average).",
+          "Period chips show year-to-date by default — click the × on the chip to widen to all time."
+        ],
+        "tips": [
+          "The parser is bilingual: \"dépenses loyer cette année\" and \"expenses rent ytd\" both work regardless of the UI language.",
+          "Recent queries are stored locally so re-running yesterday's search is one tap away.",
+          "Description tokens that don't match a category (e.g. \"uber\") fall back to free-text matching on transaction descriptions."
+        ]
+      },
+      "accounts": {
+        "title": "Accounts",
+        "desc": "Manage every bank account, see individual balances and per-account transaction history.",
+        "steps": [
+          "All your accounts appear on the Accounts page with their current balance.",
+          "Click an account to see its detail view with charts and full transaction history.",
+          "Add a new account anytime with the '+' button at the top of the page.",
+          "Edit name, bank or type from the account's three-dot menu.",
+          "Set custom aliases in Settings → Preferences for shorter labels in transfer descriptions."
+        ],
+        "tips": [
+          "Each account's balance is recomputed automatically after every transaction touching it.",
+          "Use the Account Aliases section to shorten 'CB Gold' to 'SocGen' in transfer copy."
+        ]
+      },
+      "transactions": {
+        "title": "Transactions",
+        "desc": "Record expenses, income and transfers. Link refunds, exclude one-offs from stats, search and filter the full history.",
+        "steps": [
+          "Tap '+' to create a transaction; pick a type (expense, income or transfer between accounts).",
+          "Fill in amount, account, category and an optional description; for transfers, pick source and destination.",
+          "Link a refund to its original expense so the net figure stays accurate everywhere in the app.",
+          "Toggle \"include in stats\" off for one-offs you don't want skewing your KPIs.",
+          "Use the search bar and filter button on the Transactions page to narrow down quickly."
+        ],
+        "tips": [
+          "For deeper queries, ⌘K / Search is faster than the filter panel — try \"expenses Carrefour april\".",
+          "Transfers between your own accounts don't change your total balance, only how it's distributed.",
+          "Partial refunds are supported: the original transaction tracks how much has been refunded so far."
+        ]
+      },
+      "budget": {
+        "title": "Budget",
+        "desc": "Set monthly budgets per category, track real vs. projected spend, and get notified when you're close or over.",
+        "steps": [
+          "Open the Budget page from the sidebar to see real expenses, projected end-of-month spend and total budget side by side.",
+          "Set a monthly budget on a category from its detail view (or in bulk from the Budget page).",
+          "Visualise category share with the donut chart — hover a slice to see its value and percentage in the center.",
+          "Spot breaches faster from ⌘K: type \"budget breaches\" or \"budget shopping may 2026\" to get the same data inline.",
+          "Enable email budget alerts in Settings → Notifications to be warned when a category exceeds its limit."
+        ],
+        "tips": [
+          "Cumulative-by-category chart shows whether you're tracking ahead or behind your budget mid-month.",
+          "Budgets are monthly — for a YTD query the app scales the budget by the number of months in the range.",
+          "A category with no budget set still appears in breakdowns; it just doesn't trigger alerts."
+        ]
+      },
+      "savings": {
+        "title": "Savings",
+        "desc": "Track savings derived from every transaction in an investment-type category, set goals and forecast progress.",
+        "steps": [
+          "Any transaction (expense or income) tagged with an investment-type category counts toward Savings.",
+          "Review net savings, deposits, withdrawals and refunds from the Savings overview.",
+          "Create goals by giving them a name and target amount.",
+          "Track each goal's progress and the projected timeline (months remaining, monthly contribution needed)."
+        ],
+        "tips": [
+          "Set realistic goals using your average monthly savings — visible in the Reports page.",
+          "Income tagged as 'Investment' is a deposit; expense tagged as 'Investment' is a withdrawal."
+        ]
+      },
+      "debts": {
+        "title": "Debts",
+        "desc": "Track loans and credits with amortization schedules, principal/interest split, progress and automatic payments.",
+        "steps": [
+          "Create a debt by setting type (loan given or received), total amount and interest rate.",
+          "Import a CSV schedule from your bank so each installment splits principal vs. interest correctly.",
+          "Enable automatic recurring payments so every installment is recorded without manual work.",
+          "Follow progress in real time: amount paid, remaining, completion bar and full payment history.",
+          "Open a debt's detail to see the full schedule and breakdown."
+        ],
+        "tips": [
+          "The CSV importer auto-detects your bank's format (separator, date layout, decimal style).",
+          "Overdue installments appear in red in the scheduled calendar so you can act before they pile up.",
+          "Each debt payment is linked to its transaction — editing or deleting one updates the other."
+        ]
+      },
+      "recurring": {
+        "title": "Recurring",
+        "desc": "Schedule repeat expenses and income (rent, salary, subscriptions). Visual calendar and automatic processing.",
+        "steps": [
+          "Add a recurring transaction with amount, frequency (daily, weekly, monthly, quarterly, yearly) and account.",
+          "View all upcoming occurrences in the calendar — click a day to see what's scheduled.",
+          "Automatic processing creates the transaction on its due date; past occurrences run on next launch.",
+          "Run an occurrence ahead of schedule from the card, or pause it without deleting.",
+          "Debts and installments create linked recurring entries automatically."
+        ],
+        "tips": [
+          "Overdue debt installments show in red in the calendar for immediate visibility.",
+          "The '7 days' badge at the top of the page warns you of upcoming charges this week.",
+          "Switch between Calendar and List views depending on whether you want timing or detail."
+        ]
+      },
+      "installments": {
+        "title": "Installments",
+        "desc": "Track buy-now-pay-later purchases and incoming repayments with progress bars, history and automatic recurring transactions.",
+        "steps": [
+          "Create an installment plan with total amount, monthly amount, frequency and start date.",
+          "Pick the direction: payment (you pay) or reimbursement (you receive).",
+          "An automatic recurring transaction is created and linked to the plan.",
+          "Follow progress via the completion bar, paid amount and remaining amount.",
+          "Adjust the plan mid-stream: change monthly amount or remaining installment count."
+        ],
+        "tips": [
+          "The ⋯ menu on each card opens details, history and a recalc-plan option.",
+          "History shows each installment with status (paid, upcoming) and a link to its transaction.",
+          "Once all installments are paid the plan auto-flips to completed status."
+        ]
+      },
+      "reports": {
+        "title": "Analysis",
+        "desc": "Deep dive into your finances: balance evolution, category breakdowns, recurring spend, income sources and exportable reports.",
+        "steps": [
+          "Open the Analysis page from the sidebar (also accessible via 'reports' in ⌘K).",
+          "Pick a period — 1 month, 3 months, year to date, 1 year or a custom range.",
+          "Explore the tabs: Evolution, Categories, Recurring, Income — each with its own visual.",
+          "Hover the category donut to inspect a slice's amount and share without losing the total.",
+          "Export reports as PDF or Excel from the export menu, or build a custom report with the wizard."
+        ],
+        "tips": [
+          "Compare two periods month-over-month to spot the trend behind a sudden total change.",
+          "The cumulative-by-category chart pairs nicely with the Budget page for mid-month sanity checks."
+        ]
+      },
+      "notifications": {
+        "title": "Email notifications",
+        "desc": "Receive budget breach alerts and a monthly financial report by email.",
+        "steps": [
+          "Enable notifications in Settings → Notifications.",
+          "Turn on Budget alerts to get an email when a category exceeds its monthly cap.",
+          "Turn on Monthly reports to receive a complete financial summary at the start of each month.",
+          "The monthly report includes a PDF with income, expenses, category breakdown and trend."
+        ],
+        "tips": [
+          "Budget alerts are sent at most once per category per month to avoid spam.",
+          "The monthly report compares with the previous month so trends are obvious.",
+          "Set category budgets first — alerts depend on them existing."
+        ]
+      },
+      "privacy": {
+        "title": "Privacy & device",
+        "desc": "Control what's visible on screen, install the app on this device and watch the sync state.",
+        "steps": [
+          "Toggle Privacy mode in Settings → Privacy & data to blur amounts and balances on screen.",
+          "Export your transactions as CSV from the same panel.",
+          "Request account deletion from the destructive action there (routes through support email).",
+          "Install Spending Tracker as a PWA from Settings → Device & sync for offline-capable, full-screen access.",
+          "Live sync status (online / offline / queued changes) is also surfaced in Device & sync."
+        ],
+        "tips": [
+          "Privacy mode is great in public — toggle from the sidebar icon for quick access.",
+          "Once installed as a PWA the app keeps working offline and queues changes for next sync.",
+          "Settings is reactive: any preference change propagates instantly across the app, no reload needed."
+        ]
+      },
+      "settings": {
+        "title": "Settings",
+        "desc": "Customize the app: profile, currency, date format, accounts, categories, notifications, privacy, device and locale.",
+        "steps": [
+          "Navigate via the left rail (desktop) or the horizontal section strip (mobile) to jump between Profile, Preferences, Notifications, Accounts, Privacy & data, Device & sync, Guide and Sign out.",
+          "In Preferences: pick currency, date format, calculation date (accounting vs. value), language, and the optional Quick Preview-on-login splash.",
+          "In Privacy & data: privacy mode toggle, CSV export and account deletion request.",
+          "In Device & sync: PWA install entry point and live sync state.",
+          "Revisit this guide anytime from Settings → Guide."
+        ],
+        "tips": [
+          "Setting a value date instead of accounting date changes how charts and KPIs split transactions across months.",
+          "Account Aliases shorten transfer descriptions ('CB Gold' → 'SocGen') across the entire app."
+        ]
+      }
+    }
   }
 }
