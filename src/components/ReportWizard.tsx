@@ -2063,9 +2063,9 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   // type), two-column body (page rail + preview), footer with format
   // and Generate action. Matches the v2 design.
   const content = (
-    <div className="flex flex-col -mx-6 -mb-6">
+    <div className="flex flex-col flex-1 min-h-0 -mx-6 -mb-6">
       {/* ── Toolbar ──────────────────────────────────────────────── */}
-      <div className="border-t border-line bg-bg-subtle/40">
+      <div className="border-t border-line bg-bg-subtle/40 flex-shrink-0">
         {/* Presets row */}
         <div className="flex items-center gap-2 px-5 py-2.5 border-b border-line flex-wrap">
           <span className="font-mono text-[10px] uppercase tracking-[0.09em] text-muted-foreground font-medium">
@@ -2177,10 +2177,12 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         </div>
       </div>
 
-      {/* ── Body: page rail + preview ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] min-h-[420px] max-h-[60vh]">
+      {/* ── Body: page rail + preview. Flex-grows inside the dialog
+            so the toolbar + footer always remain visible; the rail and
+            preview each scroll internally. ───────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] flex-1 min-h-0 overflow-hidden">
         {/* Page rail */}
-        <div className="border-r border-line flex flex-col bg-card max-h-[60vh] overflow-hidden">
+        <div className="border-r border-line flex flex-col bg-card min-h-0 overflow-hidden">
           <div className="px-3 py-2 border-b border-line flex items-baseline justify-between">
             <div className="text-xs font-semibold">
               {t('reports.documentOutline', { defaultValue: 'Document outline' })}
@@ -2322,7 +2324,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       </div>
 
       {/* ── Footer ───────────────────────────────────────────────── */}
-      <div className="border-t border-line bg-card px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+      <div className="border-t border-line bg-card px-5 py-3 flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
         <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
           <span><b className="text-foreground/90 font-semibold">{documentPages}</b> {t('reports.pagesShort', { defaultValue: 'pages' })}</span>
           <span className="text-muted-foreground/50">·</span>
@@ -2427,9 +2429,12 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           // v2 wizard sits at ~1200px wide on the design board. We use
-          // max-w-6xl + flush body (no overflow scroll on the container)
-          // so the page rail can scroll independently of the preview.
-          className="max-w-6xl w-[95vw] max-h-[92vh] p-6 pb-0 overflow-hidden bg-background border border-line shadow-xl rounded-xl flex flex-col"
+          // max-w-6xl + flex column + overflow-hidden so the page rail
+          // and preview pane can scroll independently of the chrome.
+          // Note: keep `p-6` (not pb-0) so the content's `-mb-6` lands
+          // flush with the dialog edge instead of extending below it,
+          // which previously clipped the footer + Generate button.
+          className="max-w-6xl w-[95vw] max-h-[92vh] p-6 overflow-hidden bg-background border border-line shadow-xl rounded-xl flex flex-col"
         >
           <DialogHeader className="pb-3 flex-shrink-0">
             <DialogTitle className="text-lg font-semibold tracking-tight">
