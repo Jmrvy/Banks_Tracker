@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { startOfMonth, endOfMonth, subMonths, format } from "https://esm.sh/date-fns@3.6.0";
+import {
+  startOfMonth, endOfMonth, subMonths, format,
+  startOfWeek, endOfWeek, subWeeks,
+  startOfQuarter, endOfQuarter, subQuarters,
+} from "https://esm.sh/date-fns@3.6.0";
 import { fr } from "https://esm.sh/date-fns@3.6.0/locale";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 
@@ -403,40 +407,109 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { data: usersWithNotifs, error: usersError } = await supabaseAdmin
+    // Calendar gate: today's date determines which cadences fire.
+    //   - weekly: Monday (date-fns weekday() === 1) for ISO weeks
+    //   - monthly: 1st of the month
+    //   - quarterly: 1st of Jan / Apr / Jul / Oct
+    const now = new Date();
+    const dow = now.getDay(); // 0 = Sun, 1 = Mon, …
+    const dom = now.getDate();
+    const month = now.getMonth(); // 0 = Jan
+    const todayCadences: Array<'weekly' | 'monthly' | 'quarterly'> = [];
+    if (dow === 1) todayCadences.push('weekly');
+    if (dom === 1) todayCadences.push('monthly');
+    if (dom === 1 && (month === 0 || month === 3 || month === 6 || month === 9)) todayCadences.push('quarterly');
+
+    // Pull every user whose cadence might fire today. Filter at the DB
+    // layer so we don't drag down every notification preference row.
+    let query = supabaseAdmin
       .from('notification_preferences')
-      .select('user_id, date_type')
-      .eq('monthly_reports', true);
+      .select('user_id, date_type, monthly_report_cadence, monthly_report_sections, monthly_report_attach_pdf, monthly_report_top_n, monthly_reports');
+    if (todayCadences.length === 0) {
+      // No cadence triggers today — return early. (Cron may run daily;
+      // this is the silent path for non-event days.)
+      console.log('No cadence triggers fire today; exiting.');
+      return new Response(
+        JSON.stringify({ message: 'No cadence triggers today', sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    query = query.in('monthly_report_cadence', todayCadences);
+    const { data: usersWithNotifs, error: usersError } = await query;
 
     if (usersError) throw usersError;
 
     const usersWithEmails = await Promise.all(
       (usersWithNotifs || []).map(async (pref: any) => {
         const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pref.user_id);
+        // Fall back to legacy defaults when the new columns are missing
+        // (e.g. row created before this migration; should be rare but
+        // protects against partial deploys).
+        const cadence = (pref.monthly_report_cadence ?? (pref.monthly_reports ? 'monthly' : 'off')) as
+          'off' | 'weekly' | 'monthly' | 'quarterly';
+        const sections: string[] = Array.isArray(pref.monthly_report_sections) && pref.monthly_report_sections.length
+          ? pref.monthly_report_sections
+          : ['summary', 'categories', 'budgets', 'accounts', 'recurring'];
+        const attachPdf: boolean = pref.monthly_report_attach_pdf !== false;
+        const topN: number = Math.max(1, Math.min(20, Number(pref.monthly_report_top_n) || 6));
         return {
           user_id: pref.user_id,
           email: authUser?.user?.email || null,
           date_type: pref.date_type === 'value' ? 'value' : 'accounting',
+          cadence,
+          sections,
+          attachPdf,
+          topN,
         };
       })
     );
 
-    const validUsers = usersWithEmails.filter((u: any) => u.email);
-    console.log(`Found ${validUsers.length} users with monthly reports enabled`);
+    const validUsers = usersWithEmails.filter((u: any) => u.email && u.cadence !== 'off');
+    console.log(`Found ${validUsers.length} users due for a report today (cadences: ${todayCadences.join(', ')})`);
 
-    const now = new Date();
-    const lastMonth = subMonths(now, 1);
-    const monthStart = startOfMonth(lastMonth);
-    const monthEnd = endOfMonth(lastMonth);
-    const periodLabel = format(lastMonth, 'MMMM yyyy', { locale: fr });
-
-    // Previous month for comparison
-    const twoMonthsAgo = subMonths(now, 2);
-    const prevMonthStart = startOfMonth(twoMonthsAgo);
-    const prevMonthEnd = endOfMonth(twoMonthsAgo);
+    // Period helpers — choose the right window per user's cadence.
+    const periodForCadence = (cadence: 'weekly' | 'monthly' | 'quarterly') => {
+      if (cadence === 'weekly') {
+        const lastWeek = subWeeks(now, 1);
+        return {
+          start: startOfWeek(lastWeek, { weekStartsOn: 1 }),
+          end: endOfWeek(lastWeek, { weekStartsOn: 1 }),
+          prevStart: startOfWeek(subWeeks(lastWeek, 1), { weekStartsOn: 1 }),
+          prevEnd: endOfWeek(subWeeks(lastWeek, 1), { weekStartsOn: 1 }),
+          label: `Semaine du ${format(startOfWeek(lastWeek, { weekStartsOn: 1 }), 'd MMM yyyy', { locale: fr })}`,
+        };
+      }
+      if (cadence === 'quarterly') {
+        const lastQuarter = subQuarters(now, 1);
+        return {
+          start: startOfQuarter(lastQuarter),
+          end: endOfQuarter(lastQuarter),
+          prevStart: startOfQuarter(subQuarters(lastQuarter, 1)),
+          prevEnd: endOfQuarter(subQuarters(lastQuarter, 1)),
+          label: `T${Math.floor(lastQuarter.getMonth() / 3) + 1} ${lastQuarter.getFullYear()}`,
+        };
+      }
+      // monthly
+      const lastMonth = subMonths(now, 1);
+      return {
+        start: startOfMonth(lastMonth),
+        end: endOfMonth(lastMonth),
+        prevStart: startOfMonth(subMonths(lastMonth, 1)),
+        prevEnd: endOfMonth(subMonths(lastMonth, 1)),
+        label: format(lastMonth, 'MMMM yyyy', { locale: fr }),
+      };
+    };
 
     for (const userPref of validUsers) {
       try {
+        // Resolve the period window for this user's cadence.
+        const period = periodForCadence(userPref.cadence as 'weekly' | 'monthly' | 'quarterly');
+        const monthStart = period.start;
+        const monthEnd = period.end;
+        const prevMonthStart = period.prevStart;
+        const prevMonthEnd = period.prevEnd;
+        const periodLabel = period.label;
+
         // Use the user's preferred date column (accounting vs value).
         const dateColumn = userPref.date_type === 'value' ? 'value_date' : 'transaction_date';
         // Net spend per transaction: amount minus any refunded portion (clamped to 0).
@@ -517,7 +590,8 @@ const handler = async (req: Request): Promise<Response> => {
           .map(c => ({ ...c, pct: expenses > 0 ? Math.round((c.spent / expenses) * 100) : 0 }))
           .sort((a, b) => b.spent - a.spent);
 
-        const topCategories = allCategories.slice(0, 8);
+        // User-configurable cap on the categories surfaced in the email.
+        const topCategories = allCategories.slice(0, userPref.topN);
         // Strict over-budget: 100% exactly is on-target, only flag rows that
         // crossed the line (mirrors the in-app `BudgetAlertsCard` rule).
         const budgetOverspent = allCategories.filter(c => c.budget && c.spent > c.budget);
@@ -544,6 +618,12 @@ const handler = async (req: Request): Promise<Response> => {
 
         const reportData = {
           period: periodLabel,
+          // Cadence — the email template uses this to switch the subject
+          // line and footer copy ("monthly" vs "weekly" vs "quarterly").
+          cadence: userPref.cadence,
+          // Which body blocks the user opted into. The email template
+          // gates each section on this list.
+          sections: userPref.sections,
           income: income.toFixed(2),
           expenses: expenses.toFixed(2),
           balance: totalBalance.toFixed(2),
@@ -558,16 +638,19 @@ const handler = async (req: Request): Promise<Response> => {
           expenseChange: prevExpenses > 0 ? Math.round(((expenses - prevExpenses) / prevExpenses) * 100) : 0,
         };
 
-        // Generate slide-style PDF report
+        // Generate slide-style PDF report — skipped entirely when the
+        // user opted out of attaching it.
         let pdfBase64: string | null = null;
-        try {
-          pdfBase64 = await generateSlidesPdf(reportData);
-          console.log(`PDF generated for user ${userPref.user_id} (${Math.round((pdfBase64?.length || 0) * 0.75 / 1024)} KB)`);
-        } catch (pdfErr) {
-          console.error(`PDF generation failed for user ${userPref.user_id}:`, pdfErr);
+        if (userPref.attachPdf) {
+          try {
+            pdfBase64 = await generateSlidesPdf(reportData);
+            console.log(`PDF generated for user ${userPref.user_id} (${Math.round((pdfBase64?.length || 0) * 0.75 / 1024)} KB)`);
+          } catch (pdfErr) {
+            console.error(`PDF generation failed for user ${userPref.user_id}:`, pdfErr);
+          }
         }
 
-        console.log(`Sending monthly report to user ${userPref.user_id}`);
+        console.log(`Sending ${userPref.cadence} report to user ${userPref.user_id}`);
 
         const response = await fetch(
           `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`,

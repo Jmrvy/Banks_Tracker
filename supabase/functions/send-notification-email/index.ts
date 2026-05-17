@@ -188,7 +188,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (type === 'budget_alert') {
       subject = `Budget d\u00e9pass\u00e9 \u2013 ${escapeHtml(data.categoryName)}`;
 
-      const recentTransactions: { date: string; description: string; amount: string }[] = data.recentTransactions || [];
+      // `tag` is optional and is rendered as a small monospace pill next
+      // to the description so the user can scan recurring vs. one-off
+      // drivers at a glance (audit pass #1.3).
+      const recentTransactions: { date: string; description: string; amount: string; tag?: string }[] = data.recentTransactions || [];
       const budgetValue = parseFloat(data.budget);
       const spentValue = parseFloat(data.spent);
       const overspentValue = parseFloat(data.overspent);
@@ -212,16 +215,23 @@ const handler = async (req: Request): Promise<Response> => {
           return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
         } catch { return d; }
       };
-      const driverItems = recentTransactions.map(t => `
+      const driverItems = recentTransactions.map(t => {
+        const tagPill = t.tag
+          ? `<span style="display:inline-block;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;color:#6e716c;background:#f3f1e9;border:1px solid #e7e5dd;border-radius:4px;padding:1px 6px;margin-left:8px;letter-spacing:.04em;text-transform:uppercase;vertical-align:1px;">${escapeHtml(t.tag)}</span>`
+          : '';
+        return `
         <tr>
           <td style="padding:11px 0;border-bottom:1px solid #efece4;font-family:'Geist Mono',ui-monospace,monospace;font-size:11.5px;color:#6e716c;width:64px;white-space:nowrap;">${escapeHtml(fmtDriverDate(t.date))}</td>
-          <td style="padding:11px 14px 11px 14px;border-bottom:1px solid #efece4;font-size:13.5px;color:#0c0d0c;font-weight:500;">${escapeHtml(t.description)}</td>
+          <td style="padding:11px 14px 11px 14px;border-bottom:1px solid #efece4;font-size:13.5px;color:#0c0d0c;font-weight:500;">${escapeHtml(t.description)}${tagPill}</td>
           <td style="padding:11px 0;border-bottom:1px solid #efece4;font-family:'Geist Mono',ui-monospace,monospace;font-size:13px;color:#0c0d0c;font-weight:500;text-align:right;white-space:nowrap;">${escapeHtml(t.amount)}&nbsp;\u20ac</td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
 
+      // Audit pass: dropped Fraunces serif + italic accent. The
+      // statement direction (Reports v2) is Geist + Geist Mono only;
+      // the budget alert email follows the same restraint.
       const sansStack = "'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
       const monoStack = "'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace";
-      const serifStack = "'Fraunces',Georgia,serif";
 
       html = `<!DOCTYPE html>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -232,7 +242,7 @@ const handler = async (req: Request): Promise<Response> => {
   <meta name="x-apple-disable-message-reformatting">
   <title>${escapeHtml(data.categoryName)} d&eacute;passe le budget</title>
   <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Fraunces:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     @media only screen and (max-width:620px) {
       .wrapper { width:100% !important; }
@@ -276,11 +286,11 @@ const handler = async (req: Request): Promise<Response> => {
               <div style="font-family:${monoStack};font-size:10.5px;color:#6e716c;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">
                 Alerte &middot; ${escapeHtml(monthLabel)}
               </div>
-              <h1 class="h1" style="font-family:${serifStack};font-weight:500;font-size:36px;letter-spacing:-0.02em;line-height:1.05;margin:0 0 10px 0;color:#0c0d0c;">
-                ${escapeHtml(data.categoryName)} d&eacute;passe de <span style="color:#c83a2a;font-style:italic;">${escapeHtml(data.overspent)}&nbsp;\u20ac.</span>
+              <h1 class="h1" style="font-family:${sansStack};font-weight:600;font-size:32px;letter-spacing:-0.025em;line-height:1.08;margin:0 0 10px 0;color:#0c0d0c;">
+                ${escapeHtml(data.categoryName)} d&eacute;passe de <span style="color:#c83a2a;font-weight:600;">${escapeHtml(data.overspent)}&nbsp;\u20ac.</span>
               </h1>
-              <p style="font-family:${sansStack};font-size:15px;color:#6e716c;line-height:1.55;margin:0;max-width:480px;">
-                Vous avez d&eacute;pens&eacute; <b style="color:#1f211f;font-weight:500;">${escapeHtml(data.spent)}&nbsp;\u20ac</b> sur un budget mensuel de <b style="color:#1f211f;font-weight:500;">${escapeHtml(data.budget)}&nbsp;\u20ac</b>${daysLeft > 0 ? ` \u2014 il reste <b style="color:#1f211f;font-weight:500;">${daysLeft} jour${daysLeft > 1 ? 's' : ''}</b> dans le mois.` : '.'}
+              <p style="font-family:${sansStack};font-size:14.5px;color:#6e716c;line-height:1.55;margin:0;max-width:480px;">
+                ${txCount} transaction${txCount > 1 ? 's' : ''}, ${daysLeft > 0 ? `${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''} dans le mois` : 'dernier jour du mois'}.
               </p>
             </td>
           </tr>
@@ -302,9 +312,9 @@ const handler = async (req: Request): Promise<Response> => {
             </td>
           </tr>
 
-          <!-- Pace bar -->
+          <!-- Pace bar — tight against the hero so they read as a single unit -->
           <tr>
-            <td class="content-pad" style="padding:34px 40px 0 40px;">
+            <td class="content-pad" style="padding:18px 40px 0 40px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="height:36px;background:#f6f4ec;border:1px solid #efece4;border-radius:8px;padding:0;position:relative;">
@@ -382,14 +392,15 @@ const handler = async (req: Request): Promise<Response> => {
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer — opt-out actions first (audit pass), dunning copy after -->
           <tr>
             <td style="background:#fbfaf6;border-top:1px solid #e7e5dd;padding:22px 40px;font-family:${sansStack};font-size:11.5px;color:#6e716c;line-height:1.6;">
-              Vous recevez cet email car les alertes budget sont actives pour <b style="color:#1f211f;font-weight:500;">${escapeHtml(data.categoryName)}</b>.
               <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">G&eacute;rer les notifications</a>
               &middot;
-              <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">D&eacute;sactiver pour cette cat&eacute;gorie</a><br>
-              Spending Tracker &middot; Une seule alerte par cat&eacute;gorie et par mois.
+              <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">D&eacute;sactiver pour ${escapeHtml(data.categoryName)}</a>
+              &middot;
+              <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">Se d&eacute;sinscrire</a><br>
+              Vous recevez cet email car les alertes budget sont actives pour <b style="color:#1f211f;font-weight:500;">${escapeHtml(data.categoryName)}</b>. Une seule alerte par cat&eacute;gorie et par mois &middot; Spending Tracker.
             </td>
           </tr>
 
@@ -400,7 +411,25 @@ const handler = async (req: Request): Promise<Response> => {
 </body>
 </html>`;
     } else if (type === 'monthly_report') {
-      subject = `Rapport mensuel \u2013 ${escapeHtml(data.period)}`;
+      // Cadence determines the subject line and a few copy bits in the
+      // footer. Defaults to monthly for back-compat with legacy callers
+      // that don't pass `cadence`.
+      const cadence: 'weekly' | 'monthly' | 'quarterly' =
+        data.cadence === 'weekly' ? 'weekly'
+        : data.cadence === 'quarterly' ? 'quarterly'
+        : 'monthly';
+      const cadenceLabel =
+        cadence === 'weekly' ? 'hebdomadaire'
+        : cadence === 'quarterly' ? 'trimestriel'
+        : 'mensuel';
+      subject = `Rapport ${cadenceLabel} \u2013 ${escapeHtml(data.period)}`;
+
+      // Section gate \u2014 opt-in list per user. Email blocks are rendered
+      // only when listed here. Defaults to the full set for back-compat
+      // (caller passes nothing \u2192 user sees everything, same as before).
+      const includes = (section: string): boolean =>
+        !Array.isArray(data.sections) || data.sections.length === 0 || data.sections.includes(section);
+
       const fontStack = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
       const income = escapeHtml(String(data.income));
       const expenses = escapeHtml(String(data.expenses));
@@ -416,10 +445,11 @@ const handler = async (req: Request): Promise<Response> => {
       const trendArrowUp = '&#9650;';
       const trendArrowDown = '&#9660;';
 
-      // Type/font setup for the redesigned body.
+      // Audit pass: dropped Fraunces serif + italic accent. Verdict
+      // headline now reads as Geist semibold so the figure is baseline-
+      // aligned to the surrounding text instead of visually floating.
       const sansStack = "'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
       const monoStack = "'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace";
-      const serifStack = "'Fraunces',Georgia,serif";
 
       // Category rows — bar table, refund-aware spent already netted upstream.
       const topCategories: any[] = data.topCategories || [];
@@ -483,10 +513,10 @@ const handler = async (req: Request): Promise<Response> => {
       let verdictHead: string;
       let verdictAccent: string;
       if (netAmount >= 0) {
-        verdictHead = `Vous avez mis de c&ocirc;t&eacute; <span style="color:#3a8a4d;font-style:italic;">${savedAbs}&nbsp;€.</span>`;
+        verdictHead = `Vous avez mis de c&ocirc;t&eacute; <span style="color:#3a8a4d;font-weight:600;">${savedAbs}&nbsp;€.</span>`;
         verdictAccent = '#3a8a4d';
       } else {
-        verdictHead = `Vous avez d&eacute;pens&eacute; <span style="color:#c83a2a;font-style:italic;">${savedAbs}&nbsp;€</span> de plus que vos revenus.`;
+        verdictHead = `Vous avez d&eacute;pens&eacute; <span style="color:#c83a2a;font-weight:600;">${savedAbs}&nbsp;€</span> de plus que vos revenus.`;
         verdictAccent = '#c83a2a';
       }
       const expenseChangeAbs = Math.abs(expenseChange);
@@ -501,7 +531,7 @@ const handler = async (req: Request): Promise<Response> => {
   <meta name="x-apple-disable-message-reformatting">
   <title>Rapport mensuel &ndash; ${escapeHtml(data.period)}</title>
   <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Fraunces:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     @media only screen and (max-width:620px) {
       .wrapper { width:100% !important; }
@@ -544,7 +574,7 @@ const handler = async (req: Request): Promise<Response> => {
               <div style="font-family:${monoStack};font-size:10.5px;color:#6e716c;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">
                 Bilan &middot; ${escapeHtml(data.period)}
               </div>
-              <h1 class="h1" style="font-family:${serifStack};font-weight:500;font-size:32px;letter-spacing:-0.02em;line-height:1.1;margin:0 0 10px 0;color:#0c0d0c;">
+              <h1 class="h1" style="font-family:${sansStack};font-weight:600;font-size:30px;letter-spacing:-0.025em;line-height:1.1;margin:0 0 10px 0;color:#0c0d0c;">
                 ${verdictHead}
               </h1>
               <p style="font-family:${sansStack};font-size:14.5px;color:#6e716c;line-height:1.55;margin:0;max-width:480px;">
@@ -553,34 +583,38 @@ const handler = async (req: Request): Promise<Response> => {
             </td>
           </tr>
 
-          <!-- Three-cell number row -->
+          ${includes('summary') ? `
+          <!-- Single delta strip (audit pass: replaces the 3-card grid).
+               Same data — income, expenses, net + deltas — in one tighter
+               horizontal row. Cells stack on mobile via the
+               .stat-table .stat-card { display:block } media rule. -->
           <tr>
-            <td class="content-pad" style="padding:28px 40px 0 40px;">
-              <table role="presentation" class="stat-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e7e5dd;border-radius:12px;overflow:hidden;background:#fff;">
+            <td class="content-pad" style="padding:24px 40px 0 40px;">
+              <table role="presentation" class="stat-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e7e5dd;border-radius:10px;overflow:hidden;background:#fff;">
                 <tr>
-                  <td class="stat-card" style="padding:18px 18px;border-right:1px solid #e7e5dd;vertical-align:top;width:33.33%;">
-                    <div style="font-family:${monoStack};font-size:10px;color:#6e716c;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;">Revenus</div>
-                    <div style="font-family:${monoStack};font-size:22px;font-weight:500;letter-spacing:-0.02em;color:#3a8a4d;line-height:1;">${income}&nbsp;€</div>
-                    ${incomeChange !== 0 ? `<div style="font-family:${monoStack};font-size:11.5px;margin-top:8px;color:${incomeChange >= 0 ? '#3a8a4d' : '#c83a2a'};">${incomeChange >= 0 ? '↑' : '↓'} ${incomeChangeAbs}%</div>` : `<div style="height:11.5px;margin-top:8px;"></div>`}
+                  <td class="stat-card" style="padding:12px 16px;border-right:1px solid #e7e5dd;vertical-align:top;width:33.33%;">
+                    <div style="font-family:${monoStack};font-size:9.5px;color:#6e716c;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px;font-weight:500;">Revenus</div>
+                    <div style="font-family:${monoStack};font-size:18px;font-weight:500;letter-spacing:-0.02em;color:#3a8a4d;line-height:1;">${income}&nbsp;€</div>
+                    <div style="font-family:${monoStack};font-size:11px;margin-top:6px;color:${incomeChange === 0 ? '#9a9c97' : incomeChange >= 0 ? '#3a8a4d' : '#c83a2a'};font-weight:500;">${incomeChange === 0 ? '—' : `${incomeChange >= 0 ? '↑' : '↓'} ${incomeChangeAbs}% vs mois pr&eacute;c.`}</div>
                   </td>
-                  <td class="stat-card" style="padding:18px 18px;border-right:1px solid #e7e5dd;vertical-align:top;width:33.33%;">
-                    <div style="font-family:${monoStack};font-size:10px;color:#6e716c;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;">D&eacute;penses</div>
-                    <div style="font-family:${monoStack};font-size:22px;font-weight:500;letter-spacing:-0.02em;color:#c83a2a;line-height:1;">${expenses}&nbsp;€</div>
-                    ${expenseChange !== 0 ? `<div style="font-family:${monoStack};font-size:11.5px;margin-top:8px;color:${expenseChange <= 0 ? '#3a8a4d' : '#c83a2a'};">${expenseChange >= 0 ? '↑' : '↓'} ${expenseChangeAbs}%</div>` : `<div style="height:11.5px;margin-top:8px;"></div>`}
+                  <td class="stat-card" style="padding:12px 16px;border-right:1px solid #e7e5dd;vertical-align:top;width:33.33%;">
+                    <div style="font-family:${monoStack};font-size:9.5px;color:#6e716c;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px;font-weight:500;">D&eacute;penses</div>
+                    <div style="font-family:${monoStack};font-size:18px;font-weight:500;letter-spacing:-0.02em;color:#c83a2a;line-height:1;">${expenses}&nbsp;€</div>
+                    <div style="font-family:${monoStack};font-size:11px;margin-top:6px;color:${expenseChange === 0 ? '#9a9c97' : expenseChange <= 0 ? '#3a8a4d' : '#c83a2a'};font-weight:500;">${expenseChange === 0 ? '—' : `${expenseChange >= 0 ? '↑' : '↓'} ${expenseChangeAbs}% vs mois pr&eacute;c.`}</div>
                   </td>
-                  <td class="stat-card" style="padding:18px 18px;vertical-align:top;width:33.33%;">
-                    <div style="font-family:${monoStack};font-size:10px;color:#6e716c;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;">Net</div>
-                    <div style="font-family:${monoStack};font-size:22px;font-weight:500;letter-spacing:-0.02em;color:${netColor};line-height:1;">${netSign}${Math.abs(net).toFixed(0)}&nbsp;€</div>
-                    <div style="font-family:${monoStack};font-size:11.5px;margin-top:8px;color:#6e716c;">&nbsp;</div>
+                  <td class="stat-card" style="padding:12px 16px;vertical-align:top;width:33.33%;">
+                    <div style="font-family:${monoStack};font-size:9.5px;color:#6e716c;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px;font-weight:500;">Net &middot; &eacute;pargne</div>
+                    <div style="font-family:${monoStack};font-size:18px;font-weight:500;letter-spacing:-0.02em;color:${netColor};line-height:1;">${netSign}${Math.abs(net).toFixed(0)}&nbsp;€</div>
+                    <div style="font-family:${monoStack};font-size:11px;margin-top:6px;color:#6e716c;font-weight:500;">${savingsRate ? `Taux ${savingsRate}%` : '&nbsp;'}</div>
                   </td>
                 </tr>
               </table>
             </td>
-          </tr>
+          </tr>` : ''}
 
-          ${breachHtml}
+          ${includes('budgets') ? breachHtml : ''}
 
-          ${topCategories.length > 0 ? `
+          ${includes('categories') && topCategories.length > 0 ? `
           <!-- Categories breakdown -->
           <tr>
             <td class="content-pad" style="padding:36px 40px 0 40px;">
@@ -596,7 +630,7 @@ const handler = async (req: Request): Promise<Response> => {
             </td>
           </tr>` : ''}
 
-          ${accountsList.length > 0 ? `
+          ${includes('accounts') && accountsList.length > 0 ? `
           <!-- Accounts -->
           <tr>
             <td class="content-pad" style="padding:36px 40px 0 40px;">
@@ -619,25 +653,20 @@ const handler = async (req: Request): Promise<Response> => {
             </td>
           </tr>
 
-          <!-- Optional PDF mention -->
-          ${pdfBase64 ? `
-          <tr>
-            <td class="content-pad" style="padding:24px 40px 0 40px;">
-              <div style="font-family:${sansStack};font-size:13px;color:#6e716c;line-height:1.6;">
-                Le rapport complet est joint en pi&egrave;ce jointe (PDF).
-              </div>
-            </td>
-          </tr>` : ''}
-
-          <!-- Footer -->
+          <!-- Footer — audit pass: PDF mention folded into the footer
+               line (it's an attachment, not an action), opt-out actions
+               first, dunning copy after. -->
           <tr>
             <td style="padding-top:32px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="background:#fbfaf6;border-top:1px solid #e7e5dd;padding:22px 40px;font-family:${sansStack};font-size:11.5px;color:#6e716c;line-height:1.6;">
-                    Vous recevez cet email car les rapports mensuels sont activ&eacute;s.
-                    <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">G&eacute;rer les notifications</a>.<br>
-                    Spending Tracker.
+                    <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">G&eacute;rer les notifications</a>
+                    &middot;
+                    <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">Changer la cadence</a>
+                    &middot;
+                    <a href="#" style="color:#1f211f;text-decoration:underline;text-decoration-color:#e7e5dd;">Se d&eacute;sinscrire</a><br>
+                    Vous recevez cet email car les rapports ${cadenceLabel}s sont activ&eacute;s.${pdfBase64 ? ' Rapport PDF en pi&egrave;ce jointe.' : ''} ${cadence === 'weekly' ? 'Envoy&eacute; chaque lundi' : cadence === 'quarterly' ? 'Envoy&eacute; chaque d&eacute;but de trimestre' : 'Envoy&eacute; le 1er de chaque mois'} &middot; Spending Tracker.
                   </td>
                 </tr>
               </table>

@@ -114,7 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
           // expense should not count toward the budget.
           const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
-            .select('amount, refunded_amount, transaction_date, value_date, description')
+            .select('amount, refunded_amount, transaction_date, value_date, description, recurring_transaction_id, installment_payment_id')
             .eq('user_id', userPref.user_id)
             .eq('category_id', category.id)
             .eq('type', 'expense')
@@ -189,7 +189,12 @@ const handler = async (req: Request): Promise<Response> => {
                       .map(t => ({
                         date: dateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
                         description: t.description,
-                        amount: netOf(t).toFixed(2)
+                        amount: netOf(t).toFixed(2),
+                        // Recurring vs. one-off tag — helps the user scan
+                        // drivers without opening each one. Set only when
+                        // the transaction is linked to a recurring schedule
+                        // or an installment plan (both behave as repeats).
+                        tag: ((t as any).recurring_transaction_id || (t as any).installment_payment_id) ? 'Récurrent' : undefined,
                       }))
                   }
                 })

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-// Heavy export libs (jspdf, jspdf-autotable, html2canvas, xlsx) are loaded
+// Heavy export libs (jspdf, jspdf-autotable, xlsx) are loaded
 // dynamically inside the export handlers to keep them out of the initial bundle.
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
@@ -42,14 +42,9 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dateUtils";
-import {
-  CategoryPieChart,
-  BalanceEvolutionChart,
-  IncomeExpensesChart,
-  BudgetProgressChart,
-  SummaryCards,
-  TopCategoriesChart
-} from "@/components/reports/ReportCharts";
+// Phase 2: ReportCharts (Recharts components) are no longer captured
+// into the PDF — every chart is drawn natively via jsPDF. Imports
+// removed to keep the bundle slim.
 
 interface ReportWizardProps {
   open: boolean;
@@ -93,6 +88,100 @@ const SECTION_INFO: Record<
 
 const DEFAULT_SECTIONS: ReportSection[] = ['summary', 'accounts', 'transactions', 'categories'];
 
+/* ──────────────────────────────────────────────────────────────────
+ * PAGE MODEL (v2 wizard, statement-style)
+ *
+ * The new wizard surfaces report output as an *ordered list of named
+ * pages*, not abstract sections. The page list is the source of truth
+ * for the user; behind the scenes we still translate selected pages
+ * into the legacy ReportSection enum so the existing PDF / Excel
+ * generators keep working (Phase 1 = UI only).
+ *
+ * Cover and Contents are document chrome — they don't map to a
+ * ReportSection; the PDF renderer already emits a title page and
+ * the contents page is a Phase 2 deliverable. Cover is REQUIRED;
+ * Contents is toggleable but enabled by default.
+ * ────────────────────────────────────────────────────────────────── */
+
+type PageId =
+  | 'cover'
+  | 'contents'
+  | 'summary'
+  | 'cashflow'
+  | 'categories'
+  | 'budgets'
+  | 'accounts'
+  | 'income'
+  | 'recurring'
+  | 'transactions';
+
+interface PageEntry {
+  id: PageId;
+  enabled: boolean;
+}
+
+/** Translate a page id into the legacy ReportSection key. Cover and
+ *  Contents return null — they're chrome, not data sections. */
+const PAGE_TO_SECTION: Record<PageId, ReportSection | null> = {
+  cover: null,
+  contents: null,
+  summary: 'summary',
+  cashflow: 'evolution',
+  categories: 'categories',
+  budgets: 'budgets',
+  accounts: 'accounts',
+  income: 'income',
+  recurring: 'recurring',
+  transactions: 'transactions',
+};
+
+interface PageDef {
+  /** Display number shown in the rail (e.g. "01", "10+"). */
+  num: string;
+  /** i18n key + default for the page title. */
+  labelKey: string;
+  labelDefault: string;
+  /** i18n key + default for the small caption ("1 page · 14 categories"). */
+  metaKey: string;
+  metaDefault: string;
+  /** Cover is always on. */
+  required?: boolean;
+  /** Multi-page (ledger): hint shown in meta. */
+  multiPage?: boolean;
+}
+
+const PAGE_DEFS: Record<PageId, PageDef> = {
+  cover:        { num: '01',  labelKey: 'reports.page.cover.label',        labelDefault: 'Cover & key figures',          metaKey: 'reports.page.cover.meta',        metaDefault: '1 page · auto-generated', required: true },
+  contents:     { num: '02',  labelKey: 'reports.page.contents.label',     labelDefault: 'Contents',                     metaKey: 'reports.page.contents.meta',     metaDefault: '1 page · navigable in PDF' },
+  summary:      { num: '03',  labelKey: 'reports.page.summary.label',      labelDefault: 'Executive summary',            metaKey: 'reports.page.summary.meta',      metaDefault: '1 page · KPIs + verdict' },
+  cashflow:     { num: '04',  labelKey: 'reports.page.cashflow.label',     labelDefault: 'Cash flow',                    metaKey: 'reports.page.cashflow.meta',     metaDefault: '1 page · daily in / out' },
+  categories:   { num: '05',  labelKey: 'reports.page.categories.label',   labelDefault: 'By category',                  metaKey: 'reports.page.categories.meta',   metaDefault: '1 page · all categories' },
+  budgets:      { num: '06',  labelKey: 'reports.page.budgets.label',      labelDefault: 'Budgets vs actual',            metaKey: 'reports.page.budgets.meta',      metaDefault: '1 page · breaches highlighted' },
+  accounts:     { num: '07',  labelKey: 'reports.page.accounts.label',     labelDefault: 'Accounts',                     metaKey: 'reports.page.accounts.meta',     metaDefault: '1 page · per-account flow' },
+  income:       { num: '08',  labelKey: 'reports.page.income.label',       labelDefault: 'Income sources',               metaKey: 'reports.page.income.meta',       metaDefault: '1 page · breakdown' },
+  recurring:    { num: '09',  labelKey: 'reports.page.recurring.label',    labelDefault: 'Recurring & subscriptions',    metaKey: 'reports.page.recurring.meta',    metaDefault: '1 page · active subs' },
+  transactions: { num: '10+', labelKey: 'reports.page.transactions.label', labelDefault: 'Transactions ledger',          metaKey: 'reports.page.transactions.meta', metaDefault: 'multi-page ledger', multiPage: true },
+};
+
+/** Default ordering matches the statement flow specified in the v2
+ *  design: chrome → summary → flow → category drilldown → budget →
+ *  accounts → income → recurring → ledger. */
+const DEFAULT_PAGE_ORDER: PageId[] = [
+  'cover', 'contents', 'summary', 'cashflow', 'categories',
+  'budgets', 'accounts', 'income', 'recurring', 'transactions',
+];
+
+type PresetId = 'standard' | 'detailed' | 'taxReady' | 'receipts';
+
+/** Each preset is the set of pages that should be ON when picked.
+ *  Cover is always included since it's required. */
+const PRESETS: Record<PresetId, PageId[]> = {
+  standard: ['cover', 'contents', 'summary', 'categories', 'accounts', 'transactions'],
+  detailed: ['cover', 'contents', 'summary', 'cashflow', 'categories', 'budgets', 'accounts', 'income', 'recurring', 'transactions'],
+  taxReady: ['cover', 'contents', 'summary', 'income', 'transactions'],
+  receipts: ['cover', 'transactions'],
+};
+
 export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const { t, i18n } = useTranslation();
   const isMobile = useIsMobile();
@@ -113,17 +202,89 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     groupByAccount: false,
   });
 
+  // ── PAGE-BASED MODEL (v2) ─────────────────────────────────────────
+  // Source of truth for the new wizard. We mirror this into
+  // config.sections via the effect below so the existing PDF / Excel
+  // generators (which read config.sections) keep working unchanged.
+  const [pages, setPages] = useState<PageEntry[]>(() =>
+    DEFAULT_PAGE_ORDER.map((id) => ({
+      id,
+      // Standard preset by default — matches what most users want for a
+      // monthly statement: chrome + summary + categories + accounts + ledger.
+      enabled: PRESETS.standard.includes(id),
+    }))
+  );
+  const [activePreset, setActivePreset] = useState<PresetId | 'custom'>('standard');
+  const [draggingId, setDraggingId] = useState<PageId | null>(null);
+  const [hoverId, setHoverId] = useState<PageId | null>(null);
+
+  // Keep config.sections in sync with the page selection so the legacy
+  // generators (which still read config.sections) stay correct without
+  // rewrites. Phase 2 will replace those generators with page-aware
+  // renderers and this bridge will go away.
+  useEffect(() => {
+    const next = pages
+      .filter((p) => p.enabled)
+      .map((p) => PAGE_TO_SECTION[p.id])
+      .filter((s): s is ReportSection => s !== null);
+    setConfig((prev) =>
+      JSON.stringify(prev.sections) === JSON.stringify(next) ? prev : { ...prev, sections: next }
+    );
+  }, [pages]);
+
+  const enabledPageCount = pages.filter((p) => p.enabled).length;
+  const totalToggleablePages = pages.filter((p) => !PAGE_DEFS[p.id].required).length;
+
+  const togglePage = useCallback((id: PageId) => {
+    if (PAGE_DEFS[id].required) return;
+    setPages((prev) => prev.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)));
+    setActivePreset('custom');
+  }, []);
+
+  const applyPreset = useCallback((preset: PresetId) => {
+    const target = new Set(PRESETS[preset]);
+    setPages((prev) =>
+      // Re-order so preset pages appear in their default order at top of
+      // the rail, then the disabled rest in their default order too.
+      DEFAULT_PAGE_ORDER.map((id) => ({
+        id,
+        enabled: target.has(id) || PAGE_DEFS[id].required,
+      }))
+    );
+    setActivePreset(preset);
+  }, []);
+
+  const movePage = useCallback((sourceId: PageId, targetId: PageId) => {
+    if (sourceId === targetId) return;
+    if (PAGE_DEFS[sourceId].required || PAGE_DEFS[targetId].required) return;
+    setPages((prev) => {
+      const src = prev.findIndex((p) => p.id === sourceId);
+      const dst = prev.findIndex((p) => p.id === targetId);
+      if (src === -1 || dst === -1) return prev;
+      const copy = prev.slice();
+      const [item] = copy.splice(src, 1);
+      copy.splice(dst, 0, item);
+      return copy;
+    });
+    setActivePreset('custom');
+  }, []);
+
+  const selectAllPages = useCallback(() => {
+    setPages((prev) => prev.map((p) => ({ ...p, enabled: true })));
+    setActivePreset('custom');
+  }, []);
+  const selectNonePages = useCallback(() => {
+    setPages((prev) => prev.map((p) => ({ ...p, enabled: !!PAGE_DEFS[p.id].required })));
+    setActivePreset('custom');
+  }, []);
+  const resetDefaultPages = useCallback(() => applyPreset('standard'), [applyPreset]);
+
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
 
   // Chart refs for PDF export
-  const summaryChartRef = useRef<HTMLDivElement>(null);
-  const categoryPieRef = useRef<HTMLDivElement>(null);
-  const evolutionChartRef = useRef<HTMLDivElement>(null);
-  const incomeExpenseRef = useRef<HTMLDivElement>(null);
-  const budgetChartRef = useRef<HTMLDivElement>(null);
-  const topCategoriesRef = useRef<HTMLDivElement>(null);
-  const [chartsReady, setChartsReady] = useState(false);
+  // Phase 2 renders every chart natively via jsPDF; the off-screen
+  // Recharts capture pipeline has been removed.
 
   // Calculate actual date range based on period type
   const actualDates = useMemo(() => {
@@ -199,30 +360,6 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     });
   }, [actualDates, filteredTransactions, stats.initialBalance, config.dateType, locale]);
 
-  // Budget data for charts
-  const budgetChartData = useMemo(() => {
-    return categoryChartData
-      .filter(c => c.budget > 0)
-      .map(c => ({
-        name: c.name,
-        spent: c.spent,
-        budget: c.budget,
-        color: c.color || '#3B82F6'
-      }));
-  }, [categoryChartData]);
-
-  // Category data for pie chart
-  const categoryPieData = useMemo(() => {
-    return categoryChartData
-      .filter(c => c.spent > 0)
-      .sort((a, b) => b.spent - a.spent)
-      .map(c => ({
-        name: c.name,
-        spent: c.spent,
-        color: c.color || '#3B82F6'
-      }));
-  }, [categoryChartData]);
-
   const toggleSection = (section: ReportSection) => {
     setConfig(prev => ({
       ...prev,
@@ -250,541 +387,969 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     }
   };
 
-  // PDF Generation with Charts
+  /* ──────────────────────────────────────────────────────────────────
+   * PDF GENERATION — statement-style, page-driven
+   *
+   * Each enabled page is laid out from scratch with portrait A4 chrome
+   * (logo + period + page no top, brand + ref + page no bottom, plus a
+   * heavy bottom-rule strip showing the section's headline figure).
+   *
+   * Fonts: jsPDF's built-in Helvetica (Geist substitute) and Courier
+   * (Geist Mono substitute). Embedding Geist would add ~250 KB to the
+   * bundle; the substitutes are visually close enough for a statement
+   * document and ship for free.
+   * ────────────────────────────────────────────────────────────────── */
   const generatePDF = async () => {
-    const [{ default: jsPDF }, { default: autoTable }, { default: html2canvas }] = await Promise.all([
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'),
       import('jspdf-autotable'),
-      import('html2canvas'),
     ]);
 
-    const captureChartAsImage = async (ref: React.RefObject<HTMLDivElement>): Promise<string | null> => {
-      if (!ref.current) return null;
-      try {
-        const canvas = await html2canvas(ref.current, {
-          scale: 2,
-          backgroundColor: 'transparent',
-          logging: false,
-          useCORS: true,
-        });
-        return canvas.toDataURL('image/png');
-      } catch (error) {
-        console.error('Error capturing chart:', error);
-        return null;
-      }
-    };
-
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 18;
-    let yPos = 20;
+    const PW = pdf.internal.pageSize.getWidth();   // 210
+    const PH = pdf.internal.pageSize.getHeight();  // 297
+    const MARGIN_X = 16;
+    const TOP_Y = 16;
+    const FOOT_Y = PH - 12;
+    const STRIP_Y = PH - 22;
+    const BODY_TOP = 30;
+    const BODY_BOTTOM = STRIP_Y - 6;
+    const COL = PW - 2 * MARGIN_X;
 
-    // Design tokens — mirrors the redesign's :root colour set so on-demand
-    // PDFs match the email + monthly PDF visual vocabulary.
-    const ink: [number, number, number] = [12, 13, 12];        // #0c0d0c
-    const ink2: [number, number, number] = [31, 33, 31];       // #1f211f
-    const mute: [number, number, number] = [110, 113, 108];    // #6e716c
-    const mute2: [number, number, number] = [154, 156, 151];   // #9a9c97
-    const lineCol: [number, number, number] = [231, 229, 221]; // #e7e5dd
-    const negCol: [number, number, number] = [200, 58, 42];    // ≈ neg
-    const posCol: [number, number, number] = [44, 138, 74];    // ≈ pos
+    type RGB = [number, number, number];
+    const ink: RGB = [12, 13, 12];
+    const ink2: RGB = [31, 33, 31];
+    const ink3: RGB = [60, 62, 58];
+    const mute: RGB = [110, 113, 108];
+    const mute2: RGB = [154, 156, 151];
+    const mute3: RGB = [198, 197, 189];
+    const lineCol: RGB = [231, 229, 221];
+    const line2Col: RGB = [239, 236, 228];
+    const pos: RGB = [44, 138, 91];
+    const neg: RGB = [200, 58, 42];
+    const negSoft: RGB = [248, 232, 229];
 
-    const addPageIfNeeded = (requiredSpace: number) => {
-      if (yPos + requiredSpace > pageHeight - 25) {
-        pdf.addPage();
-        yPos = 22;
-        return true;
-      }
-      return false;
+    const setText = (c: RGB) => pdf.setTextColor(c[0], c[1], c[2]);
+    const setFill = (c: RGB) => pdf.setFillColor(c[0], c[1], c[2]);
+    const setDraw = (c: RGB) => pdf.setDrawColor(c[0], c[1], c[2]);
+    const sans = (size: number, weight: 'normal' | 'bold' = 'normal') => {
+      pdf.setFont('helvetica', weight);
+      pdf.setFontSize(size);
+    };
+    const mono = (size: number, weight: 'normal' | 'bold' = 'normal') => {
+      pdf.setFont('courier', weight);
+      pdf.setFontSize(size);
     };
 
-    const formatAmount = (value: number) => {
-      return new Intl.NumberFormat('fr-FR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(value) + ' EUR';
-    };
+    const fmt = (n: number) => formatCurrency(n).replace(/\s/g, ' ');
+    const fmtSigned = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 
-    /** Statement-style section header — eyebrow + serif title + thin rule. */
-    const drawSectionHeader = (eyebrow: string, title: string) => {
-      pdf.setFont('courier', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(...mute);
-      pdf.text(eyebrow.toUpperCase(), margin, yPos);
-      yPos += 7;
-      pdf.setFont('times', 'normal');
-      pdf.setFontSize(20);
-      pdf.setTextColor(...ink);
-      pdf.text(title, margin, yPos);
-      yPos += 4;
-      pdf.setDrawColor(...lineCol);
-      pdf.setLineWidth(0.2);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 8;
-    };
+    const generatedAt = new Date();
+    const reference = `ST-${format(actualDates.start, 'yyyy-MM-dd')}`;
+    const periodCompact = `${format(actualDates.start, 'd MMM', { locale })} → ${format(
+      actualDates.end, 'd MMM yyyy', { locale }
+    )}`;
 
-    const addFooter = () => {
-      pdf.setDrawColor(...lineCol);
-      pdf.setLineWidth(0.2);
-      pdf.line(margin, pageHeight - 18, pageWidth - margin, pageHeight - 18);
-      pdf.setFont('courier', 'normal');
-      pdf.setFontSize(7);
-      pdf.setTextColor(...mute2);
-      pdf.text('SPENDING TRACKER · ON DEMAND', margin, pageHeight - 11);
+    // ── Chrome helpers ─────────────────────────────────────────────
+    const drawTopChrome = (pageNum: number, totalPages: number) => {
+      setFill(ink);
+      pdf.rect(MARGIN_X, TOP_Y - 4, 3.5, 3.5, 'F');
+      sans(8.5, 'bold');
+      setText(ink2);
+      pdf.text('Spending Tracker · Financial report', MARGIN_X + 5, TOP_Y - 1);
+      mono(7);
+      setText(mute);
+      pdf.text(format(actualDates.start, 'MMMM yyyy', { locale }).toUpperCase(), PW - MARGIN_X, TOP_Y - 5, { align: 'right' });
+      pdf.text(`REF · ${reference}`, PW - MARGIN_X, TOP_Y - 1, { align: 'right' });
+      mono(7, 'bold');
+      setText(ink2);
       pdf.text(
-        String(pdf.getCurrentPageInfo().pageNumber).padStart(2, '0'),
-        pageWidth - margin, pageHeight - 11, { align: 'right' },
+        `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
+        PW - MARGIN_X, TOP_Y + 3, { align: 'right' }
+      );
+      setDraw(lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(MARGIN_X, TOP_Y + 6, PW - MARGIN_X, TOP_Y + 6);
+    };
+
+    const drawBottomChrome = (pageNum: number, totalPages: number) => {
+      setDraw(lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(MARGIN_X, FOOT_Y - 6, PW - MARGIN_X, FOOT_Y - 6);
+      mono(7);
+      setText(mute);
+      pdf.text(
+        `SPENDING TRACKER · FINANCIAL REPORT · ${format(generatedAt, 'd MMM yyyy', { locale }).toUpperCase()}`,
+        MARGIN_X, FOOT_Y - 1
+      );
+      pdf.text(
+        `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
+        PW - MARGIN_X, FOOT_Y - 1, { align: 'right' }
       );
     };
 
-    // ======= COVER PAGE — magazine-style, off-white paper =======
-    // Off-white canvas
-    pdf.setFillColor(245, 244, 240);
-    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+    const drawBottomStrip = (label: string, value: string, valueColor: RGB = ink) => {
+      setDraw(ink);
+      pdf.setLineWidth(0.7);
+      pdf.line(MARGIN_X, STRIP_Y - 6, PW - MARGIN_X, STRIP_Y - 6);
+      mono(8, 'bold');
+      setText(ink2);
+      pdf.text(label.toUpperCase(), MARGIN_X, STRIP_Y);
+      mono(14, 'bold');
+      setText(valueColor);
+      pdf.text(value, PW - MARGIN_X, STRIP_Y, { align: 'right' });
+    };
 
-    // Top brand row — small ink square + "Spending Tracker" + "ON DEMAND" tag.
-    pdf.setFillColor(...ink);
-    pdf.rect(margin, 22, 6, 6, 'F');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.setTextColor(...ink2);
-    pdf.text('Spending Tracker', margin + 9, 27);
-    pdf.setFont('courier', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(...mute);
-    pdf.text('RAPPORT À LA DEMANDE', pageWidth - margin, 27, { align: 'right' });
-
-    // Mid-page hairline ~ 52% down (matches the redesign's cover composition).
-    pdf.setDrawColor(...lineCol);
-    pdf.setLineWidth(0.2);
-    pdf.line(margin, pageHeight * 0.48, pageWidth - margin, pageHeight * 0.48);
-
-    // Eyebrow above the title
-    pdf.setFont('courier', 'normal');
-    pdf.setFontSize(10);
-    pdf.setTextColor(...mute);
-    pdf.text('Rapport financier', margin, pageHeight * 0.45);
-
-    // Magazine-style serif title — period range as the headline.
-    pdf.setFont('times', 'normal');
-    pdf.setFontSize(36);
-    pdf.setTextColor(...ink);
-    const periodTitle = `${format(actualDates.start, 'd MMM', { locale })} — ${format(actualDates.end, 'd MMM yyyy', { locale })}`;
-    pdf.text(periodTitle, margin, pageHeight * 0.40);
-
-    // Verdict subline (italic serif)
-    pdf.setFont('times', 'italic');
-    pdf.setFontSize(13);
-    pdf.setTextColor(...mute);
-    const verdictNet = stats.netPeriodBalance;
-    const verdictLine = verdictNet >= 0
-      ? `Vous avez mis de cote ${formatAmount(Math.abs(verdictNet))}.`
-      : `Solde de la periode : ${formatAmount(verdictNet)}.`;
-    pdf.text(verdictLine, margin, pageHeight * 0.40 + 8);
-
-    // Bottom hairline + meta row (date, transactions, sections).
-    pdf.setDrawColor(...lineCol);
-    pdf.line(margin, pageHeight - 35, pageWidth - margin, pageHeight - 35);
-    pdf.setFont('courier', 'normal');
-    pdf.setFontSize(7);
-    pdf.setTextColor(...mute2);
-    pdf.text('GENERE', margin, pageHeight - 28);
-    pdf.text('TRANSACTIONS', margin + 60, pageHeight - 28);
-    pdf.text('SECTIONS', margin + 110, pageHeight - 28);
-    pdf.setFontSize(10);
-    pdf.setTextColor(...ink2);
-    pdf.text(format(new Date(), 'd MMMM yyyy', { locale }), margin, pageHeight - 22);
-    pdf.setFont('courier', 'bold');
-    pdf.text(String(filteredTransactions.length), margin + 60, pageHeight - 22);
-    pdf.text(String(config.sections.length), margin + 110, pageHeight - 22);
-
-    pdf.addPage();
-    yPos = 22;
-    pdf.setTextColor(0, 0, 0);
-
-    // ======= SUMMARY SECTION WITH CHARTS =======
-    if (config.sections.includes('summary') && config.includeCharts) {
-      // Capture summary cards chart
-      const summaryImg = await captureChartAsImage(summaryChartRef);
-      if (summaryImg) {
-        const imgWidth = 160;
-        const imgHeight = 60;
-        pdf.addImage(summaryImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-        yPos += imgHeight + 10;
+    const drawPageTitle = (
+      eyebrow: string, title: string,
+      rightPrimary?: string, rightSecondary?: string
+    ): number => {
+      const y = BODY_TOP;
+      mono(7.5);
+      setText(mute);
+      pdf.text(eyebrow.toUpperCase(), MARGIN_X, y);
+      sans(15, 'bold');
+      setText(ink);
+      pdf.text(title, MARGIN_X, y + 6);
+      if (rightPrimary) {
+        mono(7);
+        setText(mute);
+        pdf.text(rightPrimary, PW - MARGIN_X, y, { align: 'right' });
       }
-
-      // Capture income vs expenses chart
-      const incExpImg = await captureChartAsImage(incomeExpenseRef);
-      if (incExpImg) {
-        addPageIfNeeded(90);
-        const imgWidth = 120;
-        const imgHeight = 85;
-        pdf.addImage(incExpImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-        yPos += imgHeight + 15;
+      if (rightSecondary) {
+        mono(7, 'bold');
+        setText(ink2);
+        pdf.text(rightSecondary, PW - MARGIN_X, y + 5, { align: 'right' });
       }
-    } else if (config.sections.includes('summary')) {
-      drawSectionHeader('01 · Synthese', 'Bilan de la periode');
+      setDraw(ink);
+      pdf.setLineWidth(0.4);
+      pdf.line(MARGIN_X, y + 9, PW - MARGIN_X, y + 9);
+      return y + 14;
+    };
 
-      const summaryData = [
-        ['Revenus', formatAmount(stats.income), 'pos'],
-        ['Depenses', formatAmount(stats.expenses), 'neg'],
-        ['Solde net', formatAmount(stats.netPeriodBalance), stats.netPeriodBalance >= 0 ? 'pos' : 'neg'],
-        ['Solde initial', formatAmount(stats.initialBalance), 'mute'],
-        ['Solde final', formatAmount(stats.finalBalance), 'mute'],
+    const drawSectionEyebrow = (label: string, meta: string | undefined, y: number): number => {
+      mono(7.5, 'bold');
+      setText(ink);
+      pdf.text(label.toUpperCase(), MARGIN_X, y);
+      if (meta) {
+        mono(7);
+        setText(mute);
+        pdf.text(meta, PW - MARGIN_X, y, { align: 'right' });
+      }
+      setDraw(lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+      return y + 6;
+    };
+
+    const drawKpiBand = (
+      y: number, height: number,
+      cells: { label: string; value: string; valueColor?: RGB; delta?: string; deltaColor?: RGB }[]
+    ) => {
+      const cellW = COL / cells.length;
+      setDraw(lineCol);
+      pdf.setLineWidth(0.3);
+      pdf.rect(MARGIN_X, y, COL, height, 'S');
+      cells.forEach((c, i) => {
+        const x = MARGIN_X + i * cellW;
+        if (i > 0) pdf.line(x, y, x, y + height);
+        mono(6.5, 'bold');
+        setText(mute);
+        pdf.text(c.label.toUpperCase(), x + 3, y + 4);
+        mono(12, 'bold');
+        setText(c.valueColor ?? ink);
+        pdf.text(c.value, x + 3, y + 10);
+        if (c.delta) {
+          mono(7);
+          setText(c.deltaColor ?? mute);
+          pdf.text(c.delta, x + 3, y + height - 2);
+        }
+      });
+    };
+
+    const drawProgressBar = (
+      x: number, y: number, w: number, h: number,
+      fraction: number, over: boolean, color?: RGB
+    ) => {
+      setFill(line2Col);
+      pdf.roundedRect(x, y, w, h, 0.6, 0.6, 'F');
+      const clamped = Math.max(0, Math.min(1, fraction));
+      if (clamped > 0) {
+        setFill(over ? neg : (color ?? ink));
+        pdf.roundedRect(x, y, w * clamped, h, 0.6, 0.6, 'F');
+      }
+    };
+
+    // Donut drawn as many small filled quads forming each ring segment.
+    const drawDonut = (
+      cx: number, cy: number, rOuter: number, rInner: number,
+      segments: { value: number; color: RGB }[]
+    ) => {
+      const total = segments.reduce((a, b) => a + b.value, 0) || 1;
+      let angle = -Math.PI / 2;
+      const STEPS_PER_RAD = 24;
+      segments.forEach((seg) => {
+        const sweep = (seg.value / total) * Math.PI * 2;
+        const steps = Math.max(2, Math.ceil(Math.abs(sweep) * STEPS_PER_RAD));
+        const stepAngle = sweep / steps;
+        setFill(seg.color);
+        for (let i = 0; i < steps; i++) {
+          const a0 = angle + i * stepAngle;
+          const a1 = angle + (i + 1) * stepAngle;
+          const o0x = cx + Math.cos(a0) * rOuter, o0y = cy + Math.sin(a0) * rOuter;
+          const o1x = cx + Math.cos(a1) * rOuter, o1y = cy + Math.sin(a1) * rOuter;
+          const i1x = cx + Math.cos(a1) * rInner, i1y = cy + Math.sin(a1) * rInner;
+          const i0x = cx + Math.cos(a0) * rInner, i0y = cy + Math.sin(a0) * rInner;
+          pdf.lines(
+            [[o1x - o0x, o1y - o0y], [i1x - o1x, i1y - o1y], [i0x - i1x, i0y - i1y], [o0x - i0x, o0y - i0y]],
+            o0x, o0y, [1, 1], 'F'
+          );
+        }
+        angle += sweep;
+      });
+      pdf.setFillColor(255, 255, 255);
+      pdf.circle(cx, cy, rInner, 'F');
+    };
+
+    const drawSparkline = (
+      x: number, y: number, w: number, h: number,
+      points: number[], color: RGB = ink
+    ) => {
+      if (points.length === 0) return;
+      const min = Math.min(...points);
+      const max = Math.max(...points);
+      const range = max - min || 1;
+      const toX = (i: number) => x + (i / Math.max(1, points.length - 1)) * w;
+      const toY = (v: number) => y + h - ((v - min) / range) * h;
+      setDraw(lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(x, y + h, x + w, y + h);
+      setDraw(color);
+      pdf.setLineWidth(0.4);
+      for (let i = 0; i < points.length - 1; i++) {
+        pdf.line(toX(i), toY(points[i]), toX(i + 1), toY(points[i + 1]));
+      }
+    };
+
+    // ── Data prep ──────────────────────────────────────────────────
+    const totalIncome = stats.income;
+    const totalExpenses = stats.expenses;
+    const netResult = stats.netPeriodBalance;
+    const balanceEnd = stats.finalBalance;
+
+    const expenseCats = categoryChartData
+      .filter((c) => c.spent > 0)
+      .map((c) => ({ ...c, spent: Number(c.spent), budget: Number(c.budget) || 0 }))
+      .sort((a, b) => b.spent - a.spent);
+    const totalCatSpent = expenseCats.reduce((s, c) => s + c.spent, 0);
+    const top6Cats = expenseCats.slice(0, 6);
+
+    const budgetedCats = expenseCats.filter((c) => c.budget > 0);
+    const breachedCats = budgetedCats.filter((c) => c.spent > c.budget);
+
+    const accountFlows = accounts.map((acc) => {
+      const accTx = filteredTransactions.filter((t) => t.account_id === acc.id);
+      const inflow = accTx.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+      const outflow = accTx.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+      return { name: acc.name, bank: acc.bank, balance: Number(acc.balance), inflow, outflow, count: accTx.length };
+    });
+
+    const incomeCats = incomeAnalysis.slice().sort((a, b) => b.totalAmount - a.totalAmount);
+    const activeRecurring = recurringData.periodItems.slice().sort((a, b) => b.periodAmount - a.periodAmount);
+    const sparkPoints = evolutionChartData.map((d) => d.balance);
+
+    const orderedEnabledPages: PageId[] = pages.filter((p) => p.enabled).map((p) => p.id);
+    const txPerPage = 32;
+    const ledgerPageCount = orderedEnabledPages.includes('transactions')
+      ? Math.max(1, Math.ceil(filteredTransactions.length / txPerPage))
+      : 0;
+    const totalPagesEstimate = orderedEnabledPages.length - (ledgerPageCount > 0 ? 1 : 0) + ledgerPageCount;
+
+    let pageIdx = 0;
+    const newPage = () => {
+      if (pageIdx > 0) pdf.addPage();
+      pageIdx++;
+    };
+
+    // ── Page renderers ─────────────────────────────────────────────
+    const renderCover = () => {
+      newPage();
+      setFill(ink);
+      pdf.rect(MARGIN_X, 24, 5, 5, 'F');
+      sans(11, 'bold');
+      setText(ink2);
+      pdf.text('Spending Tracker', MARGIN_X + 7, 28);
+      mono(8, 'bold');
+      setText(ink2);
+      pdf.text('FINANCIAL REPORT', PW - MARGIN_X, 24, { align: 'right' });
+      mono(7);
+      setText(mute);
+      pdf.text(`REF · ${reference}`, PW - MARGIN_X, 28, { align: 'right' });
+      pdf.text(`1 OF ${totalPagesEstimate}`, PW - MARGIN_X, 32, { align: 'right' });
+
+      mono(8, 'bold');
+      setText(mute);
+      pdf.text('ON-DEMAND REPORT · PERIOD', MARGIN_X, 100);
+
+      sans(36, 'bold');
+      setText(ink);
+      const titleText = format(actualDates.start, 'MMMM yyyy', { locale });
+      pdf.text(titleText.charAt(0).toUpperCase() + titleText.slice(1), MARGIN_X, 118);
+
+      sans(11);
+      setText(ink3);
+      const days = Math.max(1, Math.round((actualDates.end.getTime() - actualDates.start.getTime()) / 86400000));
+      const subtitle = `A ${days}-day statement of income, expenses and balances across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}. Compiled ${format(generatedAt, 'd MMM yyyy', { locale })}, for your records.`;
+      const subtitleLines = pdf.splitTextToSize(subtitle, COL * 0.55);
+      pdf.text(subtitleLines, MARGIN_X, 128);
+
+      const holderName = (
+        // Pull display name from auth metadata when available.
+        // We don't have user in scope here — leave a sensible placeholder.
+        '—'
+      );
+      const holderY = 152;
+      const labels: [string, string][] = [
+        ['HOLDER', holderName],
+        ['PERIOD', `${periodCompact} · ${days} days`],
+        ['BASIS', `${config.dateType === 'value' ? 'Value' : 'Accounting'} date · EUR`],
+        ['REFERENCE', reference],
       ];
-
-      autoTable(pdf, {
-        startY: yPos,
-        head: [['Indicateur', 'Montant']],
-        body: summaryData.map(([label, value]) => [label, value]),
-        theme: 'plain',
-        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-        styles: { fontSize: 11, cellPadding: 5, lineColor: lineCol, lineWidth: 0 },
-        columnStyles: {
-          0: { cellWidth: 90 },
-          1: { halign: 'right', cellWidth: 80, font: 'courier', fontStyle: 'bold' },
-        },
-        margin: { left: margin, right: margin },
-        didParseCell: (data: any) => {
-          if (data.section === 'body') {
-            // Hairline bottom border per row (object form only set per-cell —
-            // autoTable v5 ignores the object form at top-level styles).
-            data.cell.styles.lineColor = lineCol;
-            data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
-            if (data.column.index === 1) {
-              const colorType = summaryData[data.row.index]?.[2];
-              if (colorType === 'pos') data.cell.styles.textColor = posCol;
-              else if (colorType === 'neg') data.cell.styles.textColor = negCol;
-              else data.cell.styles.textColor = ink;
-            }
-          }
-        },
+      labels.forEach(([k, v], i) => {
+        mono(7, 'bold');
+        setText(mute);
+        pdf.text(k, MARGIN_X, holderY + i * 7);
+        sans(10);
+        setText(ink);
+        pdf.text(v, MARGIN_X + 30, holderY + i * 7);
       });
-      yPos = (pdf as any).lastAutoTable.finalY + 15;
-    }
 
-    // ======= ACCOUNTS SECTION =======
-    if (config.sections.includes('accounts')) {
-      addPageIfNeeded(60);
-      drawSectionHeader('02 · Comptes', 'Soldes des comptes');
+      const figsY = 235;
+      setDraw(ink);
+      pdf.setLineWidth(0.7);
+      pdf.line(MARGIN_X, figsY, PW - MARGIN_X, figsY);
+      const fcellW = COL / 3;
+      const fc = [
+        { lbl: 'INCOME', val: fmt(totalIncome), color: pos },
+        { lbl: 'EXPENSES', val: fmt(totalExpenses), color: neg },
+        { lbl: 'NET RESULT', val: fmtSigned(netResult), color: netResult >= 0 ? pos : neg },
+      ];
+      fc.forEach((c, i) => {
+        const x = MARGIN_X + i * fcellW;
+        mono(7, 'bold');
+        setText(mute);
+        pdf.text(c.lbl, x + 2, figsY + 6);
+        mono(15, 'bold');
+        setText(c.color);
+        pdf.text(c.val, x + 2, figsY + 14);
+        if (i < 2) {
+          setDraw(lineCol);
+          pdf.setLineWidth(0.2);
+          pdf.line(x + fcellW, figsY, x + fcellW, figsY + 17);
+        }
+      });
+      setDraw(lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(MARGIN_X, figsY + 19, PW - MARGIN_X, figsY + 19);
 
-      const accountData = accounts.map(acc => [
-        acc.name,
-        acc.bank,
-        acc.account_type === 'checking' ? 'Courant' :
-          acc.account_type === 'savings' ? 'Epargne' :
-          acc.account_type === 'credit' ? 'Credit' : 'Titre',
-        formatAmount(Number(acc.balance))
+      mono(8);
+      setText(mute);
+      pdf.text(
+        `GENERATED ${format(generatedAt, 'd MMM yyyy · HH:mm', { locale }).toUpperCase()}`,
+        MARGIN_X, figsY + 26
+      );
+      pdf.text(`01 / ${String(totalPagesEstimate).padStart(2, '0')}`, PW - MARGIN_X, figsY + 26, { align: 'right' });
+    };
+
+    const renderContents = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      const bodyY = drawPageTitle(
+        'Section 02 · Index',
+        'Contents',
+        `${orderedEnabledPages.length} pages included`,
+        `${DEFAULT_PAGE_ORDER.length - orderedEnabledPages.length} omitted`
+      );
+
+      const tocItems: { num: string; title: string; sub: string; page: string; off?: boolean }[] = [];
+      let pn = 1;
+      const enabledSet = new Set(orderedEnabledPages);
+      for (const id of DEFAULT_PAGE_ORDER) {
+        const def = PAGE_DEFS[id];
+        const label = t(def.labelKey, { defaultValue: def.labelDefault });
+        const sub = id === 'transactions' && enabledSet.has(id)
+          ? `${filteredTransactions.length} rows · ${ledgerPageCount} page${ledgerPageCount !== 1 ? 's' : ''}`
+          : t(def.metaKey, { defaultValue: def.metaDefault });
+        if (enabledSet.has(id)) {
+          if (id === 'transactions' && ledgerPageCount > 1) {
+            tocItems.push({ num: String(pn).padStart(2, '0') + '+', title: label, sub, page: `${pn}-${pn + ledgerPageCount - 1}` });
+            pn += ledgerPageCount;
+          } else {
+            tocItems.push({ num: String(pn).padStart(2, '0'), title: label, sub, page: String(pn).padStart(2, '0') });
+            pn++;
+          }
+        } else {
+          tocItems.push({ num: '—', title: label, sub: 'excluded', page: '—', off: true });
+        }
+      }
+
+      let y = bodyY + 2;
+      setDraw(ink);
+      pdf.setLineWidth(0.7);
+      pdf.line(MARGIN_X, y, PW - MARGIN_X, y);
+      y += 5;
+      for (const item of tocItems) {
+        mono(8, 'bold');
+        setText(item.off ? mute2 : mute);
+        pdf.text(item.num, MARGIN_X, y);
+        sans(10, item.off ? 'normal' : 'bold');
+        setText(item.off ? mute : ink);
+        pdf.text(item.title, MARGIN_X + 10, y);
+        sans(8);
+        setText(mute);
+        pdf.text(' · ' + item.sub, MARGIN_X + 10 + pdf.getTextWidth(item.title), y);
+        mono(8, 'bold');
+        setText(item.off ? mute : ink2);
+        pdf.text(item.page, PW - MARGIN_X, y, { align: 'right' });
+        setDraw(lineCol);
+        pdf.setLineWidth(0.15);
+        pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+        y += 7;
+      }
+
+      drawBottomStrip('Pages total · including ledger', String(pn - 1));
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
+
+    const renderSummary = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      let y = drawPageTitle(
+        'Section 03 · Snapshot',
+        'Executive summary',
+        `${Math.max(1, Math.round((actualDates.end.getTime() - actualDates.start.getTime()) / 86400000))} days`,
+        `${filteredTransactions.length} tx`
+      );
+
+      drawKpiBand(y, 20, [
+        { label: 'Income', value: fmt(totalIncome), valueColor: pos },
+        { label: 'Expenses', value: fmt(totalExpenses), valueColor: neg },
+        { label: 'Net result', value: fmtSigned(netResult), valueColor: netResult >= 0 ? pos : neg, delta: `${totalIncome > 0 ? Math.round((netResult / totalIncome) * 100) : 0}% savings` },
+        { label: 'Balance · end', value: fmt(balanceEnd), delta: `${accounts.length} account${accounts.length !== 1 ? 's' : ''}` },
       ]);
+      y += 26;
 
-      const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+      sans(9);
+      setText(ink3);
+      const verdict =
+        netResult >= 0
+          ? `Across the period, inflow was ${fmt(totalIncome)} against outflow of ${fmt(totalExpenses)} — a ${Math.round((netResult / Math.max(1, totalIncome)) * 100)}% savings rate.`
+          : `Period net was ${fmt(netResult)} (${fmt(totalIncome)} in vs. ${fmt(totalExpenses)} out).`;
+      const breachLine = breachedCats.length > 0
+        ? ` ${breachedCats.length} categor${breachedCats.length === 1 ? 'y' : 'ies'} exceeded budget (${breachedCats.map((b) => b.name).slice(0, 3).join(', ')}${breachedCats.length > 3 ? '…' : ''}).`
+        : '';
+      const commentaryLines = pdf.splitTextToSize(verdict + breachLine, COL);
+      pdf.text(commentaryLines, MARGIN_X, y);
+      y += commentaryLines.length * 4.5 + 4;
+
+      y = drawSectionEyebrow('Where it went · top six', `${expenseCats.length} categories`, y);
+      const donutCx = MARGIN_X + 22;
+      const donutCy = y + 22;
+      const palette: RGB[] = [
+        [12, 13, 12], [60, 62, 58], [110, 113, 108],
+        [154, 156, 151], [198, 197, 189], [218, 216, 208],
+      ];
+      const donutSegs = top6Cats.map((c, i) => ({ value: c.spent, color: palette[i] ?? mute2 }));
+      if (donutSegs.length > 0) drawDonut(donutCx, donutCy, 22, 14, donutSegs);
+      mono(7, 'bold');
+      setText(ink);
+      pdf.text(fmt(totalCatSpent), donutCx, donutCy + 0, { align: 'center' });
+      mono(5.5);
+      setText(mute);
+      pdf.text('EXPENSES', donutCx, donutCy + 3, { align: 'center' });
+
+      const legendX = MARGIN_X + 50;
+      let legendY = y + 4;
+      top6Cats.forEach((c, i) => {
+        setFill(palette[i] ?? mute2);
+        pdf.rect(legendX, legendY - 2, 2.5, 2.5, 'F');
+        sans(9, 'bold');
+        setText(ink);
+        pdf.text(c.name, legendX + 4, legendY);
+        const pct = totalCatSpent > 0 ? Math.round((c.spent / totalCatSpent) * 100) : 0;
+        mono(8);
+        setText(c.budget > 0 && c.spent > c.budget ? neg : mute);
+        pdf.text(`${fmt(c.spent)} · ${pct}%`, PW - MARGIN_X, legendY, { align: 'right' });
+        legendY += 5;
+      });
+      y = Math.max(y + 50, legendY + 4);
+
+      y = drawSectionEyebrow('Balance trend', `${fmt(stats.initialBalance)} → ${fmt(balanceEnd)}`, y);
+      drawSparkline(MARGIN_X, y, COL, 18, sparkPoints, ink);
+      mono(6.5);
+      setText(mute2);
+      pdf.text(format(actualDates.start, 'd MMM', { locale }).toUpperCase(), MARGIN_X, y + 22);
+      pdf.text(format(actualDates.end, 'd MMM', { locale }).toUpperCase(), PW - MARGIN_X, y + 22, { align: 'right' });
+
+      drawBottomStrip('Net result · period', fmtSigned(netResult), netResult >= 0 ? pos : neg);
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
+
+    const renderCashflow = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      let y = drawPageTitle('Section 04 · Flow', 'Cash flow', periodCompact);
+
+      drawKpiBand(y, 18, [
+        { label: 'Income · period', value: fmt(totalIncome), valueColor: pos },
+        { label: 'Expenses · period', value: fmt(totalExpenses), valueColor: neg },
+        { label: 'Net · period', value: fmtSigned(netResult), valueColor: netResult >= 0 ? pos : neg },
+      ]);
+      y += 24;
+
+      y = drawSectionEyebrow('Daily in / out', `${evolutionChartData.length} days`, y);
+      const chartH = 60;
+      const chartW = COL;
+      const chartY = y + 2;
+      setDraw(lineCol);
+      pdf.setLineWidth(0.2);
+      pdf.line(MARGIN_X, chartY + chartH, MARGIN_X + chartW, chartY + chartH);
+
+      const maxFlow = Math.max(1, ...evolutionChartData.map((d) => Math.max(d.income, d.expense)));
+      const dayCount = evolutionChartData.length;
+      const slot = chartW / Math.max(1, dayCount);
+      const barW = Math.min(2.2, slot * 0.35);
+      evolutionChartData.forEach((d, i) => {
+        const cx = MARGIN_X + slot * i + slot / 2;
+        const inH = (d.income / maxFlow) * (chartH * 0.45);
+        const outH = (d.expense / maxFlow) * (chartH * 0.45);
+        if (inH > 0) {
+          setFill(pos);
+          pdf.rect(cx - barW - 0.3, chartY + chartH / 2 - inH, barW, inH, 'F');
+        }
+        if (outH > 0) {
+          setFill(neg);
+          pdf.rect(cx + 0.3, chartY + chartH / 2, barW, outH, 'F');
+        }
+      });
+      setDraw(mute3);
+      pdf.setLineWidth(0.15);
+      pdf.line(MARGIN_X, chartY + chartH / 2, MARGIN_X + chartW, chartY + chartH / 2);
+
+      mono(6.5);
+      setText(mute2);
+      pdf.text(format(actualDates.start, 'd MMM', { locale }).toUpperCase(), MARGIN_X, chartY + chartH + 4);
+      pdf.text(format(actualDates.end, 'd MMM', { locale }).toUpperCase(), MARGIN_X + chartW, chartY + chartH + 4, { align: 'right' });
+
+      const legY = chartY + chartH + 10;
+      setFill(pos);
+      pdf.rect(MARGIN_X, legY, 3, 3, 'F');
+      sans(8);
+      setText(ink);
+      pdf.text(t('reports.income', { defaultValue: 'Income' }), MARGIN_X + 5, legY + 2.5);
+      setFill(neg);
+      pdf.rect(MARGIN_X + 30, legY, 3, 3, 'F');
+      pdf.text(t('reports.expenses', { defaultValue: 'Expenses' }), MARGIN_X + 35, legY + 2.5);
+
+      drawBottomStrip('Net flow · period', fmtSigned(netResult), netResult >= 0 ? pos : neg);
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
+
+    const renderCategories = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      const y = drawPageTitle(
+        'Section 05 · Allocation',
+        'By category',
+        `${expenseCats.length} categories`,
+        `${filteredTransactions.filter((t) => t.type === 'expense').length} tx`
+      );
 
       autoTable(pdf, {
-        startY: yPos,
-        head: [['Compte', 'Banque', 'Type', 'Solde']],
-        body: accountData,
-        foot: [['', '', 'TOTAL', formatAmount(totalBalance)]],
+        startY: y,
+        margin: { left: MARGIN_X, right: MARGIN_X },
+        head: [['Category', 'Amount', '%', '']],
+        body: expenseCats.slice(0, 18).map((c) => {
+          const pct = totalCatSpent > 0 ? (c.spent / totalCatSpent) * 100 : 0;
+          return [
+            c.name,
+            { content: fmt(c.spent), styles: { halign: 'right', font: 'courier' } },
+            { content: pct.toFixed(0) + '%', styles: { halign: 'right', font: 'courier' } },
+            { content: pct.toFixed(0), styles: { halign: 'left' } },
+          ];
+        }),
+        foot: [[
+          { content: 'Total', styles: { fontStyle: 'bold' } },
+          { content: fmt(totalCatSpent), styles: { halign: 'right', font: 'courier', fontStyle: 'bold' } },
+          { content: '100%', styles: { halign: 'right', font: 'courier', fontStyle: 'bold' } },
+          '',
+        ]],
         theme: 'plain',
-        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier' },
-        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: 0 },
-        columnStyles: {
-          0: { cellWidth: 55 },
-          1: { cellWidth: 45 },
-          2: { cellWidth: 30 },
-          3: { halign: 'right', cellWidth: 45, font: 'courier', fontStyle: 'bold' }
-        },
-        margin: { left: margin, right: margin },
-        didParseCell: (data: any) => {
-          if (data.section === 'body') {
-            data.cell.styles.lineColor = lineCol;
-            data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
-          }
-          if (data.section === 'foot') {
-            data.cell.styles.lineColor = ink;
-            data.cell.styles.lineWidth = { top: 0.4, bottom: 0, left: 0, right: 0 };
-          }
-        },
-      });
-      yPos = (pdf as any).lastAutoTable.finalY + 15;
-    }
-
-    // ======= CATEGORIES SECTION WITH PIE CHART =======
-    if (config.sections.includes('categories')) {
-      pdf.addPage();
-      yPos = 22;
-      drawSectionHeader('03 · Repartition', 'Depenses par categorie');
-
-      // Capture pie chart
-      if (config.includeCharts) {
-        const pieImg = await captureChartAsImage(categoryPieRef);
-        if (pieImg) {
-          const imgWidth = 150;
-          const imgHeight = 100;
-          pdf.addImage(pieImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-          yPos += imgHeight + 10;
-        }
-
-        // Also add top categories bar chart
-        const topCatImg = await captureChartAsImage(topCategoriesRef);
-        if (topCatImg) {
-          const imgWidth = 140;
-          const imgHeight = 85;
-          pdf.addImage(topCatImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-          yPos += imgHeight + 10;
-        }
-      }
-
-      // Category table
-      const catData = categoryChartData
-        .filter(c => c.spent > 0)
-        .sort((a, b) => b.spent - a.spent)
-        .map(cat => {
-          const pct = stats.expenses > 0 ? ((cat.spent / stats.expenses) * 100).toFixed(1) : '0.0';
-          return [cat.name, formatAmount(cat.spent), pct + '%'];
-        });
-
-      if (catData.length > 0) {
-        addPageIfNeeded(catData.length * 8 + 20);
-        autoTable(pdf, {
-          startY: yPos,
-          head: [['Categorie', 'Montant', 'Part']],
-          body: catData,
-          theme: 'plain',
-          headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-          styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: 0 },
-          columnStyles: {
-            0: { cellWidth: 80 },
-            1: { halign: 'right', cellWidth: 50, font: 'courier', fontStyle: 'bold' },
-            2: { halign: 'center', cellWidth: 30, font: 'courier', textColor: mute }
-          },
-          margin: { left: margin, right: margin },
-          didParseCell: (data: any) => {
-            if (data.section === 'body') {
-              data.cell.styles.lineColor = lineCol;
-              data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
-            }
-          },
-        });
-        yPos = (pdf as any).lastAutoTable.finalY + 15;
-      }
-    }
-
-    // ======= EVOLUTION SECTION WITH CHART =======
-    if (config.sections.includes('evolution')) {
-      pdf.addPage();
-      yPos = 22;
-      drawSectionHeader('04 · Evolution', 'Evolution du solde');
-
-      if (config.includeCharts) {
-        const evolutionImg = await captureChartAsImage(evolutionChartRef);
-        if (evolutionImg) {
-          const imgWidth = 170;
-          const imgHeight = 95;
-          pdf.addImage(evolutionImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-          yPos += imgHeight + 15;
-        }
-      }
-
-      // Add key stats
-      pdf.setFontSize(11);
-      pdf.setTextColor(55, 65, 81);
-      pdf.text(`Solde de depart: ${formatAmount(stats.initialBalance)}`, margin, yPos);
-      yPos += 7;
-      pdf.text(`Solde de fin: ${formatAmount(stats.finalBalance)}`, margin, yPos);
-      yPos += 7;
-      const change = stats.finalBalance - stats.initialBalance;
-      pdf.setTextColor(change >= 0 ? 22 : 220, change >= 0 ? 163 : 38, change >= 0 ? 74 : 38);
-      pdf.text(`Variation: ${change >= 0 ? '+' : ''}${formatAmount(change)}`, margin, yPos);
-      yPos += 15;
-    }
-
-    // ======= INCOME SECTION =======
-    if (config.sections.includes('income') && incomeAnalysis.length > 0) {
-      addPageIfNeeded(70);
-      drawSectionHeader('05 · Revenus', 'Revenus par categorie');
-
-      const incData = incomeAnalysis.map(inc => {
-        const pct = stats.income > 0 ? ((inc.totalAmount / stats.income) * 100).toFixed(1) : '0.0';
-        return [inc.category, formatAmount(inc.totalAmount), pct + '%', String(inc.count)];
-      });
-
-      autoTable(pdf, {
-        startY: yPos,
-        head: [['Source', 'Montant', 'Part', 'Nb']],
-        body: incData,
-        foot: [['TOTAL', formatAmount(stats.income), '100%', '']],
-        theme: 'plain',
-        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-        footStyles: { fillColor: [255, 255, 255], textColor: ink, fontStyle: 'bold', font: 'courier' },
-        styles: { fontSize: 10, cellPadding: 4, textColor: ink, lineColor: lineCol, lineWidth: 0 },
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: { top: 1.6, bottom: 1.6, left: 0, right: 2 }, textColor: ink },
+        headStyles: { font: 'courier', fontSize: 7, fontStyle: 'bold', textColor: mute, lineWidth: 0, fillColor: [255, 255, 255] },
+        footStyles: { fillColor: [255, 255, 255], textColor: ink, lineWidth: 0 },
         columnStyles: {
           0: { cellWidth: 70 },
-          1: { halign: 'right', cellWidth: 50, font: 'courier', fontStyle: 'bold', textColor: posCol },
-          2: { halign: 'center', cellWidth: 25, font: 'courier', textColor: mute },
-          3: { halign: 'center', cellWidth: 20, font: 'courier', textColor: mute }
+          1: { cellWidth: 35, halign: 'right' },
+          2: { cellWidth: 16, halign: 'right' },
+          3: { cellWidth: COL - 70 - 35 - 16 },
         },
-        margin: { left: margin, right: margin },
-        didParseCell: (data: any) => {
-          if (data.section === 'body') {
-            data.cell.styles.lineColor = lineCol;
-            data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
+        didDrawCell: (data) => {
+          if (data.section === 'head' && data.column.index === 0) {
+            setDraw(ink);
+            pdf.setLineWidth(0.4);
+            pdf.line(MARGIN_X, data.cell.y + data.cell.height, PW - MARGIN_X, data.cell.y + data.cell.height);
           }
-          if (data.section === 'foot') {
-            data.cell.styles.lineColor = ink;
-            data.cell.styles.lineWidth = { top: 0.4, bottom: 0, left: 0, right: 0 };
+          if (data.section === 'body' && data.column.index === 3 && data.cell.text[0]) {
+            const pct = parseFloat(data.cell.text[0] || '0') / 100;
+            const bx = data.cell.x + 2;
+            const by = data.cell.y + data.cell.height / 2 - 0.8;
+            const bw = data.cell.width - 4;
+            data.cell.text = [''];
+            const row = expenseCats[data.row.index];
+            const over = !!(row && row.budget > 0 && row.spent > row.budget);
+            drawProgressBar(bx, by, bw, 1.6, pct, over);
+          }
+          if (data.section === 'body') {
+            setDraw(line2Col);
+            pdf.setLineWidth(0.1);
+            pdf.line(MARGIN_X, data.cell.y + data.cell.height, PW - MARGIN_X, data.cell.y + data.cell.height);
+          }
+          if (data.section === 'foot' && data.column.index === 0) {
+            setDraw(ink);
+            pdf.setLineWidth(0.5);
+            pdf.line(MARGIN_X, data.cell.y, PW - MARGIN_X, data.cell.y);
           }
         },
       });
-      yPos = (pdf as any).lastAutoTable.finalY + 15;
-    }
 
-    // ======= BUDGETS SECTION WITH CHART =======
-    if (config.sections.includes('budgets')) {
-      const budgetCategories = categoryChartData.filter(c => c.budget > 0);
-      if (budgetCategories.length > 0) {
-        pdf.addPage();
-        yPos = 22;
-        drawSectionHeader('06 · Budgets', 'Suivi des budgets');
+      drawBottomStrip('Total expenses · period', fmt(totalCatSpent), neg);
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
 
-        if (config.includeCharts) {
-          const budgetImg = await captureChartAsImage(budgetChartRef);
-          if (budgetImg) {
-            const imgWidth = 145;
-            const imgHeight = 95;
-            pdf.addImage(budgetImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-            yPos += imgHeight + 10;
+    const renderBudgets = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      let y = drawPageTitle(
+        'Section 06 · Discipline',
+        'Budgets vs actual',
+        `${budgetedCats.length} active`,
+        `${breachedCats.length} breach${breachedCats.length === 1 ? '' : 'es'}`
+      );
+      y += 2;
+
+      if (budgetedCats.length === 0) {
+        sans(10);
+        setText(mute);
+        pdf.text(t('reports.noBudgetDefined', { defaultValue: 'No budget defined for this period.' }), MARGIN_X, y + 10);
+      } else {
+        mono(7, 'bold');
+        setText(mute);
+        pdf.text('CATEGORY', MARGIN_X, y);
+        pdf.text('SPENT / BUDGET', MARGIN_X + 80, y);
+        pdf.text('%', PW - MARGIN_X - 8, y, { align: 'right' });
+        setDraw(ink);
+        pdf.setLineWidth(0.4);
+        pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+        y += 6;
+
+        for (const c of budgetedCats.slice(0, 18)) {
+          const pct = c.budget > 0 ? c.spent / c.budget : 0;
+          const over = c.spent > c.budget;
+          sans(9, 'bold');
+          setText(ink);
+          pdf.text(c.name, MARGIN_X, y);
+          if (over) {
+            setFill(negSoft);
+            const bw = 18;
+            const bx = MARGIN_X + pdf.getTextWidth(c.name) + 4;
+            pdf.roundedRect(bx, y - 3, bw, 4, 0.6, 0.6, 'F');
+            mono(6, 'bold');
+            setText(neg);
+            pdf.text('OVER', bx + 2, y);
           }
+          mono(8);
+          setText(over ? neg : ink);
+          pdf.text(`${fmt(c.spent)} / ${fmt(c.budget)}`, MARGIN_X + 80, y);
+          mono(8, 'bold');
+          setText(over ? neg : mute);
+          pdf.text(`${Math.round(pct * 100)}%`, PW - MARGIN_X, y, { align: 'right' });
+          drawProgressBar(MARGIN_X, y + 2, COL, 1.8, pct, over);
+          y += 8.5;
+          if (y > BODY_BOTTOM - 10) break;
         }
+      }
 
-        const budgetData = budgetCategories.map(cat => {
-          const pct = cat.budget > 0 ? (cat.spent / cat.budget * 100) : 0;
-          const remaining = cat.budget - cat.spent;
-          const status = pct >= 100 ? 'Depasse' : pct >= 80 ? 'Attention' : 'OK';
-          return [
-            cat.name,
-            formatAmount(cat.spent),
-            formatAmount(cat.budget),
-            formatAmount(remaining),
-            pct.toFixed(0) + '%',
-            status
-          ];
-        });
+      const totalBudget = budgetedCats.reduce((s, c) => s + c.budget, 0);
+      const totalSpent = budgetedCats.reduce((s, c) => s + c.spent, 0);
+      drawBottomStrip(
+        breachedCats.length > 0 ? `${breachedCats.length} over budget` : 'Within budget',
+        `${fmt(totalSpent)} / ${fmt(totalBudget)}`,
+        totalSpent > totalBudget ? neg : ink
+      );
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
 
-        autoTable(pdf, {
-          startY: yPos,
-          head: [['Categorie', 'Depense', 'Budget', 'Restant', '%', 'Statut']],
-          body: budgetData,
-          theme: 'plain',
-          headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8.5 },
-          styles: { fontSize: 9, cellPadding: 3, textColor: ink, lineColor: lineCol, lineWidth: 0 },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { halign: 'right', cellWidth: 28, font: 'courier' },
-            2: { halign: 'right', cellWidth: 28, font: 'courier', textColor: mute },
-            3: { halign: 'right', cellWidth: 28, font: 'courier' },
-            4: { halign: 'center', cellWidth: 18, font: 'courier', textColor: mute },
-            5: { halign: 'center', cellWidth: 22, font: 'courier' }
-          },
-          margin: { left: margin, right: margin },
-          didParseCell: (data: any) => {
-            if (data.section === 'body') {
-              data.cell.styles.lineColor = lineCol;
-              data.cell.styles.lineWidth = { top: 0, bottom: 0.2, left: 0, right: 0 };
-            }
-            if (data.section === 'body' && data.column.index === 5) {
-              const status = data.cell.raw;
-              if (status === 'Depasse') data.cell.styles.textColor = negCol;
-              else if (status === 'Attention') data.cell.styles.textColor = [192, 102, 26];
-              else data.cell.styles.textColor = posCol;
-              data.cell.styles.fontStyle = 'bold';
-            }
-            // Restant: red when negative, neutral otherwise
-            if (data.section === 'body' && data.column.index === 3) {
-              const raw = String(data.cell.raw);
-              if (raw.includes('-')) data.cell.styles.textColor = negCol;
-            }
+    const renderAccounts = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      let y = drawPageTitle(
+        'Section 07 · Holdings',
+        'Accounts',
+        `${accountFlows.length} account${accountFlows.length !== 1 ? 's' : ''}`,
+        ''
+      );
+
+      mono(7, 'bold');
+      setText(mute);
+      pdf.text('ACCOUNT', MARGIN_X, y);
+      pdf.text('FLOW · IN / OUT', PW - MARGIN_X - 50, y);
+      pdf.text('BALANCE', PW - MARGIN_X, y, { align: 'right' });
+      setDraw(ink);
+      pdf.setLineWidth(0.4);
+      pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+      y += 6;
+
+      const totalBal = accountFlows.reduce((s, a) => s + a.balance, 0);
+      for (const a of accountFlows) {
+        sans(10, 'bold');
+        setText(ink);
+        pdf.text(a.name, MARGIN_X, y);
+        sans(8);
+        setText(mute);
+        pdf.text(`${a.bank} · ${a.count} tx`, MARGIN_X, y + 4);
+        mono(8);
+        setText(mute);
+        pdf.text(`+${fmt(a.inflow)} / −${fmt(a.outflow)}`, PW - MARGIN_X - 50, y);
+        mono(11, 'bold');
+        setText(a.balance < 0 ? neg : ink);
+        pdf.text(fmt(a.balance), PW - MARGIN_X, y, { align: 'right' });
+        setDraw(line2Col);
+        pdf.setLineWidth(0.15);
+        pdf.line(MARGIN_X, y + 7, PW - MARGIN_X, y + 7);
+        y += 11;
+        if (y > BODY_BOTTOM - 16) break;
+      }
+
+      y += 2;
+      setDraw(ink);
+      pdf.setLineWidth(0.5);
+      pdf.line(MARGIN_X, y, PW - MARGIN_X, y);
+      y += 5;
+      mono(8, 'bold');
+      setText(ink2);
+      pdf.text('TOTAL BALANCE', MARGIN_X, y);
+      mono(13, 'bold');
+      setText(ink);
+      pdf.text(fmt(totalBal), PW - MARGIN_X, y, { align: 'right' });
+
+      drawBottomStrip('Total balance · end of period', fmt(totalBal));
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
+
+    const renderIncome = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      let y = drawPageTitle(
+        'Section 08 · Inflow',
+        'Income sources',
+        `${incomeCats.length} source${incomeCats.length !== 1 ? 's' : ''}`,
+        ''
+      );
+
+      mono(7, 'bold');
+      setText(mute);
+      pdf.text('SOURCE', MARGIN_X, y);
+      pdf.text('TX', MARGIN_X + 100, y);
+      pdf.text('AMOUNT', PW - MARGIN_X, y, { align: 'right' });
+      setDraw(ink);
+      pdf.setLineWidth(0.4);
+      pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+      y += 6;
+
+      const incomeTotal = incomeCats.reduce((s, c) => s + c.totalAmount, 0);
+      for (const c of incomeCats.slice(0, 18)) {
+        const pct = incomeTotal > 0 ? c.totalAmount / incomeTotal : 0;
+        sans(10, 'bold');
+        setText(ink);
+        pdf.text(c.category, MARGIN_X, y);
+        mono(8);
+        setText(mute);
+        pdf.text(String(c.count), MARGIN_X + 100, y);
+        mono(10, 'bold');
+        setText(pos);
+        pdf.text(fmt(c.totalAmount), PW - MARGIN_X, y, { align: 'right' });
+        drawProgressBar(MARGIN_X, y + 2, COL, 1.6, pct, false, pos);
+        y += 8.5;
+        if (y > BODY_BOTTOM - 10) break;
+      }
+
+      drawBottomStrip('Total income · period', fmt(incomeTotal), pos);
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
+
+    const renderRecurring = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      const y = drawPageTitle(
+        'Section 09 · Schedule',
+        'Recurring & subscriptions',
+        `${activeRecurring.length} item${activeRecurring.length !== 1 ? 's' : ''}`,
+        ''
+      );
+
+      autoTable(pdf, {
+        startY: y,
+        margin: { left: MARGIN_X, right: MARGIN_X },
+        head: [['Description', 'Cat.', 'Freq.', 'Type', 'Period amt.']],
+        body: activeRecurring.slice(0, 22).map((r) => [
+          r.recurring.description,
+          r.recurring.category?.name ?? '—',
+          { content: r.recurring.recurrence_type, styles: { font: 'courier' } },
+          { content: r.effectiveType, styles: { font: 'courier', textColor: r.effectiveType === 'income' ? pos : neg } },
+          { content: fmt(r.periodAmount), styles: { halign: 'right', font: 'courier' } },
+        ]),
+        theme: 'plain',
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: { top: 1.5, bottom: 1.5, left: 0, right: 2 }, textColor: ink },
+        headStyles: { font: 'courier', fontSize: 7, fontStyle: 'bold', textColor: mute, fillColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: COL - 80 - 30 - 22 - 20, halign: 'right' },
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'head' && data.column.index === 0) {
+            setDraw(ink);
+            pdf.setLineWidth(0.4);
+            pdf.line(MARGIN_X, data.cell.y + data.cell.height, PW - MARGIN_X, data.cell.y + data.cell.height);
           }
-        });
-        yPos = (pdf as any).lastAutoTable.finalY + 15;
+          if (data.section === 'body') {
+            setDraw(line2Col);
+            pdf.setLineWidth(0.1);
+            pdf.line(MARGIN_X, data.cell.y + data.cell.height, PW - MARGIN_X, data.cell.y + data.cell.height);
+          }
+        },
+      });
+
+      const recTotal = activeRecurring.reduce(
+        (s, r) => s + r.periodAmount * (r.effectiveType === 'income' ? 1 : -1), 0
+      );
+      drawBottomStrip('Net recurring · period', fmtSigned(recTotal), recTotal >= 0 ? pos : neg);
+      drawBottomChrome(pageIdx, totalPagesEstimate);
+    };
+
+    /** Transactions ledger — multi-page via autoTable's pagination.
+     *  Chrome is re-drawn per spawned page via didDrawPage. */
+    const renderTransactions = () => {
+      newPage();
+      drawTopChrome(pageIdx, totalPagesEstimate);
+      const startY = drawPageTitle(
+        'Section 10 · Ledger',
+        'Transactions ledger',
+        `${filteredTransactions.length} rows`,
+        ''
+      );
+
+      let lastDrawnPage = pageIdx;
+      autoTable(pdf, {
+        startY,
+        margin: { left: MARGIN_X, right: MARGIN_X, top: BODY_TOP - 2, bottom: STRIP_Y },
+        head: [['Date', 'Description', 'Account', 'Category', 'Type', 'Amount']],
+        body: filteredTransactions.map((tx) => {
+          const txDate = config.dateType === 'value'
+            ? parseLocalDate(tx.value_date || tx.transaction_date)
+            : parseLocalDate(tx.transaction_date);
+          const sign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : '';
+          return [
+            { content: format(txDate, 'd MMM', { locale }), styles: { font: 'courier' as const } },
+            tx.description,
+            { content: tx.account?.name ?? '—', styles: { font: 'courier' as const, textColor: mute } },
+            { content: tx.category?.name ?? '—', styles: { font: 'courier' as const, textColor: mute } },
+            { content: tx.type, styles: { font: 'courier' as const, textColor: tx.type === 'income' ? pos : tx.type === 'expense' ? neg : mute } },
+            { content: sign + fmt(Number(tx.amount)), styles: { halign: 'right' as const, font: 'courier' as const, textColor: tx.type === 'income' ? pos : tx.type === 'expense' ? neg : ink } },
+          ];
+        }),
+        theme: 'plain',
+        styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 1.2, bottom: 1.2, left: 0, right: 2 }, textColor: ink },
+        headStyles: { font: 'courier', fontSize: 7, fontStyle: 'bold', textColor: mute, fillColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 18 },
+          1: { cellWidth: 68 },
+          2: { cellWidth: 26 },
+          3: { cellWidth: 26 },
+          4: { cellWidth: 18 },
+          5: { cellWidth: COL - 18 - 68 - 26 - 26 - 18, halign: 'right' },
+        },
+        didDrawPage: () => {
+          const physicalPage = pdf.getCurrentPageInfo().pageNumber;
+          if (physicalPage !== lastDrawnPage) {
+            pageIdx++;
+            lastDrawnPage = physicalPage;
+            drawTopChrome(pageIdx, totalPagesEstimate);
+            drawPageTitle('Section 10 · Ledger (cont.)', 'Transactions ledger', `${filteredTransactions.length} rows`, '');
+          }
+          drawBottomStrip(`${filteredTransactions.length} rows · period`, fmtSigned(netResult), netResult >= 0 ? pos : neg);
+          drawBottomChrome(pageIdx, totalPagesEstimate);
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'head' && data.column.index === 0) {
+            setDraw(ink);
+            pdf.setLineWidth(0.4);
+            pdf.line(MARGIN_X, data.cell.y + data.cell.height, PW - MARGIN_X, data.cell.y + data.cell.height);
+          }
+          if (data.section === 'body') {
+            setDraw(line2Col);
+            pdf.setLineWidth(0.08);
+            pdf.line(MARGIN_X, data.cell.y + data.cell.height, PW - MARGIN_X, data.cell.y + data.cell.height);
+          }
+        },
+      });
+    };
+
+    const renderers: Record<PageId, () => void> = {
+      cover: renderCover,
+      contents: renderContents,
+      summary: renderSummary,
+      cashflow: renderCashflow,
+      categories: renderCategories,
+      budgets: renderBudgets,
+      accounts: renderAccounts,
+      income: renderIncome,
+      recurring: renderRecurring,
+      transactions: renderTransactions,
+    };
+
+    for (const id of orderedEnabledPages) {
+      try {
+        renderers[id]();
+      } catch (e) {
+        console.error(`Error rendering page "${id}":`, e);
       }
     }
 
-    // ======= TRANSACTIONS SECTION =======
-    if (config.sections.includes('transactions')) {
-      pdf.addPage();
-      yPos = 22;
-      drawSectionHeader('07 · Transactions', 'Detail des transactions');
-      pdf.setFont('courier', 'normal');
-      pdf.setFontSize(8);
-      pdf.setTextColor(...mute);
-      pdf.text(`${filteredTransactions.length} OPERATIONS`, pageWidth - margin, yPos - 6, { align: 'right' });
-
-      // Calculate running balance
-      let runningBalance = stats.initialBalance;
-      const txData = filteredTransactions.map(t => {
-        const amount = Number(t.amount);
-        if (t.type === 'income') runningBalance += amount;
-        else if (t.type === 'expense') runningBalance -= amount;
-
-        const displayDate = config.dateType === 'value'
-          ? parseLocalDate(t.value_date || t.transaction_date)
-          : parseLocalDate(t.transaction_date);
-
-        return [
-          format(displayDate, 'dd/MM/yy'),
-          accounts.find(a => a.id === t.account_id)?.name?.substring(0, 15) || '-',
-          t.description.substring(0, 35) + (t.description.length > 35 ? '...' : ''),
-          t.category?.name?.substring(0, 12) || '-',
-          t.type === 'income' ? '+' + formatAmount(amount).replace(' EUR', '') :
-            '-' + formatAmount(amount).replace(' EUR', ''),
-          formatAmount(runningBalance).replace(' EUR', '')
-        ];
-      });
-
-      autoTable(pdf, {
-        startY: yPos,
-        head: [['Date', 'Compte', 'Description', 'Cat.', 'Montant', 'Solde']],
-        body: txData,
-        theme: 'plain',
-        headStyles: { fillColor: [255, 255, 255], textColor: mute, fontStyle: 'normal', fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize', textColor: ink, lineColor: lineCol, lineWidth: 0 },
-        columnStyles: {
-          0: { cellWidth: 18, font: 'courier', textColor: mute },
-          1: { cellWidth: 26 },
-          2: { cellWidth: 58 },
-          3: { cellWidth: 24, textColor: mute },
-          4: { halign: 'right', cellWidth: 26, font: 'courier' },
-          5: { halign: 'right', cellWidth: 26, font: 'courier', fontStyle: 'bold', textColor: mute }
-        },
-        margin: { left: margin, right: margin },
-        showHead: 'everyPage',
-        didParseCell: (data: any) => {
-          if (data.section === 'body') {
-            data.cell.styles.lineColor = lineCol;
-            data.cell.styles.lineWidth = { top: 0, bottom: 0.15, left: 0, right: 0 };
-          }
-          if (data.section === 'body' && data.column.index === 4) {
-            const value = String(data.cell.raw);
-            if (value.startsWith('+')) data.cell.styles.textColor = posCol;
-            else if (value.startsWith('-')) data.cell.styles.textColor = negCol;
-          }
-        },
-        didDrawPage: () => {
-          addFooter();
-        }
-      });
+    // Second pass: re-stamp the bottom-chrome page numbers with the
+    // true total. The cover (page 1 when present) has its own page
+    // legend at a different y, so we skip it.
+    const finalTotal = pdf.getNumberOfPages();
+    if (finalTotal !== totalPagesEstimate) {
+      const coverIsFirst = orderedEnabledPages[0] === 'cover';
+      for (let p = 1; p <= finalTotal; p++) {
+        if (coverIsFirst && p === 1) continue;
+        pdf.setPage(p);
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(PW - MARGIN_X - 26, FOOT_Y - 4, 26, 5, 'F');
+        mono(7);
+        setText(mute);
+        pdf.text(
+          `${String(p).padStart(2, '0')} / ${String(finalTotal).padStart(2, '0')}`,
+          PW - MARGIN_X, FOOT_Y - 1, { align: 'right' }
+        );
+      }
     }
 
-    // Add footer to all pages
-    const totalPages = pdf.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      pdf.setPage(i);
-      addFooter();
-    }
-
-    pdf.save(`rapport-financier-${format(actualDates.start, 'yyyy-MM')}.pdf`);
+    pdf.save(`spending-tracker-report-${format(actualDates.start, 'yyyy-MM')}.pdf`);
   };
 
   // Excel Generation
@@ -1244,367 +1809,548 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     return false;
   };
 
-  // Live preview — mocks a document layout that reacts to selected sections.
-  // Page-count estimate: 1 (cover) + ⌈sections / 2⌉ + (transactions section ? ⌈n/40⌉ : 0).
+  // Page / transaction counts surfaced in the v2 wizard footer and the
+  // thumbnail badges. Multi-page ledger contributes one A4 per 40 rows.
   const txCount = filteredTransactions.length;
-  const includesTx = config.sections.includes('transactions');
-  const estimatedPages =
-    1 +
-    Math.ceil(config.sections.filter((s) => s !== 'transactions').length / 2) +
-    (includesTx ? Math.max(1, Math.ceil(txCount / 40)) : 0);
-  const estimatedKb = Math.round(60 + estimatedPages * 32 + (includesTx ? txCount * 0.4 : 0));
-  const previewBlocks = [
-    config.sections.includes('summary') && {
-      title: t('reports.section.summary.label', { defaultValue: 'Summary' }),
-      shape: 'row3',
-    },
-    config.sections.includes('categories') && {
-      title: t('reports.section.categories.label', { defaultValue: 'Categories' }),
-      shape: 'list',
-    },
-    config.sections.includes('evolution') && {
-      title: t('reports.section.evolution.label', { defaultValue: 'Evolution' }),
-      shape: 'chart',
-    },
-    config.sections.includes('accounts') && {
-      title: t('reports.section.accounts.label', { defaultValue: 'Accounts' }),
-      shape: 'list',
-    },
-    config.sections.includes('income') && {
-      title: t('reports.section.income.label', { defaultValue: 'Income' }),
-      shape: 'list',
-    },
-    config.sections.includes('recurring') && {
-      title: t('reports.section.recurring.label', { defaultValue: 'Recurring' }),
-      shape: 'list',
-    },
-    config.sections.includes('budgets') && {
-      title: t('reports.section.budgets.label', { defaultValue: 'Budgets' }),
-      shape: 'list',
-    },
-    config.sections.includes('transactions') && {
-      title: `${t('reports.section.transactions.label', { defaultValue: 'Transactions' })} · ${txCount} rows`,
-      shape: 'rows',
-    },
-  ].filter(Boolean) as { title: string; shape: 'row3' | 'list' | 'chart' | 'rows' }[];
+  const includesTx = pages.find((p) => p.id === 'transactions')?.enabled ?? false;
+  const ledgerPages = includesTx ? Math.max(1, Math.ceil(txCount / 40)) : 0;
+  const documentPages = enabledPageCount + Math.max(0, ledgerPages - (includesTx ? 1 : 0));
+  const estimatedKb = Math.round(60 + documentPages * 32 + (includesTx ? txCount * 0.4 : 0));
 
-  const totalSectionCount = Object.keys(SECTION_INFO).length;
-
-  // Single-screen layout — sections + period + format on the left, document
-  // preview + page-count estimate on the right (collapses to a stack on mobile).
-  const content = (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-5 md:gap-6">
-        {/* ── Left: configuration ─────────────────────── */}
-        <div className="space-y-5 min-w-0">
-          {/* Period */}
-          <div className="space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <Label className="text-sm font-medium">
-                {t('reports.period', { defaultValue: 'Period' })}
-              </Label>
-              <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                {format(actualDates.start, 'd MMM yyyy', { locale })} →{' '}
-                {format(actualDates.end, 'd MMM yyyy', { locale })}
-              </span>
+  // Per-page thumbnail body shown inside an A4-aspect card in the
+  // preview pane. Kept abstract (placeholder lines and stripes) so the
+  // wizard works even before Phase 2 (real page renderers) ships.
+  const renderPageThumbBody = (id: PageId) => {
+    const line = (w: string, opts?: { bold?: boolean; tall?: boolean }) => (
+      <div
+        className={cn(
+          "rounded-[1px]",
+          opts?.bold ? "bg-foreground" : "bg-muted-foreground/40",
+          opts?.tall ? "h-2" : "h-1"
+        )}
+        style={{ width: w }}
+      />
+    );
+    switch (id) {
+      case 'cover':
+        return (
+          <div className="flex h-full flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="h-1.5 w-12 rounded-[1px] bg-muted-foreground/40" />
+              <div className="h-3 w-32 rounded-[1px] bg-foreground" />
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {periodPresets.map(({ key, label }) => {
-                const active = isPresetActive(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handlePeriodPreset(key)}
-                    className={cn(
-                      'h-8 px-3 rounded-md border text-xs font-medium transition-colors',
-                      active
-                        ? 'bg-foreground text-background border-foreground'
-                        : 'border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover bg-card'
-                    )}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => setConfig((p) => ({ ...p, periodType: 'custom' }))}
-                className={cn(
-                  'h-8 px-3 rounded-md border text-xs font-medium transition-colors',
-                  config.periodType === 'custom'
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover bg-card'
-                )}
-              >
-                {t('reports.custom', { defaultValue: 'Custom' })}
-              </button>
+            <div className="space-y-1">
+              {line('60%')}
+              {line('50%')}
+              {line('70%')}
             </div>
-            {config.periodType === 'month' && (
-              <MonthPicker
-                value={config.startDate}
-                onChange={(d) =>
-                  setConfig((prev) => ({ ...prev, startDate: d || new Date() }))
-                }
-                className="rounded-lg bg-bg-subtle border-line"
-              />
-            )}
-            {config.periodType === 'year' && (
-              <YearPicker
-                value={config.startDate}
-                onChange={(d) =>
-                  setConfig((prev) => ({ ...prev, startDate: d || new Date() }))
-                }
-                className="rounded-lg bg-bg-subtle border-line"
-              />
-            )}
-            <Select
-              value={config.dateType}
-              onValueChange={(v: any) => setConfig((prev) => ({ ...prev, dateType: v }))}
-            >
-              <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="accounting">
-                  {t('settings.accountingDate', { defaultValue: 'By accounting' })}
-                </SelectItem>
-                <SelectItem value="value">
-                  {t('settings.valueDate', { defaultValue: 'By value' })}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Sections */}
-          <div className="space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <Label className="text-sm font-medium">
-                {t('reports.sections', { defaultValue: 'Sections' })}
-                <span className="text-fg-dim font-normal ml-1.5">
-                  · {config.sections.length} of {totalSectionCount}
-                </span>
-              </Label>
-              <button
-                type="button"
-                className="text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  if (config.sections.length === totalSectionCount) {
-                    setConfig((prev) => ({ ...prev, sections: ['summary'] }));
-                  } else {
-                    setConfig((prev) => ({
-                      ...prev,
-                      sections: Object.keys(SECTION_INFO) as ReportSection[],
-                    }));
-                  }
-                }}
-              >
-                {config.sections.length === totalSectionCount
-                  ? t('common.deselectAll', { defaultValue: 'Deselect all' })
-                  : t('common.selectAll', { defaultValue: 'Select all' })}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {(Object.entries(SECTION_INFO) as [ReportSection, typeof SECTION_INFO[ReportSection]][]).map(
-                ([key, info]) => {
-                  const Icon = info.icon;
-                  const isSelected = config.sections.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => toggleSection(key)}
-                      className={cn(
-                        'flex items-start gap-2.5 p-3 rounded-lg border text-left transition-colors min-w-0',
-                        isSelected
-                          ? 'border-foreground bg-bg-subtle'
-                          : 'border-line bg-card hover:bg-bg-hover'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded-md border text-[11px] font-bold mt-0.5',
-                          isSelected
-                            ? 'bg-foreground text-background border-foreground'
-                            : 'border-line text-muted-foreground'
-                        )}
-                      >
-                        {isSelected ? <Check className="h-3 w-3" /> : null}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                          <span className="text-[13px] font-medium truncate">
-                            {t(info.labelKey, { defaultValue: info.labelDefault })}
-                          </span>
-                        </div>
-                        <span className="text-[11.5px] text-fg-dim leading-snug">
-                          {t(info.descKey, { defaultValue: info.descDefault })}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                }
-              )}
+            <div className="grid grid-cols-3 gap-2 border-t border-foreground pt-2">
+              <div className="space-y-1"><div className="h-1 w-8 bg-muted-foreground/40 rounded-[1px]"/><div className="h-2 w-12 bg-pos rounded-[1px]"/></div>
+              <div className="space-y-1"><div className="h-1 w-8 bg-muted-foreground/40 rounded-[1px]"/><div className="h-2 w-12 bg-neg rounded-[1px]"/></div>
+              <div className="space-y-1"><div className="h-1 w-8 bg-muted-foreground/40 rounded-[1px]"/><div className="h-2 w-12 bg-foreground rounded-[1px]"/></div>
             </div>
           </div>
-
-          {/* Format */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">
-              {t('reports.format', { defaultValue: 'Format' })}
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['pdf', 'excel'] as const).map((fmt) => {
-                const isActive = config.format === fmt;
-                const Icon = fmt === 'pdf' ? FileText : FileSpreadsheet;
-                return (
-                  <button
-                    key={fmt}
-                    type="button"
-                    onClick={() => setConfig((prev) => ({ ...prev, format: fmt }))}
-                    className={cn(
-                      'flex items-center gap-3 p-3 rounded-lg border text-left transition-colors',
-                      isActive
-                        ? 'border-foreground bg-bg-subtle'
-                        : 'border-line bg-card hover:bg-bg-hover'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'inline-flex items-center justify-center h-9 w-9 rounded-md font-mono text-[10px] font-semibold tracking-wide',
-                        isActive
-                          ? 'bg-foreground text-background'
-                          : 'bg-bg-subtle text-muted-foreground'
-                      )}
-                    >
-                      {fmt.toUpperCase()}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium">
-                        {fmt === 'pdf' ? 'PDF' : 'Excel'}
-                      </div>
-                      <div className="text-[11.5px] text-fg-dim">
-                        {fmt === 'pdf'
-                          ? t('reports.formatPdfDesc', {
-                              defaultValue: 'Statement-style · vector charts · printable',
-                            })
-                          : t('reports.formatXlsDesc', {
-                              defaultValue: 'Raw rows, one tab per section',
-                            })}
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        'inline-flex items-center justify-center h-5 w-5 rounded-md border',
-                        isActive
-                          ? 'bg-foreground text-background border-foreground'
-                          : 'border-line text-transparent'
-                      )}
-                    >
-                      <Check className="h-3 w-3" />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        );
+      case 'contents':
+        return (
+          <div className="space-y-1.5 pt-1">
+            <div className="h-2 w-20 rounded-[1px] bg-foreground border-b border-foreground pb-0.5" />
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <div className="h-1 w-4 rounded-[1px] bg-muted-foreground/40" />
+                <div className="flex-1 border-b border-dotted border-muted-foreground/40 h-0.5" />
+                <div className="h-1 w-3 rounded-[1px] bg-foreground" />
+              </div>
+            ))}
           </div>
-        </div>
-
-        {/* ── Right: live preview ─────────────────────── */}
-        <div className="hidden md:flex flex-col gap-2 sticky top-0 self-start">
-          <div className="text-[11px] text-fg-dim leading-relaxed">
-            <b className="text-foreground font-medium">
-              {t('reports.livePreview', { defaultValue: 'Live preview' })}
-            </b>{' '}
-            — {t('reports.livePreviewHint', {
-              defaultValue: 'updates as you toggle sections.',
-            })}
-          </div>
-          <div className="relative bg-card border border-line rounded-lg shadow-sm aspect-[1/1.4] p-3 overflow-hidden">
-            <div className="text-[8px] uppercase tracking-[0.08em] font-semibold text-muted-foreground/80">
-              Spending Tracker · Report
-            </div>
-            <div
-              className="text-[14px] leading-tight font-medium mt-1"
-              style={{ fontFamily: '"Fraunces", Georgia, serif' }}
-            >
-              Financial report
-            </div>
-            <div className="text-[8px] uppercase tracking-[0.08em] font-semibold text-foreground mt-0.5 font-mono">
-              {format(actualDates.start, 'd MMM').toUpperCase()} —{' '}
-              {format(actualDates.end, 'd MMM yyyy').toUpperCase()}
-            </div>
-            <div className="border-t border-line my-2" />
-            <div className="space-y-1.5 overflow-hidden">
-              {previewBlocks.map((b, i) => (
-                <div key={i}>
-                  <div className="text-[8px] uppercase tracking-[0.08em] font-semibold text-muted-foreground/80 mb-1">
-                    {b.title}
-                  </div>
-                  {b.shape === 'row3' && (
-                    <div className="grid grid-cols-3 gap-1">
-                      <div className="h-4 rounded-sm bg-bg-subtle" />
-                      <div className="h-4 rounded-sm bg-bg-subtle" />
-                      <div className="h-4 rounded-sm bg-bg-subtle" />
-                    </div>
-                  )}
-                  {b.shape === 'list' && (
-                    <div className="space-y-0.5">
-                      <div className="h-2 rounded-sm bg-bg-subtle" />
-                      <div className="h-2 rounded-sm bg-bg-subtle w-4/5" />
-                      <div className="h-2 rounded-sm bg-bg-subtle w-3/5" />
-                    </div>
-                  )}
-                  {b.shape === 'chart' && (
-                    <div className="h-8 rounded-sm bg-bg-subtle" />
-                  )}
-                  {b.shape === 'rows' && (
-                    <div className="space-y-0.5">
-                      <div className="h-1.5 rounded-sm bg-bg-subtle" />
-                      <div className="h-1.5 rounded-sm bg-bg-subtle" />
-                      <div className="h-1.5 rounded-sm bg-bg-subtle" />
-                      <div className="h-1.5 rounded-sm bg-bg-subtle w-4/5" />
-                    </div>
-                  )}
+        );
+      case 'summary':
+        return (
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-1 border border-line p-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-0.5">
+                  <div className="h-0.5 w-full bg-muted-foreground/30 rounded-[1px]" />
+                  <div className={cn("h-1.5 rounded-[1px]", i === 1 ? "bg-neg" : i === 2 ? "bg-pos" : "bg-foreground")} />
                 </div>
               ))}
             </div>
-            <div className="absolute bottom-1.5 right-2 text-[7px] font-mono tracking-[0.08em] text-fg-dim">
-              01 / {String(estimatedPages).padStart(2, '0')}
+            {line('80%')}{line('60%')}
+            <div className="flex items-center gap-2 pt-1">
+              <div className="h-10 w-10 rounded-full border-[3px] border-foreground" style={{ borderRightColor: 'transparent', borderTopColor: 'transparent' }} />
+              <div className="flex-1 space-y-1">
+                {line('70%')}{line('50%')}{line('40%')}
+              </div>
             </div>
           </div>
-          <div className="text-[11px] text-fg-dim leading-relaxed">
-            {t('reports.estimate', {
-              pages: estimatedPages,
-              size: estimatedKb,
-              tx: txCount,
-              defaultValue: `Estimated ${estimatedPages} page${estimatedPages !== 1 ? 's' : ''}, ~${estimatedKb} KB${
-                includesTx ? ` · ${txCount} transactions` : ''
-              }.`,
+        );
+      case 'cashflow':
+        return (
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-1 border border-line p-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-0.5">
+                  <div className="h-0.5 w-full bg-muted-foreground/30 rounded-[1px]" />
+                  <div className={cn("h-1.5 rounded-[1px]", i === 0 ? "bg-pos" : i === 1 ? "bg-neg" : "bg-foreground")} />
+                </div>
+              ))}
+            </div>
+            <div className="flex items-end gap-px h-12">
+              {Array.from({ length: 22 }).map((_, i) => {
+                const h = 12 + ((i * 7) % 28);
+                return <div key={i} className="flex-1 bg-foreground rounded-[1px]" style={{ height: `${h}px` }} />;
+              })}
+            </div>
+          </div>
+        );
+      case 'categories':
+        return (
+          <div className="space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="h-1 w-12 rounded-[1px] bg-foreground" />
+                <div className="flex-1 h-1 bg-muted-foreground/20 rounded-[1px] overflow-hidden">
+                  <div className="h-full bg-foreground" style={{ width: `${90 - i * 9}%` }} />
+                </div>
+                <div className="h-1 w-6 rounded-[1px] bg-muted-foreground/40" />
+              </div>
+            ))}
+          </div>
+        );
+      case 'budgets':
+        return (
+          <div className="space-y-1.5">
+            {Array.from({ length: 6 }).map((_, i) => {
+              const over = i === 1;
+              return (
+                <div key={i} className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <div className="h-1 w-14 rounded-[1px] bg-foreground" />
+                    <div className={cn("h-1 w-5 rounded-[1px]", over ? "bg-neg" : "bg-muted-foreground/40")} />
+                  </div>
+                  <div className="h-1 bg-muted-foreground/20 rounded-[1px] overflow-hidden">
+                    <div className={cn("h-full", over ? "bg-neg" : "bg-foreground")} style={{ width: over ? '100%' : `${50 + i * 8}%` }} />
+                  </div>
+                </div>
+              );
             })}
+          </div>
+        );
+      case 'accounts':
+        return (
+          <div className="space-y-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between border-b border-line/60 pb-1">
+                <div className="space-y-0.5">
+                  <div className="h-1 w-16 rounded-[1px] bg-foreground" />
+                  <div className="h-0.5 w-10 rounded-[1px] bg-muted-foreground/30" />
+                </div>
+                <div className={cn("h-1 w-10 rounded-[1px]", i === 2 ? "bg-neg" : "bg-foreground")} />
+              </div>
+            ))}
+            <div className="flex items-center justify-between border-t-2 border-foreground pt-1">
+              <div className="h-1 w-12 rounded-[1px] bg-foreground" />
+              <div className="h-1.5 w-12 rounded-[1px] bg-foreground" />
+            </div>
+          </div>
+        );
+      case 'income':
+        return (
+          <div className="space-y-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-pos" />
+                <div className="flex-1 h-1 bg-muted-foreground/20 rounded-[1px] overflow-hidden">
+                  <div className="h-full bg-pos" style={{ width: `${85 - i * 18}%` }} />
+                </div>
+                <div className="h-1 w-8 rounded-[1px] bg-pos" />
+              </div>
+            ))}
+          </div>
+        );
+      case 'recurring':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between border-b border-foreground pb-0.5">
+              <div className="h-1 w-12 rounded-[1px] bg-foreground" />
+              <div className="h-1 w-10 rounded-[1px] bg-foreground" />
+            </div>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="h-1 w-16 rounded-[1px] bg-muted-foreground/60" />
+                <div className="h-1 w-8 rounded-[1px] bg-muted-foreground/40" />
+                <div className="h-1 w-6 rounded-[1px] bg-foreground" />
+              </div>
+            ))}
+          </div>
+        );
+      case 'transactions':
+        return (
+          <div className="space-y-0.5">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1 border-b border-line/40 pb-0.5">
+                <div className="h-0.5 w-6 rounded-[1px] bg-muted-foreground/30" />
+                <div className="h-0.5 flex-1 rounded-[1px] bg-foreground/70" />
+                <div className="h-0.5 w-8 rounded-[1px] bg-muted-foreground/40" />
+              </div>
+            ))}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Renders a single A4-aspect thumbnail card for the preview pane.
+  const A4Thumb = ({ pageId, idx }: { pageId: PageId; idx: number }) => {
+    const def = PAGE_DEFS[pageId];
+    return (
+      <div className="flex flex-col items-center gap-1.5">
+        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-semibold">
+          {t('reports.pageBadge', {
+            n: String(idx + 1).padStart(2, '0'),
+            name: t(def.labelKey, { defaultValue: def.labelDefault }),
+            defaultValue: `Page ${String(idx + 1).padStart(2, '0')} · ${t(def.labelKey, { defaultValue: def.labelDefault })}`,
+          })}
+        </div>
+        <div
+          className="bg-card border border-line shadow-sm overflow-hidden flex flex-col"
+          style={{ width: '200px', height: '283px' /* ≈ 1:1.414 portrait A4 */ }}
+        >
+          {/* Top chrome */}
+          <div className="px-3 pt-2 pb-1.5 border-b border-line flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <div className="h-1.5 w-1.5 bg-foreground rounded-sm" />
+              <div className="font-mono text-[6px] font-semibold text-foreground/80">SPENDING TRACKER</div>
+            </div>
+            <div className="font-mono text-[6px] text-muted-foreground">{String(idx + 1).padStart(2, '0')} / {String(enabledPageCount).padStart(2, '0')}</div>
+          </div>
+          {/* Body */}
+          <div className="flex-1 px-3 py-2 overflow-hidden">
+            <div className="flex items-end justify-between border-b border-foreground pb-1 mb-2">
+              <div className="space-y-0.5">
+                <div className="font-mono text-[6px] tracking-[0.12em] uppercase text-muted-foreground">
+                  {t('reports.sectionLabel', { num: def.num, defaultValue: `Section ${def.num}` })}
+                </div>
+                <div className="text-[10px] font-semibold leading-tight">
+                  {t(def.labelKey, { defaultValue: def.labelDefault })}
+                </div>
+              </div>
+            </div>
+            {renderPageThumbBody(pageId)}
+          </div>
+          {/* Bottom rule + footer */}
+          <div className="px-3 py-1 border-t border-line">
+            <div className="font-mono text-[6px] text-muted-foreground flex justify-between">
+              <span>SPENDING TRACKER · REPORT</span>
+              <span>{String(idx + 1).padStart(2, '0')} / {String(enabledPageCount).padStart(2, '0')}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Order matters for the preview: walk pages in their current order and
+  // only render the enabled ones.
+  const enabledPagesInOrder = pages
+    .map((p, i) => ({ ...p, displayIdx: i }))
+    .filter((p) => p.enabled);
+
+  const periodSummary = `${format(actualDates.start, 'd MMM', { locale })} → ${format(actualDates.end, 'd MMM yyyy', { locale })}`;
+
+  // Single-screen layout — toolbar at top (presets + period + date
+  // type), two-column body (page rail + preview), footer with format
+  // and Generate action. Matches the v2 design.
+  const content = (
+    <div className="flex flex-col -mx-6 -mb-6">
+      {/* ── Toolbar ──────────────────────────────────────────────── */}
+      <div className="border-t border-line bg-bg-subtle/40">
+        {/* Presets row */}
+        <div className="flex items-center gap-2 px-5 py-2.5 border-b border-line flex-wrap">
+          <span className="font-mono text-[10px] uppercase tracking-[0.09em] text-muted-foreground font-medium">
+            {t('reports.presetLabel', { defaultValue: 'Preset' })}
+          </span>
+          {(['standard', 'detailed', 'taxReady', 'receipts'] as PresetId[]).map((p) => {
+            const presetKey =
+              p === 'standard' ? 'reports.presetStandard'
+                : p === 'detailed' ? 'reports.presetDetailed'
+                : p === 'taxReady' ? 'reports.presetTaxReady'
+                : 'reports.presetReceipts';
+            const fallback =
+              p === 'standard' ? 'Standard'
+                : p === 'detailed' ? 'Detailed'
+                : p === 'taxReady' ? 'Tax-ready'
+                : 'Receipts only';
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => applyPreset(p)}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors',
+                  activePreset === p
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-card border-line text-foreground/80 hover:bg-bg-hover'
+                )}
+              >
+                {activePreset === p && <span className="mr-1 text-[8px]">●</span>}
+                {t(presetKey, { defaultValue: fallback })}
+              </button>
+            );
+          })}
+          {activePreset === 'custom' && (
+            <span className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-warning/10 text-warning border border-warning/30">
+              {t('reports.presetCustom', { defaultValue: 'Custom' })}
+            </span>
+          )}
+        </div>
+
+        {/* Period + date type row */}
+        <div className="flex items-center gap-3 px-5 py-2.5 flex-wrap">
+          <span className="font-mono text-[10px] uppercase tracking-[0.09em] text-muted-foreground font-medium">
+            {t('reports.period', { defaultValue: 'Period' })}
+          </span>
+          <div className="flex border border-line rounded-md p-0.5 bg-card">
+            {(['thisMonth', 'lastMonth', 'thisQuarter', 'thisYear'] as const).map((key) => {
+              const periodKey =
+                key === 'thisMonth' ? 'reports.periodThisMonth'
+                  : key === 'lastMonth' ? 'reports.periodLastMonth'
+                  : key === 'thisQuarter' ? 'reports.periodThisQuarter'
+                  : 'reports.periodThisYear';
+              const fallback =
+                key === 'thisMonth' ? 'This month'
+                  : key === 'lastMonth' ? 'Last month'
+                  : key === 'thisQuarter' ? 'This quarter'
+                  : 'YTD';
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handlePeriodPreset(key)}
+                  className={cn(
+                    'px-2.5 py-1 rounded text-xs font-medium transition-colors',
+                    isPresetActive(key)
+                      ? 'bg-foreground text-background'
+                      : 'text-foreground/70 hover:bg-bg-hover'
+                  )}
+                >
+                  {t(periodKey, { defaultValue: fallback })}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setConfig((p) => ({ ...p, periodType: 'custom' }))}
+              className={cn(
+                'px-2.5 py-1 rounded text-xs font-medium transition-colors',
+                config.periodType === 'custom'
+                  ? 'bg-foreground text-background'
+                  : 'text-foreground/70 hover:bg-bg-hover'
+              )}
+            >
+              {t('common.custom', { defaultValue: 'Custom' })}
+            </button>
+          </div>
+
+          <span className="font-mono text-xs text-muted-foreground tabular-nums">
+            <Calendar className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
+            {periodSummary}
+          </span>
+
+          <Select
+            value={config.dateType}
+            onValueChange={(v: 'accounting' | 'value') => setConfig((p) => ({ ...p, dateType: v }))}
+          >
+            <SelectTrigger className="h-7 w-auto text-xs font-mono gap-1 ml-auto">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="accounting">
+                {t('reports.byAccountingDate', { defaultValue: 'By accounting date' })}
+              </SelectItem>
+              <SelectItem value="value">
+                {t('reports.byValueDate', { defaultValue: 'By value date' })}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* ── Body: page rail + preview ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] min-h-[420px] max-h-[60vh]">
+        {/* Page rail */}
+        <div className="border-r border-line flex flex-col bg-card max-h-[60vh] overflow-hidden">
+          <div className="px-3 py-2 border-b border-line flex items-baseline justify-between">
+            <div className="text-xs font-semibold">
+              {t('reports.documentOutline', { defaultValue: 'Document outline' })}
+            </div>
+            <div className="font-mono text-[10px] text-muted-foreground">
+              <span className="text-foreground font-semibold">{enabledPageCount - (PAGE_DEFS.cover.required ? 1 : 0)}</span>
+              {' '}/ {totalToggleablePages}
+            </div>
+          </div>
+          <div className="flex gap-1.5 px-3 py-1.5 border-b border-line bg-bg-subtle/40 text-[10px] font-mono uppercase tracking-[0.04em]">
+            <button onClick={selectAllPages} className="text-muted-foreground hover:text-foreground hover:bg-bg-hover px-1 rounded">
+              {t('reports.selectAllShort', { defaultValue: 'All' })}
+            </button>
+            <button onClick={selectNonePages} className="text-muted-foreground hover:text-foreground hover:bg-bg-hover px-1 rounded">
+              {t('reports.selectNoneShort', { defaultValue: 'None' })}
+            </button>
+            <button onClick={resetDefaultPages} className="text-muted-foreground hover:text-foreground hover:bg-bg-hover px-1 rounded">
+              {t('reports.selectDefault', { defaultValue: 'Default' })}
+            </button>
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-1.5 space-y-0.5">
+              {pages.map((p) => {
+                const def = PAGE_DEFS[p.id];
+                const required = !!def.required;
+                const isDragOver = hoverId === p.id && draggingId !== null && draggingId !== p.id;
+                return (
+                  <div
+                    key={p.id}
+                    draggable={!required}
+                    onDragStart={(e) => {
+                      if (required) {
+                        e.preventDefault();
+                        return;
+                      }
+                      setDraggingId(p.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragEnter={(e) => { e.preventDefault(); setHoverId(p.id); }}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDragLeave={(e) => {
+                      // Only clear hover if leaving the row entirely
+                      const related = e.relatedTarget as Node | null;
+                      if (!related || !(e.currentTarget as Node).contains(related)) {
+                        setHoverId((cur) => (cur === p.id ? null : cur));
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggingId && draggingId !== p.id) movePage(draggingId, p.id);
+                      setDraggingId(null);
+                      setHoverId(null);
+                    }}
+                    onDragEnd={() => { setDraggingId(null); setHoverId(null); }}
+                    className={cn(
+                      'group flex items-center gap-2 px-2 py-1.5 rounded-md border transition-colors',
+                      p.enabled ? 'bg-card border-transparent' : 'opacity-60 bg-card border-transparent',
+                      isDragOver && 'border-foreground/40 bg-bg-subtle',
+                      draggingId === p.id && 'opacity-30'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'font-mono text-[10px] text-muted-foreground/60 flex-shrink-0 select-none',
+                        required ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+                      )}
+                    >
+                      ⋮⋮
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => togglePage(p.id)}
+                      disabled={required}
+                      aria-label={t('reports.togglePage', { defaultValue: 'Toggle page' })}
+                      className={cn(
+                        'w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0',
+                        p.enabled
+                          ? 'bg-foreground border-foreground text-background'
+                          : 'bg-card border-line',
+                        required && 'cursor-not-allowed'
+                      )}
+                    >
+                      {p.enabled && <Check className="h-2 w-2" strokeWidth={3} />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-mono text-[9px] text-muted-foreground/70 leading-none">
+                        {t('reports.pageNum', { num: def.num, defaultValue: `PAGE ${def.num}` })}
+                      </div>
+                      <div className={cn('text-xs font-medium mt-0.5 truncate', !p.enabled && 'text-muted-foreground')}>
+                        {t(def.labelKey, { defaultValue: def.labelDefault })}
+                      </div>
+                      <div className="font-mono text-[9px] text-muted-foreground mt-0.5 truncate">
+                        {def.id === 'transactions'
+                          ? t('reports.page.transactions.meta_dynamic', {
+                              n: ledgerPages,
+                              rows: txCount,
+                              defaultValue: `${ledgerPages} page${ledgerPages !== 1 ? 's' : ''} · ${txCount} rows`,
+                            })
+                          : t(def.metaKey, { defaultValue: def.metaDefault })}
+                      </div>
+                    </div>
+                    {required && (
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground/80 border border-line px-1 py-0.5 rounded">
+                        {t('reports.required', { defaultValue: 'REQ' })}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+
+          <div className="px-3 py-2 border-t border-line bg-bg-subtle/40 flex items-center justify-between font-mono text-[10px]">
+            <span className="text-muted-foreground uppercase tracking-[0.06em]">
+              {t('reports.pagesTotal', { defaultValue: 'Pages' })}
+            </span>
+            <span className="text-foreground font-semibold">{documentPages}</span>
+          </div>
+        </div>
+
+        {/* Preview pane */}
+        <div className="bg-bg-subtle/30 overflow-y-auto p-5">
+          <div className="flex flex-col items-center gap-4">
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-semibold bg-card border border-line rounded-full px-2.5 py-1">
+              {t('reports.a4Badge', { defaultValue: 'A4 portrait · 210 × 297 mm' })}
+            </div>
+            {enabledPagesInOrder.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-10">
+                {t('reports.noPagesSelected', { defaultValue: 'No pages selected. Pick a preset or check at least one page.' })}
+              </div>
+            ) : (
+              enabledPagesInOrder.map((p, i) => (
+                <A4Thumb key={p.id} pageId={p.id} idx={i} />
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-line">
-        <div className="text-[12px] text-muted-foreground font-mono tabular-nums">
-          {config.sections.length} sections · {format(actualDates.start, 'd MMM', { locale })} →{' '}
-          {format(actualDates.end, 'd MMM yyyy', { locale })} · {config.format.toUpperCase()}
+      {/* ── Footer ───────────────────────────────────────────────── */}
+      <div className="border-t border-line bg-card px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+          <span><b className="text-foreground/90 font-semibold">{documentPages}</b> {t('reports.pagesShort', { defaultValue: 'pages' })}</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span><b className="text-foreground/90 font-semibold">{txCount}</b> {t('reports.transactionsShort', { defaultValue: 'transactions' })}</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span>≈ <b className="text-foreground/90 font-semibold">{estimatedKb} KB</b></span>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={isGenerating}
-            className="h-9 text-sm"
-          >
-            {t('common.cancel', { defaultValue: 'Cancel' })}
-          </Button>
+          <div className="flex border border-line rounded-md p-0.5 bg-bg-subtle/40">
+            {(['pdf', 'excel'] as const).map((fmt) => (
+              <button
+                key={fmt}
+                type="button"
+                onClick={() => setConfig((p) => ({ ...p, format: fmt }))}
+                className={cn(
+                  'px-2.5 py-1 rounded text-xs font-medium uppercase font-mono transition-colors',
+                  config.format === fmt
+                    ? 'bg-foreground text-background'
+                    : 'text-foreground/70 hover:bg-bg-hover'
+                )}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
           <Button
             onClick={handleGenerate}
-            disabled={isGenerating || config.sections.length === 0}
+            disabled={isGenerating || enabledPageCount === 0}
             className="h-9 text-sm gap-2"
           >
             {isGenerating ? (
@@ -1626,6 +2372,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     </div>
   );
 
+
   // Step state is no longer used — keep referenced to satisfy lint with the
   // previous step1/2/3 helpers (they're unused but left in place for future
   // re-use without re-deriving the configuration logic).
@@ -1636,63 +2383,11 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   void renderStep2;
   void renderStep3;
 
-  // Hidden chart container for PDF capture
-  const chartsContainer = (
-    <div
-      style={{
-        position: 'fixed',
-        left: '-9999px',
-        top: 0,
-        opacity: 0,
-        pointerEvents: 'none',
-        zIndex: -1,
-      }}
-      aria-hidden="true"
-    >
-      {config.includeCharts && config.format === 'pdf' && (
-        <>
-          <SummaryCards
-            ref={summaryChartRef}
-            totalIncome={stats.income}
-            totalExpenses={stats.expenses}
-            netBalance={stats.netPeriodBalance}
-            initialBalance={stats.initialBalance}
-            finalBalance={stats.finalBalance}
-            transactionCount={filteredTransactions.length}
-            formatCurrency={formatCurrency}
-          />
-          <CategoryPieChart
-            ref={categoryPieRef}
-            data={categoryPieData}
-            totalExpenses={stats.expenses}
-            formatCurrency={formatCurrency}
-          />
-          <BalanceEvolutionChart
-            ref={evolutionChartRef}
-            data={evolutionChartData}
-            formatCurrency={formatCurrency}
-          />
-          <IncomeExpensesChart
-            ref={incomeExpenseRef}
-            totalIncome={stats.income}
-            totalExpenses={stats.expenses}
-            netBalance={stats.netPeriodBalance}
-            formatCurrency={formatCurrency}
-          />
-          <BudgetProgressChart
-            ref={budgetChartRef}
-            data={budgetChartData}
-            formatCurrency={formatCurrency}
-          />
-          <TopCategoriesChart
-            ref={topCategoriesRef}
-            data={categoryPieData}
-            formatCurrency={formatCurrency}
-          />
-        </>
-      )}
-    </div>
-  );
+  // Phase 2 draws every chart natively in jsPDF — the off-screen
+  // chartsContainer that previously fed html2canvas is no longer
+  // needed. Keep an empty fragment so the existing {chartsContainer}
+  // mount points in the Drawer / Dialog don't need surgery.
+  const chartsContainer = null;
 
   // Use Drawer on mobile, Dialog on desktop
   if (isMobile) {
@@ -1717,7 +2412,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
                 </div>
               </div>
             </DrawerHeader>
-            <div className="p-4 pt-2 overflow-y-auto">
+            <div className="px-6 pb-0 pt-2 overflow-y-auto flex-1">
               {content}
             </div>
           </DrawerContent>
@@ -1730,19 +2425,19 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     <>
       {chartsContainer}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-background border border-line shadow-xl rounded-xl">
-          <DialogHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div
-                className="text-2xl leading-none mt-0.5"
-                style={{ fontFamily: '"Fraunces", Georgia, serif', fontWeight: 500 }}
-              >
-                {t('reports.generateReport', { defaultValue: 'Generate report' })}
-              </div>
-            </div>
+        <DialogContent
+          // v2 wizard sits at ~1200px wide on the design board. We use
+          // max-w-6xl + flush body (no overflow scroll on the container)
+          // so the page rail can scroll independently of the preview.
+          className="max-w-6xl w-[95vw] max-h-[92vh] p-6 pb-0 overflow-hidden bg-background border border-line shadow-xl rounded-xl flex flex-col"
+        >
+          <DialogHeader className="pb-3 flex-shrink-0">
+            <DialogTitle className="text-lg font-semibold tracking-tight">
+              {t('reports.generateReport', { defaultValue: 'Generate report' })}
+            </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               {t('reports.generateSubtitle', {
-                defaultValue: "Pick what you want, see how it'll look, export.",
+                defaultValue: 'Pick pages, set period, export. Reorder by dragging.',
               })}
             </DialogDescription>
           </DialogHeader>
