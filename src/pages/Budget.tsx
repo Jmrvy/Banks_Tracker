@@ -29,6 +29,7 @@ import { MonthPicker } from "@/components/ui/month-picker";
 import { YearPicker } from "@/components/ui/year-picker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BudgetRowSparkline } from "@/components/BudgetRowSparkline";
+import { BudgetRowGauge } from "@/components/BudgetRowGauge";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { EditCategoryModal } from "@/components/EditCategoryModal";
 import { MiniDonut } from "@/components/MiniDonut";
@@ -69,6 +70,7 @@ import {
 // =============================================================================
 
 type StatusFilter = "all" | "over" | "warn" | "noBudget";
+type RowView = "trend" | "gauge";
 type PeriodKey = "1m" | "3m" | "6m" | "ytd" | "1y" | "month" | "year" | "custom";
 type Status = "noBudget" | "ok" | "warn" | "over";
 
@@ -227,6 +229,7 @@ const Budget = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [rowView, setRowView] = useState<RowView>("trend");
 
   const [periodKey, setPeriodKey] = useState<PeriodKey>("1m");
   const today = useMemo(() => {
@@ -1193,19 +1196,52 @@ const Budget = () => {
                 })}
               </p>
             </div>
-            <div className="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block w-3 h-px bg-foreground/70" />
-                {t("budget.legendCum", { defaultValue: "Cumulative" })}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block w-3 h-px border-t border-dashed border-line-strong" />
-                {t("budget.legendBudget", { defaultValue: "Budget" })}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block w-px h-3 border-l border-dashed border-fg-dim" />
-                {t("budget.legendToday", { defaultValue: "Today" })}
-              </span>
+            <div className="flex items-center gap-3">
+              {rowView === "trend" && (
+                <div className="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-px bg-foreground/70" />
+                    {t("budget.legendCum", { defaultValue: "Cumulative" })}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-px border-t border-dashed border-line-strong" />
+                    {t("budget.legendBudget", { defaultValue: "Budget" })}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block w-px h-3 border-l border-dashed border-fg-dim" />
+                    {t("budget.legendToday", { defaultValue: "Today" })}
+                  </span>
+                </div>
+              )}
+              <div
+                role="group"
+                aria-label={t("budget.rowViewToggle", {
+                  defaultValue: "Row visualisation",
+                })}
+                className="inline-flex rounded-lg border border-line bg-bg-subtle/50 p-0.5"
+              >
+                {(
+                  [
+                    ["trend", t("budget.viewTrend", { defaultValue: "Trend" })],
+                    ["gauge", t("budget.viewGauge", { defaultValue: "Gauge" })],
+                  ] as [RowView, string][]
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={rowView === key}
+                    onClick={() => setRowView(key)}
+                    className={cn(
+                      "px-2.5 h-7 rounded-md text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors",
+                      rowView === key
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1228,6 +1264,7 @@ const Budget = () => {
                       [s.category.id]: !prev[s.category.id],
                     }))
                   }
+                  rowView={rowView}
                   includeProjected={includeProjected}
                   elapsedDays={period.elapsedBuckets}
                   totalDays={period.buckets.count}
@@ -1464,6 +1501,7 @@ interface CategoryRowProps {
   s: CategoryStats;
   expanded: boolean;
   onToggle: () => void;
+  rowView: RowView;
   includeProjected: boolean;
   elapsedDays: number;
   totalDays: number;
@@ -1482,6 +1520,7 @@ function CategoryRow({
   s,
   expanded,
   onToggle,
+  rowView,
   includeProjected,
   elapsedDays,
   totalDays,
@@ -1601,15 +1640,28 @@ function CategoryRow({
         </div>
 
         <div className="hidden lg:block h-9 min-w-0">
-          <BudgetRowSparkline
-            buckets={s.buckets}
-            projected={includeProjected ? s.projectedBuckets : null}
-            color={category.color}
-            budget={periodBudget}
-            elapsedDays={elapsedDays}
-            totalDays={totalDays}
-            height={36}
-          />
+          {rowView === "gauge" ? (
+            <div className="flex items-center h-full">
+              <BudgetRowGauge
+                used={used}
+                budget={periodBudget}
+                pct={pct}
+                status={status}
+                elapsedFraction={elapsedFraction}
+                t={t}
+              />
+            </div>
+          ) : (
+            <BudgetRowSparkline
+              buckets={s.buckets}
+              projected={includeProjected ? s.projectedBuckets : null}
+              color={category.color}
+              budget={periodBudget}
+              elapsedDays={elapsedDays}
+              totalDays={totalDays}
+              height={36}
+            />
+          )}
         </div>
 
         <ChevronDown
@@ -1624,15 +1676,26 @@ function CategoryRow({
         <div className="px-5 md:px-6 lg:pl-[88px] pt-3 pb-5 border-t border-dashed border-line flex flex-col gap-4">
           {/* Mobile sparkline (hidden in the row when small) */}
           <div className="lg:hidden">
-            <BudgetRowSparkline
-              buckets={s.buckets}
-              projected={includeProjected ? s.projectedBuckets : null}
-              color={category.color}
-              budget={periodBudget}
-              elapsedDays={elapsedDays}
-              totalDays={totalDays}
-              height={42}
-            />
+            {rowView === "gauge" ? (
+              <BudgetRowGauge
+                used={used}
+                budget={periodBudget}
+                pct={pct}
+                status={status}
+                elapsedFraction={elapsedFraction}
+                t={t}
+              />
+            ) : (
+              <BudgetRowSparkline
+                buckets={s.buckets}
+                projected={includeProjected ? s.projectedBuckets : null}
+                color={category.color}
+                budget={periodBudget}
+                elapsedDays={elapsedDays}
+                totalDays={totalDays}
+                height={42}
+              />
+            )}
           </div>
 
           {/* 4-stat grid */}
