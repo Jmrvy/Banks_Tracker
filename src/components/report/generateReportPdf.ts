@@ -51,12 +51,27 @@ const RENDERERS: Record<ReportPageId, PageRenderer> = {
 /** Build the report document without triggering a download. Exported so
  *  the rendering pipeline can be exercised headlessly in tests. */
 export async function buildReportPdf(input: GenerateReportPdfInput) {
-  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+  const [{ default: jsPDF }, { default: autoTable }, fonts] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
+    import('./fonts/geistFonts'),
   ]);
 
   const pdf = new jsPDF('p', 'mm', 'a4');
+
+  // Render in the app brand typeface (Geist / Geist Mono — the template
+  // spec mandates Geist only). Registered under the built-in slot names
+  // 'helvetica' (sans) and 'courier' (mono) so every existing setFont
+  // call and jspdf-autotable cell style picks them up unchanged.
+  pdf.addFileToVFS('Geist-Regular.ttf', fonts.geistRegular);
+  pdf.addFont('Geist-Regular.ttf', 'helvetica', 'normal');
+  pdf.addFileToVFS('Geist-Bold.ttf', fonts.geistBold);
+  pdf.addFont('Geist-Bold.ttf', 'helvetica', 'bold');
+  pdf.addFileToVFS('GeistMono-Regular.ttf', fonts.geistMonoRegular);
+  pdf.addFont('GeistMono-Regular.ttf', 'courier', 'normal');
+  pdf.addFileToVFS('GeistMono-Bold.ttf', fonts.geistMonoBold);
+  pdf.addFont('GeistMono-Bold.ttf', 'courier', 'bold');
+
   const { actualDates, locale } = input;
 
   const orderedEnabledPages = input.pages

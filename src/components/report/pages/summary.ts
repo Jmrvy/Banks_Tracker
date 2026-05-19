@@ -31,7 +31,7 @@ export function renderSummary(ctx: ReportCtx) {
   );
 
   // ── KPI band (drawn locally: multi-line value / coloured sub-lines) ─
-  const bandH = 26;
+  const bandH = 30;
   const cells = [
     {
       label: 'Income',
@@ -89,7 +89,7 @@ export function renderSummary(ctx: ReportCtx) {
     setText(c.subColor);
     pdf.text(c.sub, x + 4, y + bandH - 3.5);
   });
-  y += bandH + 9;
+  y += bandH + 13;
 
   // ── Commentary paragraph ─────────────────────────────────────────
   sans(9);
@@ -111,7 +111,7 @@ export function renderSummary(ctx: ReportCtx) {
   }
   const commentaryLines = pdf.splitTextToSize(commentary, COL) as string[];
   pdf.text(commentaryLines, MARGIN_X, y);
-  y += commentaryLines.length * 4.7 + 7;
+  y += commentaryLines.length * 4.7 + 13;
 
   // ── Where it went · top six ──────────────────────────────────────
   const acctPct = Math.round(topCatsWithOther.reduce((s, c) => s + c.pct, 0));
@@ -125,22 +125,22 @@ export function renderSummary(ctx: ReportCtx) {
     [12, 13, 12], [60, 62, 58], [110, 113, 108],
     [154, 156, 151], [198, 197, 189], [223, 221, 213],
   ];
-  const donutCx = MARGIN_X + 24;
-  const donutCy = y + 26;
+  const donutCx = MARGIN_X + 28;
+  const donutCy = y + 32;
   const donutSegs = topCatsWithOther.map((c, i) => ({
     value: c.spent,
     color: palette[i] ?? mute2,
   }));
-  if (donutSegs.length > 0) drawDonut(donutCx, donutCy, 24, 14.5, donutSegs);
-  mono(9.5, 'bold');
+  if (donutSegs.length > 0) drawDonut(donutCx, donutCy, 30, 18, donutSegs);
+  mono(10, 'bold');
   setText(ink);
   pdf.text(fmt(Math.round(totalCatSpent)), donutCx, donutCy + 0.5, { align: 'center' });
-  mono(5.5);
+  mono(6);
   setText(mute);
-  pdf.text('EXPENSES', donutCx, donutCy + 4.5, { align: 'center' });
+  pdf.text('EXPENSES', donutCx, donutCy + 5, { align: 'center' });
 
-  const legendX = MARGIN_X + 60;
-  let legendY = y + 6;
+  const legendX = MARGIN_X + 70;
+  let legendY = y + 9;
   topCatsWithOther.forEach((c, i) => {
     setFill(palette[i] ?? mute2);
     pdf.rect(legendX, legendY - 2.5, 2.8, 2.8, 'F');
@@ -153,9 +153,9 @@ export function renderSummary(ctx: ReportCtx) {
       `${fmt(c.spent)} · ${Math.round(c.pct)}%`,
       PW - MARGIN_X, legendY, { align: 'right' },
     );
-    legendY += 7.4;
+    legendY += 9.4;
   });
-  y = Math.max(donutCy + 26, legendY - 0.5) + 7;
+  y = Math.max(donutCy + 34, legendY - 0.5) + 12;
 
   // ── Balance trend · {periodDays} days ────────────────────────────
   y = drawSectionEyebrow(
@@ -163,7 +163,7 @@ export function renderSummary(ctx: ReportCtx) {
     `${fmt(Math.round(stats.initialBalance))} → ${fmt(Math.round(balanceEnd))}`,
     y,
   );
-  const sparkH = 22;
+  const sparkH = 34;
   // Subtle area fill under the curve (drawn locally; helper draws line only)
   if (sparkPoints.length > 1) {
     const min = Math.min(...sparkPoints);
