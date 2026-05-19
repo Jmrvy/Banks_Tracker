@@ -252,27 +252,45 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
     segments: { value: number; color: RGB }[],
   ) => {
     const total = segments.reduce((a, b) => a + b.value, 0) || 1;
+    const TAU = Math.PI * 2;
+    const ARC = Math.PI / 90; // ~2° arc resolution
+
+    // 1) Each segment as a single solid pie wedge (one fill — no seams).
     let angle = -Math.PI / 2;
-    const STEPS_PER_RAD = 24;
     segments.forEach((seg) => {
-      const sweep = (seg.value / total) * Math.PI * 2;
-      const steps = Math.max(2, Math.ceil(Math.abs(sweep) * STEPS_PER_RAD));
-      const stepAngle = sweep / steps;
-      setFill(seg.color);
-      for (let i = 0; i < steps; i++) {
-        const a0 = angle + i * stepAngle;
-        const a1 = angle + (i + 1) * stepAngle;
-        const o0x = cx + Math.cos(a0) * rOuter, o0y = cy + Math.sin(a0) * rOuter;
-        const o1x = cx + Math.cos(a1) * rOuter, o1y = cy + Math.sin(a1) * rOuter;
-        const i1x = cx + Math.cos(a1) * rInner, i1y = cy + Math.sin(a1) * rInner;
-        const i0x = cx + Math.cos(a0) * rInner, i0y = cy + Math.sin(a0) * rInner;
-        pdf.lines(
-          [[o1x - o0x, o1y - o0y], [i1x - o1x, i1y - o1y], [i0x - i1x, i0y - i1y], [o0x - i0x, o0y - i0y]],
-          o0x, o0y, [1, 1], 'F',
-        );
+      const sweep = (seg.value / total) * TAU;
+      if (sweep <= 0) return;
+      const steps = Math.max(2, Math.ceil(sweep / ARC));
+      const pts: [number, number][] = [[cx, cy]];
+      for (let i = 0; i <= steps; i++) {
+        const a = angle + (sweep * i) / steps;
+        pts.push([cx + Math.cos(a) * rOuter, cy + Math.sin(a) * rOuter]);
       }
+      pts.push([cx, cy]);
+      const rel: [number, number][] = [];
+      for (let i = 1; i < pts.length; i++) {
+        rel.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]);
+      }
+      setFill(seg.color);
+      pdf.lines(rel, pts[0][0], pts[0][1], [1, 1], 'F', true);
       angle += sweep;
     });
+
+    // 2) Crisp paper separators between segments so adjacent greys read
+    //    as distinct slices even with low tonal contrast.
+    angle = -Math.PI / 2;
+    pdf.setDrawColor(255, 255, 255);
+    pdf.setLineWidth(0.8);
+    segments.forEach((seg) => {
+      if (seg.value <= 0) return;
+      pdf.line(
+        cx + Math.cos(angle) * (rInner - 0.3), cy + Math.sin(angle) * (rInner - 0.3),
+        cx + Math.cos(angle) * (rOuter + 0.3), cy + Math.sin(angle) * (rOuter + 0.3),
+      );
+      angle += (seg.value / total) * TAU;
+    });
+
+    // 3) Punch the donut hole.
     pdf.setFillColor(255, 255, 255);
     pdf.circle(cx, cy, rInner, 'F');
   };
