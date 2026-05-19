@@ -59,18 +59,20 @@ export async function buildReportPdf(input: GenerateReportPdfInput) {
 
   const pdf = new jsPDF('p', 'mm', 'a4');
 
-  // Render in the app brand typeface (Geist / Geist Mono — the template
-  // spec mandates Geist only). Registered under the built-in slot names
-  // 'helvetica' (sans) and 'courier' (mono) so every existing setFont
-  // call and jspdf-autotable cell style picks them up unchanged.
-  pdf.addFileToVFS('Geist-Regular.ttf', fonts.geistRegular);
-  pdf.addFont('Geist-Regular.ttf', 'helvetica', 'normal');
-  pdf.addFileToVFS('Geist-Bold.ttf', fonts.geistBold);
-  pdf.addFont('Geist-Bold.ttf', 'helvetica', 'bold');
-  pdf.addFileToVFS('GeistMono-Regular.ttf', fonts.geistMonoRegular);
-  pdf.addFont('GeistMono-Regular.ttf', 'courier', 'normal');
-  pdf.addFileToVFS('GeistMono-Bold.ttf', fonts.geistMonoBold);
-  pdf.addFont('GeistMono-Bold.ttf', 'courier', 'bold');
+  // Render in the app brand typeface. The document spec defines two
+  // working weights only — Medium (500) for body/figures, SemiBold (600)
+  // for titles/labels — so we map Medium→'normal' and SemiBold→'bold'
+  // on both the sans ('helvetica') and mono ('courier') slots; every
+  // existing setFont call and jspdf-autotable cell style then renders at
+  // the spec weight with no per-call changes.
+  pdf.addFileToVFS('Geist-Medium.ttf', fonts.geistMedium);
+  pdf.addFont('Geist-Medium.ttf', 'helvetica', 'normal');
+  pdf.addFileToVFS('Geist-SemiBold.ttf', fonts.geistSemiBold);
+  pdf.addFont('Geist-SemiBold.ttf', 'helvetica', 'bold');
+  pdf.addFileToVFS('GeistMono-Medium.ttf', fonts.geistMonoMedium);
+  pdf.addFont('GeistMono-Medium.ttf', 'courier', 'normal');
+  pdf.addFileToVFS('GeistMono-SemiBold.ttf', fonts.geistMonoSemiBold);
+  pdf.addFont('GeistMono-SemiBold.ttf', 'courier', 'bold');
 
   const { actualDates, locale } = input;
 

@@ -14,32 +14,35 @@ export function renderCover(ctx: ReportCtx) {
   newPage();
 
   // ── Top header (cover-specific) ──────────────────────────────────
+  // Spec § 06: cover mark — rounded, two-scale single mark.
   setFill(ink);
-  pdf.rect(MARGIN_X, 23.5, 5, 5, 'F');
-  sans(11, 'bold');
+  pdf.roundedRect(MARGIN_X, 23.4, 5, 5, 1.3, 1.3, 'F');
+  sans(11, 'bold', -5);
   setText(ink2);
   pdf.text('Spending Tracker', MARGIN_X + 7.5, 27.6);
 
-  mono(8, 'bold');
+  mono(7.5, 'bold', 10);
   setText(ink2);
   pdf.text('FINANCIAL REPORT', RIGHT, 24, { align: 'right' });
-  mono(7);
+  mono(7, 'normal', 8);
   setText(mute);
   pdf.text(`REF · ${reference}`, RIGHT, 28, { align: 'right' });
   pdf.text(`1 PAGE OF ${totalPagesEstimate}`, RIGHT, 32, { align: 'right' });
 
   // ── Eyebrow + big title ──────────────────────────────────────────
-  mono(8, 'bold');
+  mono(8.5, 'bold', 12);
   setText(mute);
   pdf.text('ON-DEMAND REPORT · PERIOD', MARGIN_X, 100);
+  pdf.setCharSpace(0);
 
-  sans(36, 'bold');
+  sans(38, 'bold', -30);
   setText(ink);
   const titleText = format(actualDates.start, 'MMMM yyyy', { locale });
   pdf.text(titleText.charAt(0).toUpperCase() + titleText.slice(1), MARGIN_X, 118);
+  pdf.setCharSpace(0);
 
   // ── Subtitle paragraph ───────────────────────────────────────────
-  sans(11);
+  sans(11, 'normal');
   setText(ink3);
   const days = periodDays;
   const acctCount = accounts.length;
@@ -60,10 +63,11 @@ export function renderCover(ctx: ReportCtx) {
   ];
   detailRows.forEach(([k, v], i) => {
     const y = detailY + i * 7;
-    mono(7, 'bold');
+    mono(7, 'bold', 10);
     setText(mute);
     pdf.text(k, MARGIN_X, y);
-    sans(10);
+    pdf.setCharSpace(0);
+    sans(10, 'normal');
     setText(ink);
     pdf.text(v, MARGIN_X + 30, y);
   });
@@ -71,7 +75,7 @@ export function renderCover(ctx: ReportCtx) {
   // ── Lower key-figures block ──────────────────────────────────────
   const figsY = 235;
   pdf.setDrawColor(ink[0], ink[1], ink[2]);
-  pdf.setLineWidth(0.7);
+  pdf.setLineWidth(0.8); // document rule (spec § 04)
   pdf.line(MARGIN_X, figsY, RIGHT, figsY);
 
   const fcellW = COL / 3;
@@ -82,24 +86,26 @@ export function renderCover(ctx: ReportCtx) {
   ];
   figCells.forEach((c, i) => {
     const x = MARGIN_X + i * fcellW;
-    mono(7, 'bold');
+    mono(7, 'bold', 10);
     setText(mute);
     pdf.text(c.lbl, x + 2, figsY + 6);
-    mono(15, 'bold');
+    pdf.setCharSpace(0);
+    mono(15, 'normal', -20);
     setText(c.color);
     pdf.text(c.val, x + 2, figsY + 14);
+    pdf.setCharSpace(0);
     if (i < 2) {
       pdf.setDrawColor(lineCol[0], lineCol[1], lineCol[2]);
-      pdf.setLineWidth(0.2);
+      pdf.setLineWidth(0.15);
       pdf.line(x + fcellW, figsY, x + fcellW, figsY + 17);
     }
   });
   pdf.setDrawColor(lineCol[0], lineCol[1], lineCol[2]);
-  pdf.setLineWidth(0.2);
+  pdf.setLineWidth(0.15);
   pdf.line(MARGIN_X, figsY + 19, RIGHT, figsY + 19);
 
   // ── Footer ───────────────────────────────────────────────────────
-  mono(8);
+  mono(7.5, 'normal', 6);
   setText(mute);
   pdf.text(
     `Generated ${format(generatedAt, 'd MMM yyyy · HH:mm', { locale })} CET`,
@@ -109,4 +115,5 @@ export function renderCover(ctx: ReportCtx) {
     `01 / ${String(totalPagesEstimate).padStart(2, '0')}`,
     RIGHT, figsY + 26, { align: 'right' },
   );
+  pdf.setCharSpace(0);
 }
