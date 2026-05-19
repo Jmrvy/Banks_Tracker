@@ -143,7 +143,14 @@ export function renderAccounts(ctx: ReportCtx) {
         const tailH = 3.1;
         sans(9, 'bold');
         const nameLines = (pdf.splitTextToSize(a.name, d.cell.width - 1) as string[]).slice(0, 2);
-        const tailStr = `${a.bank} ···· ${a.tail}`;
+        // Masked account tail only (no raw bank enum) — kept inside the
+        // ACCOUNT column so it never overruns into TYPE.
+        let tailStr = `···· ${a.tail}`;
+        mono(6.5);
+        const tailMax = d.cell.width - 1.5;
+        while (tailStr.length > 4 && pdf.getTextWidth(tailStr) > tailMax) {
+          tailStr = tailStr.slice(0, -1);
+        }
         // Top-anchored within the cell so the block can never bleed into
         // the header rule or the neighbouring row.
         let ly = d.cell.y + 3.6;

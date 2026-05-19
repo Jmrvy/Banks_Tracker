@@ -46,7 +46,8 @@ export function renderIncome(ctx: ReportCtx) {
     },
     {
       label: 'Refunds',
-      value: fmt(refundTotal),
+      value: `+${fmt(refundTotal)}`,
+      valueColor: pos,
       delta: `${refundCount} refund${refundCount !== 1 ? 's' : ''} · excl.`,
     },
   ]);

@@ -121,9 +121,11 @@ export function renderSummary(ctx: ReportCtx) {
     y,
   );
 
+  // Wide-step greyscale ramp (spec is monochrome — 0 brand accents).
+  // Larger tonal gaps + the donut's paper separators keep slices legible.
   const palette: RGB[] = [
-    [12, 13, 12], [60, 62, 58], [110, 113, 108],
-    [154, 156, 151], [198, 197, 189], [223, 221, 213],
+    [12, 13, 12], [74, 76, 71], [128, 130, 123],
+    [170, 171, 163], [206, 205, 197], [231, 229, 221],
   ];
   const donutCx = MARGIN_X + 28;
   const donutCy = y + 32;

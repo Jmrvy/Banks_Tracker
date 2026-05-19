@@ -177,7 +177,9 @@ export function buildReportData(input: BuildInputs): ReportData {
   const recurringIncomeCount = incomeSources.filter((s) => s.recurring).length;
   const oneOffIncomeTotal = grossIncome - recurringIncomeTotal;
   const oneOffIncomeCount = incomeSources.filter((s) => !s.recurring).length;
-  const grossExpenses = totalExpenses + refundTotal;
+  // Refunds are treated as income (shown positive/green), so they do not
+  // offset or inflate gross expenses.
+  const grossExpenses = totalExpenses;
 
   // 12-month income trend (calendar months ending at period end)
   const monthlyIncomeSeries: MonthBar[] = [];
