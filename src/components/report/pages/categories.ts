@@ -11,8 +11,10 @@ export function renderCategories(ctx: ReportCtx) {
   const { expenseCats, totalCatSpent, totalBudget, breachedCats, actualDates } = ctx.data;
 
   // The template's BUDGET / Δ columns use whole euros (no cents) so the
-  // narrow columns never wrap (e.g. "€2,680" not "€2,680.00").
-  const m0 = (n: number) => fmt(Math.round(n)).replace(/[.,]\d+$/, '');
+  // narrow columns never wrap. Strip the fractional part locale-agnostically
+  // — handles "€2,680.00", "2 680,00 €", "2.680,00 €" alike (a decimal
+  // separator + exactly two digits, followed only by the currency symbol).
+  const m0 = (n: number) => fmt(Math.round(n)).replace(/[.,]\d{2}(?=\D*$)/, '');
   const sd = (n: number) => (n > 0 ? '+' : n < 0 ? '-' : '') + m0(Math.abs(n));
 
   newPage();
