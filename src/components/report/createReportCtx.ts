@@ -78,44 +78,70 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
   const setText = (c: RGB) => pdf.setTextColor(c[0], c[1], c[2]);
   const setFill = (c: RGB) => pdf.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c: RGB) => pdf.setDrawColor(c[0], c[1], c[2]);
-  const sans = (size: number, weight: 'normal' | 'bold' = 'normal') => {
+  // Per the spec, type tracking is given in em × 1000 (negative tightens).
+  // jsPDF charSpace is in the doc unit (mm); convert via point size.
+  const applyTrack = (size: number, trackEmK: number) => {
+    pdf.setCharSpace(trackEmK ? (trackEmK / 1000) * size * 0.352778 : 0);
+  };
+  const sans = (size: number, weight: 'normal' | 'bold' = 'normal', trackEmK = 0) => {
     pdf.setFont('helvetica', weight);
     pdf.setFontSize(size);
+    applyTrack(size, trackEmK);
   };
-  const mono = (size: number, weight: 'normal' | 'bold' = 'normal') => {
+  const mono = (size: number, weight: 'normal' | 'bold' = 'normal', trackEmK = 0) => {
     pdf.setFont('courier', weight);
     pdf.setFontSize(size);
+    applyTrack(size, trackEmK);
   };
 
   const fmt = (n: number) => formatCurrency(n).replace(/\s/g, ' ');
   const fmtSigned = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 
+  // ── Spec stroke system — 3 weights only (§ 04) ───────────────────
+  //  hairline → --line · section → --ink · document → --ink
+  const HAIR = 0.15;
+  const SECT = 0.5;
+  const DOC = 0.8;
+  const ruleHair = (x1: number, yy: number, x2: number) => {
+    setDraw(lineCol);
+    pdf.setLineWidth(HAIR);
+    pdf.line(x1, yy, x2, yy);
+  };
+  const ruleSection = (x1: number, yy: number, x2: number) => {
+    setDraw(ink);
+    pdf.setLineWidth(SECT);
+    pdf.line(x1, yy, x2, yy);
+  };
+  const ruleDoc = (x1: number, yy: number, x2: number) => {
+    setDraw(ink);
+    pdf.setLineWidth(DOC);
+    pdf.line(x1, yy, x2, yy);
+  };
+  const noTrack = () => pdf.setCharSpace(0);
+
   const drawTopChrome = (pageNum: number, totalPages: number) => {
     setFill(ink);
-    pdf.rect(MARGIN_X, TOP_Y - 4, 3.5, 3.5, 'F');
-    sans(8.5, 'bold');
+    pdf.roundedRect(MARGIN_X, TOP_Y - 4.2, 4, 4, 1, 1, 'F');
+    sans(8.5, 'bold', 2);
     setText(ink2);
-    pdf.text('Spending Tracker · Financial report', MARGIN_X + 5, TOP_Y - 1);
-    mono(7);
+    pdf.text('Spending Tracker · Financial report', MARGIN_X + 6, TOP_Y - 1);
+    mono(7, 'normal', 8);
     setText(mute);
     pdf.text(format(actualDates.start, 'MMMM yyyy', { locale }).toUpperCase(), PW - MARGIN_X, TOP_Y - 5, { align: 'right' });
     pdf.text(`REF · ${reference}`, PW - MARGIN_X, TOP_Y - 1, { align: 'right' });
-    mono(7, 'bold');
+    mono(7, 'bold', 6);
     setText(ink2);
     pdf.text(
       `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
       PW - MARGIN_X, TOP_Y + 3, { align: 'right' },
     );
-    setDraw(lineCol);
-    pdf.setLineWidth(0.2);
-    pdf.line(MARGIN_X, TOP_Y + 6, PW - MARGIN_X, TOP_Y + 6);
+    ruleHair(MARGIN_X, TOP_Y + 6, PW - MARGIN_X);
+    noTrack();
   };
 
   const drawBottomChrome = (pageNum: number, totalPages: number) => {
-    setDraw(lineCol);
-    pdf.setLineWidth(0.2);
-    pdf.line(MARGIN_X, FOOT_Y - 6, PW - MARGIN_X, FOOT_Y - 6);
-    mono(7);
+    ruleHair(MARGIN_X, FOOT_Y - 6, PW - MARGIN_X);
+    mono(7, 'normal', 6);
     setText(mute);
     pdf.text(
       `SPENDING TRACKER · FINANCIAL REPORT · ${format(generatedAt, 'd MMM yyyy', { locale }).toUpperCase()}`,
@@ -125,18 +151,18 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
       `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
       PW - MARGIN_X, FOOT_Y - 1, { align: 'right' },
     );
+    noTrack();
   };
 
   const drawBottomStrip = (label: string, value: string, valueColor: RGB = ink) => {
-    setDraw(ink);
-    pdf.setLineWidth(0.7);
-    pdf.line(MARGIN_X, STRIP_Y - 6, PW - MARGIN_X, STRIP_Y - 6);
-    mono(8, 'bold');
+    ruleDoc(MARGIN_X, STRIP_Y - 6, PW - MARGIN_X);
+    mono(7.5, 'bold', 10);
     setText(ink2);
     pdf.text(label.toUpperCase(), MARGIN_X, STRIP_Y);
-    mono(14, 'bold');
+    mono(15, 'bold', -20);
     setText(valueColor);
     pdf.text(value, PW - MARGIN_X, STRIP_Y, { align: 'right' });
+    noTrack();
   };
 
   const drawPageTitle = (
@@ -147,63 +173,65 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
     rightSecondaryColor: RGB = ink2,
   ): number => {
     const y = BODY_TOP;
-    mono(7.5);
+    mono(8, 'bold', 12);
     setText(mute);
     pdf.text(eyebrow.toUpperCase(), MARGIN_X, y);
-    sans(15, 'bold');
+    sans(17, 'bold', -15);
     setText(ink);
-    pdf.text(title, MARGIN_X, y + 6);
+    pdf.text(title, MARGIN_X, y + 6.5);
     if (rightPrimary) {
-      mono(7);
+      mono(7, 'normal', 8);
       setText(mute);
       pdf.text(rightPrimary, PW - MARGIN_X, y, { align: 'right' });
     }
     if (rightSecondary) {
-      mono(7, 'bold');
+      mono(7, 'bold', 8);
       setText(rightSecondaryColor);
       pdf.text(rightSecondary, PW - MARGIN_X, y + 5, { align: 'right' });
     }
-    setDraw(ink);
-    pdf.setLineWidth(0.4);
-    pdf.line(MARGIN_X, y + 9, PW - MARGIN_X, y + 9);
-    return y + 14;
+    ruleSection(MARGIN_X, y + 9.5, PW - MARGIN_X);
+    noTrack();
+    return y + 14.5;
   };
 
   const drawSectionEyebrow = (label: string, meta: string | undefined, y: number): number => {
-    mono(7.5, 'bold');
+    mono(8, 'bold', 12);
     setText(ink);
     pdf.text(label.toUpperCase(), MARGIN_X, y);
     if (meta) {
-      mono(7);
+      mono(7, 'normal', 8);
       setText(mute);
       pdf.text(meta, PW - MARGIN_X, y, { align: 'right' });
     }
-    setDraw(lineCol);
-    pdf.setLineWidth(0.2);
-    pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+    ruleHair(MARGIN_X, y + 2, PW - MARGIN_X);
+    noTrack();
     return y + 6;
   };
 
   const drawKpiBand = (y: number, height: number, cells: KpiCell[]) => {
     const cellW = COL / cells.length;
     setDraw(lineCol);
-    pdf.setLineWidth(0.3);
+    pdf.setLineWidth(HAIR);
     pdf.rect(MARGIN_X, y, COL, height, 'S');
     cells.forEach((c, i) => {
       const x = MARGIN_X + i * cellW;
       if (i > 0) pdf.line(x, y, x, y + height);
-      mono(6.5, 'bold');
+      mono(6.5, 'bold', 10);
       setText(mute);
       pdf.text(c.label.toUpperCase(), x + 3, y + 4);
-      mono(12, 'bold');
+      noTrack();
+      mono(12, 'normal', -20);
       setText(c.valueColor ?? ink);
       pdf.text(c.value, x + 3, y + 10);
+      noTrack();
       if (c.delta) {
-        mono(7);
+        mono(7, 'normal', 4);
         setText(c.deltaColor ?? mute);
         pdf.text(c.delta, x + 3, y + height - 2);
+        noTrack();
       }
     });
+    noTrack();
   };
 
   const drawProgressBar = (
