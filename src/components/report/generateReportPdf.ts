@@ -48,7 +48,9 @@ const RENDERERS: Record<ReportPageId, PageRenderer> = {
   transactions: renderTransactions,
 };
 
-export async function generateReportPdf(input: GenerateReportPdfInput): Promise<void> {
+/** Build the report document without triggering a download. Exported so
+ *  the rendering pipeline can be exercised headlessly in tests. */
+export async function buildReportPdf(input: GenerateReportPdfInput) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
@@ -108,30 +110,54 @@ export async function generateReportPdf(input: GenerateReportPdfInput): Promise<
     }
   }
 
-  // Second pass: re-stamp the bottom-chrome page numbers with the true
-  // total. The cover (page 1 when present) has its own page legend at a
-  // different y, so we skip it.
+  // Second pass: the true page count is only known after layout (the
+  // ledger paginates dynamically). Re-stamp every page's top- and
+  // bottom-chrome page legend — plus the cover's two custom legends —
+  // with the real total so top and bottom never disagree.
   const finalTotal = pdf.getNumberOfPages();
-  if (finalTotal !== totalPagesEstimate) {
-    const { PW, MARGIN_X, FOOT_Y, mute, setText, mono } = ctx;
-    const coverIsFirst = orderedEnabledPages[0] === 'cover';
-    for (let p = 1; p <= finalTotal; p++) {
-      if (coverIsFirst && p === 1) continue;
-      pdf.setPage(p);
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(PW - MARGIN_X - 26, FOOT_Y - 4, 26, 5, 'F');
+  const { PW, MARGIN_X, TOP_Y, FOOT_Y, ink2, mute, setText, mono } = ctx;
+  const coverIsFirst = orderedEnabledPages[0] === 'cover';
+  const white = () => pdf.setFillColor(255, 255, 255);
+  for (let p = 1; p <= finalTotal; p++) {
+    pdf.setPage(p);
+    if (coverIsFirst && p === 1) {
+      // Cover: "1 PAGE OF N" (header) and "01 / NN" (key-figures footer).
+      white();
+      pdf.rect(PW - MARGIN_X - 44, 29, 44, 4.5, 'F');
       mono(7);
       setText(mute);
+      pdf.text(`1 PAGE OF ${finalTotal}`, PW - MARGIN_X, 32, { align: 'right' });
+      white();
+      pdf.rect(PW - MARGIN_X - 30, 257.5, 30, 5, 'F');
+      mono(8);
+      setText(mute);
       pdf.text(
-        `${String(p).padStart(2, '0')} / ${String(finalTotal).padStart(2, '0')}`,
-        PW - MARGIN_X,
-        FOOT_Y - 1,
-        { align: 'right' },
+        `01 / ${String(finalTotal).padStart(2, '0')}`,
+        PW - MARGIN_X, 261, { align: 'right' },
       );
+      continue;
     }
+    const legend = `${String(p).padStart(2, '0')} / ${String(finalTotal).padStart(2, '0')}`;
+    // top-right (drawTopChrome prints at TOP_Y + 3)
+    white();
+    pdf.rect(PW - MARGIN_X - 28, TOP_Y, 28, 5, 'F');
+    mono(7, 'bold');
+    setText(ink2);
+    pdf.text(legend, PW - MARGIN_X, TOP_Y + 3, { align: 'right' });
+    // bottom-right (drawBottomChrome prints at FOOT_Y - 1)
+    white();
+    pdf.rect(PW - MARGIN_X - 28, FOOT_Y - 4, 28, 5, 'F');
+    mono(7);
+    setText(mute);
+    pdf.text(legend, PW - MARGIN_X, FOOT_Y - 1, { align: 'right' });
   }
 
-  pdf.save(`spending-tracker-report-${format(actualDates.start, 'yyyy-MM')}.pdf`);
+  return pdf;
+}
+
+export async function generateReportPdf(input: GenerateReportPdfInput): Promise<void> {
+  const pdf = await buildReportPdf(input);
+  pdf.save(`spending-tracker-report-${format(input.actualDates.start, 'yyyy-MM')}.pdf`);
 }
 
 export type { PageId };

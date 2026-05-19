@@ -224,8 +224,9 @@ export function buildReportData(input: BuildInputs): ReportData {
   const sortByAmtDesc = (a: Transaction, b: Transaction) => Number(b.amount) - Number(a.amount);
   const inflowTx = filteredTransactions.filter((t) => t.type === 'income').sort(sortByAmtDesc);
   const outflowTx = filteredTransactions.filter((t) => t.type === 'expense').sort(sortByAmtDesc);
-  const labelOf = (t: Transaction) =>
-    t.category?.name ? `${t.description} · ${t.category.name}` : t.description;
+  // Movement rows mirror the template, which shows the bare description
+  // (e.g. "Salary · Acme SAS") without the category appended.
+  const labelOf = (t: Transaction) => t.description;
   const topInflows = inflowTx.slice(0, 4).map((t) => ({
     date: txDateOf(t, config.dateType),
     label: labelOf(t),

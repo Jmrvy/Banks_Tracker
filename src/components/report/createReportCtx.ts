@@ -47,6 +47,34 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
   const amber: RGB = [183, 119, 24];
   const amberSoft: RGB = [248, 240, 222];
 
+  // jsPDF's built-in fonts are WinAnsi-only. A handful of typographic
+  // glyphs the design calls for (minus, arrow, delta, ≥, up/down arrows)
+  // are outside that encoding and render as garbage. Patch the document's
+  // text() once so every draw — including jspdf-autotable's internal cell
+  // rendering on this same instance — is transliterated to safe glyphs.
+  const GLYPH_MAP: Array<[RegExp, string]> = [
+    [/−/g, '-'],   // − minus  → hyphen-minus
+    [/→/g, '–'], // → arrow → en dash (range-style, WinAnsi 0x96)
+    [/Δ/g, '±'], // Δ delta → ± (plus-minus, WinAnsi 0xB1)
+    [/≥/g, '>='],  // ≥        → >=
+    [/↑/g, '+'],   // ↑        → +
+    [/↓/g, '-'],   // ↓        → -
+  ];
+  const sanitize = (s: string) =>
+    GLYPH_MAP.reduce((acc, [re, rep]) => acc.replace(re, rep), s);
+  const rawText = pdf.text.bind(pdf);
+  (pdf as unknown as { text: (...a: unknown[]) => unknown }).text = (
+    text: unknown,
+    ...rest: unknown[]
+  ) => {
+    const fixed = typeof text === 'string'
+      ? sanitize(text)
+      : Array.isArray(text)
+        ? text.map((s) => (typeof s === 'string' ? sanitize(s) : s))
+        : text;
+    return (rawText as (...a: unknown[]) => unknown)(fixed, ...rest);
+  };
+
   const setText = (c: RGB) => pdf.setTextColor(c[0], c[1], c[2]);
   const setFill = (c: RGB) => pdf.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c: RGB) => pdf.setDrawColor(c[0], c[1], c[2]);
