@@ -1,0 +1,262 @@
+import { format } from 'date-fns';
+import type { Locale } from 'date-fns';
+import type jsPDF from 'jspdf';
+import type { ReportCtx, ReportData, RGB, KpiCell } from './types';
+
+interface CtxInputs {
+  pdf: jsPDF;
+  autoTable: (doc: jsPDF, options: Record<string, unknown>) => void;
+  formatCurrency: (n: number) => string;
+  locale: Locale;
+  t: (key: string, opts?: { defaultValue?: string } & Record<string, unknown>) => string;
+  generatedAt: Date;
+  reference: string;
+  periodCompact: string;
+  totalPagesEstimate: number;
+  data: ReportData;
+}
+
+export function createReportCtx(input: CtxInputs): ReportCtx {
+  const {
+    pdf, autoTable, formatCurrency, locale, t,
+    generatedAt, reference, periodCompact, totalPagesEstimate, data,
+  } = input;
+  const { actualDates } = data;
+
+  const PW = pdf.internal.pageSize.getWidth(); // 210
+  const PH = pdf.internal.pageSize.getHeight(); // 297
+  const MARGIN_X = 16;
+  const TOP_Y = 16;
+  const FOOT_Y = PH - 12;
+  const STRIP_Y = PH - 22;
+  const BODY_TOP = 30;
+  const BODY_BOTTOM = STRIP_Y - 6;
+  const COL = PW - 2 * MARGIN_X;
+
+  const ink: RGB = [12, 13, 12];
+  const ink2: RGB = [31, 33, 31];
+  const ink3: RGB = [60, 62, 58];
+  const mute: RGB = [110, 113, 108];
+  const mute2: RGB = [154, 156, 151];
+  const mute3: RGB = [198, 197, 189];
+  const lineCol: RGB = [231, 229, 221];
+  const line2Col: RGB = [239, 236, 228];
+  const pos: RGB = [44, 138, 91];
+  const neg: RGB = [200, 58, 42];
+  const negSoft: RGB = [248, 232, 229];
+  const amber: RGB = [183, 119, 24];
+  const amberSoft: RGB = [248, 240, 222];
+
+  const setText = (c: RGB) => pdf.setTextColor(c[0], c[1], c[2]);
+  const setFill = (c: RGB) => pdf.setFillColor(c[0], c[1], c[2]);
+  const setDraw = (c: RGB) => pdf.setDrawColor(c[0], c[1], c[2]);
+  const sans = (size: number, weight: 'normal' | 'bold' = 'normal') => {
+    pdf.setFont('helvetica', weight);
+    pdf.setFontSize(size);
+  };
+  const mono = (size: number, weight: 'normal' | 'bold' = 'normal') => {
+    pdf.setFont('courier', weight);
+    pdf.setFontSize(size);
+  };
+
+  const fmt = (n: number) => formatCurrency(n).replace(/\s/g, ' ');
+  const fmtSigned = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
+
+  const drawTopChrome = (pageNum: number, totalPages: number) => {
+    setFill(ink);
+    pdf.rect(MARGIN_X, TOP_Y - 4, 3.5, 3.5, 'F');
+    sans(8.5, 'bold');
+    setText(ink2);
+    pdf.text('Spending Tracker · Financial report', MARGIN_X + 5, TOP_Y - 1);
+    mono(7);
+    setText(mute);
+    pdf.text(format(actualDates.start, 'MMMM yyyy', { locale }).toUpperCase(), PW - MARGIN_X, TOP_Y - 5, { align: 'right' });
+    pdf.text(`REF · ${reference}`, PW - MARGIN_X, TOP_Y - 1, { align: 'right' });
+    mono(7, 'bold');
+    setText(ink2);
+    pdf.text(
+      `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
+      PW - MARGIN_X, TOP_Y + 3, { align: 'right' },
+    );
+    setDraw(lineCol);
+    pdf.setLineWidth(0.2);
+    pdf.line(MARGIN_X, TOP_Y + 6, PW - MARGIN_X, TOP_Y + 6);
+  };
+
+  const drawBottomChrome = (pageNum: number, totalPages: number) => {
+    setDraw(lineCol);
+    pdf.setLineWidth(0.2);
+    pdf.line(MARGIN_X, FOOT_Y - 6, PW - MARGIN_X, FOOT_Y - 6);
+    mono(7);
+    setText(mute);
+    pdf.text(
+      `SPENDING TRACKER · FINANCIAL REPORT · ${format(generatedAt, 'd MMM yyyy', { locale }).toUpperCase()}`,
+      MARGIN_X, FOOT_Y - 1,
+    );
+    pdf.text(
+      `${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
+      PW - MARGIN_X, FOOT_Y - 1, { align: 'right' },
+    );
+  };
+
+  const drawBottomStrip = (label: string, value: string, valueColor: RGB = ink) => {
+    setDraw(ink);
+    pdf.setLineWidth(0.7);
+    pdf.line(MARGIN_X, STRIP_Y - 6, PW - MARGIN_X, STRIP_Y - 6);
+    mono(8, 'bold');
+    setText(ink2);
+    pdf.text(label.toUpperCase(), MARGIN_X, STRIP_Y);
+    mono(14, 'bold');
+    setText(valueColor);
+    pdf.text(value, PW - MARGIN_X, STRIP_Y, { align: 'right' });
+  };
+
+  const drawPageTitle = (
+    eyebrow: string,
+    title: string,
+    rightPrimary?: string,
+    rightSecondary?: string,
+    rightSecondaryColor: RGB = ink2,
+  ): number => {
+    const y = BODY_TOP;
+    mono(7.5);
+    setText(mute);
+    pdf.text(eyebrow.toUpperCase(), MARGIN_X, y);
+    sans(15, 'bold');
+    setText(ink);
+    pdf.text(title, MARGIN_X, y + 6);
+    if (rightPrimary) {
+      mono(7);
+      setText(mute);
+      pdf.text(rightPrimary, PW - MARGIN_X, y, { align: 'right' });
+    }
+    if (rightSecondary) {
+      mono(7, 'bold');
+      setText(rightSecondaryColor);
+      pdf.text(rightSecondary, PW - MARGIN_X, y + 5, { align: 'right' });
+    }
+    setDraw(ink);
+    pdf.setLineWidth(0.4);
+    pdf.line(MARGIN_X, y + 9, PW - MARGIN_X, y + 9);
+    return y + 14;
+  };
+
+  const drawSectionEyebrow = (label: string, meta: string | undefined, y: number): number => {
+    mono(7.5, 'bold');
+    setText(ink);
+    pdf.text(label.toUpperCase(), MARGIN_X, y);
+    if (meta) {
+      mono(7);
+      setText(mute);
+      pdf.text(meta, PW - MARGIN_X, y, { align: 'right' });
+    }
+    setDraw(lineCol);
+    pdf.setLineWidth(0.2);
+    pdf.line(MARGIN_X, y + 2, PW - MARGIN_X, y + 2);
+    return y + 6;
+  };
+
+  const drawKpiBand = (y: number, height: number, cells: KpiCell[]) => {
+    const cellW = COL / cells.length;
+    setDraw(lineCol);
+    pdf.setLineWidth(0.3);
+    pdf.rect(MARGIN_X, y, COL, height, 'S');
+    cells.forEach((c, i) => {
+      const x = MARGIN_X + i * cellW;
+      if (i > 0) pdf.line(x, y, x, y + height);
+      mono(6.5, 'bold');
+      setText(mute);
+      pdf.text(c.label.toUpperCase(), x + 3, y + 4);
+      mono(12, 'bold');
+      setText(c.valueColor ?? ink);
+      pdf.text(c.value, x + 3, y + 10);
+      if (c.delta) {
+        mono(7);
+        setText(c.deltaColor ?? mute);
+        pdf.text(c.delta, x + 3, y + height - 2);
+      }
+    });
+  };
+
+  const drawProgressBar = (
+    x: number, y: number, w: number, h: number,
+    fraction: number, over: boolean, color?: RGB,
+  ) => {
+    setFill(line2Col);
+    pdf.roundedRect(x, y, w, h, 0.6, 0.6, 'F');
+    const clamped = Math.max(0, Math.min(1, fraction));
+    if (clamped > 0) {
+      setFill(over ? neg : (color ?? ink));
+      pdf.roundedRect(x, y, w * clamped, h, 0.6, 0.6, 'F');
+    }
+  };
+
+  const drawDonut = (
+    cx: number, cy: number, rOuter: number, rInner: number,
+    segments: { value: number; color: RGB }[],
+  ) => {
+    const total = segments.reduce((a, b) => a + b.value, 0) || 1;
+    let angle = -Math.PI / 2;
+    const STEPS_PER_RAD = 24;
+    segments.forEach((seg) => {
+      const sweep = (seg.value / total) * Math.PI * 2;
+      const steps = Math.max(2, Math.ceil(Math.abs(sweep) * STEPS_PER_RAD));
+      const stepAngle = sweep / steps;
+      setFill(seg.color);
+      for (let i = 0; i < steps; i++) {
+        const a0 = angle + i * stepAngle;
+        const a1 = angle + (i + 1) * stepAngle;
+        const o0x = cx + Math.cos(a0) * rOuter, o0y = cy + Math.sin(a0) * rOuter;
+        const o1x = cx + Math.cos(a1) * rOuter, o1y = cy + Math.sin(a1) * rOuter;
+        const i1x = cx + Math.cos(a1) * rInner, i1y = cy + Math.sin(a1) * rInner;
+        const i0x = cx + Math.cos(a0) * rInner, i0y = cy + Math.sin(a0) * rInner;
+        pdf.lines(
+          [[o1x - o0x, o1y - o0y], [i1x - o1x, i1y - o1y], [i0x - i1x, i0y - i1y], [o0x - i0x, o0y - i0y]],
+          o0x, o0y, [1, 1], 'F',
+        );
+      }
+      angle += sweep;
+    });
+    pdf.setFillColor(255, 255, 255);
+    pdf.circle(cx, cy, rInner, 'F');
+  };
+
+  const drawSparkline = (
+    x: number, y: number, w: number, h: number,
+    points: number[], color: RGB = ink,
+  ) => {
+    if (points.length === 0) return;
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+    const toX = (i: number) => x + (i / Math.max(1, points.length - 1)) * w;
+    const toY = (v: number) => y + h - ((v - min) / range) * h;
+    setDraw(lineCol);
+    pdf.setLineWidth(0.2);
+    pdf.line(x, y + h, x + w, y + h);
+    setDraw(color);
+    pdf.setLineWidth(0.4);
+    for (let i = 0; i < points.length - 1; i++) {
+      pdf.line(toX(i), toY(points[i]), toX(i + 1), toY(points[i + 1]));
+    }
+  };
+
+  const state = { pageIdx: 0 };
+  const newPage = () => {
+    if (state.pageIdx > 0) pdf.addPage();
+    state.pageIdx++;
+  };
+
+  return {
+    pdf,
+    autoTable,
+    PW, PH, MARGIN_X, TOP_Y, FOOT_Y, STRIP_Y, BODY_TOP, BODY_BOTTOM, COL,
+    ink, ink2, ink3, mute, mute2, mute3, lineCol, line2Col, pos, neg, negSoft, amber, amberSoft,
+    setText, setFill, setDraw, sans, mono, fmt, fmtSigned,
+    drawTopChrome, drawBottomChrome, drawBottomStrip, drawPageTitle,
+    drawSectionEyebrow, drawKpiBand, drawProgressBar, drawDonut, drawSparkline,
+    state, newPage,
+    generatedAt, reference, periodCompact, totalPagesEstimate, locale, t, formatCurrency,
+    data,
+  };
+}
