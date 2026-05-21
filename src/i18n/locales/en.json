@@ -444,8 +444,10 @@
     "includeForecasted": {
       "label": "Include forecasted entries",
       "hint": "Adds upcoming recurring transactions, scheduled debt payments and remaining installments through the end of the period. Tagged as forecast in the report.",
-      "hintPastOnly": "Period ends in the past — nothing to forecast. Pick a period that extends into the future to enable this."
+      "toolbarHint": "recurring · installments · scheduled debt payments",
+      "hintPastOnly": "Period ends in the past — nothing to forecast."
     },
+    "forecastToolbarLabel": "Forecast",
     "forecastIncluded": "Forecast included",
     "forecastSuffix": "forecast",
     "forecastInclSubline": "incl. forecast {{value}}",

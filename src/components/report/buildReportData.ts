@@ -358,8 +358,13 @@ export function buildReportData(input: BuildInputs): ReportData {
   const typicalDailyExpense = expDays.length ? expDays.reduce((s, v) => s + v, 0) / expDays.length : 0;
 
   const sortByAmtDesc = (a: Transaction, b: Transaction) => Number(b.amount) - Number(a.amount);
-  const inflowTx = filteredTransactions.filter((t) => t.type === 'income').sort(sortByAmtDesc);
-  const outflowTx = filteredTransactions.filter((t) => t.type === 'expense').sort(sortByAmtDesc);
+  // Cashflow movements are net of refunds and exclude rows the user
+  // marked as not-included-in-stats — those belong on the Income page's
+  // "Excluded movements" section, not in the headline cashflow.
+  const isCashflowRow = (t: Transaction) =>
+    !t.refund_of_transaction_id && t.include_in_stats !== false;
+  const inflowTx = filteredTransactions.filter((t) => t.type === 'income' && isCashflowRow(t)).sort(sortByAmtDesc);
+  const outflowTx = filteredTransactions.filter((t) => t.type === 'expense' && isCashflowRow(t)).sort(sortByAmtDesc);
   // Movement rows mirror the template, which shows the bare description
   // (e.g. "Salary · Acme SAS") without the category appended.
   const labelOf = (t: Transaction) => t.description;
@@ -544,8 +549,8 @@ export function buildReportData(input: BuildInputs): ReportData {
     typicalDailyExpense,
     topInflows,
     topOutflows,
-    grossInflowCount: filteredTransactions.filter((t) => t.type === 'income').length,
-    grossOutflowCount: filteredTransactions.filter((t) => t.type === 'expense').length,
+    grossInflowCount: inflowTx.length,
+    grossOutflowCount: outflowTx.length,
     filteredTransactions: augmentedFiltered,
     ledgerRows: augmentedLedgerRows,
     includeForecasted,
