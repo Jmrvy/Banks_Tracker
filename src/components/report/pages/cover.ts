@@ -37,8 +37,7 @@ export function renderCover(ctx: ReportCtx) {
 
   sans(38, 'bold', -30);
   setText(ink);
-  const titleText = format(actualDates.start, 'MMMM yyyy', { locale });
-  pdf.text(titleText.charAt(0).toUpperCase() + titleText.slice(1), MARGIN_X, 118);
+  pdf.text(ctx.periodLabel, MARGIN_X, 118);
   pdf.setCharSpace(0);
 
   // ── Subtitle paragraph ───────────────────────────────────────────

@@ -208,9 +208,8 @@ export function renderCashflow(ctx: ReportCtx) {
   }
 
   // ── Bottom strip ─────────────────────────────────────────────────
-  const monthLabel = format(actualDates.end, 'MMMM yyyy', { locale });
   drawBottomStrip(
-    `Net cash flow · ${monthLabel}`,
+    `Net cash flow · ${ctx.periodLabel}`,
     fmtSigned(netResult),
     netResult >= 0 ? pos : neg,
   );

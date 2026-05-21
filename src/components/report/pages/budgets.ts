@@ -196,7 +196,7 @@ export function renderBudgets(ctx: ReportCtx) {
 
   // ── Bottom strip + chrome ───────────────────────────────────────
   drawBottomStrip(
-    `Net of budgets · ${format(actualDates.start, 'MMMM', { locale })}`,
+    `Net of budgets · ${ctx.periodLabel}`,
     fmtSigned(remaining),
     remaining >= 0 ? pos : neg,
   );

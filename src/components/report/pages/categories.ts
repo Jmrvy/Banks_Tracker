@@ -194,7 +194,6 @@ export function renderCategories(ctx: ReportCtx) {
     },
   });
 
-  const monthLabel = format(actualDates.start, 'MMMM', { locale }).toUpperCase();
-  drawBottomStrip(`Total expenses · ${monthLabel}`, fmt(totalCatSpent), neg);
+  drawBottomStrip(`Total expenses · ${ctx.periodLabel}`, fmt(totalCatSpent), neg);
   drawBottomChrome(state.pageIdx, totalPagesEstimate);
 }

@@ -33,6 +33,28 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
   const BODY_BOTTOM = STRIP_Y - 6;
   const COL = PW - 2 * MARGIN_X;
 
+  // Period-aware title label. A yearly report should read "Année 2026"
+  // / "Year 2026", not "Janvier 2026"; quarterly "Q2 2026"; custom shows
+  // the range; monthly keeps "Avril 2026". Used by chrome, cover, and
+  // every page's bottom strip so the whole document stays consistent.
+  const startYr = actualDates.start.getFullYear();
+  const periodLabel = (() => {
+    const pt = data.config.periodType;
+    if (pt === 'year') {
+      const yearWord = t('reports.yearLabel', { defaultValue: 'Year' });
+      return `${yearWord} ${startYr}`;
+    }
+    if (pt === 'quarter') {
+      return `Q${Math.floor(actualDates.start.getMonth() / 3) + 1} ${startYr}`;
+    }
+    if (pt === 'custom') {
+      return `${format(actualDates.start, 'd MMM', { locale })} – ${format(actualDates.end, 'd MMM yyyy', { locale })}`;
+    }
+    const m = format(actualDates.start, 'MMMM yyyy', { locale });
+    return m.charAt(0).toUpperCase() + m.slice(1);
+  })();
+  const periodLabelUpper = periodLabel.toUpperCase();
+
   const ink: RGB = [12, 13, 12];
   const ink2: RGB = [31, 33, 31];
   const ink3: RGB = [60, 62, 58];
@@ -127,7 +149,7 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
     pdf.text('Spending Tracker · Financial report', MARGIN_X + 6, TOP_Y - 1);
     mono(7, 'normal', 8);
     setText(mute);
-    pdf.text(format(actualDates.start, 'MMMM yyyy', { locale }).toUpperCase(), PW - MARGIN_X, TOP_Y - 5, { align: 'right' });
+    pdf.text(periodLabelUpper, PW - MARGIN_X, TOP_Y - 5, { align: 'right' });
     pdf.text(`REF · ${reference}`, PW - MARGIN_X, TOP_Y - 1, { align: 'right' });
     mono(7, 'bold', 6);
     setText(ink2);
@@ -331,6 +353,7 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
     drawSectionEyebrow, drawKpiBand, drawProgressBar, drawDonut, drawSparkline,
     state, newPage,
     generatedAt, reference, periodCompact, totalPagesEstimate, locale, t, formatCurrency,
+    periodLabel, periodLabelUpper,
     data,
   };
 }

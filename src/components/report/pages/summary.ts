@@ -210,7 +210,7 @@ export function renderSummary(ctx: ReportCtx) {
 
   // ── Bottom strip ─────────────────────────────────────────────────
   drawBottomStrip(
-    `Net result · ${format(actualDates.start, 'MMMM yyyy', { locale })}`,
+    `Net result · ${ctx.periodLabel}`,
     fmtSigned(netResult),
     netResult >= 0 ? pos : neg,
   );

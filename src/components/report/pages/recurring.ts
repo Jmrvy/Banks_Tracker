@@ -2,6 +2,50 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import type { ReportCtx } from '../types';
 
+/** Interpolate description placeholders ({MM}, {YY}, {YYYY}, {MOIS},
+ *  {ANNEE}, {MONTH}, {YEAR}, {M}, {D}, {DD}) using the report's period.
+ *  For monthly reports we substitute with the period's month/year. For
+ *  other period types (year / quarter / custom) the placeholders refer
+ *  to a specific month that doesn't apply, so we strip them and tidy
+ *  the residue. */
+function interpolatePeriod(
+  desc: string,
+  periodType: 'month' | 'quarter' | 'year' | 'custom',
+  start: Date,
+  locale: import('date-fns').Locale,
+): string {
+  if (!desc) return desc;
+  if (periodType !== 'month') {
+    return desc
+      .replace(/\{[^}]+\}/g, '')
+      .replace(/\(\s*\.?\s*\)/g, '')
+      .replace(/[\s\-–—]+$/, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+  const m = start.getMonth() + 1;
+  const yyyy = String(start.getFullYear());
+  const monthName = (() => {
+    const n = (locale as { code?: string }).code === 'fr'
+      ? new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(start)
+      : new Intl.DateTimeFormat('en-US', { month: 'long' }).format(start);
+    return n;
+  })();
+  const map: Record<string, string> = {
+    MM: String(m).padStart(2, '0'),
+    M: String(m),
+    YY: yyyy.slice(-2),
+    YYYY: yyyy,
+    YEAR: yyyy,
+    ANNEE: yyyy,
+    MOIS: monthName,
+    MONTH: monthName,
+    DD: String(start.getDate()).padStart(2, '0'),
+    D: String(start.getDate()),
+  };
+  return desc.replace(/\{([A-Za-z]+)\}/g, (_, k) => map[k.toUpperCase()] ?? '');
+}
+
 /** English ordinal suffix for a day-of-month (1 -> "1st", 22 -> "22nd"). */
 function ordinal(n: number): string {
   const v = n % 100;
@@ -115,7 +159,7 @@ export function renderRecurring(ctx: ReportCtx) {
     const signed = (isIncome ? '+' : '−') + fmt(r.periodAmount);
 
     return [
-      rec.description,
+      interpolatePeriod(rec.description, ctx.data.config.periodType, ctx.data.actualDates.start, locale),
       { content: cadence, styles: { font: 'courier' as const, textColor: mute } },
       { content: rec.category?.name ?? '—', styles: { font: 'courier' as const, textColor: mute } },
       { content: format(lastCharge, 'd MMM', { locale }), styles: { font: 'courier' as const, textColor: mute } },

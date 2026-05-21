@@ -262,6 +262,12 @@ export interface ReportCtx {
   t: (key: string, opts?: { defaultValue?: string } & Record<string, unknown>) => string;
   formatCurrency: (n: number) => string;
 
+  /** Period-aware title label, e.g. "April 2026", "Q2 2026", "Year 2026",
+   *  or a custom range. Used by chrome, cover and bottom strips. */
+  periodLabel: string;
+  /** Uppercased variant for the chrome and strip headers. */
+  periodLabelUpper: string;
+
   data: ReportData;
 }
 

@@ -440,6 +440,7 @@
     "dateLabel": "Date",
     "export": "Export",
     "period": "Period",
+    "yearLabel": "Year",
     "incomeVsExpenses": "Income vs Expenses",
     "spendingByCategory": "Spending by category",
     "monthlyEvolution": "Monthly evolution",
