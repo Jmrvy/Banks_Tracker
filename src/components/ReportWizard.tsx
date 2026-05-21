@@ -675,26 +675,43 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         )}
       </div>
 
-      {/* Forecast toggle — only relevant when the period reaches into the future. */}
-      {actualDates.end.getTime() > Date.now() && (
-        <label className="flex items-center gap-3 p-3 bg-bg-subtle rounded-xl border border-line cursor-pointer">
-          <Checkbox
-            checked={config.includeForecasted}
-            onCheckedChange={(v) => setConfig((prev) => ({ ...prev, includeForecasted: v === true }))}
-          />
-          <div className="flex-1">
-            <div className="text-sm font-medium">
-              {t('reports.includeForecasted.label', { defaultValue: 'Include forecasted entries' })}
+      {/* Forecast toggle — always visible so users discover it. Disabled
+       *  with a hint when the period ends in the past (nothing to project). */}
+      {(() => {
+        const hasFuture = actualDates.end.getTime() > Date.now();
+        return (
+          <label
+            className={cn(
+              'flex items-center gap-3 p-3 bg-bg-subtle rounded-xl border border-line',
+              hasFuture ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed',
+            )}
+          >
+            <Checkbox
+              checked={config.includeForecasted && hasFuture}
+              disabled={!hasFuture}
+              onCheckedChange={(v) =>
+                setConfig((prev) => ({ ...prev, includeForecasted: v === true }))
+              }
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium">
+                {t('reports.includeForecasted.label', { defaultValue: 'Include forecasted entries' })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {hasFuture
+                  ? t('reports.includeForecasted.hint', {
+                      defaultValue:
+                        'Adds upcoming recurring transactions, scheduled debt payments and remaining installments through the end of the period. Tagged as forecast in the report.',
+                    })
+                  : t('reports.includeForecasted.hintPastOnly', {
+                      defaultValue:
+                        'Period ends in the past — nothing to forecast. Pick a period that extends into the future to enable this.',
+                    })}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {t('reports.includeForecasted.hint', {
-                defaultValue:
-                  'Adds upcoming recurring transactions, scheduled debt payments and remaining installments through the end of the period. Tagged as forecast in the report.',
-              })}
-            </div>
-          </div>
-        </label>
-      )}
+          </label>
+        );
+      })()}
 
       {/* Selected Period Display - Apple style card */}
       <div className="p-4 bg-bg-subtle rounded-xl border border-line">
