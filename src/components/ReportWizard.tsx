@@ -37,6 +37,8 @@ import { fr, enUS } from "date-fns/locale";
 // dynamically inside the export handlers to keep them out of the initial bundle.
 import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useDebts } from "@/hooks/useDebts";
+import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -72,6 +74,12 @@ interface ReportConfig {
   sections: ReportSection[];
   includeCharts: boolean;
   groupByAccount: boolean;
+  /** When the selected period extends into the future, inject projected
+   *  entries (recurring future occurrences, remaining installment
+   *  payments, unpaid scheduled debt payments) into the report — they
+   *  affect category totals, account closing balances, the cashflow
+   *  chart, and the transactions ledger, and are tagged as forecast. */
+  includeForecasted: boolean;
 }
 
 const SECTION_INFO: Record<
@@ -127,6 +135,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     sections: DEFAULT_SECTIONS,
     includeCharts: true,
     groupByAccount: false,
+    includeForecasted: false,
   });
 
   // ── PAGE-BASED MODEL (v2) ─────────────────────────────────────────
@@ -208,6 +217,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
 
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
+  const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
+  const { installmentPayments } = useInstallmentPayments();
 
   // Chart refs for PDF export
   // Phase 2 renders every chart natively via jsPDF; the off-screen
@@ -342,6 +353,12 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       locale,
       t,
       formatCurrency,
+      forecast: {
+        includeForecasted: config.includeForecasted,
+        installmentPayments,
+        debts,
+        scheduledDebtPayments,
+      },
     });
   };
 
@@ -657,6 +674,27 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           />
         )}
       </div>
+
+      {/* Forecast toggle — only relevant when the period reaches into the future. */}
+      {actualDates.end.getTime() > Date.now() && (
+        <label className="flex items-center gap-3 p-3 bg-bg-subtle rounded-xl border border-line cursor-pointer">
+          <Checkbox
+            checked={config.includeForecasted}
+            onCheckedChange={(v) => setConfig((prev) => ({ ...prev, includeForecasted: v === true }))}
+          />
+          <div className="flex-1">
+            <div className="text-sm font-medium">
+              {t('reports.includeForecasted.label', { defaultValue: 'Include forecasted entries' })}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {t('reports.includeForecasted.hint', {
+                defaultValue:
+                  'Adds upcoming recurring transactions, scheduled debt payments and remaining installments through the end of the period. Tagged as forecast in the report.',
+              })}
+            </div>
+          </div>
+        </label>
+      )}
 
       {/* Selected Period Display - Apple style card */}
       <div className="p-4 bg-bg-subtle rounded-xl border border-line">

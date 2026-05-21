@@ -47,7 +47,21 @@ export function renderCashflow(ctx: ReportCtx) {
       delta: `${refundCount} refund${refundCount !== 1 ? 's' : ''}`,
     },
   ]);
-  y += 24;
+  y += 22;
+
+  if (ctx.data.includeForecasted) {
+    mono(6.5, 'normal', 8);
+    setText(ctx.mute);
+    const incTxt = ctx.fmtSigned(ctx.data.forecastIncome);
+    const expTxt = ctx.fmtSigned(-ctx.data.forecastExpenses);
+    const netTxt = ctx.fmtSigned(ctx.data.forecastNet);
+    pdf.text(
+      `Includes forecast · ${incTxt} income · ${expTxt} expenses · ${netTxt} net`,
+      MARGIN_X, y + 4,
+    );
+    pdf.setCharSpace(0);
+    y += 7;
+  }
 
   // ── Daily flow chart ─────────────────────────────────────────────
   y = drawSectionEyebrow(
@@ -96,15 +110,18 @@ export function renderCashflow(ctx: ReportCtx) {
 
   evolutionChartData.forEach((d, i) => {
     const cx = chartX + innerPad + slot * i + slot / 2;
+    const projected = !!d.isProjection;
     if (d.income > 0) {
       const h = Math.min(halfSpan, (d.income / niceMax) * halfSpan);
-      setFill(pos);
+      // Projected income days drawn in a lighter mute so they read as
+      // forecast without breaking the greyscale spec.
+      setFill(projected ? ctx.mute2 : pos);
       pdf.rect(cx - barW / 2, baseline - h, barW, h, 'F');
     }
     if (d.expense > 0) {
       const h = Math.min(halfSpan, (d.expense / niceMax) * halfSpan);
       const heavy = d.expense > typicalDailyExpense * 1.5;
-      setFill(heavy ? neg : ink);
+      setFill(projected ? ctx.mute : heavy ? neg : ink);
       pdf.rect(cx - barW / 2, baseline, barW, h, 'F');
     }
   });
@@ -134,6 +151,9 @@ export function renderCashflow(ctx: ReportCtx) {
     { label: 'Expense', color: ink },
     { label: 'Over typical', color: neg },
   ];
+  if (ctx.data.includeForecasted) {
+    legend.push({ label: 'Forecast', color: ctx.mute });
+  }
   let legX = chartX + chartW;
   // measure & right-align the legend cluster
   sans(8);

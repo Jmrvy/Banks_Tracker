@@ -113,11 +113,14 @@ export function renderRecurring(ctx: ReportCtx) {
 
   newPage();
   drawTopChrome(state.pageIdx, totalPagesEstimate);
+  const upcoming = ctx.data.recurringUpcoming;
   const titleY = drawPageTitle(
     'Section 09 · Cadence',
     'Recurring & subscriptions',
     `${shownCount} of ${recurringActiveCount} shown`,
-    `${fmt(monthlyTotalAbs)} / month`,
+    ctx.data.includeForecasted && upcoming > 0
+      ? `${fmt(monthlyTotalAbs)} / month · ${upcoming} upcoming`
+      : `${fmt(monthlyTotalAbs)} / month`,
   );
 
   // KPI band — 4 cells.

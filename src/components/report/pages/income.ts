@@ -51,7 +51,20 @@ export function renderIncome(ctx: ReportCtx) {
       delta: `${refundCount} refund${refundCount !== 1 ? 's' : ''} · excl.`,
     },
   ]);
-  y += 24;
+  y += 22;
+
+  if (ctx.data.includeForecasted) {
+    mono(6.5, 'normal', 8);
+    setText(mute);
+    const incTxt = ctx.fmtSigned(ctx.data.forecastIncome);
+    const expTxt = ctx.fmtSigned(-ctx.data.forecastExpenses);
+    pdf.text(
+      `Includes forecast · ${incTxt} income · ${expTxt} expenses`,
+      MARGIN_X, y + 4,
+    );
+    pdf.setCharSpace(0);
+    y += 7;
+  }
 
   // ── Per source table ─────────────────────────────────────────────
   // Column anchors are declared early so the pagination helpers can

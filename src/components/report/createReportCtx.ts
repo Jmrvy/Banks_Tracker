@@ -320,6 +320,7 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
   const drawSparkline = (
     x: number, y: number, w: number, h: number,
     points: number[], color: RGB = ink,
+    projectionStartIndex = -1,
   ) => {
     if (points.length === 0) return;
     const min = Math.min(...points);
@@ -332,9 +333,14 @@ export function createReportCtx(input: CtxInputs): ReportCtx {
     pdf.line(x, y + h, x + w, y + h);
     setDraw(color);
     pdf.setLineWidth(0.4);
+    let dashed = false;
     for (let i = 0; i < points.length - 1; i++) {
+      const isProj = projectionStartIndex >= 0 && i + 1 >= projectionStartIndex;
+      if (isProj && !dashed) { pdf.setLineDashPattern([0.8, 0.8], 0); dashed = true; }
+      else if (!isProj && dashed) { pdf.setLineDashPattern([], 0); dashed = false; }
       pdf.line(toX(i), toY(points[i]), toX(i + 1), toY(points[i + 1]));
     }
+    if (dashed) pdf.setLineDashPattern([], 0);
   };
 
   const state = { pageIdx: 0 };

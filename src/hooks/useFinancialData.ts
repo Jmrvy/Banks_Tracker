@@ -43,6 +43,12 @@ export interface Transaction {
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
   installment_payment_id?: string | null; // Lien vers le paiement échelonné source
   recurring_transaction_id?: string | null; // Lien vers la transaction récurrente source
+  /** True when this row is a forecast/projection synthesised at report
+   *  generation time (not persisted). Renderers branch on this for the
+   *  subtle "· forecast" marker. */
+  isProjection?: boolean;
+  /** Where the projection came from (only set when isProjection). */
+  projectedSource?: 'recurring' | 'debt' | 'installment';
 }
 
 export interface Category {

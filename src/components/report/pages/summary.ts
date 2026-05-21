@@ -89,7 +89,23 @@ export function renderSummary(ctx: ReportCtx) {
     setText(c.subColor);
     pdf.text(c.sub, x + 4, y + bandH - 3.5);
   });
-  y += bandH + 13;
+  y += bandH + 4;
+
+  // Forecast note (only when projection is enabled and non-empty).
+  if (ctx.data.includeForecasted) {
+    mono(6.5, 'normal', 8);
+    setText(mute);
+    const incTxt = ctx.fmtSigned(ctx.data.forecastIncome);
+    const expTxt = ctx.fmtSigned(-ctx.data.forecastExpenses);
+    const netTxt = ctx.fmtSigned(ctx.data.forecastNet);
+    pdf.text(
+      `Includes forecast · ${incTxt} income · ${expTxt} expenses · ${netTxt} net`,
+      MARGIN_X, y,
+    );
+    pdf.setCharSpace(0);
+    y += 5;
+  }
+  y += 4;
 
   // ── Commentary paragraph ─────────────────────────────────────────
   sans(9);
@@ -188,7 +204,7 @@ export function renderSummary(ctx: ReportCtx) {
     setFill(line2Col);
     pdf.lines(poly, sx(0), syv(sparkPoints[0]), [1, 1], 'F');
   }
-  drawSparkline(MARGIN_X, y, COL, sparkH, sparkPoints, ink);
+  drawSparkline(MARGIN_X, y, COL, sparkH, sparkPoints, ink, ctx.data.projectionStartIndex);
 
   const midDate = new Date(
     (actualDates.start.getTime() + actualDates.end.getTime()) / 2,

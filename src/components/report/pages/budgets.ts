@@ -194,6 +194,22 @@ export function renderBudgets(ctx: ReportCtx) {
   setText(mute);
   pdf.text('NEAR: ≥ 90% USED · BLACK TICK = BUDGET LINE', dx, defY);
 
+  if (ctx.data.includeForecasted) {
+    const projTotal = ctx.data.expenseCats.reduce((s, c) => s + c.projectedSpent, 0);
+    const combinedBreach = ctx.data.expenseCats.filter((c) => c.combinedOver && !c.over).length;
+    if (projTotal > 0) {
+      mono(6.5, 'normal', 8);
+      setText(mute);
+      pdf.text(
+        combinedBreach > 0
+          ? `Includes forecast · ${ctx.fmtSigned(-projTotal)} projected · ${combinedBreach} budget${combinedBreach === 1 ? '' : 's'} would breach`
+          : `Includes forecast · ${ctx.fmtSigned(-projTotal)} projected`,
+        MARGIN_X, ctx.STRIP_Y - 9,
+      );
+      pdf.setCharSpace(0);
+    }
+  }
+
   // ── Bottom strip + chrome ───────────────────────────────────────
   drawBottomStrip(
     `Net of budgets · ${ctx.periodLabel}`,
