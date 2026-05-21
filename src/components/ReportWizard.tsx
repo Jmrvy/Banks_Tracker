@@ -1223,6 +1223,49 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Forecast toggle row — visible whenever the period reaches
+            past today. Greyed out with a hint otherwise so users still
+            see the option exists. */}
+        <div className="flex items-center gap-3 px-5 py-2 border-t border-line">
+          <span className="font-mono text-[10px] uppercase tracking-[0.09em] text-muted-foreground font-medium">
+            {t('reports.forecastToolbarLabel', { defaultValue: 'Forecast' })}
+          </span>
+          {(() => {
+            const hasFuture = actualDates.end.getTime() > Date.now();
+            return (
+              <label
+                className={cn(
+                  'flex items-center gap-2 cursor-pointer select-none',
+                  !hasFuture && 'opacity-50 cursor-not-allowed',
+                )}
+              >
+                <Checkbox
+                  checked={config.includeForecasted && hasFuture}
+                  disabled={!hasFuture}
+                  onCheckedChange={(v) =>
+                    setConfig((prev) => ({ ...prev, includeForecasted: v === true }))
+                  }
+                  className="h-4 w-4"
+                />
+                <span className="text-xs font-medium">
+                  {t('reports.includeForecasted.label', {
+                    defaultValue: 'Include forecasted entries',
+                  })}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {hasFuture
+                    ? t('reports.includeForecasted.toolbarHint', {
+                        defaultValue: 'recurring · installments · scheduled debt payments',
+                      })
+                    : t('reports.includeForecasted.hintPastOnly', {
+                        defaultValue: 'Period ends in the past — nothing to forecast.',
+                      })}
+                </span>
+              </label>
+            );
+          })()}
+        </div>
       </div>
 
       {/* ── Body: page rail + preview. Flex-grows inside the dialog
