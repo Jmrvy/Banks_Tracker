@@ -443,7 +443,8 @@
     "yearLabel": "Année",
     "includeForecasted": {
       "label": "Inclure les transactions prévisionnelles",
-      "hint": "Ajoute les transactions récurrentes à venir, les échéances de dettes et les paiements échelonnés restants jusqu'à la fin de la période. Marqués comme prévisionnels dans le rapport."
+      "hint": "Ajoute les transactions récurrentes à venir, les échéances de dettes et les paiements échelonnés restants jusqu'à la fin de la période. Marqués comme prévisionnels dans le rapport.",
+      "hintPastOnly": "La période se termine dans le passé — rien à prévoir. Choisis une période qui s'étend dans le futur pour activer cette option."
     },
     "forecastIncluded": "Prévisionnel inclus",
     "forecastSuffix": "prévision",
