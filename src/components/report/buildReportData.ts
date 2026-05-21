@@ -4,6 +4,8 @@ import { parseLocalDate } from '@/lib/dateUtils';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
+import type { Debt, ScheduledDebtPayment } from '@/hooks/useDebts';
+import type { InstallmentPayment } from '@/hooks/useInstallmentPayments';
 import type {
   ReportData,
   ReportPageId,
@@ -28,6 +30,17 @@ interface BuildInputs {
   actualDates: { start: Date; end: Date };
   orderedEnabledPages: ReportPageId[];
   locale: Locale;
+  /** When set, synthesise projected entries for every concretely-
+   *  scheduled cashflow that falls in [now, end] — recurring future
+   *  occurrences, remaining installment payments, scheduled debt
+   *  payments. Each gets `isProjection: true` so renderers can mark it. */
+  projection?: {
+    includeForecasted: boolean;
+    now: Date;
+    installmentPayments: InstallmentPayment[];
+    debts: Debt[];
+    scheduledDebtPayments: ScheduledDebtPayment[];
+  };
 }
 
 const inStats = (t: Transaction) => t.include_in_stats !== false;
@@ -37,6 +50,119 @@ const txDateOf = (t: Transaction, dateType: 'accounting' | 'value') =>
 const SUBS_RE = /subscription|abonnement|streaming|spotify|netflix|apple|disney|prime/i;
 const BILLS_RE = /utilit|electric|water|internet|insurance|facture|énergie|energie|gas|phone|mobile|telecom|edf|veolia|bouygues|orange|free/i;
 const RENT_RE = /rent|loyer|housing|logement|mortgage|hypoth/i;
+
+/** Synthesise Transaction-shaped projection entries for every concretely
+ *  scheduled cashflow that falls within [windowStart, windowEnd]:
+ *  recurring future occurrences, remaining installment payments, and
+ *  unpaid scheduled debt payments. Each is flagged with isProjection so
+ *  renderers can mark it. */
+function synthesiseProjections(
+  windowStart: Date,
+  windowEnd: Date,
+  accounts: Account[],
+  recurring: RecurringData,
+  installmentPayments: InstallmentPayment[],
+  debts: Debt[],
+  scheduledDebtPayments: ScheduledDebtPayment[],
+): Transaction[] {
+  const out: Transaction[] = [];
+  const defaultAccount = accounts.find((a) => a.account_type === 'checking') ?? accounts[0];
+  if (!defaultAccount) return out;
+
+  // 1. Recurring future occurrences (occurrenceDetails is precomputed).
+  for (const item of recurring.periodItems) {
+    const rec = item.recurring;
+    const acc = accounts.find((a) => a.id === rec.account_id) ?? defaultAccount;
+    for (const occ of item.occurrenceDetails) {
+      if (!occ.isFuture) continue;
+      const d = parseLocalDate(occ.date);
+      if (d < windowStart || d > windowEnd) continue;
+      out.push({
+        id: `proj-rec-${rec.id}-${occ.date}`,
+        account_id: acc.id,
+        description: rec.description,
+        amount: Math.abs(Number(occ.amount)),
+        type: item.effectiveType,
+        transaction_date: occ.date,
+        value_date: occ.date,
+        include_in_stats: true,
+        account: { name: acc.name, bank: acc.bank },
+        category: rec.category
+          ? { id: rec.category.id, name: rec.category.name, color: rec.category.color, icon: rec.category.icon ?? null }
+          : null,
+        recurring_transaction_id: rec.id,
+        isProjection: true,
+        projectedSource: 'recurring',
+      });
+    }
+  }
+
+  // 2. Installment future payments — iterate next_payment_date by
+  //    frequency while remaining > 0 and within the window.
+  for (const ip of installmentPayments) {
+    if (!ip.is_active) continue;
+    let remaining = Number(ip.remaining_amount);
+    let cursor = parseLocalDate(ip.next_payment_date);
+    const acc = accounts.find((a) => a.id === ip.account_id) ?? defaultAccount;
+    let safety = 0;
+    while (remaining > 0 && cursor <= windowEnd && safety < 240) {
+      if (cursor >= windowStart) {
+        const amt = Math.min(Number(ip.installment_amount), remaining);
+        const ds = format(cursor, 'yyyy-MM-dd');
+        out.push({
+          id: `proj-ip-${ip.id}-${ds}`,
+          account_id: acc.id,
+          description: ip.description,
+          amount: amt,
+          type: 'expense',
+          transaction_date: ds,
+          value_date: ds,
+          include_in_stats: true,
+          account: { name: acc.name, bank: acc.bank },
+          category: null,
+          installment_payment_id: ip.id,
+          isProjection: true,
+          projectedSource: 'installment',
+        });
+      }
+      remaining -= Number(ip.installment_amount);
+      const next = new Date(cursor);
+      if (ip.frequency === 'weekly') next.setDate(next.getDate() + 7);
+      else if (ip.frequency === 'quarterly') next.setMonth(next.getMonth() + 3);
+      else next.setMonth(next.getMonth() + 1);
+      cursor = next;
+      safety++;
+    }
+  }
+
+  // 3. Unpaid scheduled debt payments. Debt direction sets the sign:
+  //    loan_given → being repaid → income; loan_received → I owe → expense.
+  const debtById = new Map(debts.map((d) => [d.id, d]));
+  for (const sp of scheduledDebtPayments) {
+    if (sp.is_paid) continue;
+    const d = parseLocalDate(sp.scheduled_date);
+    if (d < windowStart || d > windowEnd) continue;
+    const debt = debtById.get(sp.debt_id);
+    if (!debt) continue;
+    const txType: 'income' | 'expense' = debt.type === 'loan_given' ? 'income' : 'expense';
+    out.push({
+      id: `proj-debt-${sp.id}`,
+      account_id: defaultAccount.id,
+      description: debt.description,
+      amount: Number(sp.scheduled_amount),
+      type: txType,
+      transaction_date: sp.scheduled_date,
+      value_date: sp.scheduled_date,
+      include_in_stats: true,
+      account: { name: defaultAccount.name, bank: defaultAccount.bank },
+      category: null,
+      isProjection: true,
+      projectedSource: 'debt',
+    });
+  }
+
+  return out;
+}
 
 export function buildReportData(input: BuildInputs): ReportData {
   const {
@@ -88,6 +214,10 @@ export function buildReportData(input: BuildInputs): ReportData {
   const expenseCats: ReportCategory[] = baseCats.map((c) => ({
     ...c,
     pctOfTotal: totalCatSpent > 0 ? (c.spent / totalCatSpent) * 100 : 0,
+    // Forecast fields are populated below if projection is enabled.
+    projectedSpent: 0,
+    combinedSpent: c.spent,
+    combinedOver: c.over,
   }));
 
   const namedTop = expenseCats.slice(0, 5).map((c) => ({
@@ -135,6 +265,10 @@ export function buildReportData(input: BuildInputs): ReportData {
       net,
       closing,
       count: accTx.length,
+      // Forecast fields are populated below if projection is enabled.
+      projectedInflow: 0,
+      projectedOutflow: 0,
+      projectedClosing: closing,
     };
   });
   const bankCount = new Set(accounts.map((a) => a.bank)).size;
@@ -250,9 +384,110 @@ export function buildReportData(input: BuildInputs): ReportData {
     running += signed;
     return { tx, date: txDateOf(tx, config.dateType), balance: running };
   });
-  const ledgerRows = ascRows.slice().reverse();
+  let augmentedLedgerRows: { tx: Transaction; date: Date; balance: number; isProjection?: boolean }[]
+    = ascRows.slice().reverse();
+  let augmentedFiltered: Transaction[] = filteredTransactions;
+  let augmentedEvolution = evolutionChartData.map((d) => ({ ...d, isProjection: false }));
+  let projectionStartIndex = -1;
+  let forecastIncome = 0;
+  let forecastExpenses = 0;
+  let includeForecasted = false;
+  let recurringUpcoming = 0;
+
+  // ── Projection / forecast merge (optional) ───────────────────────
+  if (input.projection?.includeForecasted) {
+    const { now, installmentPayments, debts, scheduledDebtPayments } = input.projection;
+    const windowStart = now > actualDates.start ? now : actualDates.start;
+    if (windowStart < actualDates.end) {
+      const projectedTx = synthesiseProjections(
+        windowStart, actualDates.end, accounts, recurringData,
+        installmentPayments, debts, scheduledDebtPayments,
+      );
+      if (projectedTx.length > 0) {
+        includeForecasted = true;
+
+        // Per-category projected spend (mutate expenseCats in place).
+        const projectedByCat = new Map<string, number>();
+        for (const t of projectedTx) {
+          if (t.type !== 'expense') continue;
+          const key = t.category?.name ?? 'Uncategorised';
+          projectedByCat.set(key, (projectedByCat.get(key) ?? 0) + Number(t.amount));
+        }
+        for (const c of expenseCats) {
+          c.projectedSpent = projectedByCat.get(c.name) ?? 0;
+          c.combinedSpent = c.spent + c.projectedSpent;
+          c.combinedOver = c.budget > 0 && c.combinedSpent > c.budget;
+        }
+
+        // Per-account projected inflow/outflow.
+        const projByAcc = new Map<string, { in: number; out: number }>();
+        for (const t of projectedTx) {
+          const cur = projByAcc.get(t.account_id) ?? { in: 0, out: 0 };
+          if (t.type === 'income') cur.in += Number(t.amount);
+          else if (t.type === 'expense') cur.out += Number(t.amount);
+          projByAcc.set(t.account_id, cur);
+        }
+        for (const af of accountFlows) {
+          const p = projByAcc.get(af.id) ?? { in: 0, out: 0 };
+          af.projectedInflow = p.in;
+          af.projectedOutflow = p.out;
+          af.projectedClosing = af.closing + (p.in - p.out);
+        }
+
+        // Forecast aggregates.
+        for (const t of projectedTx) {
+          if (t.type === 'income') forecastIncome += Number(t.amount);
+          else if (t.type === 'expense') forecastExpenses += Number(t.amount);
+        }
+
+        // Extend daily evolution: bucket projected income/expense into
+        // the matching day, mark the day as projected, recompute running
+        // balance from initial balance forward across the whole period.
+        const startMs = actualDates.start.getTime();
+        for (const t of projectedTx) {
+          const d = txDateOf(t, config.dateType);
+          const idx = Math.floor((d.getTime() - startMs) / 86400000);
+          if (idx < 0 || idx >= augmentedEvolution.length) continue;
+          if (t.type === 'income') augmentedEvolution[idx].income += Number(t.amount);
+          else if (t.type === 'expense') augmentedEvolution[idx].expense += Number(t.amount);
+          augmentedEvolution[idx].isProjection = true;
+        }
+        let bal = stats.initialBalance;
+        for (let i = 0; i < augmentedEvolution.length; i++) {
+          bal += augmentedEvolution[i].income - augmentedEvolution[i].expense;
+          augmentedEvolution[i].balance = bal;
+        }
+        projectionStartIndex = augmentedEvolution.findIndex((d) => d.isProjection);
+
+        // Merge projections into the ledger and recompute the running
+        // balance so projected rows show a (mute) projected balance.
+        augmentedFiltered = [...filteredTransactions, ...projectedTx];
+        const ascProj = augmentedFiltered.slice().sort(
+          (a, b) => txDateOf(a, config.dateType).getTime() - txDateOf(b, config.dateType).getTime(),
+        );
+        let r = stats.initialBalance;
+        const ascRowsProj = ascProj.map((tx) => {
+          const signed = tx.type === 'income' ? Number(tx.amount) : tx.type === 'expense' ? -Number(tx.amount) : 0;
+          r += signed;
+          return { tx, date: txDateOf(tx, config.dateType), balance: r, isProjection: !!tx.isProjection };
+        });
+        augmentedLedgerRows = ascRowsProj.slice().reverse();
+      }
+
+      // Count distinct recurring items with at least one future occurrence
+      // inside the window — used by the Recurring page's right-secondary.
+      recurringUpcoming = recurringData.periodItems.filter((it) =>
+        it.occurrenceDetails.some((o) => {
+          if (!o.isFuture) return false;
+          const d = parseLocalDate(o.date);
+          return d >= windowStart && d <= actualDates.end;
+        }),
+      ).length;
+    }
+  }
+
   const ledgerPageCount = orderedEnabledPages.includes('transactions')
-    ? Math.max(1, Math.ceil(filteredTransactions.length / TX_PER_PAGE))
+    ? Math.max(1, Math.ceil(augmentedFiltered.length / TX_PER_PAGE))
     : 0;
 
   return {
@@ -303,15 +538,21 @@ export function buildReportData(input: BuildInputs): ReportData {
     recurringMonthlyNet: recurringData.monthlyNet,
     recurringMonthlyExpense: recurringData.monthlyExpenses,
     recurringMonthlyTotal: recurringData.monthlyIncome - recurringData.monthlyExpenses,
-    evolutionChartData,
-    sparkPoints: evolutionChartData.map((d) => d.balance),
+    evolutionChartData: augmentedEvolution,
+    sparkPoints: augmentedEvolution.map((d) => d.balance),
+    projectionStartIndex,
     typicalDailyExpense,
     topInflows,
     topOutflows,
     grossInflowCount: filteredTransactions.filter((t) => t.type === 'income').length,
     grossOutflowCount: filteredTransactions.filter((t) => t.type === 'expense').length,
-    filteredTransactions,
-    ledgerRows,
+    filteredTransactions: augmentedFiltered,
+    ledgerRows: augmentedLedgerRows,
+    includeForecasted,
+    forecastIncome,
+    forecastExpenses,
+    forecastNet: forecastIncome - forecastExpenses,
+    recurringUpcoming,
     openingBalance: stats.initialBalance,
     ledgerPageCount,
     transactions,

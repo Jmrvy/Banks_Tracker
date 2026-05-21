@@ -4,7 +4,7 @@ import type { ReportCtx } from '../types';
 
 export function renderIncome(ctx: ReportCtx) {
   const {
-    pdf, MARGIN_X, PW, COL, setText, setFill, setDraw,
+    pdf, MARGIN_X, PW, COL, STRIP_Y, setText, setFill, setDraw,
     ink, ink2, mute, mute2, lineCol, line2Col, pos,
     sans, mono, fmt, newPage, state, locale, totalPagesEstimate,
     drawTopChrome, drawPageTitle, drawSectionEyebrow, drawKpiBand,
@@ -51,36 +51,75 @@ export function renderIncome(ctx: ReportCtx) {
       delta: `${refundCount} refund${refundCount !== 1 ? 's' : ''} · excl.`,
     },
   ]);
-  y += 24;
+  y += 22;
+
+  if (ctx.data.includeForecasted) {
+    mono(6.5, 'normal', 8);
+    setText(mute);
+    const incTxt = ctx.fmtSigned(ctx.data.forecastIncome);
+    const expTxt = ctx.fmtSigned(-ctx.data.forecastExpenses);
+    pdf.text(
+      `Includes forecast · ${incTxt} income · ${expTxt} expenses`,
+      MARGIN_X, y + 4,
+    );
+    pdf.setCharSpace(0);
+    y += 7;
+  }
 
   // ── Per source table ─────────────────────────────────────────────
-  y = drawSectionEyebrow('Per source', 'share of gross income', y);
-
-  // column anchors (mm)
+  // Column anchors are declared early so the pagination helpers can
+  // re-stamp the header on any continuation page.
   const xSource = MARGIN_X;
   const xCat = MARGIN_X + 62;
   const xCount = MARGIN_X + 91;
-  const xAmount = MARGIN_X + 142; // right-aligned amount edge
-  const xShare = MARGIN_X + 158; // right-aligned share edge
+  const xAmount = MARGIN_X + 142;
+  const xShare = MARGIN_X + 158;
   const barX = MARGIN_X + 162;
   const barW = RIGHT - barX;
 
-  // header row
-  mono(7, 'bold');
-  setText(mute);
-  pdf.text('SOURCE', xSource, y);
-  pdf.text('CATEGORY', xCat, y);
-  pdf.text('COUNT', xCount, y);
-  pdf.text('AMOUNT', xAmount, y, { align: 'right' });
-  pdf.text('%', xShare, y - 3, { align: 'right' });
-  pdf.text('SHARE', xShare, y, { align: 'right' });
-  setDraw(ink);
-  pdf.setLineWidth(0.4);
-  pdf.line(MARGIN_X, y + 2.5, RIGHT, y + 2.5);
-  y += 8;
+  // Safe lower y-bound for body content (just above the bottom strip
+  // rule). If content would cross it we spawn a continuation page.
+  const BODY_LIMIT = STRIP_Y - 8;
+
+  const drawColHeader = (yy: number): number => {
+    mono(7, 'bold');
+    setText(mute);
+    pdf.text('SOURCE', xSource, yy);
+    pdf.text('CATEGORY', xCat, yy);
+    pdf.text('COUNT', xCount, yy);
+    pdf.text('AMOUNT', xAmount, yy, { align: 'right' });
+    pdf.text('%', xShare, yy - 3, { align: 'right' });
+    pdf.text('SHARE', xShare, yy, { align: 'right' });
+    setDraw(ink);
+    pdf.setLineWidth(0.4);
+    pdf.line(MARGIN_X, yy + 2.5, RIGHT, yy + 2.5);
+    return yy + 8;
+  };
+
+  /** Close the current page's chrome, spawn a new one, re-stamp the
+   *  page title and a fresh section eyebrow. Returns the new body y. */
+  const contPage = (eyebrow: string, meta: string): number => {
+    drawBottomChrome(state.pageIdx, totalPagesEstimate);
+    newPage();
+    drawTopChrome(state.pageIdx, totalPagesEstimate);
+    const yy = drawPageTitle(
+      'Section 08 · Inflows (cont.)',
+      'Income sources',
+      `${incomeSources.length} source${incomeSources.length !== 1 ? 's' : ''}`,
+      `${fmt(grossIncome)} TOTAL`,
+    );
+    return drawSectionEyebrow(eyebrow, meta, yy);
+  };
+
+  y = drawSectionEyebrow('Per source', 'share of gross income', y);
+  y = drawColHeader(y);
 
   const rowH = 8.5;
   for (const s of incomeSources) {
+    if (y + rowH > BODY_LIMIT) {
+      y = contPage('Per source · cont.', 'share of gross income');
+      y = drawColHeader(y);
+    }
     sans(9.5, 'bold');
     setText(ink);
     let nm = s.name;
@@ -114,6 +153,10 @@ export function renderIncome(ctx: ReportCtx) {
   }
 
   // gross-income total row
+  if (y + 13 > BODY_LIMIT) {
+    y = contPage('Per source · cont.', 'share of gross income');
+    y = drawColHeader(y);
+  }
   y += 1.5;
   const totalCount = incomeSources.reduce((acc, s) => acc + s.count, 0);
   sans(9.5, 'bold');
@@ -121,7 +164,7 @@ export function renderIncome(ctx: ReportCtx) {
   pdf.text('Gross income', xSource, y);
   mono(7);
   setText(mute);
-  pdf.text(`· ${monthLabel}`, xSource, y + 4.5);
+  pdf.text(`· ${ctx.periodLabel}`, xSource, y + 4.5);
   mono(9.5);
   setText(ink2);
   pdf.text(String(totalCount), xCount, y);
@@ -134,16 +177,20 @@ export function renderIncome(ctx: ReportCtx) {
   y += 12;
 
   // ── Excluded movements ───────────────────────────────────────────
-  y = drawSectionEyebrow(
-    'Excluded movements',
-    'refunds and transfers · not counted as income',
-    y,
-  );
-  y += 2;
-
   const exRowH = 8.5;
   const xDesc = MARGIN_X + 32;
   const xKind = MARGIN_X + 122;
+  if (y + 20 > BODY_LIMIT) {
+    y = contPage('Excluded movements', 'refunds and transfers · not counted as income');
+  } else {
+    y = drawSectionEyebrow(
+      'Excluded movements',
+      'refunds and transfers · not counted as income',
+      y,
+    );
+  }
+  y += 2;
+
   if (refundItems.length === 0) {
     mono(8);
     setText(mute2);
@@ -151,6 +198,10 @@ export function renderIncome(ctx: ReportCtx) {
     y += exRowH;
   } else {
     for (const r of refundItems) {
+      if (y + exRowH > BODY_LIMIT) {
+        y = contPage('Excluded movements · cont.', 'refunds and transfers · not counted as income');
+        y += 2;
+      }
       const d = config.dateType === 'value'
         ? parseLocalDate(r.value_date || r.transaction_date)
         : parseLocalDate(r.transaction_date);
@@ -183,11 +234,18 @@ export function renderIncome(ctx: ReportCtx) {
   y += 5;
 
   // ── 12-month income trend ────────────────────────────────────────
-  y = drawSectionEyebrow(
-    '12-month income trend',
-    incomeTrendStable ? 'stable, no missing months' : 'has gaps',
-    y,
-  );
+  if (y + 46 > BODY_LIMIT) {
+    y = contPage(
+      '12-month income trend',
+      incomeTrendStable ? 'stable, no missing months' : 'has gaps',
+    );
+  } else {
+    y = drawSectionEyebrow(
+      '12-month income trend',
+      incomeTrendStable ? 'stable, no missing months' : 'has gaps',
+      y,
+    );
+  }
   y += 4;
 
   const chartX = MARGIN_X;
@@ -239,9 +297,9 @@ export function renderIncome(ctx: ReportCtx) {
     );
   }
 
-  // ── Bottom strip ─────────────────────────────────────────────────
+  // ── Bottom strip (only on the final page) ────────────────────────
   drawBottomStrip(
-    `Gross income · ${monthLabel}`,
+    `Gross income · ${ctx.periodLabel}`,
     `+${fmt(grossIncome)}`,
     pos,
   );

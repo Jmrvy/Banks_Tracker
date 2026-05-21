@@ -203,7 +203,7 @@ export function renderAccounts(ctx: ReportCtx) {
   const sparkY = y + padTop;
   const sparkW = COL - padX * 2;
   const sparkH = boxH - padTop - labelBandH;
-  drawSparkline(sparkX, sparkY, sparkW, sparkH, sparkPoints, ink);
+  drawSparkline(sparkX, sparkY, sparkW, sparkH, sparkPoints, ink, ctx.data.projectionStartIndex);
 
   const midDate = new Date(
     (actualDates.start.getTime() + actualDates.end.getTime()) / 2,
@@ -223,6 +223,20 @@ export function renderAccounts(ctx: ReportCtx) {
     fmt(endBal),
     PW - MARGIN_X - padX, labelY, { align: 'right' },
   );
+
+  // Projected total (only when forecast is enabled). Drawn just above
+  // the bottom strip so it reads as the forward-looking complement.
+  if (ctx.data.includeForecasted) {
+    const projectedTotal = accountFlows.reduce((s, a) => s + a.projectedClosing, 0);
+    const py = ctx.STRIP_Y - 9;
+    mono(7, 'normal', 8);
+    setText(mute);
+    pdf.text(`Projected total · ${format(actualDates.end, 'd MMM yyyy', { locale })}`, MARGIN_X, py);
+    mono(11, 'normal', -20);
+    setText(mute);
+    pdf.text(fmt(projectedTotal), ctx.PW - MARGIN_X, py, { align: 'right' });
+    pdf.setCharSpace(0);
+  }
 
   // ── Bottom strip ─────────────────────────────────────────────────
   drawBottomStrip(

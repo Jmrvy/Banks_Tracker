@@ -74,10 +74,16 @@ export function renderTransactions(ctx: ReportCtx) {
       const isIncome = tx.type === 'income';
       const isExpense = tx.type === 'expense';
       const sign = isIncome ? '+' : isExpense ? '−' : '';
-      const amtColor = isIncome ? pos : isExpense ? neg : ink;
+      const isProj = !!row.isProjection;
+      // Forecast rows are muted across the row (amount + balance), with a
+      // small "· forecast" mute suffix on the description so they read as
+      // upcoming rather than confirmed.
+      const amtColor = isProj ? mute : isIncome ? pos : isExpense ? neg : ink;
+      const balColor = isProj ? mute : ink;
+      const descTxt = isProj ? `${tx.description}  · forecast` : tx.description;
       return [
-        { content: format(row.date, 'd MMM', { locale }), styles: { font: 'courier' as const } },
-        tx.description,
+        { content: format(row.date, 'd MMM', { locale }), styles: { font: 'courier' as const, textColor: isProj ? mute : ink } },
+        { content: descTxt, styles: { textColor: isProj ? mute : ink } },
         { content: tx.category?.name ?? '—', styles: { font: 'courier' as const, textColor: mute } },
         { content: tx.account?.name ?? '—', styles: { font: 'courier' as const, textColor: mute } },
         {
@@ -89,8 +95,8 @@ export function renderTransactions(ctx: ReportCtx) {
           styles: {
             halign: 'right' as const,
             font: 'courier' as const,
-            fontStyle: 'bold' as const,
-            textColor: ink,
+            fontStyle: (isProj ? 'normal' : 'bold') as 'bold' | 'normal',
+            textColor: balColor,
           },
         },
       ];

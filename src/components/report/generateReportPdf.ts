@@ -3,6 +3,8 @@ import type { Locale } from 'date-fns';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
+import type { Debt, ScheduledDebtPayment } from '@/hooks/useDebts';
+import type { InstallmentPayment } from '@/hooks/useInstallmentPayments';
 import type { PageEntry, PageId } from './pageMeta';
 import type { ReportPageId, PageRenderer } from './types';
 import { buildReportData } from './buildReportData';
@@ -33,6 +35,15 @@ export interface GenerateReportPdfInput {
   locale: Locale;
   t: (key: string, opts?: { defaultValue?: string } & Record<string, unknown>) => string;
   formatCurrency: (n: number) => string;
+  /** Optional forecast input. When `includeForecasted` is true and the
+   *  period extends past `now`, projected entries from these sources
+   *  are synthesised at build time and merged into the report. */
+  forecast?: {
+    includeForecasted: boolean;
+    installmentPayments: InstallmentPayment[];
+    debts: Debt[];
+    scheduledDebtPayments: ScheduledDebtPayment[];
+  };
 }
 
 const RENDERERS: Record<ReportPageId, PageRenderer> = {
@@ -80,6 +91,8 @@ export async function buildReportPdf(input: GenerateReportPdfInput) {
     .filter((p) => p.enabled)
     .map((p) => p.id) as ReportPageId[];
 
+  const generatedAt = new Date();
+
   const data = buildReportData({
     stats: input.stats,
     categoryChartData: input.categoryChartData,
@@ -93,9 +106,16 @@ export async function buildReportPdf(input: GenerateReportPdfInput) {
     actualDates,
     orderedEnabledPages,
     locale,
+    projection: input.forecast
+      ? {
+          includeForecasted: input.forecast.includeForecasted,
+          now: generatedAt,
+          installmentPayments: input.forecast.installmentPayments,
+          debts: input.forecast.debts,
+          scheduledDebtPayments: input.forecast.scheduledDebtPayments,
+        }
+      : undefined,
   });
-
-  const generatedAt = new Date();
   const reference = `ST-${format(actualDates.start, 'yyyy-MM-dd')}`;
   const periodCompact = `${format(actualDates.start, 'd MMM', { locale })} → ${format(
     actualDates.end,

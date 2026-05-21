@@ -440,6 +440,14 @@
     "dateLabel": "Date",
     "export": "Export",
     "period": "Period",
+    "yearLabel": "Year",
+    "includeForecasted": {
+      "label": "Include forecasted entries",
+      "hint": "Adds upcoming recurring transactions, scheduled debt payments and remaining installments through the end of the period. Tagged as forecast in the report."
+    },
+    "forecastIncluded": "Forecast included",
+    "forecastSuffix": "forecast",
+    "forecastInclSubline": "incl. forecast {{value}}",
     "incomeVsExpenses": "Income vs Expenses",
     "spendingByCategory": "Spending by category",
     "monthlyEvolution": "Monthly evolution",

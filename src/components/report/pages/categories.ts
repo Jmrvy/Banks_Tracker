@@ -194,7 +194,19 @@ export function renderCategories(ctx: ReportCtx) {
     },
   });
 
-  const monthLabel = format(actualDates.start, 'MMMM', { locale }).toUpperCase();
-  drawBottomStrip(`Total expenses · ${monthLabel}`, fmt(totalCatSpent), neg);
+  if (ctx.data.includeForecasted) {
+    const projTotal = expenseCats.reduce((s, c) => s + c.projectedSpent, 0);
+    if (projTotal > 0) {
+      const cnt = expenseCats.filter((c) => c.projectedSpent > 0).length;
+      mono(6.5, 'normal', 8);
+      setText(mute);
+      ctx.pdf.text(
+        `Includes forecast · ${ctx.fmtSigned(-projTotal)} projected across ${cnt} categor${cnt === 1 ? 'y' : 'ies'}`,
+        MARGIN_X, ctx.STRIP_Y - 9,
+      );
+      ctx.pdf.setCharSpace(0);
+    }
+  }
+  drawBottomStrip(`Total expenses · ${ctx.periodLabel}`, fmt(totalCatSpent), neg);
   drawBottomChrome(state.pageIdx, totalPagesEstimate);
 }

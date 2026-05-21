@@ -440,6 +440,14 @@
     "dateLabel": "Date",
     "export": "Exporter",
     "period": "Période",
+    "yearLabel": "Année",
+    "includeForecasted": {
+      "label": "Inclure les transactions prévisionnelles",
+      "hint": "Ajoute les transactions récurrentes à venir, les échéances de dettes et les paiements échelonnés restants jusqu'à la fin de la période. Marqués comme prévisionnels dans le rapport."
+    },
+    "forecastIncluded": "Prévisionnel inclus",
+    "forecastSuffix": "prévision",
+    "forecastInclSubline": "incl. prév. {{value}}",
     "incomeVsExpenses": "Revenus vs Dépenses",
     "spendingByCategory": "Dépenses par catégorie",
     "monthlyEvolution": "Évolution mensuelle",

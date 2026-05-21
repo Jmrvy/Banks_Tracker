@@ -42,6 +42,12 @@ export interface ReportCategory extends CategoryData {
   over: boolean;
   /** ≥ 90 % of budget used but not over. */
   near: boolean;
+  /** Projected additional spend within the period (forecast only). */
+  projectedSpent: number;
+  /** spent + projectedSpent. */
+  combinedSpent: number;
+  /** True if combinedSpent > budget (used when forecast is included). */
+  combinedOver: boolean;
 }
 
 export interface AccountFlow {
@@ -57,6 +63,12 @@ export interface AccountFlow {
   net: number;
   closing: number;
   count: number;
+  /** Projected inflow within the future window (forecast only). */
+  projectedInflow: number;
+  /** Projected outflow within the future window (forecast only). */
+  projectedOutflow: number;
+  /** closing + (projectedInflow − projectedOutflow). */
+  projectedClosing: number;
 }
 
 export interface IncomeSource {
@@ -140,21 +152,39 @@ export interface ReportData {
   recurringMonthlyTotal: number;
 
   // flow
-  evolutionChartData: { date: string; balance: number; income: number; expense: number }[];
+  evolutionChartData: { date: string; balance: number; income: number; expense: number; isProjection?: boolean }[];
   sparkPoints: number[];
+  /** Index in sparkPoints where the projected segment begins (-1 when
+   *  no projection is included). Renderers use this to switch to a
+   *  dashed line / lighter bars for the forecast tail. */
+  projectionStartIndex: number;
   /** mean of daily expense, used to flag "over typical" bars. */
   typicalDailyExpense: number;
-  topInflows: { date: Date; label: string; amount: number }[];
-  topOutflows: { date: Date; label: string; amount: number }[];
+  topInflows: { date: Date; label: string; amount: number; isProjection?: boolean }[];
+  topOutflows: { date: Date; label: string; amount: number; isProjection?: boolean }[];
   grossInflowCount: number;
   grossOutflowCount: number;
 
   // ledger
   filteredTransactions: Transaction[];
   /** transactions newest-first with a running balance column. */
-  ledgerRows: { tx: Transaction; date: Date; balance: number }[];
+  ledgerRows: { tx: Transaction; date: Date; balance: number; isProjection?: boolean }[];
   openingBalance: number;
   ledgerPageCount: number;
+
+  // ── forecast / projection ────────────────────────────────────────
+  /** True when the user opted in and the period actually extends into
+   *  the future — i.e. there is content to forecast. */
+  includeForecasted: boolean;
+  /** Aggregate projected income within [now, end]. */
+  forecastIncome: number;
+  /** Aggregate projected expenses within [now, end]. */
+  forecastExpenses: number;
+  /** forecastIncome − forecastExpenses. */
+  forecastNet: number;
+  /** Number of distinct recurring items with at least one occurrence
+   *  in [now, end] (used in the Recurring page's right-secondary). */
+  recurringUpcoming: number;
 
   // raw collections (page-local computations)
   transactions: Transaction[];
@@ -246,6 +276,9 @@ export interface ReportCtx {
     h: number,
     points: number[],
     color?: RGB,
+    /** Index in `points` at which to switch from solid to dashed (for
+     *  forecast projections). -1 (default) draws solid throughout. */
+    projectionStartIndex?: number,
   ) => void;
 
   // mutable page counter (shared so autoTable pagination can bump it)
@@ -261,6 +294,12 @@ export interface ReportCtx {
   // i18next TFunction — loose on purpose to avoid version coupling.
   t: (key: string, opts?: { defaultValue?: string } & Record<string, unknown>) => string;
   formatCurrency: (n: number) => string;
+
+  /** Period-aware title label, e.g. "April 2026", "Q2 2026", "Year 2026",
+   *  or a custom range. Used by chrome, cover and bottom strips. */
+  periodLabel: string;
+  /** Uppercased variant for the chrome and strip headers. */
+  periodLabelUpper: string;
 
   data: ReportData;
 }
