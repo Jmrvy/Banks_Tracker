@@ -39,6 +39,8 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InlineSpinner } from "@/components/LoadingSpinner";
+import { TourProvider } from "@/contexts/TourContext";
+import { TourEngine } from "@/components/tour/TourEngine";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -220,8 +222,11 @@ const App = () => (
                 <PeriodProvider>
                   <PrivacyProvider>
                     <CommandPaletteProvider>
-                      <AppRoutes />
-                      <OfflineIndicator />
+                      <TourProvider>
+                        <AppRoutes />
+                        <OfflineIndicator />
+                        <TourEngine />
+                      </TourProvider>
                     </CommandPaletteProvider>
                   </PrivacyProvider>
                 </PeriodProvider>

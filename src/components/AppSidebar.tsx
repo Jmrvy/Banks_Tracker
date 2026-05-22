@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { SidebarResumePill } from "@/components/tour/SidebarResumePill";
 import {
   mainNavigation,
   accountsGroup,
@@ -45,7 +46,7 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col">
+    <aside data-tour="nav" className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col">
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
         <div className="h-7 w-7 rounded-lg bg-foreground text-background dark:bg-primary dark:text-primary-foreground grid place-items-center font-bold text-sm tracking-tight">
@@ -62,6 +63,7 @@ export function AppSidebar() {
           relied on the document listener still being attached). */}
       <div className="px-3 pb-3">
         <button
+          data-tour="search"
           onClick={togglePalette}
           className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
         >
@@ -98,6 +100,9 @@ export function AppSidebar() {
           ))}
         </div>
       </nav>
+
+      {/* Language selector */}
+      <SidebarResumePill />
 
       {/* Language selector */}
       <div className="px-3 pb-2">

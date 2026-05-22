@@ -126,7 +126,7 @@ export function HeroNetWorth() {
       : "";
 
   return (
-    <div className="ft-hero">
+    <div className="ft-hero" data-tour="hero">
       <div className="grid grid-cols-1 md:grid-cols-[1.1fr_2fr] gap-6 md:gap-8 relative">
         {/* Left: meta */}
         <div className="flex flex-col gap-4 pb-6 md:pb-7 min-w-0">
