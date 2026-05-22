@@ -46,7 +46,10 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
         debt_id: debt.id,
         amount: parseFloat(formData.amount),
         payment_date: formData.payment_date,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        principal_amount: null,
+        interest_amount: null,
+        insurance_amount: null,
       });
       resetForm();
       onOpenChange(false);
