@@ -132,17 +132,17 @@ export const FlowsTab = ({
                 {t('reports.analysis.noData', { defaultValue: 'No data' })}
               </p>
             ) : topIncome.map(c => (
-              <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
+              <div key={c.category} className="flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                  <span className="truncate">{c.name}</span>
+                  <span className="h-2 w-2 rounded-full flex-shrink-0 bg-[hsl(var(--pos))]" />
+                  <span className="truncate">{c.category}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="font-mono text-fg-dim text-[10px] tabular-nums">
-                    {totalIncome > 0 ? ((c.amount / totalIncome) * 100).toFixed(0) : 0}%
+                    {totalIncome > 0 ? ((c.totalAmount / totalIncome) * 100).toFixed(0) : 0}%
                   </span>
                   <span className="font-mono font-medium text-[hsl(var(--pos))] tabular-nums">
-                    +{formatCurrency(c.amount)}
+                    +{formatCurrency(c.totalAmount)}
                   </span>
                 </div>
               </div>
