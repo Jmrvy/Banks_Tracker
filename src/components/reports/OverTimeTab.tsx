@@ -271,15 +271,30 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
               {t('reports.analysis.acrossAccounts', { count: accounts.length, defaultValue: 'Across {{count}} accounts · projection based on recurring transactions' })}
             </CardDescription>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
+          <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-muted-foreground">
+            <span className="hidden sm:inline-flex items-center gap-1.5">
               <span className="inline-block h-[3px] w-3.5 rounded-sm bg-[hsl(var(--pos))]" />
               {t('reports.analysis.actual', { defaultValue: 'Actual' })}
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span className="hidden sm:inline-flex items-center gap-1.5">
               <span className="inline-block h-2 w-3.5 rounded-sm bg-[hsl(var(--pos)/0.18)]" />
               {t('reports.analysis.projection', { defaultValue: 'Projection' })}
             </span>
+            <button
+              type="button"
+              onClick={() => setShowPriorOverlay(v => !v)}
+              className={cn(
+                "h-7 px-2.5 rounded-md border text-[10.5px] font-medium inline-flex items-center gap-1.5 transition-colors",
+                showPriorOverlay
+                  ? "border-foreground/30 bg-secondary text-foreground"
+                  : "border-line bg-card text-muted-foreground hover:bg-bg-hover"
+              )}
+            >
+              <span className="inline-block h-[2px] w-3 rounded-sm bg-muted-foreground" style={{ backgroundImage: 'linear-gradient(to right, hsl(var(--muted-foreground)) 50%, transparent 50%)', backgroundSize: '4px 2px' }} />
+              {showPriorOverlay
+                ? t('reports.analysis.priorOverlayHide', { defaultValue: 'Hide prior period' })
+                : t('reports.analysis.priorOverlay', { defaultValue: 'Show prior period' })}
+            </button>
           </div>
         </CardHeader>
         <CardContent className="pt-0 px-1.5 sm:px-4 pb-2 sm:pb-4">
@@ -288,7 +303,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
               <div className="w-full h-[200px] sm:h-[260px] lg:h-[300px] overflow-hidden">
                 <ChartContainer config={chartConfig} className="w-full h-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <ComposedChart data={chartDataWithPrior} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <CartesianGrid {...GRID_PROPS} />
                       <XAxis dataKey="date" fontSize={9} tickLine={false} axisLine={false} className="text-muted-foreground" interval={xTickInterval} />
                       <YAxis fontSize={9} tickLine={false} axisLine={false} className="text-muted-foreground" width={50} domain={yDomain} tickFormatter={yTickFormatter} />
@@ -297,12 +312,17 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                           <ChartTooltipContent
                             formatter={(value, name) => [
                               typeof value === 'number' ? formatCurrency(value) : 'N/A',
-                              name === 'solde' ? t('reports.analysis.actual', { defaultValue: 'Actual' }) : t('reports.analysis.projection', { defaultValue: 'Projection' }),
+                              name === 'solde' ? t('reports.analysis.actual', { defaultValue: 'Actual' })
+                                : name === 'soldePrior' ? t('reports.analysis.priorOverlay', { defaultValue: 'Prior period' })
+                                : t('reports.analysis.projection', { defaultValue: 'Projection' }),
                             ]}
                             labelFormatter={(label) => label}
                           />
                         }
                       />
+                      {showPriorOverlay && (
+                        <Line type="monotone" dataKey="soldePrior" stroke={chartConfig.soldePrior.color} strokeWidth={1.25} strokeDasharray="3 3" dot={false} connectNulls />
+                      )}
                       <Area type="monotone" dataKey="solde" stroke={chartConfig.solde.color} fill={chartConfig.solde.color} fillOpacity={0.2} strokeWidth={2.25} connectNulls={false} />
                       <Line type="monotone" dataKey="soldeProjecte" stroke={chartConfig.soldeProjecte.color} strokeWidth={1.5} strokeDasharray="2 4" dot={false} connectNulls />
                     </ComposedChart>
