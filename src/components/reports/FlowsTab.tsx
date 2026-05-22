@@ -182,8 +182,10 @@ export const FlowsTab = ({
                 {t('reports.analysis.moneyIn', { defaultValue: 'Money in' })}
               </CardTitle>
               <CardDescription className="text-[10.5px] mt-0.5">
-                {filteredTransactions.filter(t => t.type === 'income').length}{' '}
-                {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
+                {incomeCount} {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
+                {includeUpcoming && projectedIncomeCount > 0 && (
+                  <> · <span className="text-fg-dim">{projectedIncomeCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
+                )}
               </CardDescription>
             </div>
             {onIncomeClick && (
@@ -199,23 +201,32 @@ export const FlowsTab = ({
               <p className="text-xs text-muted-foreground py-4 text-center">
                 {t('reports.analysis.noData', { defaultValue: 'No data' })}
               </p>
-            ) : topIncome.map(c => (
-              <div key={c.category} className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0 bg-[hsl(var(--pos))]" />
-                  <span className="truncate">{c.category}</span>
+            ) : topIncome.map(c => {
+              const total = c.amount + c.projected;
+              return (
+                <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="h-2 w-2 rounded-full flex-shrink-0 bg-[hsl(var(--pos))]" />
+                    <span className="truncate">{c.name}</span>
+                    {c.projected > 0 && (
+                      <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
+                        +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="font-mono text-fg-dim text-[10px] tabular-nums">
+                      {totalIncome > 0 ? ((total / totalIncome) * 100).toFixed(0) : 0}%
+                    </span>
+                    <span className="font-mono font-medium text-[hsl(var(--pos))] tabular-nums">
+                      +{formatCurrency(total)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="font-mono text-fg-dim text-[10px] tabular-nums">
-                    {totalIncome > 0 ? ((c.totalAmount / totalIncome) * 100).toFixed(0) : 0}%
-                  </span>
-                  <span className="font-mono font-medium text-[hsl(var(--pos))] tabular-nums">
-                    +{formatCurrency(c.totalAmount)}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
+
         </Card>
 
         {/* Money out */}
