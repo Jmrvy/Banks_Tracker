@@ -277,7 +277,7 @@ const Reports = () => {
       <TransactionTypeModal
         open={showIncomeModal}
         onOpenChange={setShowIncomeModal}
-        transactions={filteredTransactions.filter(t => t.type === 'income')}
+        transactions={filteredTransactions.filter(t => t.type === 'income' && t.include_in_stats !== false && !t.refund_of_transaction_id)}
         type="income"
         period={period.label}
       />
@@ -285,10 +285,11 @@ const Reports = () => {
       <TransactionTypeModal
         open={showExpensesModal}
         onOpenChange={setShowExpensesModal}
-        transactions={filteredTransactions.filter(t => t.type === 'expense')}
+        transactions={filteredTransactions.filter(t => t.type === 'expense' && t.include_in_stats !== false)}
         type="expense"
         period={period.label}
       />
+
 
       <ReportWizard open={showExportModal} onOpenChange={setShowExportModal} />
     </div>
