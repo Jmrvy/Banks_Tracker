@@ -270,23 +270,31 @@ export function buildReportData(input: BuildInputs): ReportData {
     return d;
   };
   const accountFlows: AccountFlow[] = accounts.map((acc) => {
-    // Include transfers (both directions and fees) so that
-    // Opening + Income − Expenses = Closing reconciles exactly.
+    // Pure income/expense for INCOME / EXPENSES columns; transfers
+    // (with fees) reported separately so they don't inflate income.
+    // Opening + Income − Expenses + Transfers = Closing reconciles.
     const accTx = filteredTransactions.filter(
       (t) => t.account_id === acc.id || t.transfer_to_account_id === acc.id,
     );
     let inflow = 0;
     let outflow = 0;
+    let transfersIn = 0;
+    let transfersOut = 0;
+    let transfersFee = 0;
     for (const t of accTx) {
       const amt = Number(t.amount);
       if (t.account_id === acc.id) {
         if (t.type === 'income') inflow += amt;
         else if (t.type === 'expense') outflow += amt;
-        else if (t.type === 'transfer') outflow += amt + Number(t.transfer_fee || 0);
+        else if (t.type === 'transfer') {
+          transfersOut += amt;
+          transfersFee += Number(t.transfer_fee || 0);
+        }
       } else if (t.transfer_to_account_id === acc.id && t.type === 'transfer') {
-        inflow += amt;
+        transfersIn += amt;
       }
     }
+    const transfersNet = transfersIn - transfersOut - transfersFee;
     const net = inflow - outflow;
     const dayAfterEnd = new Date(periodEnd); dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
     const closing = Number(acc.balance) - accountDelta(acc.id, dayAfterEnd, null);
@@ -300,6 +308,7 @@ export function buildReportData(input: BuildInputs): ReportData {
       opening,
       inflow,
       outflow,
+      transfersNet,
       net,
       closing,
       count: accTx.length,
