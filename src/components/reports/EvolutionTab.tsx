@@ -41,9 +41,15 @@ export const EvolutionTab = ({
   recurringData,
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { accounts } = useFinancialData();
   const isMobile = useIsMobile();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
+
+  const actualTotalBalance = useMemo(
+    () => accounts.reduce((s, a) => s + Number(a.balance), 0),
+    [accounts]
+  );
 
   // Process chart data: smart sampling + adaptive date labels
   const chartData = useMemo(() => {
