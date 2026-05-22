@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   FileText,
   FileSpreadsheet,
