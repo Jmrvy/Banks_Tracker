@@ -9,7 +9,7 @@ import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/
 import { ArrowUpRight, ArrowDownRight, ChevronDown, Info, CalendarCheck2, Activity, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
-import { format, differenceInDays, isWithinInterval } from "date-fns";
+import { format, differenceInDays, isWithinInterval, addDays, subMonths, subYears, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
