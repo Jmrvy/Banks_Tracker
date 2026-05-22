@@ -31,7 +31,7 @@ const chartConfig = {
   soldePrior: { label: "Prior period", color: "hsl(var(--muted-foreground))" },
 };
 
-export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period }: OverTimeTabProps) => {
+export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period, dateType }: OverTimeTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
   const isMobile = useIsMobile();
