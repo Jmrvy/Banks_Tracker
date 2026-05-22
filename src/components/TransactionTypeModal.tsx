@@ -25,6 +25,8 @@ interface Transaction {
   account?: {
     name: string;
   };
+  isProjection?: boolean;
+  projectedSource?: 'recurring' | 'debt' | 'installment';
 }
 
 interface TransactionTypeModalProps {
@@ -33,6 +35,7 @@ interface TransactionTypeModalProps {
   transactions: Transaction[];
   type: 'income' | 'expense';
   period: string;
+  dateType?: 'accounting' | 'value';
 }
 
 export const TransactionTypeModal = ({
@@ -40,11 +43,12 @@ export const TransactionTypeModal = ({
   onOpenChange,
   transactions,
   type,
-  period
+  period,
+  dateType
 }: TransactionTypeModalProps) => {
   const { t } = useTranslation();
   const { preferences, formatCurrency } = useUserPreferences();
-  const activeDateType = preferences.dateType;
+  const activeDateType = dateType ?? preferences.dateType;
 
   const getRefundInfo = (t: Transaction) => {
     const gross = Number(t.amount);
@@ -62,7 +66,7 @@ export const TransactionTypeModal = ({
   };
 
   const totalAmount = transactions.reduce((sum, t) => sum + getDisplayAmount(t), 0);
-  const title = type === 'income' ? 'Revenus' : 'Dépenses';
+  const title = type === 'income' ? t('common.income') : t('common.expenses');
   const Icon = type === 'income' ? TrendingUp : TrendingDown;
   const colorClass = type === 'income' ? 'text-success' : 'text-destructive';
 
@@ -110,7 +114,7 @@ export const TransactionTypeModal = ({
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <Card className="bg-muted/30">
               <CardContent className="p-2.5 sm:p-4">
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Total</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('common.total')}</p>
                 <p className={`text-lg sm:text-2xl font-bold ${colorClass}`}>
                   {formatCurrency(totalAmount)}
                 </p>
@@ -118,7 +122,7 @@ export const TransactionTypeModal = ({
             </Card>
             <Card className="bg-muted/30">
               <CardContent className="p-2.5 sm:p-4">
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Transactions</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('common.transactions', { defaultValue: 'Transactions' })}</p>
                 <p className="text-lg sm:text-2xl font-bold">{transactions.length}</p>
               </CardContent>
             </Card>
@@ -129,7 +133,7 @@ export const TransactionTypeModal = ({
             <Card className="border-dashed">
               <CardContent className="p-8 sm:p-12 text-center">
                 <Icon className={`h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-3 ${colorClass} opacity-20`} />
-                <p className="text-sm sm:text-base text-muted-foreground">Aucune transaction pour cette période</p>
+                <p className="text-sm sm:text-base text-muted-foreground">{t('transactions.noTransactions')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -156,13 +160,13 @@ export const TransactionTypeModal = ({
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                      <p>{activeDateType === 'value' ? 'Date valeur' : 'Date affichée'}</p>
+                                      <p>{activeDateType === 'value' ? t('transactions.valueDate') : t('transactions.accountingDate')}</p>
                                     </TooltipContent>
                                   </Tooltip>
                                   <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-muted rounded text-muted-foreground text-[9px] sm:text-xs">
-                                    <span className="hidden sm:inline">Comptable:</span>
-                                    <span className="sm:hidden">C:</span>
-                                    {format(parseLocalDate(transaction.transaction_date), "d MMM", { locale: fr })}
+                                    <span className="hidden sm:inline">{activeDateType === 'value' ? t('transactions.accountingDate') : t('transactions.valueDate')}:</span>
+                                    <span className="sm:hidden">{activeDateType === 'value' ? 'C:' : 'V:'}</span>
+                                    {format(parseLocalDate(activeDateType === 'value' ? transaction.transaction_date : (transaction.value_date || transaction.transaction_date)), "d MMM", { locale: fr })}
                                   </span>
                                 </div>
                               ) : (
@@ -185,6 +189,12 @@ export const TransactionTypeModal = ({
                                 >
                                   {transaction.category.name}
                                 </span>
+                              )}
+
+                              {transaction.isProjection && (
+                                <Badge variant="outline" className="text-[9px] sm:text-xs px-2 py-0.5">
+                                  {t('reports.forecastSuffix', { defaultValue: 'forecast' })}
+                                </Badge>
                               )}
 
                               {type === 'expense' && refundInfo?.hasRefund && (

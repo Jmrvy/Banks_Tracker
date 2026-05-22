@@ -18,6 +18,8 @@ import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ReportWizard } from "@/components/ReportWizard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTranslation } from "react-i18next";
+import { parseLocalDate } from "@/lib/dateUtils";
+import type { Transaction } from "@/hooks/useFinancialData";
 
 const Reports = () => {
   const { t } = useTranslation();
@@ -157,6 +159,70 @@ const Reports = () => {
     };
   }, [includeUpcoming, stats, upcomingTotals]);
 
+  const projectedTransactions = useMemo<Transaction[]>(() => {
+    if (!includeUpcoming) return [];
+
+    return recurringData.periodItems.flatMap((item) =>
+      (item.occurrenceDetails || [])
+        .filter((detail) => detail.isFuture)
+        .map((detail) => ({
+          id: `projection-${item.recurring.id}-${detail.date}`,
+          account_id: item.recurring.account_id,
+          description: item.recurring.description,
+          amount: detail.amount,
+          type: item.effectiveType,
+          transaction_date: detail.date,
+          value_date: detail.date,
+          include_in_stats: true,
+          account: item.recurring.account ?? {
+            name: t('common.unknownAccount', { defaultValue: 'Unknown account' }),
+            bank: 'other',
+          },
+          category: item.recurring.category,
+          transfer_to_account_id: undefined,
+          transfer_to_account: undefined,
+          transfer_fee: undefined,
+          refund_of_transaction_id: null,
+          refunded_amount: 0,
+          refund_of_transaction: null,
+          installment_payment_id: item.recurring.installment_payment_id,
+          recurring_transaction_id: item.recurring.id,
+          isProjection: true,
+          projectedSource: item.recurring.debt_id
+            ? 'debt'
+            : item.recurring.installment_payment_id
+              ? 'installment'
+              : 'recurring',
+        } satisfies Transaction))
+    );
+  }, [includeUpcoming, recurringData.periodItems, t]);
+
+  const incomeModalTransactions = useMemo(() => {
+    const realTransactions = filteredTransactions.filter(tx => tx.type === 'income' && tx.include_in_stats !== false && !tx.refund_of_transaction_id);
+    const combined = includeUpcoming
+      ? [...realTransactions, ...projectedTransactions.filter(tx => tx.type === 'income')]
+      : realTransactions;
+
+    return [...combined].sort((a, b) => {
+      const dateA = dateType === 'value' ? (a.value_date || a.transaction_date) : a.transaction_date;
+      const dateB = dateType === 'value' ? (b.value_date || b.transaction_date) : b.transaction_date;
+      return parseLocalDate(dateB).getTime() - parseLocalDate(dateA).getTime();
+    });
+  }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
+
+  const expenseModalTransactions = useMemo(() => {
+    const realTransactions = filteredTransactions.filter(tx => tx.type === 'expense' && tx.include_in_stats !== false);
+    const combined = includeUpcoming
+      ? [...realTransactions, ...projectedTransactions.filter(tx => tx.type === 'expense')]
+      : realTransactions;
+
+    return [...combined].sort((a, b) => {
+      const dateA = dateType === 'value' ? (a.value_date || a.transaction_date) : a.transaction_date;
+      const dateB = dateType === 'value' ? (b.value_date || b.transaction_date) : b.transaction_date;
+      return parseLocalDate(dateB).getTime() - parseLocalDate(dateA).getTime();
+    });
+  }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
+
 
   if (loading) {
     return <LoadingSpinner text={t('common.loading')} />;
@@ -277,17 +343,19 @@ const Reports = () => {
       <TransactionTypeModal
         open={showIncomeModal}
         onOpenChange={setShowIncomeModal}
-        transactions={filteredTransactions.filter(t => t.type === 'income' && t.include_in_stats !== false && !t.refund_of_transaction_id)}
+        transactions={incomeModalTransactions}
         type="income"
         period={period.label}
+        dateType={dateType}
       />
 
       <TransactionTypeModal
         open={showExpensesModal}
         onOpenChange={setShowExpensesModal}
-        transactions={filteredTransactions.filter(t => t.type === 'expense' && t.include_in_stats !== false)}
+        transactions={expenseModalTransactions}
         type="expense"
         period={period.label}
+        dateType={dateType}
       />
 
 
