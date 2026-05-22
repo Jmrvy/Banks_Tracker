@@ -26,6 +26,7 @@ interface OverTimeTabProps {
 const chartConfig = {
   solde: { label: "Balance", color: "hsl(var(--pos))" },
   soldeProjecte: { label: "Projected", color: "hsl(var(--pos) / 0.6)" },
+  soldePrior: { label: "Prior period", color: "hsl(var(--muted-foreground))" },
 };
 
 export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period }: OverTimeTabProps) => {
@@ -35,6 +36,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [showPriorOverlay, setShowPriorOverlay] = useState(false);
 
   // Reconciliation data: real / accounting / value views
   const views = useMemo(() => {
