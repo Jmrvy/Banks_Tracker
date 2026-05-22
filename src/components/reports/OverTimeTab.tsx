@@ -9,7 +9,7 @@ import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/
 import { ArrowUpRight, ArrowDownRight, ChevronDown, Info, CalendarCheck2, Activity, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
-import { format, differenceInDays, isWithinInterval } from "date-fns";
+import { format, differenceInDays, isWithinInterval, addDays, subMonths, subYears, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
@@ -26,6 +26,7 @@ interface OverTimeTabProps {
 const chartConfig = {
   solde: { label: "Balance", color: "hsl(var(--pos))" },
   soldeProjecte: { label: "Projected", color: "hsl(var(--pos) / 0.6)" },
+  soldePrior: { label: "Prior period", color: "hsl(var(--muted-foreground))" },
 };
 
 export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period }: OverTimeTabProps) => {
@@ -35,6 +36,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [showPriorOverlay, setShowPriorOverlay] = useState(false);
 
   // Reconciliation data: real / accounting / value views
   const views = useMemo(() => {
@@ -128,6 +130,68 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
     return sampled;
   }, [balanceEvolutionData, isMobile, dateLocale]);
 
+  // Prior-period balance series: shift the prior period onto the current period's day-offset axis,
+  // then attach per-sample value to chartData by offset from period.from.
+  const priorByOffset = useMemo(() => {
+    if (!showPriorOverlay) return null;
+    const days = differenceInDays(period.to, period.from);
+    const priorFrom = days >= 360
+      ? subYears(period.from, 1)
+      : addDays(period.from, -(days + 1));
+    const priorTo = addDays(priorFrom, days);
+
+    // Compute prior initial balance (roll-back accounts to priorFrom)
+    const accountIds = new Set(accounts.map(a => a.id));
+    const net = new Map<string, number>();
+    for (const tx of transactions) {
+      const d = parseLocalDate(tx.transaction_date);
+      if (d < priorFrom) continue;
+      const srcId = tx.account_id;
+      const dstId = tx.transfer_to_account_id;
+      if (srcId && accountIds.has(srcId)) {
+        const prev = net.get(srcId) || 0;
+        if (tx.type === 'income') net.set(srcId, prev - Number(tx.amount));
+        else if (tx.type === 'expense') net.set(srcId, prev + Number(tx.amount));
+        else if (tx.type === 'transfer') net.set(srcId, prev + Number(tx.amount) + Number(tx.transfer_fee || 0));
+      }
+      if (dstId && accountIds.has(dstId)) net.set(dstId, (net.get(dstId) || 0) - Number(tx.amount));
+    }
+    const priorInitial = accounts.reduce((s, a) => s + Number(a.balance) + (net.get(a.id) || 0), 0);
+
+    // Build daily balance map across prior period
+    const inPrior = transactions
+      .filter(tx => isWithinInterval(parseLocalDate(tx.transaction_date), { start: priorFrom, end: priorTo }))
+      .sort((a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime());
+
+    const byOffset = new Map<number, number>();
+    let running = priorInitial;
+    byOffset.set(0, running);
+    for (const tx of inPrior) {
+      const delta = tx.type === 'income' ? Number(tx.amount)
+        : tx.type === 'expense' ? -Number(tx.amount)
+        : -Number(tx.transfer_fee || 0);
+      running += delta;
+      const offset = differenceInDays(parseLocalDate(tx.transaction_date), priorFrom);
+      byOffset.set(offset, running);
+    }
+    // Fill forward so each day-offset has a value
+    const filled = new Map<number, number>();
+    let last = priorInitial;
+    for (let i = 0; i <= days; i++) {
+      if (byOffset.has(i)) last = byOffset.get(i)!;
+      filled.set(i, last);
+    }
+    return filled;
+  }, [showPriorOverlay, period, accounts, transactions]);
+
+  const chartDataWithPrior = useMemo(() => {
+    if (!priorByOffset) return chartData;
+    return chartData.map(d => {
+      const offset = differenceInDays(d.dateObj, period.from);
+      return { ...d, soldePrior: priorByOffset.get(offset) ?? null };
+    });
+  }, [chartData, priorByOffset, period.from]);
+
   const yDomain = useMemo<[number, number]>(() => {
     if (chartData.length === 0) return [0, 1000];
     let min = Infinity, max = -Infinity;
@@ -207,15 +271,30 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
               {t('reports.analysis.acrossAccounts', { count: accounts.length, defaultValue: 'Across {{count}} accounts · projection based on recurring transactions' })}
             </CardDescription>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
+          <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-muted-foreground">
+            <span className="hidden sm:inline-flex items-center gap-1.5">
               <span className="inline-block h-[3px] w-3.5 rounded-sm bg-[hsl(var(--pos))]" />
               {t('reports.analysis.actual', { defaultValue: 'Actual' })}
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span className="hidden sm:inline-flex items-center gap-1.5">
               <span className="inline-block h-2 w-3.5 rounded-sm bg-[hsl(var(--pos)/0.18)]" />
               {t('reports.analysis.projection', { defaultValue: 'Projection' })}
             </span>
+            <button
+              type="button"
+              onClick={() => setShowPriorOverlay(v => !v)}
+              className={cn(
+                "h-7 px-2.5 rounded-md border text-[10.5px] font-medium inline-flex items-center gap-1.5 transition-colors",
+                showPriorOverlay
+                  ? "border-foreground/30 bg-secondary text-foreground"
+                  : "border-line bg-card text-muted-foreground hover:bg-bg-hover"
+              )}
+            >
+              <span className="inline-block h-[2px] w-3 rounded-sm bg-muted-foreground" style={{ backgroundImage: 'linear-gradient(to right, hsl(var(--muted-foreground)) 50%, transparent 50%)', backgroundSize: '4px 2px' }} />
+              {showPriorOverlay
+                ? t('reports.analysis.priorOverlayHide', { defaultValue: 'Hide prior period' })
+                : t('reports.analysis.priorOverlay', { defaultValue: 'Show prior period' })}
+            </button>
           </div>
         </CardHeader>
         <CardContent className="pt-0 px-1.5 sm:px-4 pb-2 sm:pb-4">
@@ -224,7 +303,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
               <div className="w-full h-[200px] sm:h-[260px] lg:h-[300px] overflow-hidden">
                 <ChartContainer config={chartConfig} className="w-full h-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <ComposedChart data={chartDataWithPrior} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <CartesianGrid {...GRID_PROPS} />
                       <XAxis dataKey="date" fontSize={9} tickLine={false} axisLine={false} className="text-muted-foreground" interval={xTickInterval} />
                       <YAxis fontSize={9} tickLine={false} axisLine={false} className="text-muted-foreground" width={50} domain={yDomain} tickFormatter={yTickFormatter} />
@@ -233,12 +312,17 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                           <ChartTooltipContent
                             formatter={(value, name) => [
                               typeof value === 'number' ? formatCurrency(value) : 'N/A',
-                              name === 'solde' ? t('reports.analysis.actual', { defaultValue: 'Actual' }) : t('reports.analysis.projection', { defaultValue: 'Projection' }),
+                              name === 'solde' ? t('reports.analysis.actual', { defaultValue: 'Actual' })
+                                : name === 'soldePrior' ? t('reports.analysis.priorOverlay', { defaultValue: 'Prior period' })
+                                : t('reports.analysis.projection', { defaultValue: 'Projection' }),
                             ]}
                             labelFormatter={(label) => label}
                           />
                         }
                       />
+                      {showPriorOverlay && (
+                        <Line type="monotone" dataKey="soldePrior" stroke={chartConfig.soldePrior.color} strokeWidth={1.25} strokeDasharray="3 3" dot={false} connectNulls />
+                      )}
                       <Area type="monotone" dataKey="solde" stroke={chartConfig.solde.color} fill={chartConfig.solde.color} fillOpacity={0.2} strokeWidth={2.25} connectNulls={false} />
                       <Line type="monotone" dataKey="soldeProjecte" stroke={chartConfig.soldeProjecte.color} strokeWidth={1.5} strokeDasharray="2 4" dot={false} connectNulls />
                     </ComposedChart>
