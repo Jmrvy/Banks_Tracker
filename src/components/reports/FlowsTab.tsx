@@ -85,7 +85,7 @@ export const FlowsTab = ({
   const { t } = useTranslation();
 
   const topIncome = useMemo(() =>
-    incomeAnalysis.slice().sort((a, b) => b.amount - a.amount).slice(0, 8),
+    incomeAnalysis.slice().sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 8),
     [incomeAnalysis]);
   const topExpenses = useMemo(() => categoryChartData.slice(0, 8), [categoryChartData]);
 
