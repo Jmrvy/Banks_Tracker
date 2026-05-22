@@ -222,8 +222,11 @@ const App = () => (
                 <PeriodProvider>
                   <PrivacyProvider>
                     <CommandPaletteProvider>
-                      <AppRoutes />
-                      <OfflineIndicator />
+                      <TourProvider>
+                        <AppRoutes />
+                        <OfflineIndicator />
+                        <TourEngine />
+                      </TourProvider>
                     </CommandPaletteProvider>
                   </PrivacyProvider>
                 </PeriodProvider>
