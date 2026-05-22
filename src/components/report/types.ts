@@ -60,6 +60,8 @@ export interface AccountFlow {
   opening: number;
   inflow: number;
   outflow: number;
+  /** Signed net of transfers (in − out − fees) on this account in the period. */
+  transfersNet: number;
   net: number;
   closing: number;
   count: number;
