@@ -53,26 +53,89 @@ export const EvolutionTab = ({
     [accounts]
   );
 
-  // Evolution KPIs reuse stats already computed on accounting date
-  // (Reports page passes overrideDateType='accounting').
-  const evolutionStats = useMemo(
-    () => ({
-      initialBalance: stats.initialBalance,
-      income: stats.income,
-      expenses: stats.expenses,
-      finalBalance: stats.finalBalance,
-    }),
-    [stats]
-  );
+  // Compute three views of the same period: REAL (all tx, gross), ACCOUNTING (stats, accounting date),
+  // VALUE (stats, value date). All three rolled back from current account balances.
+  const views = useMemo(() => {
+    const accountIds = new Set(accounts.map(a => a.id));
 
-  // Real chart endpoint (last actual solde, not projection) — what the curve visually reaches.
+    const rollBackInitial = (getDate: (t: typeof transactions[number]) => Date) => {
+      const net = new Map<string, number>();
+      for (const t of transactions) {
+        if (getDate(t) < period.from) continue;
+        const srcId = t.account_id;
+        const dstId = t.transfer_to_account_id;
+        if (srcId && accountIds.has(srcId)) {
+          const prev = net.get(srcId) || 0;
+          if (t.type === 'income') net.set(srcId, prev - Number(t.amount));
+          else if (t.type === 'expense') net.set(srcId, prev + Number(t.amount));
+          else if (t.type === 'transfer') net.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0));
+        }
+        if (dstId && accountIds.has(dstId)) {
+          const prev = net.get(dstId) || 0;
+          net.set(dstId, prev - Number(t.amount));
+        }
+      }
+      return accounts.reduce((s, a) => s + Number(a.balance) + (net.get(a.id) || 0), 0);
+    };
+
+    const compute = (
+      getDate: (t: typeof transactions[number]) => Date,
+      mode: 'real' | 'stats'
+    ) => {
+      const initial = rollBackInitial(getDate);
+      const inPeriod = transactions.filter(t =>
+        isWithinInterval(getDate(t), { start: period.from, end: period.to })
+      );
+      let income = 0, expenses = 0, transferFees = 0;
+      let excludedIncome = 0, excludedExpenses = 0, refundOffset = 0;
+      let excludedCount = 0, refundedCount = 0;
+
+      for (const t of inPeriod) {
+        const isExcluded = t.include_in_stats === false;
+        const amount = Number(t.amount);
+        const refunded = Number(t.refunded_amount || 0);
+
+        if (t.type === 'income') {
+          if (mode === 'real') income += amount;
+          else if (!isExcluded && !t.refund_of_transaction_id) income += amount;
+          if (isExcluded) { excludedIncome += amount; excludedCount++; }
+        } else if (t.type === 'expense') {
+          if (mode === 'real') {
+            expenses += amount;
+          } else if (!isExcluded) {
+            expenses += Math.max(0, amount - refunded);
+            if (refunded > 0) { refundOffset += Math.min(refunded, amount); refundedCount++; }
+          }
+          if (isExcluded) { excludedExpenses += amount; excludedCount++; }
+        } else if (t.type === 'transfer') {
+          transferFees += Number(t.transfer_fee || 0);
+        }
+      }
+
+      const finalBalance = initial + income - expenses - transferFees;
+      return {
+        initial, income, expenses, transferFees, finalBalance,
+        excludedIncome, excludedExpenses, refundOffset,
+        excludedCount, refundedCount,
+        count: inPeriod.length,
+      };
+    };
+
+    return {
+      real: compute(t => parseLocalDate(t.transaction_date), 'real'),
+      accounting: compute(t => parseLocalDate(t.transaction_date), 'stats'),
+      value: compute(t => parseLocalDate(t.value_date || t.transaction_date), 'stats'),
+    };
+  }, [accounts, transactions, period]);
+
+  // Real chart endpoint (last actual solde) — should equal views.real.finalBalance.
   const chartFinalBalance = useMemo(() => {
     for (let i = balanceEvolutionData.length - 1; i >= 0; i--) {
       const p = balanceEvolutionData[i];
       if (typeof p.solde === 'number') return p.solde;
     }
-    return evolutionStats.finalBalance;
-  }, [balanceEvolutionData, evolutionStats.finalBalance]);
+    return views.real.finalBalance;
+  }, [balanceEvolutionData, views.real.finalBalance]);
 
 
   // Process chart data: smart sampling + adaptive date labels
