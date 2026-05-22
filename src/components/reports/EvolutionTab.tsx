@@ -154,15 +154,21 @@ export const EvolutionTab = ({
     return items;
   }, [recurringData.periodItems]);
 
-  // Compute projected balance: current balance + gap projection + all projected transactions
+  // Compute projected balance from the actual balance curve (always accounting date)
   const gapBalance = recurringData.gapBalance || 0;
   const projectedFinalBalance = useMemo(() => {
-    let balance = stats.finalBalance + gapBalance;
+    const lastProjectedPoint = [...balanceEvolutionData]
+      .reverse()
+      .find(point => typeof point.soldeProjecte === 'number');
+
+    if (lastProjectedPoint) return lastProjectedPoint.soldeProjecte;
+
+    let balance = actualTotalBalance;
     for (const tx of projectedTransactions) {
       balance += tx.type === 'income' ? tx.amount : -tx.amount;
     }
     return balance;
-  }, [stats.finalBalance, gapBalance, projectedTransactions]);
+  }, [actualTotalBalance, balanceEvolutionData, projectedTransactions]);
 
   const projectedIncome = projectedTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const projectedExpenses = projectedTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
