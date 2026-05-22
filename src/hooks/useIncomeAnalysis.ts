@@ -28,7 +28,7 @@ const STOP_WORDS = new Set([
 ]);
 
 // Fonction pour extraire les mots-clés principaux d'une description
-const extractKeywords = (description: string): string[] => {
+export const extractKeywords = (description: string): string[] => {
   const cleaned = description
     .toLowerCase()
     .replace(/[^\w\s-]/g, ' ')

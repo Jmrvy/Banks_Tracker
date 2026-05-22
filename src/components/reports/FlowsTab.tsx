@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import type { ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import type { Transaction } from "@/hooks/useFinancialData";
 import type { CategoryData } from "@/hooks/useReportsData";
-import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
+import { IncomeCategory, extractKeywords } from "@/hooks/useIncomeAnalysis";
 
 interface FlowsTabProps {
   stats: ReportsStats;
@@ -88,7 +88,35 @@ export const FlowsTab = ({
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
 
-  // Projected (future) recurring occurrences, grouped by category name + type
+  // Projected (future) recurring occurrences, grouped by category name + type.
+  // For income, real categories come from string-matching (incomeAnalysis), so we
+  // apply the same keyword matching to project descriptions into those buckets.
+  const incomeCategoryKeywords = useMemo(() => {
+    return incomeAnalysis.map(cat => ({
+      name: cat.category,
+      keywords: cat.transactions.flatMap(t => extractKeywords(t.description)),
+    }));
+  }, [incomeAnalysis]);
+
+  const matchIncomeCategory = (desc: string): string | null => {
+    const kw = extractKeywords(desc);
+    if (kw.length === 0) return null;
+    const kwSet = new Set(kw);
+    let best: { name: string; score: number } | null = null;
+    for (const cat of incomeCategoryKeywords) {
+      if (cat.keywords.length === 0) continue;
+      const catSet = new Set(cat.keywords);
+      let common = 0;
+      for (const w of kwSet) if (catSet.has(w)) common++;
+      const union = new Set([...kwSet, ...catSet]).size;
+      const score = union > 0 ? common / union : 0;
+      if (score >= 0.4 && (!best || score > best.score)) {
+        best = { name: cat.name, score };
+      }
+    }
+    return best?.name ?? null;
+  };
+
   const projectedByCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }>();
     if (!includeUpcoming) return map;
@@ -96,8 +124,18 @@ export const FlowsTab = ({
       const futureDetails = (pi.occurrenceDetails || []).filter(d => d.isFuture);
       if (futureDetails.length === 0) continue;
       const sum = futureDetails.reduce((s, d) => s + d.amount, 0);
-      const name = pi.recurring.category?.name || t('common.uncategorized', { defaultValue: 'Uncategorized' });
-      const color = pi.recurring.category?.color || 'hsl(var(--muted-foreground))';
+      let name: string;
+      let color: string;
+      if (pi.effectiveType === 'income') {
+        // Income uses string matching, not stored categories
+        name = matchIncomeCategory(pi.recurring.description)
+          || pi.recurring.description
+          || t('common.uncategorized', { defaultValue: 'Uncategorized' });
+        color = 'hsl(var(--pos))';
+      } else {
+        name = pi.recurring.category?.name || t('common.uncategorized', { defaultValue: 'Uncategorized' });
+        color = pi.recurring.category?.color || 'hsl(var(--muted-foreground))';
+      }
       const key = `${pi.effectiveType}-${name}`;
       const existing = map.get(key);
       if (existing) {
@@ -108,7 +146,7 @@ export const FlowsTab = ({
       }
     }
     return map;
-  }, [includeUpcoming, recurringData.periodItems, t]);
+  }, [includeUpcoming, recurringData.periodItems, t, incomeCategoryKeywords]);
 
   const projectedIncomeCount = useMemo(() => {
     let n = 0;
@@ -120,6 +158,7 @@ export const FlowsTab = ({
     for (const v of projectedByCategory.values()) if (v.type === 'expense') n += v.count;
     return n;
   }, [projectedByCategory]);
+
 
   const topIncome = useMemo(() => {
     const base = new Map<string, { name: string; amount: number; projected: number }>();
