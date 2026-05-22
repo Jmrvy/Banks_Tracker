@@ -81,8 +81,6 @@ export function WelcomeModal() {
           <Button size="sm" onClick={startEssentials} className="px-4">
             {t("tour.welcome.start", { defaultValue: "Start tour" })}
           </Button>
-            {t("tour.welcome.start", { defaultValue: "Start tour" })}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
