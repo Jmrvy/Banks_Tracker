@@ -50,6 +50,32 @@ const Settings = () => {
   const { queueLength, isProcessing } = useOfflineQueue();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const [showIosHelp, setShowIosHelp] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsStandalone(
+      window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true
+    );
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    const installed = () => {
+      setIsStandalone(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener("appinstalled", installed);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installed);
+    };
+  }, []);
 
   const sections: SectionDef[] = useMemo(
     () => [
