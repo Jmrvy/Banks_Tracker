@@ -100,9 +100,12 @@ const Scheduled = () => {
           >
             {TABS.map(({ key, Icon, labelKey, labelDefault }) => {
               const isActive = active === key;
+              const tourAnchor =
+                key === "subscriptions" ? "sched-cal" : key === "plans" ? "sched-plans" : "sched-loans";
               return (
                 <button
                   key={key}
+                  data-tour={tourAnchor}
                   role="tab"
                   aria-selected={isActive}
                   type="button"

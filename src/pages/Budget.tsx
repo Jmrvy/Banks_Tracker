@@ -1252,7 +1252,7 @@ const Budget = () => {
               })}
             </div>
           ) : (
-            <div className="flex flex-col">
+            <div data-tour="budget-row" className="flex flex-col">
               {filtered.map((s) => (
                 <CategoryRow
                   key={s.category.id}

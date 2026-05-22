@@ -305,6 +305,7 @@ const Accounts = () => {
               </span>
             </Button>
             <Button
+              data-tour="accounts-add"
               onClick={() => setShowNewAccountModal(true)}
               size="sm"
               className="h-8 px-3 gap-1.5 font-semibold"
