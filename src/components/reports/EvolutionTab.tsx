@@ -14,6 +14,9 @@ import { enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { useFinancialData } from "@/hooks/useFinancialData";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
@@ -38,9 +41,15 @@ export const EvolutionTab = ({
   recurringData,
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { accounts } = useFinancialData();
   const isMobile = useIsMobile();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
+
+  const actualTotalBalance = useMemo(
+    () => accounts.reduce((s, a) => s + Number(a.balance), 0),
+    [accounts]
+  );
 
   // Process chart data: smart sampling + adaptive date labels
   const chartData = useMemo(() => {
@@ -221,6 +230,43 @@ export const EvolutionTab = ({
           </CardContent>
         </Card>
       </div>
+
+
+      {/* Reconciliation note: explain difference between KPI "Fin" and real current total */}
+      {(() => {
+        const kpiFinal = stats.finalBalance + gapBalance;
+        const delta = actualTotalBalance - kpiFinal;
+        if (Math.abs(delta) < 0.01) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[11px] sm:text-xs text-muted-foreground">
+            <span>
+              Solde réel actuel des comptes :{" "}
+              <span className={cn("font-semibold tabular-nums", actualTotalBalance >= 0 ? "text-success" : "text-destructive")}>
+                {formatCurrency(actualTotalBalance)}
+              </span>
+            </span>
+            <span>·</span>
+            <span>
+              Écart avec « Fin » :{" "}
+              <span className="font-semibold tabular-nums">
+                {delta >= 0 ? "+" : "−"}{formatCurrency(Math.abs(delta))}
+              </span>
+            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground">
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[280px] text-xs">
+                  « Fin » = Début + Revenus − Dépenses sur la période, en excluant les transactions marquées « hors statistiques » et en utilisant le montant net des dépenses (déduit des remboursements). L'écart correspond donc aux transactions exclues, aux remboursements, et aux mouvements hors de la période sélectionnée.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        );
+      })()}
 
       {/* Balance evolution chart */}
       <Card className="">
