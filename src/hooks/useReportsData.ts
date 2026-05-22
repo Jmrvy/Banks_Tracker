@@ -1008,6 +1008,9 @@ export const useReportsData = (
   return {
     loading,
     period,
+    priorPeriod,
+    priorStats,
+    sparklineData,
     filteredTransactions,
     stats,
     balanceEvolutionData: balanceEvolutionWithProjection,
