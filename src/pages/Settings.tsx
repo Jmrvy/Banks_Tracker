@@ -175,7 +175,25 @@ const Settings = () => {
     navigate("/onboarding");
   };
 
-  const handleInstallPwa = () => navigate("/install");
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") setIsStandalone(true);
+      } catch {
+        /* user dismissed */
+      } finally {
+        setDeferredPrompt(null);
+      }
+      return;
+    }
+    if (isIOS) {
+      setShowIosHelp((v) => !v);
+      return;
+    }
+    navigate("/install");
+  };
 
   const handleExportData = () => {
     // CSV export of all user data — currently scoped to transactions through
