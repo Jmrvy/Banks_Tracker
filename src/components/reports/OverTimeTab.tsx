@@ -130,6 +130,68 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
     return sampled;
   }, [balanceEvolutionData, isMobile, dateLocale]);
 
+  // Prior-period balance series: shift the prior period onto the current period's day-offset axis,
+  // then attach per-sample value to chartData by offset from period.from.
+  const priorByOffset = useMemo(() => {
+    if (!showPriorOverlay) return null;
+    const days = differenceInDays(period.to, period.from);
+    const priorFrom = days >= 360
+      ? subYears(period.from, 1)
+      : addDays(period.from, -(days + 1));
+    const priorTo = addDays(priorFrom, days);
+
+    // Compute prior initial balance (roll-back accounts to priorFrom)
+    const accountIds = new Set(accounts.map(a => a.id));
+    const net = new Map<string, number>();
+    for (const tx of transactions) {
+      const d = parseLocalDate(tx.transaction_date);
+      if (d < priorFrom) continue;
+      const srcId = tx.account_id;
+      const dstId = tx.transfer_to_account_id;
+      if (srcId && accountIds.has(srcId)) {
+        const prev = net.get(srcId) || 0;
+        if (tx.type === 'income') net.set(srcId, prev - Number(tx.amount));
+        else if (tx.type === 'expense') net.set(srcId, prev + Number(tx.amount));
+        else if (tx.type === 'transfer') net.set(srcId, prev + Number(tx.amount) + Number(tx.transfer_fee || 0));
+      }
+      if (dstId && accountIds.has(dstId)) net.set(dstId, (net.get(dstId) || 0) - Number(tx.amount));
+    }
+    const priorInitial = accounts.reduce((s, a) => s + Number(a.balance) + (net.get(a.id) || 0), 0);
+
+    // Build daily balance map across prior period
+    const inPrior = transactions
+      .filter(tx => isWithinInterval(parseLocalDate(tx.transaction_date), { start: priorFrom, end: priorTo }))
+      .sort((a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime());
+
+    const byOffset = new Map<number, number>();
+    let running = priorInitial;
+    byOffset.set(0, running);
+    for (const tx of inPrior) {
+      const delta = tx.type === 'income' ? Number(tx.amount)
+        : tx.type === 'expense' ? -Number(tx.amount)
+        : -Number(tx.transfer_fee || 0);
+      running += delta;
+      const offset = differenceInDays(parseLocalDate(tx.transaction_date), priorFrom);
+      byOffset.set(offset, running);
+    }
+    // Fill forward so each day-offset has a value
+    const filled = new Map<number, number>();
+    let last = priorInitial;
+    for (let i = 0; i <= days; i++) {
+      if (byOffset.has(i)) last = byOffset.get(i)!;
+      filled.set(i, last);
+    }
+    return filled;
+  }, [showPriorOverlay, period, accounts, transactions]);
+
+  const chartDataWithPrior = useMemo(() => {
+    if (!priorByOffset) return chartData;
+    return chartData.map(d => {
+      const offset = differenceInDays(d.dateObj, period.from);
+      return { ...d, soldePrior: priorByOffset.get(offset) ?? null };
+    });
+  }, [chartData, priorByOffset, period.from]);
+
   const yDomain = useMemo<[number, number]>(() => {
     if (chartData.length === 0) return [0, 1000];
     let min = Infinity, max = -Infinity;
