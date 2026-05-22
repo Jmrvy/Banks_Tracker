@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useFinancialData, type Transaction, type RecurringTransaction } from "@/hooks/useFinancialData";
 import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays, subMonths, subYears, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 
@@ -18,6 +18,14 @@ export interface ReportsStats {
   netPeriodBalance: number;
   initialBalance: number;
   finalBalance: number;
+}
+
+export interface SparklinePoint {
+  label: string;
+  net: number;
+  income: number;
+  expenses: number;
+  isCurrent?: boolean;
 }
 
 export interface BalanceDataPoint {
