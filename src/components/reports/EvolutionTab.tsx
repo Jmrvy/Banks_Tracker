@@ -3,12 +3,12 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { GRID_PROPS } from "@/lib/chartConfig";
-import { BalanceDataPoint, ReportsStats, RecurringData } from "@/hooks/useReportsData";
+import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/hooks/useReportsData";
 import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -22,6 +22,7 @@ interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
   stats: ReportsStats;
   recurringData: RecurringData;
+  period: ReportsPeriod;
 }
 
 const chartConfig = {
