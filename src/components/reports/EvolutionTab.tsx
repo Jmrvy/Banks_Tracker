@@ -40,9 +40,10 @@ export const EvolutionTab = ({
   balanceEvolutionData,
   stats,
   recurringData,
+  period,
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
-  const { accounts } = useFinancialData();
+  const { accounts, transactions } = useFinancialData();
   const isMobile = useIsMobile();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -51,6 +52,53 @@ export const EvolutionTab = ({
     () => accounts.reduce((s, a) => s + Number(a.balance), 0),
     [accounts]
   );
+
+  // Evolution KPIs use accounting date + ALL transactions + gross amounts,
+  // so that Initial + Revenus − Dépenses = Fin = last point of the chart curve.
+  const evolutionStats = useMemo(() => {
+    const accountIds = new Set(accounts.map(a => a.id));
+    const periodTx = transactions.filter(t => {
+      const d = parseLocalDate(t.transaction_date);
+      return isWithinInterval(d, { start: period.from, end: period.to });
+    });
+
+    let income = 0;
+    let expenses = 0;
+    let transferFees = 0;
+    for (const t of periodTx) {
+      if (t.type === 'income') income += Number(t.amount);
+      else if (t.type === 'expense') expenses += Number(t.amount);
+      else if (t.type === 'transfer') transferFees += Number(t.transfer_fee || 0);
+    }
+
+    // Initial balance on accounting date: roll back from current account totals
+    // using all transactions on/after period start.
+    const netChangeByAccount = new Map<string, number>();
+    for (const t of transactions) {
+      const d = parseLocalDate(t.transaction_date);
+      if (d < period.from) continue;
+      const srcId = t.account_id;
+      const dstId = t.transfer_to_account_id;
+      if (srcId && accountIds.has(srcId)) {
+        const prev = netChangeByAccount.get(srcId) || 0;
+        if (t.type === 'income') netChangeByAccount.set(srcId, prev - Number(t.amount));
+        else if (t.type === 'expense') netChangeByAccount.set(srcId, prev + Number(t.amount));
+        else if (t.type === 'transfer') netChangeByAccount.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0));
+      }
+      if (dstId && accountIds.has(dstId)) {
+        const prev = netChangeByAccount.get(dstId) || 0;
+        netChangeByAccount.set(dstId, prev - Number(t.amount));
+      }
+    }
+    const initialBalance = accounts.reduce(
+      (sum, a) => sum + Number(a.balance) + (netChangeByAccount.get(a.id) || 0),
+      0
+    );
+
+    const finalBalance = initialBalance + income - expenses - transferFees;
+    return { initialBalance, income, expenses, transferFees, finalBalance };
+  }, [accounts, transactions, period]);
+
 
   // Process chart data: smart sampling + adaptive date labels
   const chartData = useMemo(() => {
