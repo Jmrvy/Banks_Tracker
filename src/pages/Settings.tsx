@@ -170,9 +170,15 @@ const Settings = () => {
   };
 
   const handleReviewGuide = () => {
-    localStorage.removeItem("budget-app-onboarding-done");
-    localStorage.setItem("budget-app-needs-onboarding", "true");
-    navigate("/onboarding");
+    // Restart the in-app tour instead of routing back to the old onboarding wizard.
+    try {
+      // Dynamic import to avoid hard-coupling Settings to tour context provider order.
+      const ev = new CustomEvent("tour:restart");
+      window.dispatchEvent(ev);
+    } catch {
+      /* ignore */
+    }
+    navigate("/");
   };
 
   const handleInstallPwa = async () => {
@@ -288,7 +294,7 @@ const Settings = () => {
               <ProfileSection user={user} />
             </section>
 
-            <section id="preferences" className="scroll-mt-6">
+            <section id="preferences" data-tour="set-prefs" className="scroll-mt-6">
               <PreferencesSection
                 accounts={accounts}
                 preferences={preferences}
@@ -297,7 +303,7 @@ const Settings = () => {
             </section>
 
             {preferences.enableNotifications && (
-              <section id="notifications" className="scroll-mt-6">
+              <section id="notifications" data-tour="set-notif" className="scroll-mt-6">
                 <NotificationsSection user={user} />
               </section>
             )}
@@ -312,7 +318,7 @@ const Settings = () => {
 
             {/* New: Privacy & data — consolidates privacy mode, data export,
                 and account deletion in one discoverable place. */}
-            <section id="privacy" className="scroll-mt-6">
+            <section id="privacy" data-tour="set-privacy" className="scroll-mt-6">
               <div className="ft-card p-5 sm:p-6">
                 <div className="ft-card-head">
                   <div>

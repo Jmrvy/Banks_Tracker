@@ -52,6 +52,7 @@ export const MobileNavigation = () => {
 
           {/* Add Transaction Button */}
           <Button
+            data-tour="new-tx"
             variant="ghost"
             size="sm"
             onClick={() => navigate("/new-transaction")}

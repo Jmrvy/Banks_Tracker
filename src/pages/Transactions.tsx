@@ -197,11 +197,13 @@ const Transactions = () => {
         </div>
 
         {/* Filter bar */}
-        <TransactionSearch
-          filters={filters}
-          onFiltersChange={setFilters}
-          activeFiltersCount={activeFiltersCount}
-        />
+        <div data-tour="tx-filters">
+          <TransactionSearch
+            filters={filters}
+            onFiltersChange={setFilters}
+            activeFiltersCount={activeFiltersCount}
+          />
+        </div>
 
         {/* Grouped transaction list */}
         <TransactionHistory filters={filters} />

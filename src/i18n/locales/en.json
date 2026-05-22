@@ -76,7 +76,6 @@
     "expenses": "Expenses",
     "income": "Income",
     "expense": "Expense",
-    "search": "Search",
     "searchPlaceholder": "Search...",
     "today2": "Today",
     "noAccountsAvailable": "No accounts available",
@@ -567,7 +566,6 @@
     "projectedOutgoing": "Projected outgoing:",
     "recurringOutgoing": "Recurring outgoing:",
     "projectedRealOutgoing": "Projected real outgoing:",
-
     "generateSubtitle": "Pick pages, set period, export. Reorder by dragging.",
     "presetLabel": "Preset",
     "presetCustom": "Custom",
@@ -598,15 +596,42 @@
     "generatePdf": "Generate PDF",
     "generateXls": "Generate Excel",
     "page": {
-      "cover": { "label": "Cover & key figures", "meta": "1 page · auto-generated" },
-      "contents": { "label": "Contents", "meta": "1 page · navigable in PDF" },
-      "summary": { "label": "Executive summary", "meta": "1 page · KPIs + verdict" },
-      "cashflow": { "label": "Cash flow", "meta": "1 page · daily in / out" },
-      "categories": { "label": "By category", "meta": "1 page · all categories" },
-      "budgets": { "label": "Budgets vs actual", "meta": "1 page · breaches highlighted" },
-      "accounts": { "label": "Accounts", "meta": "1 page · per-account flow" },
-      "income": { "label": "Income sources", "meta": "1 page · breakdown" },
-      "recurring": { "label": "Recurring & subscriptions", "meta": "1 page · active subs" },
+      "cover": {
+        "label": "Cover & key figures",
+        "meta": "1 page · auto-generated"
+      },
+      "contents": {
+        "label": "Contents",
+        "meta": "1 page · navigable in PDF"
+      },
+      "summary": {
+        "label": "Executive summary",
+        "meta": "1 page · KPIs + verdict"
+      },
+      "cashflow": {
+        "label": "Cash flow",
+        "meta": "1 page · daily in / out"
+      },
+      "categories": {
+        "label": "By category",
+        "meta": "1 page · all categories"
+      },
+      "budgets": {
+        "label": "Budgets vs actual",
+        "meta": "1 page · breaches highlighted"
+      },
+      "accounts": {
+        "label": "Accounts",
+        "meta": "1 page · per-account flow"
+      },
+      "income": {
+        "label": "Income sources",
+        "meta": "1 page · breakdown"
+      },
+      "recurring": {
+        "label": "Recurring & subscriptions",
+        "meta": "1 page · active subs"
+      },
       "transactions": {
         "label": "Transactions ledger",
         "meta": "multi-page ledger",
@@ -1090,6 +1115,121 @@
           "Setting a value date instead of accounting date changes how charts and KPIs split transactions across months.",
           "Account Aliases shorten transfer descriptions ('CB Gold' → 'SocGen') across the entire app."
         ]
+      }
+    }
+  },
+  "tour": {
+    "welcome": {
+      "title": "Quick tour of Banks Tracker",
+      "body": "Pick a goal and we'll highlight what matters first — then leave a checklist you can resume any time.",
+      "pickGoal": "What brings you here?",
+      "start": "Start tour"
+    },
+    "goals": {
+      "track": {
+        "title": "Track my money",
+        "body": "See balances, spending, and trends across accounts."
+      },
+      "save": {
+        "title": "Save for a goal",
+        "body": "Set targets and watch progress month by month."
+      },
+      "debt": {
+        "title": "Pay down debt",
+        "body": "Plan repayments, schedule installments, and clear balances."
+      }
+    },
+    "finish": {
+      "track": {
+        "title": "You're set to track",
+        "body": "Add your accounts and let your dashboard do the heavy lifting."
+      },
+      "save": {
+        "title": "Goals are unlocked",
+        "body": "Create a goal in Savings and we'll project the runway."
+      },
+      "debt": {
+        "title": "Debts are in view",
+        "body": "Use Scheduled to plan loans and installment payments."
+      }
+    },
+    "checklist": {
+      "eyebrow": "Discover",
+      "title": "Keep exploring",
+      "progress": "{{done}} of {{total}} done"
+    },
+    "essentialStep": "Step {{current}} of {{total}}",
+    "tipLabel": "Tip",
+    "openChecklist": "Open checklist",
+    "markDone": "Got it",
+    "finishTour": "Finish tour",
+    "skipAll": "Skip tour",
+    "resume": "Resume tour",
+    "resumePill": "Resume guided tour",
+    "tips": {
+      "hero": {
+        "title": "Your net worth",
+        "body": "All accounts rolled into one live total."
+      },
+      "kpis": {
+        "title": "This period at a glance",
+        "body": "Income, spending and what's left, scoped to the period above."
+      },
+      "palette": {
+        "title": "Search anywhere",
+        "body": "Press ⌘K to jump to any page or run a quick action."
+      },
+      "new-tx": {
+        "title": "Log a transaction",
+        "body": "Tap + to add income, an expense or a transfer."
+      },
+      "nav": {
+        "title": "Navigation",
+        "body": "Accounts, transactions, scheduled and reports live here."
+      },
+      "accounts": {
+        "title": "Link an account",
+        "body": "Add bank accounts so balances and totals stay in sync."
+      },
+      "transactions": {
+        "title": "Filter your history",
+        "body": "Slice by type, category, account or date range."
+      },
+      "budget": {
+        "title": "Watch a category",
+        "body": "Set a budget per category and we'll alert you before it slips."
+      },
+      "savings": {
+        "title": "Set a savings goal",
+        "body": "Pick a target and we'll track the months to reach it."
+      },
+      "debts": {
+        "title": "Plan a loan",
+        "body": "Track loans given or received with interest and schedule."
+      },
+      "installments": {
+        "title": "Installment plans",
+        "body": "Split a payment into a planned series with progress."
+      },
+      "recurring": {
+        "title": "Recurring transactions",
+        "body": "See subscriptions and salaries on a calendar."
+      },
+      "reports": {
+        "title": "Reports",
+        "body": "Over time, flows in/out and what's coming next."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "body": "Choose monthly reports and budget alert emails."
+      },
+      "privacy": {
+        "title": "Privacy mode",
+        "body": "Hide amounts on screen with one tap."
+      },
+      "settings": {
+        "title": "Preferences",
+        "body": "Currency, date format and account aliases."
       }
     }
   }

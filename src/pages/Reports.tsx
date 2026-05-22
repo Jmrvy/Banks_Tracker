@@ -315,7 +315,7 @@ const Reports = () => {
 
         {/* 3-tab structure: Over time / Flows (in+out) / What's coming */}
         <Tabs defaultValue="overtime" className="space-y-3 w-full">
-          <TabsList className="w-full grid grid-cols-3 h-9 sm:h-10 p-0.5 sm:p-1">
+          <TabsList data-tour="reports-tabs" className="w-full grid grid-cols-3 h-9 sm:h-10 p-0.5 sm:p-1">
             <TabsTrigger value="overtime" className="text-xs sm:text-sm gap-1.5">
               <Activity className="h-3.5 w-3.5" />
               {t('reports.analysis.tabOverTime', { defaultValue: 'Over time' })}
