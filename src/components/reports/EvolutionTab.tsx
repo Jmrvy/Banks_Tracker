@@ -3,12 +3,12 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { GRID_PROPS } from "@/lib/chartConfig";
-import { BalanceDataPoint, ReportsStats, RecurringData } from "@/hooks/useReportsData";
+import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/hooks/useReportsData";
 import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -22,6 +22,7 @@ interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
   stats: ReportsStats;
   recurringData: RecurringData;
+  period: ReportsPeriod;
 }
 
 const chartConfig = {
@@ -39,9 +40,10 @@ export const EvolutionTab = ({
   balanceEvolutionData,
   stats,
   recurringData,
+  period,
 }: EvolutionTabProps) => {
   const { formatCurrency } = useUserPreferences();
-  const { accounts } = useFinancialData();
+  const { accounts, transactions } = useFinancialData();
   const isMobile = useIsMobile();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -50,6 +52,53 @@ export const EvolutionTab = ({
     () => accounts.reduce((s, a) => s + Number(a.balance), 0),
     [accounts]
   );
+
+  // Evolution KPIs use accounting date + ALL transactions + gross amounts,
+  // so that Initial + Revenus − Dépenses = Fin = last point of the chart curve.
+  const evolutionStats = useMemo(() => {
+    const accountIds = new Set(accounts.map(a => a.id));
+    const periodTx = transactions.filter(t => {
+      const d = parseLocalDate(t.transaction_date);
+      return isWithinInterval(d, { start: period.from, end: period.to });
+    });
+
+    let income = 0;
+    let expenses = 0;
+    let transferFees = 0;
+    for (const t of periodTx) {
+      if (t.type === 'income') income += Number(t.amount);
+      else if (t.type === 'expense') expenses += Number(t.amount);
+      else if (t.type === 'transfer') transferFees += Number(t.transfer_fee || 0);
+    }
+
+    // Initial balance on accounting date: roll back from current account totals
+    // using all transactions on/after period start.
+    const netChangeByAccount = new Map<string, number>();
+    for (const t of transactions) {
+      const d = parseLocalDate(t.transaction_date);
+      if (d < period.from) continue;
+      const srcId = t.account_id;
+      const dstId = t.transfer_to_account_id;
+      if (srcId && accountIds.has(srcId)) {
+        const prev = netChangeByAccount.get(srcId) || 0;
+        if (t.type === 'income') netChangeByAccount.set(srcId, prev - Number(t.amount));
+        else if (t.type === 'expense') netChangeByAccount.set(srcId, prev + Number(t.amount));
+        else if (t.type === 'transfer') netChangeByAccount.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0));
+      }
+      if (dstId && accountIds.has(dstId)) {
+        const prev = netChangeByAccount.get(dstId) || 0;
+        netChangeByAccount.set(dstId, prev - Number(t.amount));
+      }
+    }
+    const initialBalance = accounts.reduce(
+      (sum, a) => sum + Number(a.balance) + (netChangeByAccount.get(a.id) || 0),
+      0
+    );
+
+    const finalBalance = initialBalance + income - expenses - transferFees;
+    return { initialBalance, income, expenses, transferFees, finalBalance };
+  }, [accounts, transactions, period]);
+
 
   // Process chart data: smart sampling + adaptive date labels
   const chartData = useMemo(() => {
@@ -186,7 +235,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Début</span>
             </div>
             <p className="text-sm sm:text-base font-bold truncate">
-              {formatCurrency(stats.initialBalance + gapBalance)}
+              {formatCurrency(evolutionStats.initialBalance)}
             </p>
           </CardContent>
         </Card>
@@ -200,7 +249,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success truncate">
-              +{formatCurrency(stats.income)}
+              +{formatCurrency(evolutionStats.income)}
             </p>
           </CardContent>
         </Card>
@@ -214,7 +263,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive truncate">
-              -{formatCurrency(stats.expenses)}
+              -{formatCurrency(evolutionStats.expenses)}
             </p>
           </CardContent>
         </Card>
@@ -229,9 +278,9 @@ export const EvolutionTab = ({
             </div>
             <p className={cn(
               "text-sm sm:text-base font-bold truncate",
-              (stats.finalBalance + gapBalance) >= 0 ? "text-success" : "text-destructive"
+              evolutionStats.finalBalance >= 0 ? "text-success" : "text-destructive"
             )}>
-              {formatCurrency(stats.finalBalance + gapBalance)}
+              {formatCurrency(evolutionStats.finalBalance)}
             </p>
           </CardContent>
         </Card>
@@ -240,7 +289,7 @@ export const EvolutionTab = ({
 
       {/* Reconciliation note: explain difference between KPI "Fin" and real current total */}
       {(() => {
-        const kpiFinal = stats.finalBalance + gapBalance;
+        const kpiFinal = evolutionStats.finalBalance;
         const delta = actualTotalBalance - kpiFinal;
         if (Math.abs(delta) < 0.01) return null;
         return (
@@ -266,7 +315,7 @@ export const EvolutionTab = ({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[280px] text-xs">
-                  « Fin » = Début + Revenus − Dépenses sur la période, en excluant les transactions marquées « hors statistiques » et en utilisant le montant net des dépenses (déduit des remboursements). L'écart correspond donc aux transactions exclues, aux remboursements, et aux mouvements hors de la période sélectionnée.
+                  « Fin » correspond au solde des comptes à la fin de la période sélectionnée, en date comptable (Début + Revenus − Dépenses sur la période). L'écart avec le solde réel actuel provient des transactions postérieures à la période.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

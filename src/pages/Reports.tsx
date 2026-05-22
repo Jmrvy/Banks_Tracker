@@ -194,6 +194,7 @@ const Reports = () => {
               balanceEvolutionData={balanceEvolutionData}
               stats={stats}
               recurringData={recurringData}
+              period={period}
             />
           </TabsContent>
 
