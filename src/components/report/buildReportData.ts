@@ -284,9 +284,16 @@ export function buildReportData(input: BuildInputs): ReportData {
     for (const t of accTx) {
       const amt = Number(t.amount);
       if (t.account_id === acc.id) {
-        if (t.type === 'income') inflow += amt;
-        else if (t.type === 'expense') outflow += amt;
-        else if (t.type === 'transfer') {
+        if (t.type === 'income') {
+          // Skip reimbursements (handled via expense net) and stats-excluded.
+          if (t.refund_of_transaction_id || !inStats(t)) continue;
+          inflow += amt;
+        } else if (t.type === 'expense') {
+          if (!inStats(t)) continue;
+          // Net of linked refunds — same rule used by the Budgets page.
+          const refunded = Number(t.refunded_amount || 0);
+          outflow += Math.max(0, amt - refunded);
+        } else if (t.type === 'transfer') {
           transfersOut += amt;
           transfersFee += Number(t.transfer_fee || 0);
         }
