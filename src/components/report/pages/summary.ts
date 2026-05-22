@@ -152,7 +152,7 @@ export function renderSummary(ctx: ReportCtx) {
   if (donutSegs.length > 0) drawDonut(donutCx, donutCy, 30, 18, donutSegs);
   mono(10, 'bold');
   setText(ink);
-  pdf.text(fmt(Math.round(totalCatSpent)), donutCx, donutCy + 0.5, { align: 'center' });
+  pdf.text(fmt(totalExpenses), donutCx, donutCy + 0.5, { align: 'center' });
   mono(6);
   setText(mute);
   pdf.text('EXPENSES', donutCx, donutCy + 5, { align: 'center' });
