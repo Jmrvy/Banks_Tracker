@@ -62,6 +62,7 @@ export function AppSidebar() {
           relied on the document listener still being attached). */}
       <div className="px-3 pb-3">
         <button
+          data-tour="search"
           onClick={togglePalette}
           className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
         >
