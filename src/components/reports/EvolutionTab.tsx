@@ -231,10 +231,6 @@ export const EvolutionTab = ({
         </Card>
       </div>
 
-      {/* Balance evolution chart */}
-      <Card className="">
-        <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
-      </div>
 
       {/* Reconciliation note: explain difference between KPI "Fin" and real current total */}
       {(() => {
