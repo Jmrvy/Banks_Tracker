@@ -439,6 +439,10 @@ export type Database = {
           created_at: string
           date_type: string
           id: string
+          monthly_report_attach_pdf: boolean
+          monthly_report_cadence: string
+          monthly_report_sections: string[]
+          monthly_report_top_n: number
           monthly_reports: boolean
           updated_at: string
           user_id: string
@@ -448,6 +452,10 @@ export type Database = {
           created_at?: string
           date_type?: string
           id?: string
+          monthly_report_attach_pdf?: boolean
+          monthly_report_cadence?: string
+          monthly_report_sections?: string[]
+          monthly_report_top_n?: number
           monthly_reports?: boolean
           updated_at?: string
           user_id: string
@@ -457,6 +465,10 @@ export type Database = {
           created_at?: string
           date_type?: string
           id?: string
+          monthly_report_attach_pdf?: boolean
+          monthly_report_cadence?: string
+          monthly_report_sections?: string[]
+          monthly_report_top_n?: number
           monthly_reports?: boolean
           updated_at?: string
           user_id?: string
@@ -836,9 +848,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_account_cascade: {
+        Args: { p_account_id: string }
+        Returns: undefined
+      }
       get_account_balance_at_date: {
         Args: { p_account_id: string; p_date: string }
         Returns: number
+      }
+      get_account_deletion_impact: {
+        Args: { p_account_id: string }
+        Returns: Json
       }
       recalculate_account_balances: {
         Args: never
