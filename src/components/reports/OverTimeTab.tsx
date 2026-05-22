@@ -438,7 +438,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                   {(['real', 'accounting', 'value'] as const).map(k => {
                     const v = views[k];
                     const meta = viewMeta[k];
-                    const isCurrent = k === 'accounting';
+                    const isCurrent = k === dateType;
                     return (
                       <tr key={k} className={cn(isCurrent && "bg-bg-subtle")}>
                         <td className="border-b border-line px-3 py-2.5 last:border-b-0">
