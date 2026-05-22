@@ -264,6 +264,80 @@ export const useReportsData = (
     };
   }, [filteredTransactions, initialBalance]);
 
+  // Compute stats (income, expenses, net) for an arbitrary date range using same rules as `stats`.
+  const computeStatsForRange = useMemo(() => {
+    return (start: Date, end: Date, dateType: 'accounting' | 'value' = activeDateType) => {
+      let income = 0, expenses = 0, transferFees = 0;
+      for (const t of transactions) {
+        const dateToUse = dateType === 'value'
+          ? parseLocalDate(t.value_date || t.transaction_date)
+          : parseLocalDate(t.transaction_date);
+        if (!isWithinInterval(dateToUse, { start, end })) continue;
+        if (t.include_in_stats === false) continue;
+        if (t.type === 'income' && !t.refund_of_transaction_id) {
+          income += Number(t.amount);
+        } else if (t.type === 'expense') {
+          expenses += Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
+        } else if (t.type === 'transfer') {
+          transferFees += Number(t.transfer_fee || 0);
+        }
+      }
+      return { income, expenses, transferFees, net: income - expenses - transferFees };
+    };
+  }, [transactions, activeDateType]);
+
+  // Prior period: previous slot of equivalent length (month→prev month, year→prev year, custom→same span shifted back).
+  const priorPeriod = useMemo<{ from: Date; to: Date; label: string }>(() => {
+    switch (periodType) {
+      case 'month': {
+        const prev = subMonths(selectedDate, 1);
+        return { from: startOfMonth(prev), to: endOfMonth(prev), label: format(prev, 'MMMM yyyy', { locale: fr }) };
+      }
+      case 'year': {
+        const prev = subYears(selectedDate, 1);
+        return { from: startOfYear(prev), to: endOfYear(prev), label: format(prev, 'yyyy', { locale: fr }) };
+      }
+      case 'custom': {
+        const days = differenceInDays(period.to, period.from) + 1;
+        const to = addDays(period.from, -1);
+        const from = addDays(to, -(days - 1));
+        return { from, to, label: `${format(from, 'dd/MM/yy')} – ${format(to, 'dd/MM/yy')}` };
+      }
+    }
+  }, [periodType, selectedDate, period]);
+
+  const priorStats = useMemo<ReportsStats>(() => {
+    const r = computeStatsForRange(priorPeriod.from, priorPeriod.to);
+    return {
+      income: r.income,
+      expenses: r.expenses,
+      netPeriodBalance: r.net,
+      initialBalance: 0,
+      finalBalance: 0,
+    };
+  }, [priorPeriod, computeStatsForRange]);
+
+  // 6-month sparkline ending at the period's anchor month (current period's end month).
+  const sparklineData = useMemo<SparklinePoint[]>(() => {
+    const anchor = periodType === 'month' ? selectedDate : period.to;
+    const out: SparklinePoint[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const ref = subMonths(anchor, i);
+      const start = startOfMonth(ref);
+      const end = endOfMonth(ref);
+      const r = computeStatsForRange(start, end);
+      out.push({
+        label: format(ref, 'MMM', { locale: fr }),
+        net: r.net,
+        income: r.income,
+        expenses: r.expenses,
+        isCurrent: i === 0,
+      });
+    }
+    return out;
+  }, [periodType, selectedDate, period, computeStatsForRange]);
+
+
   // Données pour l'évolution des soldes avec projection
   // Always uses transaction_date (accounting date) for chart positioning, regardless of date type setting
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
