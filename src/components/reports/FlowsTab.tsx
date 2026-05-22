@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { ReportsStats } from "@/hooks/useReportsData";
+import type { ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import type { Transaction } from "@/hooks/useFinancialData";
 import type { CategoryData } from "@/hooks/useReportsData";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
@@ -16,9 +16,12 @@ interface FlowsTabProps {
   filteredTransactions: Transaction[];
   categoryChartData: CategoryData[];
   incomeAnalysis: IncomeCategory[];
+  recurringData: RecurringData;
+  includeUpcoming: boolean;
   onIncomeClick?: () => void;
   onExpensesClick?: () => void;
 }
+
 
 const CompareStrip = ({
   inNow, inPrior, outNow, outPrior, comparisonLabel,
