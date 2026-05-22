@@ -192,18 +192,16 @@ export function renderAccounts(ctx: ReportCtx) {
   // ties to Closing. Budgets are net of refunds and exclude stats-excluded
   // items — surface the deltas so the two pages reconcile.
   {
-    const txs = ctx.data.transactions;
-    let refundedExpense = 0;
+    // Use the same definitions as Cashflow / Budgets so figures tie:
+    //   refunds = sum of refund transactions in the period
+    //   excluded = sum of expense amounts with include_in_stats = false
+    const refundedExpense = ctx.data.refundTotal;
     let excludedExpense = 0;
-    for (const t of txs) {
-      if (t.type !== 'expense') continue;
+    for (const t of ctx.data.transactions) {
+      if (t.type !== 'expense' || t.include_in_stats !== false) continue;
       const d = new Date(t.transaction_date);
       if (d < actualDates.start || d > actualDates.end) continue;
-      if (t.include_in_stats === false) {
-        excludedExpense += Number(t.amount);
-      } else {
-        refundedExpense += Number(t.refunded_amount || 0);
-      }
+      excludedExpense += Number(t.amount);
     }
     const grossExp = tot.outflow;
     const budgetExp = grossExp - refundedExpense - excludedExpense;
