@@ -56,7 +56,7 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
   const [showNewModal, setShowNewModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
-  const highlightRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLButtonElement>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [orphanedTransactions, setOrphanedTransactions] = useState<
     Array<{ id: string; description: string; amount: number; type: string; transaction_date: string; account_id: string }>
