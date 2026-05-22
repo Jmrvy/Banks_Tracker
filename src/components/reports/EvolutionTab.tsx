@@ -4,7 +4,7 @@ import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveConta
 import { cn } from "@/lib/utils";
 import { GRID_PROPS } from "@/lib/chartConfig";
 import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/hooks/useReportsData";
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Activity, CalendarClock, CalendarCheck2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Activity, CalendarClock, CalendarCheck2, Info } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,8 +15,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { useFinancialData } from "@/hooks/useFinancialData";
-import { Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
