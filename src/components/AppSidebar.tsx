@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { SidebarResumePill } from "@/components/tour/SidebarResumePill";
 import {
   mainNavigation,
   accountsGroup,
