@@ -170,9 +170,15 @@ const Settings = () => {
   };
 
   const handleReviewGuide = () => {
-    localStorage.removeItem("budget-app-onboarding-done");
-    localStorage.setItem("budget-app-needs-onboarding", "true");
-    navigate("/onboarding");
+    // Restart the in-app tour instead of routing back to the old onboarding wizard.
+    try {
+      // Dynamic import to avoid hard-coupling Settings to tour context provider order.
+      const ev = new CustomEvent("tour:restart");
+      window.dispatchEvent(ev);
+    } catch {
+      /* ignore */
+    }
+    navigate("/");
   };
 
   const handleInstallPwa = async () => {
