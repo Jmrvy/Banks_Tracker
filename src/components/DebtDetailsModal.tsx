@@ -65,6 +65,7 @@ export const DebtDetailsModal = ({
   const { formatCurrency } = useUserPreferences();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { payments: allPayments, deletePayment, addPayment } = useDebts();
   const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
