@@ -259,9 +259,12 @@ const Reports = () => {
               filteredTransactions={filteredTransactions}
               categoryChartData={categoryChartData}
               incomeAnalysis={incomeAnalysis}
+              recurringData={recurringData}
+              includeUpcoming={includeUpcoming}
               onIncomeClick={() => setShowIncomeModal(true)}
               onExpensesClick={() => setShowExpensesModal(true)}
             />
+
           </TabsContent>
 
 
