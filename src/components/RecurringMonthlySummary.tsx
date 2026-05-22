@@ -24,7 +24,7 @@ export function RecurringMonthlySummary() {
 
     // Convert each recurring transaction to a monthly amount
     const monthly = (rt: RecurringTransaction) => {
-      switch (rt.recurrence_type) {
+      switch (rt.recurrence_type as string) {
         case "daily":
           return rt.amount * 30;
         case "weekly":

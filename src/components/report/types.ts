@@ -235,8 +235,8 @@ export interface ReportCtx {
   setText: (c: RGB) => void;
   setFill: (c: RGB) => void;
   setDraw: (c: RGB) => void;
-  sans: (size: number, weight?: 'normal' | 'bold') => void;
-  mono: (size: number, weight?: 'normal' | 'bold') => void;
+  sans: (size: number, weight?: 'normal' | 'bold', trackEmK?: number) => void;
+  mono: (size: number, weight?: 'normal' | 'bold', trackEmK?: number) => void;
   fmt: (n: number) => string;
   fmtSigned: (n: number) => string;
 

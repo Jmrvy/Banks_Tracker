@@ -1468,7 +1468,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
                         {t(def.labelKey, { defaultValue: def.labelDefault })}
                       </div>
                       <div className="font-mono text-[9px] text-muted-foreground mt-0.5 truncate">
-                        {def.id === 'transactions'
+                        {p.id === 'transactions'
                           ? t('reports.page.transactions.meta_dynamic', {
                               n: ledgerPages,
                               rows: txCount,

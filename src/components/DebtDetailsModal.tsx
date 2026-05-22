@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,7 @@ export const DebtDetailsModal = ({
   const { formatCurrency } = useUserPreferences();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { payments: allPayments, deletePayment, addPayment } = useDebts();
   const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);

@@ -89,7 +89,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           monthly_report_sections: notificationPrefs.sections,
           monthly_report_attach_pdf: notificationPrefs.attachPdf,
           monthly_report_top_n: notificationPrefs.topN,
-        } as Record<string, unknown>);
+        } as never);
 
       if (error) throw error;
 
