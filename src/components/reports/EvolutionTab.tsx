@@ -260,107 +260,138 @@ export const EvolutionTab = ({
   const projectedIncome = projectedTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const projectedExpenses = projectedTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
+  type ViewKey = 'real' | 'accounting' | 'value';
+  const viewMeta: Record<ViewKey, { label: string; sub: string; Icon: typeof Activity; tone: string }> = {
+    real: {
+      label: 'Réel',
+      sub: 'Tous les mouvements (date comptable, montants bruts)',
+      Icon: Activity,
+      tone: 'text-foreground',
+    },
+    accounting: {
+      label: 'Date comptable',
+      sub: 'Statistiques — exclus retirés, dépenses nettes des remboursements',
+      Icon: CalendarCheck2,
+      tone: 'text-foreground',
+    },
+    value: {
+      label: 'Date valeur',
+      sub: 'Mêmes règles, basé sur la date valeur',
+      Icon: CalendarClock,
+      tone: 'text-foreground',
+    },
+  };
+
+  const ViewRow = ({ k }: { k: ViewKey }) => {
+    const v = views[k];
+    const meta = viewMeta[k];
+    const Icon = meta.Icon;
+    return (
+      <Card>
+        <CardContent className="p-3 sm:p-4 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg grid place-items-center bg-muted/50 flex-shrink-0">
+              <Icon className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-semibold">{meta.label}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{meta.sub}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-lg border border-border/40 bg-muted/20 p-2">
+              <p className="text-[10px] text-muted-foreground">Début</p>
+              <p className="text-xs sm:text-sm font-bold tabular-nums">{formatCurrency(v.initial)}</p>
+            </div>
+            <div className="rounded-lg border border-success/15 bg-success/5 p-2">
+              <p className="text-[10px] text-muted-foreground">Revenus</p>
+              <p className="text-xs sm:text-sm font-bold text-success tabular-nums">+{formatCurrency(v.income)}</p>
+            </div>
+            <div className="rounded-lg border border-destructive/15 bg-destructive/5 p-2">
+              <p className="text-[10px] text-muted-foreground">Dépenses</p>
+              <p className="text-xs sm:text-sm font-bold text-destructive tabular-nums">−{formatCurrency(v.expenses)}</p>
+            </div>
+            <div className="rounded-lg border border-primary/15 bg-primary/5 p-2">
+              <p className="text-[10px] text-muted-foreground">Fin</p>
+              <p className={cn(
+                "text-xs sm:text-sm font-bold tabular-nums",
+                v.finalBalance >= 0 ? "text-success" : "text-destructive"
+              )}>{formatCurrency(v.finalBalance)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const dateShiftDelta = views.accounting.finalBalance - views.value.finalBalance;
+  const exclusionDelta = views.real.finalBalance - views.accounting.finalBalance;
+
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 ">
-        <Card className="">
-          <CardContent className="p-2.5 sm:p-3">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
-                <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Début</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold truncate">
-              {formatCurrency(evolutionStats.initialBalance)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardContent className="p-2.5 sm:p-3">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
-                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-success truncate">
-              +{formatCurrency(evolutionStats.income)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardContent className="p-2.5 sm:p-3">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-destructive/10">
-                <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-destructive truncate">
-              -{formatCurrency(evolutionStats.expenses)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardContent className="p-2.5 sm:p-3">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
-                <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Fin</span>
-            </div>
-            <p className={cn(
-              "text-sm sm:text-base font-bold truncate",
-              evolutionStats.finalBalance >= 0 ? "text-success" : "text-destructive"
-            )}>
-              {formatCurrency(evolutionStats.finalBalance)}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Three views: real / accounting / value */}
+      <div className="grid grid-cols-1 gap-2 sm:gap-3">
+        <ViewRow k="real" />
+        <ViewRow k="accounting" />
+        <ViewRow k="value" />
       </div>
 
+      {/* What drives the differences */}
+      {(Math.abs(exclusionDelta) > 0.01 || Math.abs(dateShiftDelta) > 0.01) && (
+        <Card>
+          <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
+            <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+              <Info className="h-4 w-4 text-muted-foreground" />
+              Ce qui explique les écarts
+            </CardTitle>
+            <CardDescription className="text-[10px] sm:text-xs">
+              Comparaison des trois vues sur la même période
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 text-xs sm:text-sm">
+            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/20 border border-border/30">
+              <span className="text-muted-foreground">
+                Réel − Date comptable
+                <span className="block text-[10px]">Transactions exclues + remboursements bruts vs nets</span>
+              </span>
+              <span className={cn("font-semibold tabular-nums", exclusionDelta >= 0 ? "text-success" : "text-destructive")}>
+                {exclusionDelta >= 0 ? '+' : '−'}{formatCurrency(Math.abs(exclusionDelta))}
+              </span>
+            </div>
+            {(views.accounting.excludedCount > 0 || views.accounting.refundedCount > 0) && (
+              <div className="grid grid-cols-2 gap-2 pl-2">
+                {views.accounting.excludedCount > 0 && (
+                  <div className="text-[11px] text-muted-foreground">
+                    {views.accounting.excludedCount} exclue{views.accounting.excludedCount > 1 ? 's' : ''} ·
+                    {' '}+{formatCurrency(views.accounting.excludedIncome)} / −{formatCurrency(views.accounting.excludedExpenses)}
+                  </div>
+                )}
+                {views.accounting.refundedCount > 0 && (
+                  <div className="text-[11px] text-muted-foreground">
+                    {views.accounting.refundedCount} remboursée{views.accounting.refundedCount > 1 ? 's' : ''} ·
+                    {' '}−{formatCurrency(views.accounting.refundOffset)} de dépenses déduites
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/20 border border-border/30">
+              <span className="text-muted-foreground">
+                Date comptable − Date valeur
+                <span className="block text-[10px]">Transactions dont la date valeur tombe hors période</span>
+              </span>
+              <span className={cn("font-semibold tabular-nums", dateShiftDelta >= 0 ? "text-success" : "text-destructive")}>
+                {dateShiftDelta >= 0 ? '+' : '−'}{formatCurrency(Math.abs(dateShiftDelta))}
+              </span>
+            </div>
+            {Math.abs(chartFinalBalance - views.real.finalBalance) > 0.01 && (
+              <div className="text-[11px] text-muted-foreground pl-2">
+                Solde de fin du graphique : {formatCurrency(chartFinalBalance)}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Reconciliation note: explain difference between stats "Fin" and the chart's real end-of-period balance */}
-      {(() => {
-        const kpiFinal = evolutionStats.finalBalance;
-        const delta = chartFinalBalance - kpiFinal;
-        if (Math.abs(delta) < 0.01) return null;
-        return (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[11px] sm:text-xs text-muted-foreground">
-            <span>
-              Solde réel en fin de période (graphique) :{" "}
-              <span className={cn("font-semibold tabular-nums", chartFinalBalance >= 0 ? "text-success" : "text-destructive")}>
-                {formatCurrency(chartFinalBalance)}
-              </span>
-            </span>
-            <span>·</span>
-            <span>
-              Écart avec « Fin » :{" "}
-              <span className="font-semibold tabular-nums">
-                {delta >= 0 ? "+" : "−"}{formatCurrency(Math.abs(delta))}
-              </span>
-            </span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground">
-                    <Info className="h-3 w-3" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[300px] text-xs">
-                  « Fin » = Début + Revenus − Dépenses sur la période, en excluant les transactions « hors statistiques » et en utilisant le montant net des dépenses (déduit des remboursements).
-                  Le graphique reflète tous les mouvements réels des comptes (y compris les exclus et les remboursements bruts), d'où l'écart.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        );
-      })()}
 
       {/* Balance evolution chart */}
       <Card className="">
