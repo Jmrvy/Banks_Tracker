@@ -235,7 +235,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Début</span>
             </div>
             <p className="text-sm sm:text-base font-bold truncate">
-              {formatCurrency(stats.initialBalance + gapBalance)}
+              {formatCurrency(evolutionStats.initialBalance)}
             </p>
           </CardContent>
         </Card>
@@ -249,7 +249,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-success truncate">
-              +{formatCurrency(stats.income)}
+              +{formatCurrency(evolutionStats.income)}
             </p>
           </CardContent>
         </Card>
@@ -263,7 +263,7 @@ export const EvolutionTab = ({
               <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
             </div>
             <p className="text-sm sm:text-base font-bold text-destructive truncate">
-              -{formatCurrency(stats.expenses)}
+              -{formatCurrency(evolutionStats.expenses)}
             </p>
           </CardContent>
         </Card>
@@ -278,9 +278,9 @@ export const EvolutionTab = ({
             </div>
             <p className={cn(
               "text-sm sm:text-base font-bold truncate",
-              (stats.finalBalance + gapBalance) >= 0 ? "text-success" : "text-destructive"
+              evolutionStats.finalBalance >= 0 ? "text-success" : "text-destructive"
             )}>
-              {formatCurrency(stats.finalBalance + gapBalance)}
+              {formatCurrency(evolutionStats.finalBalance)}
             </p>
           </CardContent>
         </Card>
@@ -289,7 +289,7 @@ export const EvolutionTab = ({
 
       {/* Reconciliation note: explain difference between KPI "Fin" and real current total */}
       {(() => {
-        const kpiFinal = stats.finalBalance + gapBalance;
+        const kpiFinal = evolutionStats.finalBalance;
         const delta = actualTotalBalance - kpiFinal;
         if (Math.abs(delta) < 0.01) return null;
         return (
@@ -315,7 +315,7 @@ export const EvolutionTab = ({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[280px] text-xs">
-                  « Fin » = Début + Revenus − Dépenses sur la période, en excluant les transactions marquées « hors statistiques » et en utilisant le montant net des dépenses (déduit des remboursements). L'écart correspond donc aux transactions exclues, aux remboursements, et aux mouvements hors de la période sélectionnée.
+                  « Fin » correspond au solde des comptes à la fin de la période sélectionnée, en date comptable (Début + Revenus − Dépenses sur la période). L'écart avec le solde réel actuel provient des transactions postérieures à la période.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
