@@ -14,7 +14,7 @@ const GOALS: { id: TourGoal; icon: typeof TrendingUp; keyBase: string }[] = [
 
 export function WelcomeModal() {
   const { t } = useTranslation();
-  const { state, setGoal, skipAll } = useTour();
+  const { state, setGoal, skipAll, startEssentials } = useTour();
   const open = state.phase === "welcome";
 
   return (
