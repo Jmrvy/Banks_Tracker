@@ -675,6 +675,50 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
             className="rounded-xl bg-muted/30 border-border/50"
           />
         )}
+        {config.periodType === 'custom' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('common.from', { defaultValue: 'From' })}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full h-10 rounded-xl bg-muted/30 border-border/50 justify-start text-left font-normal">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {format(config.startDate, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={config.startDate}
+                    onSelect={(d) => d && setConfig(prev => ({ ...prev, startDate: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12) }))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('common.to', { defaultValue: 'To' })}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full h-10 rounded-xl bg-muted/30 border-border/50 justify-start text-left font-normal">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {format(config.endDate, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={config.endDate}
+                    onSelect={(d) => d && setConfig(prev => ({ ...prev, endDate: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12) }))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Forecast toggle — always visible so users discover it. Disabled
