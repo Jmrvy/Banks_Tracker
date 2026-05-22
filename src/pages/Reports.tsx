@@ -18,6 +18,7 @@ import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ReportWizard } from "@/components/ReportWizard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { Transaction } from "@/hooks/useFinancialData";
 
@@ -162,13 +163,35 @@ const Reports = () => {
   const projectedTransactions = useMemo<Transaction[]>(() => {
     if (!includeUpcoming) return [];
 
+    const interpolate = (desc: string, isoDate: string): string => {
+      if (!desc) return desc;
+      const d = parseLocalDate(isoDate);
+      const m = d.getMonth() + 1;
+      const yyyy = String(d.getFullYear());
+      const locale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+      const monthName = new Intl.DateTimeFormat(locale, { month: 'long' }).format(d);
+      const map: Record<string, string> = {
+        MM: String(m).padStart(2, '0'),
+        M: String(m),
+        YY: yyyy.slice(-2),
+        YYYY: yyyy,
+        YEAR: yyyy,
+        ANNEE: yyyy,
+        MOIS: monthName,
+        MONTH: monthName,
+        DD: String(d.getDate()).padStart(2, '0'),
+        D: String(d.getDate()),
+      };
+      return desc.replace(/\{([A-Za-z]+)\}/g, (_, k) => map[k.toUpperCase()] ?? '');
+    };
+
     return recurringData.periodItems.flatMap((item) =>
       (item.occurrenceDetails || [])
         .filter((detail) => detail.isFuture)
         .map((detail) => ({
           id: `projection-${item.recurring.id}-${detail.date}`,
           account_id: item.recurring.account_id,
-          description: item.recurring.description,
+          description: interpolate(item.recurring.description, detail.date),
           amount: detail.amount,
           type: item.effectiveType,
           transaction_date: detail.date,
