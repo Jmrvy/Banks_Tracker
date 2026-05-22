@@ -130,6 +130,34 @@ const Reports = () => {
     return { comparisonStats: priorStats, comparisonLabel: priorPeriod.label };
   }, [compareTo, priorStats, threeMoAvgStats, yearAgoStats, priorPeriod.label, yearAgoPeriod.label, t]);
 
+  // Include-upcoming: fold future recurring occurrences into stats
+  const upcomingTotals = useMemo(() => {
+    let income = 0, expenses = 0;
+    for (const pi of recurringData.periodItems) {
+      const futureSum = (pi.occurrenceDetails || [])
+        .filter(d => d.isFuture)
+        .reduce((s, d) => s + d.amount, 0);
+      if (pi.effectiveType === 'income') income += futureSum;
+      else expenses += futureSum;
+    }
+    return { income, expenses };
+  }, [recurringData.periodItems]);
+
+  const effectiveStats = useMemo(() => {
+    if (!includeUpcoming) return stats;
+    const income = stats.income + upcomingTotals.income;
+    const expenses = stats.expenses + upcomingTotals.expenses;
+    const netPeriodBalance = income - expenses;
+    return {
+      ...stats,
+      income,
+      expenses,
+      netPeriodBalance,
+      finalBalance: stats.initialBalance + netPeriodBalance,
+    };
+  }, [includeUpcoming, stats, upcomingTotals]);
+
+
   if (loading) {
     return <LoadingSpinner text={t('common.loading')} />;
   }
