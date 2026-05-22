@@ -134,15 +134,17 @@ const Index = () => {
         <HeroNetWorth />
 
         {/* KPIs */}
-        <StatsCards
-          startDate={dateRange.start}
-          endDate={dateRange.end}
-          onIncomeClick={() => setShowIncomeModal(true)}
-          onExpensesClick={() => setShowExpensesModal(true)}
-          onAvailableClick={() => setShowExcludedModal(true)}
-          onTransactionsFiltered={setFilteredTransactions}
-          onExcludedTransactionsFiltered={setExcludedTransactions}
-        />
+        <div data-tour="kpis">
+          <StatsCards
+            startDate={dateRange.start}
+            endDate={dateRange.end}
+            onIncomeClick={() => setShowIncomeModal(true)}
+            onExpensesClick={() => setShowExpensesModal(true)}
+            onAvailableClick={() => setShowExcludedModal(true)}
+            onTransactionsFiltered={setFilteredTransactions}
+            onExcludedTransactionsFiltered={setExcludedTransactions}
+          />
+        </div>
 
         {/* Compact alerts (recurring warnings + overdue debt). Auto-fit grid
             so a single visible alert spans the full width instead of getting
