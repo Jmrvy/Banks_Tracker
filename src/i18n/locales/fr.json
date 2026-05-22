@@ -76,7 +76,6 @@
     "expenses": "Dépenses",
     "income": "Revenus",
     "expense": "Dépense",
-    "search": "Rechercher",
     "searchPlaceholder": "Rechercher...",
     "today2": "Auj.",
     "noAccountsAvailable": "Aucun compte disponible",
@@ -567,7 +566,6 @@
     "projectedOutgoing": "Sortants projetés :",
     "recurringOutgoing": "Sortants récurrents :",
     "projectedRealOutgoing": "Sortants réels projetés :",
-
     "generateSubtitle": "Choisissez les pages, la période et exportez. Faites glisser pour réordonner.",
     "presetLabel": "Préréglage",
     "presetCustom": "Personnalisé",
@@ -598,15 +596,42 @@
     "generatePdf": "Générer le PDF",
     "generateXls": "Générer l'Excel",
     "page": {
-      "cover": { "label": "Couverture & chiffres clés", "meta": "1 page · générée automatiquement" },
-      "contents": { "label": "Sommaire", "meta": "1 page · navigable dans le PDF" },
-      "summary": { "label": "Synthèse exécutive", "meta": "1 page · KPIs + verdict" },
-      "cashflow": { "label": "Flux de trésorerie", "meta": "1 page · entrées / sorties quotidiennes" },
-      "categories": { "label": "Par catégorie", "meta": "1 page · toutes les catégories" },
-      "budgets": { "label": "Budgets vs réel", "meta": "1 page · dépassements en évidence" },
-      "accounts": { "label": "Comptes", "meta": "1 page · flux par compte" },
-      "income": { "label": "Sources de revenus", "meta": "1 page · répartition" },
-      "recurring": { "label": "Récurrentes & abonnements", "meta": "1 page · abonnements actifs" },
+      "cover": {
+        "label": "Couverture & chiffres clés",
+        "meta": "1 page · générée automatiquement"
+      },
+      "contents": {
+        "label": "Sommaire",
+        "meta": "1 page · navigable dans le PDF"
+      },
+      "summary": {
+        "label": "Synthèse exécutive",
+        "meta": "1 page · KPIs + verdict"
+      },
+      "cashflow": {
+        "label": "Flux de trésorerie",
+        "meta": "1 page · entrées / sorties quotidiennes"
+      },
+      "categories": {
+        "label": "Par catégorie",
+        "meta": "1 page · toutes les catégories"
+      },
+      "budgets": {
+        "label": "Budgets vs réel",
+        "meta": "1 page · dépassements en évidence"
+      },
+      "accounts": {
+        "label": "Comptes",
+        "meta": "1 page · flux par compte"
+      },
+      "income": {
+        "label": "Sources de revenus",
+        "meta": "1 page · répartition"
+      },
+      "recurring": {
+        "label": "Récurrentes & abonnements",
+        "meta": "1 page · abonnements actifs"
+      },
       "transactions": {
         "label": "Grand livre des transactions",
         "meta": "ledger multi-pages",
@@ -1090,6 +1115,121 @@
           "Utiliser la date de valeur au lieu de la date comptable change la façon dont les graphiques et KPI répartissent les transactions sur les mois.",
           "Les alias de comptes raccourcissent les descriptions de virements (« CB Gold » → « SocGen ») dans toute l'app."
         ]
+      }
+    }
+  },
+  "tour": {
+    "welcome": {
+      "title": "Visite rapide de Banks Tracker",
+      "body": "Choisissez un objectif et nous mettrons en avant l'essentiel — une liste restera disponible pour reprendre quand vous voulez.",
+      "pickGoal": "Pourquoi êtes-vous ici ?",
+      "start": "Démarrer la visite"
+    },
+    "goals": {
+      "track": {
+        "title": "Suivre mon argent",
+        "body": "Voir les soldes, dépenses et tendances sur tous les comptes."
+      },
+      "save": {
+        "title": "Épargner pour un objectif",
+        "body": "Définir des objectifs et suivre la progression mois par mois."
+      },
+      "debt": {
+        "title": "Rembourser des dettes",
+        "body": "Planifier des remboursements, échelonner et solder."
+      }
+    },
+    "finish": {
+      "track": {
+        "title": "Prêt à suivre vos finances",
+        "body": "Ajoutez vos comptes et laissez le tableau de bord faire le travail."
+      },
+      "save": {
+        "title": "Vos objectifs sont prêts",
+        "body": "Créez un objectif dans Épargne et nous projetterons l'échéance."
+      },
+      "debt": {
+        "title": "Vos dettes sont en vue",
+        "body": "Utilisez Programmé pour planifier prêts et échelonnements."
+      }
+    },
+    "checklist": {
+      "eyebrow": "Découvrir",
+      "title": "Continuez l'exploration",
+      "progress": "{{done}} sur {{total}} terminé"
+    },
+    "essentialStep": "Étape {{current}} sur {{total}}",
+    "tipLabel": "Astuce",
+    "openChecklist": "Ouvrir la checklist",
+    "markDone": "Compris",
+    "finishTour": "Terminer la visite",
+    "skipAll": "Passer la visite",
+    "resume": "Reprendre la visite",
+    "resumePill": "Reprendre la visite guidée",
+    "tips": {
+      "hero": {
+        "title": "Votre valeur nette",
+        "body": "Tous les comptes réunis en un total vivant."
+      },
+      "kpis": {
+        "title": "La période en un coup d'œil",
+        "body": "Revenus, dépenses et reste à vivre, sur la période choisie."
+      },
+      "palette": {
+        "title": "Rechercher partout",
+        "body": "Appuyez sur ⌘K pour atteindre n'importe quelle page."
+      },
+      "new-tx": {
+        "title": "Saisir une transaction",
+        "body": "Touchez + pour ajouter un revenu, une dépense ou un virement."
+      },
+      "nav": {
+        "title": "Navigation",
+        "body": "Comptes, transactions, planifié et rapports sont ici."
+      },
+      "accounts": {
+        "title": "Lier un compte",
+        "body": "Ajoutez vos comptes pour garder soldes et totaux à jour."
+      },
+      "transactions": {
+        "title": "Filtrer l'historique",
+        "body": "Filtrez par type, catégorie, compte ou période."
+      },
+      "budget": {
+        "title": "Surveiller une catégorie",
+        "body": "Fixez un budget par catégorie et recevez une alerte avant dépassement."
+      },
+      "savings": {
+        "title": "Définir un objectif d'épargne",
+        "body": "Choisissez un montant et nous suivrons les mois nécessaires."
+      },
+      "debts": {
+        "title": "Planifier un prêt",
+        "body": "Suivez prêts accordés ou reçus avec intérêts et échéancier."
+      },
+      "installments": {
+        "title": "Plans d'échelonnement",
+        "body": "Découpez un paiement en série planifiée avec suivi."
+      },
+      "recurring": {
+        "title": "Transactions récurrentes",
+        "body": "Abonnements et salaires affichés sur un calendrier."
+      },
+      "reports": {
+        "title": "Rapports",
+        "body": "Évolution, flux entrée/sortie et ce qui arrive."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "body": "Recevez les rapports mensuels et alertes de budget."
+      },
+      "privacy": {
+        "title": "Mode confidentialité",
+        "body": "Cachez les montants à l'écran d'un toucher."
+      },
+      "settings": {
+        "title": "Préférences",
+        "body": "Devise, format de date et alias de comptes."
       }
     }
   }
