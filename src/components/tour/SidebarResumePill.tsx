@@ -4,7 +4,7 @@ import { useTour } from "@/contexts/TourContext";
 
 export function SidebarResumePill() {
   const { t } = useTranslation();
-  const { state, openChecklist, toggleRail, totalSteps } = useTour();
+  const { state, toggleRail, totalSteps } = useTour();
   const done = state.completed.length;
 
   if (state.phase === "welcome" || state.phase === "essentials") return null;
@@ -13,11 +13,7 @@ export function SidebarResumePill() {
   return (
     <button
       type="button"
-      onClick={() => {
-        if (state.railDismissed) toggleRail();
-        // ensure phase is checklist
-        openChecklist("");
-      }}
+      onClick={toggleRail}
       className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-2 text-left hover:bg-primary/10 transition-colors"
     >
       <Sparkles className="h-3.5 w-3.5 text-primary" />
