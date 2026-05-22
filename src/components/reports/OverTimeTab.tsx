@@ -21,7 +21,9 @@ interface OverTimeTabProps {
   stats: ReportsStats;
   recurringData: RecurringData;
   period: ReportsPeriod;
+  dateType: 'accounting' | 'value';
 }
+
 
 const chartConfig = {
   solde: { label: "Balance", color: "hsl(var(--pos))" },
@@ -29,7 +31,7 @@ const chartConfig = {
   soldePrior: { label: "Prior period", color: "hsl(var(--muted-foreground))" },
 };
 
-export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period }: OverTimeTabProps) => {
+export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period, dateType }: OverTimeTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
   const isMobile = useIsMobile();
@@ -367,29 +369,31 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                 </div>
                 <div className="text-left min-w-0">
                   <div className="text-[12.5px] font-medium text-foreground truncate">
-                    {t('reports.analysis.usingAccountingDate', { defaultValue: 'Using accounting date' })} ·{' '}
+                    {dateType === 'value'
+                      ? t('reports.analysis.usingValueDate', { defaultValue: 'Using value date' })
+                      : t('reports.analysis.usingAccountingDate', { defaultValue: 'Using accounting date' })} ·{' '}
                     <b className={cn("font-medium font-mono tabular-nums", stats.netPeriodBalance >= 0 ? "text-foreground" : "text-[hsl(var(--neg))]")}>
                       {formatCurrency(stats.netPeriodBalance)}
                     </b>{' '}
                     {t('reports.analysis.net', { defaultValue: 'net' })}
                   </div>
                   <div className="text-[11px] text-muted-foreground truncate">
-                    {views.accounting.excludedCount > 0 && (
+                    {views[dateType].excludedCount > 0 && (
                       <>
-                        <b className="font-medium font-mono text-foreground">{views.accounting.excludedCount}</b>{' '}
+                        <b className="font-medium font-mono text-foreground">{views[dateType].excludedCount}</b>{' '}
                         {t('reports.analysis.excludedTx', { defaultValue: 'excluded' })}
                       </>
                     )}
-                    {views.accounting.refundedCount > 0 && (
+                    {views[dateType].refundedCount > 0 && (
                       <>
-                        {views.accounting.excludedCount > 0 && ' · '}
-                        <b className="font-medium font-mono text-foreground">{formatCurrency(views.accounting.refundOffset)}</b>{' '}
+                        {views[dateType].excludedCount > 0 && ' · '}
+                        <b className="font-medium font-mono text-foreground">{formatCurrency(views[dateType].refundOffset)}</b>{' '}
                         {t('reports.analysis.inRefundsNetted', { defaultValue: 'refunds netted' })}
                       </>
                     )}
                     {Math.abs(dateShiftDelta) > 0.01 && (
                       <>
-                        {(views.accounting.excludedCount > 0 || views.accounting.refundedCount > 0) && ' · '}
+                        {(views[dateType].excludedCount > 0 || views[dateType].refundedCount > 0) && ' · '}
                         {t('reports.analysis.valueDiffersBy', { defaultValue: 'value date differs by' })}{' '}
                         <b className={cn("font-medium font-mono", dateShiftDelta >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
                           {dateShiftDelta >= 0 ? '+' : '−'}{formatCurrency(Math.abs(dateShiftDelta))}
@@ -397,6 +401,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                       </>
                     )}
                   </div>
+
                 </div>
               </div>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground font-mono flex-shrink-0">
@@ -433,7 +438,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                   {(['real', 'accounting', 'value'] as const).map(k => {
                     const v = views[k];
                     const meta = viewMeta[k];
-                    const isCurrent = k === 'accounting';
+                    const isCurrent = k === dateType;
                     return (
                       <tr key={k} className={cn(isCurrent && "bg-bg-subtle")}>
                         <td className="border-b border-line px-3 py-2.5 last:border-b-0">
