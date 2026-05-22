@@ -262,17 +262,17 @@ export const EvolutionTab = ({
       </div>
 
 
-      {/* Reconciliation note: explain difference between KPI "Fin" and real current total */}
+      {/* Reconciliation note: explain difference between stats "Fin" and the chart's real end-of-period balance */}
       {(() => {
         const kpiFinal = evolutionStats.finalBalance;
-        const delta = actualTotalBalance - kpiFinal;
+        const delta = chartFinalBalance - kpiFinal;
         if (Math.abs(delta) < 0.01) return null;
         return (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[11px] sm:text-xs text-muted-foreground">
             <span>
-              Solde réel actuel des comptes :{" "}
-              <span className={cn("font-semibold tabular-nums", actualTotalBalance >= 0 ? "text-success" : "text-destructive")}>
-                {formatCurrency(actualTotalBalance)}
+              Solde réel en fin de période (graphique) :{" "}
+              <span className={cn("font-semibold tabular-nums", chartFinalBalance >= 0 ? "text-success" : "text-destructive")}>
+                {formatCurrency(chartFinalBalance)}
               </span>
             </span>
             <span>·</span>
@@ -289,8 +289,9 @@ export const EvolutionTab = ({
                     <Info className="h-3 w-3" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-[280px] text-xs">
-                  « Fin » correspond au solde des comptes à la fin de la période sélectionnée, en date comptable (Début + Revenus − Dépenses sur la période). L'écart avec le solde réel actuel provient des transactions postérieures à la période.
+                <TooltipContent className="max-w-[300px] text-xs">
+                  « Fin » = Début + Revenus − Dépenses sur la période, en excluant les transactions « hors statistiques » et en utilisant le montant net des dépenses (déduit des remboursements).
+                  Le graphique reflète tous les mouvements réels des comptes (y compris les exclus et les remboursements bruts), d'où l'écart.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
