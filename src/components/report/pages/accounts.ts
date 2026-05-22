@@ -195,15 +195,10 @@ export function renderAccounts(ctx: ReportCtx) {
     const periodTx = ctx.data.filteredTransactions;
     const refundedIncome = ctx.data.refundTotal;
     let refundedExpense = 0;
-    let excludedExpense = 0;
-    let excludedIncome = 0;
     for (const t of periodTx) {
       const amt = Number(t.amount);
       if (t.type === 'expense') {
-        if (t.include_in_stats === false) excludedExpense += amt;
-        else refundedExpense += Math.min(amt, Number(t.refunded_amount || 0));
-      } else if (t.type === 'income' && !t.refund_of_transaction_id && t.include_in_stats === false) {
-        excludedIncome += amt;
+        refundedExpense += Math.min(amt, Number(t.refunded_amount || 0));
       }
     }
 
@@ -211,6 +206,8 @@ export function renderAccounts(ctx: ReportCtx) {
     const cashflowInc = ctx.data.grossIncome;
     const grossExp = tot.outflow;
     const budgetExp = ctx.data.grossExpenses;
+    const excludedIncome = Math.max(0, grossInc - refundedIncome - cashflowInc);
+    const excludedExpense = Math.max(0, grossExp - refundedExpense - budgetExp);
 
     mono(6.5);
     setText(mute);
