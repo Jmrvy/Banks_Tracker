@@ -14,6 +14,9 @@ import { enUS } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { useFinancialData } from "@/hooks/useFinancialData";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
