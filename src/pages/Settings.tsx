@@ -50,6 +50,32 @@ const Settings = () => {
   const { queueLength, isProcessing } = useOfflineQueue();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const [showIosHelp, setShowIosHelp] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsStandalone(
+      window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true
+    );
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    const installed = () => {
+      setIsStandalone(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener("appinstalled", installed);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installed);
+    };
+  }, []);
 
   const sections: SectionDef[] = useMemo(
     () => [
@@ -149,7 +175,25 @@ const Settings = () => {
     navigate("/onboarding");
   };
 
-  const handleInstallPwa = () => navigate("/install");
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") setIsStandalone(true);
+      } catch {
+        /* user dismissed */
+      } finally {
+        setDeferredPrompt(null);
+      }
+      return;
+    }
+    if (isIOS) {
+      setShowIosHelp((v) => !v);
+      return;
+    }
+    navigate("/install");
+  };
 
   const handleExportData = () => {
     // CSV export of all user data — currently scoped to transactions through
@@ -400,18 +444,51 @@ const Settings = () => {
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
                       <Label className="text-sm">
-                        {t("settings.installPwa", { defaultValue: "Install Spending Tracker" })}
+                        {isStandalone
+                          ? t("settings.installPwaDone", { defaultValue: "JMRVY CB installée" })
+                          : t("settings.installPwa", { defaultValue: "Installer JMRVY CB" })}
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {t("settings.installPwaDesc", {
-                          defaultValue: "Add the app to your home screen for full-screen, offline-capable access.",
-                        })}
+                        {isStandalone
+                          ? t("settings.installPwaDoneDesc", {
+                              defaultValue: "L'app est déjà installée sur cet appareil.",
+                            })
+                          : isIOS
+                          ? t("settings.installPwaIosDesc", {
+                              defaultValue: "Sur iPhone : Partager → Sur l'écran d'accueil.",
+                            })
+                          : deferredPrompt
+                          ? t("settings.installPwaDesc", {
+                              defaultValue: "Ajoutez l'app à votre écran d'accueil pour un usage plein écran et hors ligne.",
+                            })
+                          : t("settings.installPwaUnavailable", {
+                              defaultValue: "Installation indisponible dans ce navigateur. Utilisez Chrome, Edge ou Safari sur mobile.",
+                            })}
                       </p>
+                      {showIosHelp && isIOS && (
+                        <ol className="mt-2 text-xs text-muted-foreground list-decimal pl-4 space-y-1">
+                          <li>Ouvrez cette page dans Safari</li>
+                          <li>Touchez l'icône Partager</li>
+                          <li>Choisissez "Sur l'écran d'accueil"</li>
+                          <li>Touchez "Ajouter"</li>
+                        </ol>
+                      )}
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleInstallPwa} className="h-8 text-xs">
-                      {t("settings.installPwaAction", { defaultValue: "Install…" })}
-                    </Button>
+                    {!isStandalone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleInstallPwa}
+                        disabled={!deferredPrompt && !isIOS}
+                        className="h-8 text-xs"
+                      >
+                        {isIOS
+                          ? t("settings.installPwaActionIos", { defaultValue: "Comment installer" })
+                          : t("settings.installPwaAction", { defaultValue: "Installer" })}
+                      </Button>
+                    )}
                   </div>
+
                 </div>
               </div>
             </section>
