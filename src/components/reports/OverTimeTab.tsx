@@ -21,7 +21,9 @@ interface OverTimeTabProps {
   stats: ReportsStats;
   recurringData: RecurringData;
   period: ReportsPeriod;
+  dateType: 'accounting' | 'value';
 }
+
 
 const chartConfig = {
   solde: { label: "Balance", color: "hsl(var(--pos))" },
