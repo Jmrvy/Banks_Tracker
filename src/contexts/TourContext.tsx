@@ -189,6 +189,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       state,
       totalSteps: TOTAL_STEPS,
       start: () => dispatch({ type: "start" }),
+      startEssentials: () => dispatch({ type: "startEssentials" }),
       next: () => dispatch({ type: "next" }),
       prev: () => dispatch({ type: "prev" }),
       skipStep: () => dispatch({ type: "skipStep" }),
