@@ -3,23 +3,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { BarChart3, Calendar, CalendarCheck, Download, Clock } from "lucide-react";
+import { Activity, ArrowLeftRight, Clock, Download } from "lucide-react";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
 import { supabase } from "@/integrations/supabase/client";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
-import { StatsCards } from "@/components/reports/StatsCards";
-import { EvolutionTab } from "@/components/reports/EvolutionTab";
+import { AnalysisHero } from "@/components/reports/AnalysisHero";
+import { AnalysisToolbar } from "@/components/reports/AnalysisToolbar";
+import { OverTimeTab } from "@/components/reports/OverTimeTab";
 import { CategoriesTab } from "@/components/reports/CategoriesTab";
 import { RecurringTab } from "@/components/reports/RecurringTab";
 import { IncomeTab } from "@/components/reports/IncomeTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ReportWizard } from "@/components/ReportWizard";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { PeriodRecurringItem } from "@/hooks/useReportsData";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTranslation } from "react-i18next";
 
@@ -30,25 +27,27 @@ const Reports = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
-    to: endOfMonth(new Date())
+    to: endOfMonth(new Date()),
   });
-  const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
+  const [useSpendingPatterns] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+
+  // Page-level toolbar state (hoisted out of tabs)
   const [includeUpcoming, setIncludeUpcoming] = useState(false);
-  const [incomeExpenseDateType, setIncomeExpenseDateType] = useState<'accounting' | 'value'>(() => {
+  const [dateType, setDateType] = useState<'accounting' | 'value'>(() => {
     try {
       const saved = localStorage.getItem('userPreferences');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.dateType === 'value') return 'value';
       }
-    } catch {}
+    } catch { /* ignore */ }
     return 'accounting';
   });
+  const [compareTo, setCompareTo] = useState<'prior' | '3mo' | 'yearAgo'>('prior');
 
-  // Installment payments data for capping recurring occurrence projections
   const { installmentPayments } = useInstallmentPayments();
   const installmentPaymentInfos = useMemo(() =>
     installmentPayments.map(ip => ({
@@ -60,27 +59,15 @@ const Reports = () => {
     [installmentPayments]
   );
 
-  // Debt data for recurring transaction amount resolution
   const { debts, payments: debtPayments } = useDebts();
   const debtInfos = useMemo(() =>
     debts.map(d => ({
-      id: d.id,
-      description: d.description,
-      total_amount: d.total_amount,
-      remaining_amount: d.remaining_amount,
-      payment_amount: d.payment_amount,
-      status: d.status,
-    })),
-    [debts]
-  );
+      id: d.id, description: d.description, total_amount: d.total_amount,
+      remaining_amount: d.remaining_amount, payment_amount: d.payment_amount, status: d.status,
+    })), [debts]);
   const debtPaymentInfos = useMemo(() =>
-    debtPayments.map(dp => ({
-      debt_id: dp.debt_id,
-      payment_date: dp.payment_date,
-      amount: dp.amount,
-    })),
-    [debtPayments]
-  );
+    debtPayments.map(dp => ({ debt_id: dp.debt_id, payment_date: dp.payment_date, amount: dp.amount })),
+    [debtPayments]);
   const [scheduledDebtPaymentInfos, setScheduledDebtPaymentInfos] = useState<any[]>([]);
   useEffect(() => {
     const fetch = async () => {
@@ -95,29 +82,30 @@ const Reports = () => {
     fetch();
   }, [user]);
 
-  // Single hook call: evolution/recurring always use accounting date (primary),
-  // income/expense tabs use user-selected date type (secondary).
+  // Page-level date type drives the primary view (hero + over time + flows).
+  // Evolution tab still uses accounting for the chart internals.
   const {
     loading,
     period,
+    priorPeriod,
+    priorStats,
+    sparklineData,
     stats,
     balanceEvolutionData,
     recurringData,
     spendingPatternsData,
     accounts,
     filteredTransactions,
-    secondaryStats: incomeExpenseStats,
-    secondaryCategoryChartData: categoryChartData,
-    secondaryIncomeAnalysis: incomeAnalysis,
-    secondaryFilteredTransactions: incomeExpenseTransactions,
+    categoryChartData,
+    incomeAnalysis,
   } = useReportsData(
     periodType,
     selectedDate,
     dateRange,
     useSpendingPatterns,
-    'accounting',
+    dateType,
     installmentPaymentInfos,
-    { secondaryDateType: incomeExpenseDateType },
+    undefined,
     debtInfos,
     scheduledDebtPaymentInfos,
     debtPaymentInfos,
@@ -134,9 +122,16 @@ const Reports = () => {
         <div className="ft-page-head">
           <div>
             <div className="ft-eyebrow">{t('navigation.analyse')}</div>
-            <h1 className="ft-page-title">{t('reports.pageTitle', { defaultValue: 'Financial analysis' })}</h1>
+            <h1 className="ft-page-title">
+              {t('reports.analysis.title', { defaultValue: 'Financial overview' })}
+            </h1>
             <div className="ft-page-sub">
-              {t('reports.subtitle', { defaultValue: 'Deep insights across categories, merchants, and time' })} · {period.label}
+              {t('reports.analysis.subtitle', {
+                count: accounts.length,
+                txCount: filteredTransactions.length,
+                defaultValue: '{{count}} accounts · {{txCount}} transactions',
+              })}{' '}
+              · {period.label}
             </div>
           </div>
           <Button
@@ -145,16 +140,12 @@ const Reports = () => {
             className="h-9 px-3.5 gap-1.5 text-xs"
           >
             <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">
-              {t('reports.generateReport', { defaultValue: 'Generate report' })}
-            </span>
-            <span className="sm:hidden">
-              {t('reports.generate', { defaultValue: 'Generate' })}
-            </span>
+            <span className="hidden sm:inline">{t('reports.generateReport', { defaultValue: 'Generate report' })}</span>
+            <span className="sm:hidden">{t('reports.generate', { defaultValue: 'Generate' })}</span>
           </Button>
         </div>
 
-        {/* Filtres de période */}
+        {/* Period selector */}
         <PeriodSelector
           periodType={periodType}
           setPeriodType={setPeriodType}
@@ -164,33 +155,47 @@ const Reports = () => {
           setDateRange={setDateRange}
         />
 
-        {/* Résumé des soldes */}
-        <StatsCards 
-          stats={stats} 
-          accountsCount={accounts.length}
+        {/* Hoisted page-level toolbar */}
+        <AnalysisToolbar
+          includeUpcoming={includeUpcoming}
+          setIncludeUpcoming={setIncludeUpcoming}
+          dateType={dateType}
+          setDateType={setDateType}
+          compareTo={compareTo}
+          setCompareTo={setCompareTo}
+          priorPeriodLabel={priorPeriod.label}
+        />
+
+        {/* Hero — Net as headline */}
+        <AnalysisHero
+          stats={stats}
+          priorStats={priorStats}
+          period={period}
+          priorPeriodLabel={priorPeriod.label}
+          sparkline={sparklineData}
           onIncomeClick={() => setShowIncomeModal(true)}
           onExpensesClick={() => setShowExpensesModal(true)}
         />
 
-        {/* Graphiques et analyses */}
-        <Tabs defaultValue="evolution" className="space-y-3 w-full">
-          <TabsList className="w-full grid grid-cols-4 h-9 sm:h-10 p-0.5 sm:p-1">
-            <TabsTrigger value="evolution" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              {t('reports.evolutionTab')}
+        {/* 3-tab structure: Over time / Flows (in+out) / What's coming */}
+        <Tabs defaultValue="overtime" className="space-y-3 w-full">
+          <TabsList className="w-full grid grid-cols-3 h-9 sm:h-10 p-0.5 sm:p-1">
+            <TabsTrigger value="overtime" className="text-xs sm:text-sm gap-1.5">
+              <Activity className="h-3.5 w-3.5" />
+              {t('reports.analysis.tabOverTime', { defaultValue: 'Over time' })}
             </TabsTrigger>
-            <TabsTrigger value="income" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              {t('reports.incomeTab')}
+            <TabsTrigger value="flows" className="text-xs sm:text-sm gap-1.5">
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              {t('reports.analysis.tabFlows', { defaultValue: 'Flows' })}
             </TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              {t('reports.expensesTab')}
-            </TabsTrigger>
-            <TabsTrigger value="recurring" className="text-xs sm:text-xs lg:text-sm px-1 sm:px-3 h-8 sm:h-8">
-              {t('reports.recurringTab')}
+            <TabsTrigger value="coming" className="text-xs sm:text-sm gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              {t('reports.analysis.tabComing', { defaultValue: "What's coming" })}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="evolution" className="mt-3">
-            <EvolutionTab
+          <TabsContent value="overtime" className="mt-3">
+            <OverTimeTab
               balanceEvolutionData={balanceEvolutionData}
               stats={stats}
               recurringData={recurringData}
@@ -198,106 +203,40 @@ const Reports = () => {
             />
           </TabsContent>
 
-          <TabsContent value="income" className="mt-3 space-y-3">
-            {/* Sélecteurs pour Revenus */}
-            <div className="flex items-center justify-between gap-2  flex-wrap">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="upcoming-income"
-                  checked={includeUpcoming}
-                  onCheckedChange={setIncludeUpcoming}
-                  className="scale-75"
+          <TabsContent value="flows" className="mt-3 space-y-3">
+            {/* Income + Expenses unified — two columns on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <IncomeTab
+                  incomeAnalysis={incomeAnalysis}
+                  totalIncome={stats.income}
+                  includeUpcoming={includeUpcoming}
+                  upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'income')}
+                  projectedIncome={recurringData.periodIncome}
                 />
-                <Label htmlFor="upcoming-income" className="text-xs sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
-                  <Clock className="h-3 w-3" />
-                  {t('reports.upcoming', { defaultValue: 'Upcoming' })}
-                </Label>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {t('reports.dateLabel', { defaultValue: 'Date' })}{':'}
-                </span>
-                <ToggleGroup 
-                  type="single" 
-                  value={incomeExpenseDateType} 
-                  onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
-                  className="h-8"
-                >
-                  <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {t('settings.accountingDate', { defaultValue: 'Accounting' })}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
-                    <CalendarCheck className="h-3 w-3" />
-                    {t('settings.valueDate', { defaultValue: 'Value' })}
-                  </ToggleGroupItem>
-                </ToggleGroup>
+              <div className="min-w-0">
+                <CategoriesTab
+                  categoryChartData={categoryChartData}
+                  transactions={filteredTransactions}
+                  periodStart={period.from}
+                  periodEnd={period.to}
+                  includeUpcoming={includeUpcoming}
+                  upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'expense')}
+                  projectedExpenses={recurringData.periodExpenses}
+                  dateType={dateType}
+                />
               </div>
             </div>
-            <IncomeTab 
-              incomeAnalysis={incomeAnalysis}
-              totalIncome={incomeExpenseStats.income}
-              includeUpcoming={includeUpcoming}
-              upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'income')}
-              projectedIncome={recurringData.periodIncome}
-            />
           </TabsContent>
 
-          <TabsContent value="categories" className="mt-3 space-y-3">
-            {/* Sélecteurs pour Dépenses */}
-            <div className="flex items-center justify-between gap-2  flex-wrap">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="upcoming-expenses"
-                  checked={includeUpcoming}
-                  onCheckedChange={setIncludeUpcoming}
-                  className="scale-75"
-                />
-                <Label htmlFor="upcoming-expenses" className="text-xs sm:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
-                  <Clock className="h-3 w-3" />
-                  {t('reports.upcoming', { defaultValue: 'Upcoming' })}
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {t('reports.dateLabel', { defaultValue: 'Date' })}{':'}
-                </span>
-                <ToggleGroup
-                  type="single"
-                  value={incomeExpenseDateType}
-                  onValueChange={(value) => value && setIncomeExpenseDateType(value as 'accounting' | 'value')}
-                  className="h-8"
-                >
-                  <ToggleGroupItem value="accounting" className="text-xs h-7 px-2 gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {t('settings.accountingDate', { defaultValue: 'Accounting' })}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="value" className="text-xs h-7 px-2 gap-1">
-                    <CalendarCheck className="h-3 w-3" />
-                    {t('settings.valueDate', { defaultValue: 'Value' })}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
-            <CategoriesTab
-              categoryChartData={categoryChartData}
-              transactions={incomeExpenseTransactions}
-              periodStart={period.from}
-              periodEnd={period.to}
-              includeUpcoming={includeUpcoming}
-              upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'expense')}
-              projectedExpenses={recurringData.periodExpenses}
-              dateType={incomeExpenseDateType}
-            />
-          </TabsContent>
-
-          <TabsContent value="recurring" className="mt-3">
+          <TabsContent value="coming" className="mt-3">
             <RecurringTab
               recurringData={recurringData}
               spendingPatternsData={spendingPatternsData}
               period={period}
               useSpendingPatterns={useSpendingPatterns}
-              setUseSpendingPatterns={setUseSpendingPatterns}
+              setUseSpendingPatterns={() => { /* noop — patterns hoisted out */ }}
             />
           </TabsContent>
         </Tabs>
@@ -319,10 +258,7 @@ const Reports = () => {
         period={period.label}
       />
 
-      <ReportWizard
-        open={showExportModal}
-        onOpenChange={setShowExportModal}
-      />
+      <ReportWizard open={showExportModal} onOpenChange={setShowExportModal} />
     </div>
   );
 };
