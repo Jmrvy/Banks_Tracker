@@ -193,28 +193,44 @@ export function renderAccounts(ctx: ReportCtx) {
   // items — surface the deltas so the two pages reconcile.
   {
     // Use the same definitions as Cashflow / Budgets so figures tie:
-    //   refunds = sum of refund transactions in the period
-    //   excluded = sum of expense amounts with include_in_stats = false
+    //   refunds   = sum of refund transactions in the period
+    //   excluded  = sum of amounts where include_in_stats = false
     const refundedExpense = ctx.data.refundTotal;
     let excludedExpense = 0;
+    let excludedIncome = 0;
     for (const t of ctx.data.transactions) {
-      if (t.type !== 'expense' || t.include_in_stats !== false) continue;
+      if (t.include_in_stats !== false) continue;
       const d = new Date(t.transaction_date);
       if (d < actualDates.start || d > actualDates.end) continue;
-      excludedExpense += Number(t.amount);
+      if (t.type === 'expense') excludedExpense += Number(t.amount);
+      else if (t.type === 'income') excludedIncome += Number(t.amount);
     }
+
+    const grossInc = tot.inflow;
+    const cashflowInc = grossInc - refundedExpense - excludedIncome;
     const grossExp = tot.outflow;
     const budgetExp = grossExp - refundedExpense - excludedExpense;
+
+    mono(6.5);
+    setText(mute);
+    if (refundedExpense > 0 || excludedIncome > 0) {
+      const inc = [
+        `Gross income ${fmt(grossInc)}`,
+        refundedExpense > 0 ? `− refunds ${fmt(refundedExpense)}` : null,
+        excludedIncome > 0 ? `− excluded ${fmt(excludedIncome)}` : null,
+        `= Cashflow income ${fmt(cashflowInc)}`,
+      ].filter(Boolean).join('   ');
+      pdf.text(inc, MARGIN_X, y);
+      y += 4;
+    }
     if (refundedExpense > 0 || excludedExpense > 0) {
-      mono(6.5);
-      setText(mute);
-      const parts = [
+      const exp = [
         `Gross expenses ${fmt(grossExp)}`,
         refundedExpense > 0 ? `− refunds ${fmt(refundedExpense)}` : null,
         excludedExpense > 0 ? `− excluded ${fmt(excludedExpense)}` : null,
         `= Budgets total ${fmt(budgetExp)}`,
       ].filter(Boolean).join('   ');
-      pdf.text(parts, MARGIN_X, y);
+      pdf.text(exp, MARGIN_X, y);
     }
   }
   y += 12;
