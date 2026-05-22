@@ -1247,6 +1247,61 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
             </button>
           </div>
 
+          {/* Inline pickers for month / year / custom */}
+          {config.periodType === 'month' && (
+            <MonthPicker
+              value={config.startDate}
+              onChange={(d) => d && setConfig(prev => ({ ...prev, startDate: d }))}
+              className="h-7 w-auto text-xs"
+            />
+          )}
+          {config.periodType === 'year' && (
+            <YearPicker
+              value={config.startDate}
+              onChange={(d) => d && setConfig(prev => ({ ...prev, startDate: d }))}
+              className="h-7 w-auto text-xs"
+            />
+          )}
+          {config.periodType === 'custom' && (
+            <div className="flex items-center gap-1.5">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                    <Calendar className="h-3 w-3" />
+                    {format(config.startDate, 'dd/MM/yy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={config.startDate}
+                    onSelect={(d) => d && setConfig(prev => ({ ...prev, startDate: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12) }))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">→</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                    <Calendar className="h-3 w-3" />
+                    {format(config.endDate, 'dd/MM/yy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={config.endDate}
+                    onSelect={(d) => d && setConfig(prev => ({ ...prev, endDate: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12) }))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
             <Calendar className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
             {periodSummary}
