@@ -78,17 +78,9 @@ export function WelcomeModal() {
           <Button variant="ghost" size="sm" onClick={skipAll} className="text-muted-foreground">
             {t("tour.skipAll", { defaultValue: "Skip tour" })}
           </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              // Move into the essentials sequence.
-              // dispatch via context (state.goal is already set above).
-              // Use the dedicated action via a tiny shim:
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (window as any).__tour_startEssentials?.();
-            }}
-            className="px-4"
-          >
+          <Button size="sm" onClick={startEssentials} className="px-4">
+            {t("tour.welcome.start", { defaultValue: "Start tour" })}
+          </Button>
             {t("tour.welcome.start", { defaultValue: "Start tour" })}
           </Button>
         </div>
