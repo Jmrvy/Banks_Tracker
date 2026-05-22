@@ -123,8 +123,25 @@ export function renderBudgets(ctx: ReportCtx) {
   y = drawSectionEyebrow('Per-budget pace', '% used · sorted by share', y);
 
   const rowH = 16;
-  for (const c of budgetedCats) {
-    if (y + rowH > BODY_BOTTOM) break;
+  // Reserve room for the definitions strip + bottom chrome on the last
+  // budgets page so rows don't collide with the legend.
+  const RESERVE = 18;
+  for (let i = 0; i < budgetedCats.length; i++) {
+    const c = budgetedCats[i];
+    if (y + rowH > BODY_BOTTOM - RESERVE) {
+      // Continue on a fresh page when more budgets remain.
+      drawBottomChrome(state.pageIdx, totalPagesEstimate);
+      newPage();
+      drawTopChrome(state.pageIdx, totalPagesEstimate);
+      y = drawPageTitle(
+        'Section 06 · Discipline',
+        'Budgets vs actual (cont.)',
+        `${budgetedCats.length} active budgets`,
+        `${breachedCats.length} breached · ${nearCats.length} near`,
+        breachedCats.length > 0 ? neg : ctx.ink2,
+      );
+      y = drawSectionEyebrow('Per-budget pace', '% used · sorted by share', y);
+    }
     const pct = c.budget > 0 ? c.spent / c.budget : 0;
     const pctRound = Math.round(pct * 100);
     const over = c.over;
@@ -166,6 +183,7 @@ export function renderBudgets(ctx: ReportCtx) {
 
     y += rowH;
   }
+
 
   // ── Definitions line ────────────────────────────────────────────
   const defY = Math.min(y + 4, BODY_BOTTOM);
