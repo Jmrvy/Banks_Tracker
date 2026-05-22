@@ -234,6 +234,47 @@ export const EvolutionTab = ({
       {/* Balance evolution chart */}
       <Card className="">
         <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
+      </div>
+
+      {/* Reconciliation note: explain difference between KPI "Fin" and real current total */}
+      {(() => {
+        const kpiFinal = stats.finalBalance + gapBalance;
+        const delta = actualTotalBalance - kpiFinal;
+        if (Math.abs(delta) < 0.01) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[11px] sm:text-xs text-muted-foreground">
+            <span>
+              Solde réel actuel des comptes :{" "}
+              <span className={cn("font-semibold tabular-nums", actualTotalBalance >= 0 ? "text-success" : "text-destructive")}>
+                {formatCurrency(actualTotalBalance)}
+              </span>
+            </span>
+            <span>·</span>
+            <span>
+              Écart avec « Fin » :{" "}
+              <span className="font-semibold tabular-nums">
+                {delta >= 0 ? "+" : "−"}{formatCurrency(Math.abs(delta))}
+              </span>
+            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="inline-flex items-center text-muted-foreground hover:text-foreground">
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[280px] text-xs">
+                  « Fin » = Début + Revenus − Dépenses sur la période, en excluant les transactions marquées « hors statistiques » et en utilisant le montant net des dépenses (déduit des remboursements). L'écart correspond donc aux transactions exclues, aux remboursements, et aux mouvements hors de la période sélectionnée.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        );
+      })()}
+
+      {/* Balance evolution chart */}
+      <Card className="">
+        <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
           <div>
             <CardTitle className="text-sm sm:text-base">{t('reports.balanceEvolution')}</CardTitle>
             <CardDescription className="text-[10px] sm:text-xs hidden sm:block">
