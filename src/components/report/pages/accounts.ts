@@ -187,38 +187,36 @@ export function renderAccounts(ctx: ReportCtx) {
   const tableEnd = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
   y = tableEnd + 5;
 
-  // ── Reconciliation note · vs Budgets page ────────────────────────
-  // Accounts EXPENSES are gross so Opening + Income − Expenses + Transfers
-  // ties to Closing. Budgets are net of refunds and exclude stats-excluded
-  // items — surface the deltas so the two pages reconcile.
+  // ── Reconciliation note · vs Cashflow / Budgets pages ─────────────
+  // Accounts use bank movements so the ledger ties to Closing. Cashflow /
+  // Budgets exclude refund income, stats-excluded rows, and show expenses
+  // net of refunds — use the same period-filtered rows to avoid date drift.
   {
-    // Use the same definitions as Cashflow / Budgets so figures tie:
-    //   refunds   = sum of refund transactions in the period
-    //   excluded  = sum of amounts where include_in_stats = false
-    const refundedExpense = ctx.data.refundTotal;
-    let excludedExpense = 0;
-    let excludedIncome = 0;
-    for (const t of ctx.data.transactions) {
-      if (t.include_in_stats !== false) continue;
-      const d = new Date(t.transaction_date);
-      if (d < actualDates.start || d > actualDates.end) continue;
-      if (t.type === 'expense') excludedExpense += Number(t.amount);
-      else if (t.type === 'income') excludedIncome += Number(t.amount);
+    const periodTx = ctx.data.filteredTransactions;
+    const refundedIncome = ctx.data.refundTotal;
+    let refundedExpense = 0;
+    for (const t of periodTx) {
+      const amt = Number(t.amount);
+      if (t.type === 'expense') {
+        refundedExpense += Math.min(amt, Number(t.refunded_amount || 0));
+      }
     }
 
     const grossInc = tot.inflow;
-    const cashflowInc = grossInc - refundedExpense - excludedIncome;
+    const cashflowInc = ctx.data.grossIncome;
     const grossExp = tot.outflow;
-    const budgetExp = grossExp - refundedExpense - excludedExpense;
+    const budgetExp = ctx.data.grossExpenses;
+    const excludedIncome = Math.max(0, grossInc - refundedIncome - cashflowInc);
+    const excludedExpense = Math.max(0, grossExp - refundedExpense - budgetExp);
 
     mono(6.5);
     setText(mute);
-    if (refundedExpense > 0 || excludedIncome > 0) {
+    if (refundedIncome > 0 || excludedIncome > 0) {
       const inc = [
         `Gross income ${fmt(grossInc)}`,
-        refundedExpense > 0 ? `− refunds ${fmt(refundedExpense)}` : null,
+        refundedIncome > 0 ? `− refunds ${fmt(refundedIncome)}` : null,
         excludedIncome > 0 ? `− excluded ${fmt(excludedIncome)}` : null,
-        `= Cashflow income ${fmt(cashflowInc)}`,
+        `= Cashflow gross income ${fmt(cashflowInc)}`,
       ].filter(Boolean).join('   ');
       pdf.text(inc, MARGIN_X, y);
       y += 4;
