@@ -357,26 +357,43 @@ export function buildReportData(input: BuildInputs): ReportData {
   const expDays = evolutionChartData.map((d) => d.expense).filter((v) => v > 0);
   const typicalDailyExpense = expDays.length ? expDays.reduce((s, v) => s + v, 0) / expDays.length : 0;
 
-  const sortByAmtDesc = (a: Transaction, b: Transaction) => Number(b.amount) - Number(a.amount);
+  // Sum refunds linked to each original transaction so cashflow movements
+  // can be shown net of any reimbursements.
+  const refundByOriginal = new Map<string, number>();
+  for (const r of refundItems) {
+    const key = r.refund_of_transaction_id as string;
+    refundByOriginal.set(key, (refundByOriginal.get(key) ?? 0) + Math.abs(Number(r.amount)));
+  }
+  const netAmount = (t: Transaction) =>
+    Math.max(0, Number(t.amount) - (refundByOriginal.get(t.id) ?? 0));
+
   // Cashflow movements are net of refunds and exclude rows the user
   // marked as not-included-in-stats — those belong on the Income page's
   // "Excluded movements" section, not in the headline cashflow.
   const isCashflowRow = (t: Transaction) =>
     !t.refund_of_transaction_id && t.include_in_stats !== false;
-  const inflowTx = filteredTransactions.filter((t) => t.type === 'income' && isCashflowRow(t)).sort(sortByAmtDesc);
-  const outflowTx = filteredTransactions.filter((t) => t.type === 'expense' && isCashflowRow(t)).sort(sortByAmtDesc);
+  const inflowTx = filteredTransactions
+    .filter((t) => t.type === 'income' && isCashflowRow(t))
+    .map((t) => ({ t, net: netAmount(t) }))
+    .filter((x) => x.net > 0)
+    .sort((a, b) => b.net - a.net);
+  const outflowTx = filteredTransactions
+    .filter((t) => t.type === 'expense' && isCashflowRow(t))
+    .map((t) => ({ t, net: netAmount(t) }))
+    .filter((x) => x.net > 0)
+    .sort((a, b) => b.net - a.net);
   // Movement rows mirror the template, which shows the bare description
   // (e.g. "Salary · Acme SAS") without the category appended.
   const labelOf = (t: Transaction) => t.description;
-  const topInflows = inflowTx.slice(0, 4).map((t) => ({
+  const topInflows = inflowTx.slice(0, 4).map(({ t, net }) => ({
     date: txDateOf(t, config.dateType),
     label: labelOf(t),
-    amount: Number(t.amount),
+    amount: net,
   }));
-  const topOutflows = outflowTx.slice(0, 4).map((t) => ({
+  const topOutflows = outflowTx.slice(0, 4).map(({ t, net }) => ({
     date: txDateOf(t, config.dateType),
     label: labelOf(t),
-    amount: -Number(t.amount),
+    amount: -net,
   }));
 
   // ── Ledger (newest-first with running balance) ───────────────────
