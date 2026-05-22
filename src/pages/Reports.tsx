@@ -12,9 +12,8 @@ import { PeriodSelector } from "@/components/reports/PeriodSelector";
 import { AnalysisHero } from "@/components/reports/AnalysisHero";
 import { AnalysisToolbar } from "@/components/reports/AnalysisToolbar";
 import { OverTimeTab } from "@/components/reports/OverTimeTab";
-import { CategoriesTab } from "@/components/reports/CategoriesTab";
-import { RecurringTab } from "@/components/reports/RecurringTab";
-import { IncomeTab } from "@/components/reports/IncomeTab";
+import { FlowsTab } from "@/components/reports/FlowsTab";
+import { ComingTab } from "@/components/reports/ComingTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ReportWizard } from "@/components/ReportWizard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -89,6 +88,9 @@ const Reports = () => {
     period,
     priorPeriod,
     priorStats,
+    threeMoAvgStats,
+    yearAgoStats,
+    yearAgoPeriod,
     sparklineData,
     stats,
     balanceEvolutionData,
@@ -110,6 +112,23 @@ const Reports = () => {
     scheduledDebtPaymentInfos,
     debtPaymentInfos,
   );
+
+  // Resolve compare-to selection into a single comparisonStats object + label
+  const { comparisonStats, comparisonLabel } = useMemo(() => {
+    if (compareTo === '3mo') {
+      return {
+        comparisonStats: threeMoAvgStats,
+        comparisonLabel: t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' }),
+      };
+    }
+    if (compareTo === 'yearAgo') {
+      return {
+        comparisonStats: yearAgoStats,
+        comparisonLabel: yearAgoPeriod.label,
+      };
+    }
+    return { comparisonStats: priorStats, comparisonLabel: priorPeriod.label };
+  }, [compareTo, priorStats, threeMoAvgStats, yearAgoStats, priorPeriod.label, yearAgoPeriod.label, t]);
 
   if (loading) {
     return <LoadingSpinner text={t('common.loading')} />;
@@ -166,12 +185,12 @@ const Reports = () => {
           priorPeriodLabel={priorPeriod.label}
         />
 
-        {/* Hero — Net as headline */}
+        {/* Hero — Net as headline. Uses the selected comparison source. */}
         <AnalysisHero
           stats={stats}
-          priorStats={priorStats}
+          priorStats={comparisonStats}
           period={period}
-          priorPeriodLabel={priorPeriod.label}
+          priorPeriodLabel={comparisonLabel}
           sparkline={sparklineData}
           onIncomeClick={() => setShowIncomeModal(true)}
           onExpensesClick={() => setShowExpensesModal(true)}
@@ -203,41 +222,21 @@ const Reports = () => {
             />
           </TabsContent>
 
-          <TabsContent value="flows" className="mt-3 space-y-3">
-            {/* Income + Expenses unified — two columns on desktop */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div className="min-w-0">
-                <IncomeTab
-                  incomeAnalysis={incomeAnalysis}
-                  totalIncome={stats.income}
-                  includeUpcoming={includeUpcoming}
-                  upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'income')}
-                  projectedIncome={recurringData.periodIncome}
-                />
-              </div>
-              <div className="min-w-0">
-                <CategoriesTab
-                  categoryChartData={categoryChartData}
-                  transactions={filteredTransactions}
-                  periodStart={period.from}
-                  periodEnd={period.to}
-                  includeUpcoming={includeUpcoming}
-                  upcomingItems={recurringData.periodItems.filter(pi => pi.effectiveType === 'expense')}
-                  projectedExpenses={recurringData.periodExpenses}
-                  dateType={dateType}
-                />
-              </div>
-            </div>
+          <TabsContent value="flows" className="mt-3">
+            <FlowsTab
+              stats={stats}
+              comparisonStats={comparisonStats}
+              comparisonLabel={comparisonLabel}
+              filteredTransactions={filteredTransactions}
+              categoryChartData={categoryChartData}
+              incomeAnalysis={incomeAnalysis}
+              onIncomeClick={() => setShowIncomeModal(true)}
+              onExpensesClick={() => setShowExpensesModal(true)}
+            />
           </TabsContent>
 
           <TabsContent value="coming" className="mt-3">
-            <RecurringTab
-              recurringData={recurringData}
-              spendingPatternsData={spendingPatternsData}
-              period={period}
-              useSpendingPatterns={useSpendingPatterns}
-              setUseSpendingPatterns={() => { /* noop — patterns hoisted out */ }}
-            />
+            <ComingTab recurringData={recurringData} period={period} />
           </TabsContent>
         </Tabs>
       </div>
