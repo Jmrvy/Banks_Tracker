@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { ReportsStats } from "@/hooks/useReportsData";
+import type { ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import type { Transaction } from "@/hooks/useFinancialData";
 import type { CategoryData } from "@/hooks/useReportsData";
 import { IncomeCategory } from "@/hooks/useIncomeAnalysis";
@@ -16,9 +16,12 @@ interface FlowsTabProps {
   filteredTransactions: Transaction[];
   categoryChartData: CategoryData[];
   incomeAnalysis: IncomeCategory[];
+  recurringData: RecurringData;
+  includeUpcoming: boolean;
   onIncomeClick?: () => void;
   onExpensesClick?: () => void;
 }
+
 
 const CompareStrip = ({
   inNow, inPrior, outNow, outPrior, comparisonLabel,
@@ -79,18 +82,83 @@ const Row = ({ label, nowValue, priorValue, delta, positiveIsGood, comparisonLab
 export const FlowsTab = ({
   stats, comparisonStats, comparisonLabel,
   filteredTransactions, categoryChartData, incomeAnalysis,
+  recurringData, includeUpcoming,
   onIncomeClick, onExpensesClick,
 }: FlowsTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
 
-  const topIncome = useMemo(() =>
-    incomeAnalysis.slice().sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 8),
-    [incomeAnalysis]);
-  const topExpenses = useMemo(() => categoryChartData.slice(0, 8), [categoryChartData]);
+  // Projected (future) recurring occurrences, grouped by category name + type
+  const projectedByCategory = useMemo(() => {
+    const map = new Map<string, { name: string; color: string; amount: number; count: number; type: 'income' | 'expense' }>();
+    if (!includeUpcoming) return map;
+    for (const pi of recurringData.periodItems) {
+      const futureDetails = (pi.occurrenceDetails || []).filter(d => d.isFuture);
+      if (futureDetails.length === 0) continue;
+      const sum = futureDetails.reduce((s, d) => s + d.amount, 0);
+      const name = pi.recurring.category?.name || t('common.uncategorized', { defaultValue: 'Uncategorized' });
+      const color = pi.recurring.category?.color || 'hsl(var(--muted-foreground))';
+      const key = `${pi.effectiveType}-${name}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.amount += sum;
+        existing.count += futureDetails.length;
+      } else {
+        map.set(key, { name, color, amount: sum, count: futureDetails.length, type: pi.effectiveType });
+      }
+    }
+    return map;
+  }, [includeUpcoming, recurringData.periodItems, t]);
+
+  const projectedIncomeCount = useMemo(() => {
+    let n = 0;
+    for (const v of projectedByCategory.values()) if (v.type === 'income') n += v.count;
+    return n;
+  }, [projectedByCategory]);
+  const projectedExpenseCount = useMemo(() => {
+    let n = 0;
+    for (const v of projectedByCategory.values()) if (v.type === 'expense') n += v.count;
+    return n;
+  }, [projectedByCategory]);
+
+  const topIncome = useMemo(() => {
+    const base = new Map<string, { name: string; amount: number; projected: number }>();
+    for (const c of incomeAnalysis) {
+      base.set(c.category, { name: c.category, amount: c.totalAmount, projected: 0 });
+    }
+    for (const v of projectedByCategory.values()) {
+      if (v.type !== 'income') continue;
+      const existing = base.get(v.name);
+      if (existing) existing.projected += v.amount;
+      else base.set(v.name, { name: v.name, amount: 0, projected: v.amount });
+    }
+    return Array.from(base.values())
+      .sort((a, b) => (b.amount + b.projected) - (a.amount + a.projected))
+      .slice(0, 8);
+  }, [incomeAnalysis, projectedByCategory]);
+
+  const topExpenses = useMemo(() => {
+    const base = new Map<string, { name: string; color: string; amount: number; projected: number }>();
+    for (const c of categoryChartData) {
+      base.set(c.name, { name: c.name, color: c.color, amount: c.spent, projected: 0 });
+    }
+    for (const v of projectedByCategory.values()) {
+      if (v.type !== 'expense') continue;
+      const existing = base.get(v.name);
+      if (existing) existing.projected += v.amount;
+      else base.set(v.name, { name: v.name, color: v.color, amount: 0, projected: v.amount });
+    }
+    return Array.from(base.values())
+      .sort((a, b) => (b.amount + b.projected) - (a.amount + a.projected))
+      .slice(0, 8);
+  }, [categoryChartData, projectedByCategory]);
 
   const totalIncome = stats.income;
   const totalExpenses = stats.expenses;
+
+  const incomeCount = filteredTransactions.filter(t => t.type === 'income').length + (includeUpcoming ? projectedIncomeCount : 0);
+  const expenseCount = filteredTransactions.filter(t => t.type === 'expense').length + (includeUpcoming ? projectedExpenseCount : 0);
+
 
   return (
     <div className="space-y-3">
@@ -114,8 +182,10 @@ export const FlowsTab = ({
                 {t('reports.analysis.moneyIn', { defaultValue: 'Money in' })}
               </CardTitle>
               <CardDescription className="text-[10.5px] mt-0.5">
-                {filteredTransactions.filter(t => t.type === 'income').length}{' '}
-                {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
+                {incomeCount} {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
+                {includeUpcoming && projectedIncomeCount > 0 && (
+                  <> · <span className="text-fg-dim">{projectedIncomeCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
+                )}
               </CardDescription>
             </div>
             {onIncomeClick && (
@@ -131,23 +201,32 @@ export const FlowsTab = ({
               <p className="text-xs text-muted-foreground py-4 text-center">
                 {t('reports.analysis.noData', { defaultValue: 'No data' })}
               </p>
-            ) : topIncome.map(c => (
-              <div key={c.category} className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0 bg-[hsl(var(--pos))]" />
-                  <span className="truncate">{c.category}</span>
+            ) : topIncome.map(c => {
+              const total = c.amount + c.projected;
+              return (
+                <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="h-2 w-2 rounded-full flex-shrink-0 bg-[hsl(var(--pos))]" />
+                    <span className="truncate">{c.name}</span>
+                    {c.projected > 0 && (
+                      <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
+                        +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="font-mono text-fg-dim text-[10px] tabular-nums">
+                      {totalIncome > 0 ? ((total / totalIncome) * 100).toFixed(0) : 0}%
+                    </span>
+                    <span className="font-mono font-medium text-[hsl(var(--pos))] tabular-nums">
+                      +{formatCurrency(total)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="font-mono text-fg-dim text-[10px] tabular-nums">
-                    {totalIncome > 0 ? ((c.totalAmount / totalIncome) * 100).toFixed(0) : 0}%
-                  </span>
-                  <span className="font-mono font-medium text-[hsl(var(--pos))] tabular-nums">
-                    +{formatCurrency(c.totalAmount)}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
+
         </Card>
 
         {/* Money out */}
@@ -161,8 +240,10 @@ export const FlowsTab = ({
                 {t('reports.analysis.moneyOut', { defaultValue: 'Money out' })}
               </CardTitle>
               <CardDescription className="text-[10.5px] mt-0.5">
-                {filteredTransactions.filter(t => t.type === 'expense').length}{' '}
-                {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
+                {expenseCount} {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
+                {includeUpcoming && projectedExpenseCount > 0 && (
+                  <> · <span className="text-fg-dim">{projectedExpenseCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
+                )}
               </CardDescription>
             </div>
             {onExpensesClick && (
@@ -178,23 +259,32 @@ export const FlowsTab = ({
               <p className="text-xs text-muted-foreground py-4 text-center">
                 {t('reports.analysis.noData', { defaultValue: 'No data' })}
               </p>
-            ) : topExpenses.map(c => (
-              <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                  <span className="truncate">{c.name}</span>
+            ) : topExpenses.map(c => {
+              const total = c.amount + c.projected;
+              return (
+                <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                    <span className="truncate">{c.name}</span>
+                    {c.projected > 0 && (
+                      <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
+                        +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="font-mono text-fg-dim text-[10px] tabular-nums">
+                      {totalExpenses > 0 ? ((total / totalExpenses) * 100).toFixed(0) : 0}%
+                    </span>
+                    <span className="font-mono font-medium text-[hsl(var(--neg))] tabular-nums">
+                      −{formatCurrency(total)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="font-mono text-fg-dim text-[10px] tabular-nums">
-                    {totalExpenses > 0 ? ((c.spent / totalExpenses) * 100).toFixed(0) : 0}%
-                  </span>
-                  <span className="font-mono font-medium text-[hsl(var(--neg))] tabular-nums">
-                    −{formatCurrency(c.spent)}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
+
         </Card>
       </div>
     </div>
