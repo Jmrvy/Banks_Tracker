@@ -317,6 +317,30 @@ export const useReportsData = (
     };
   }, [priorPeriod, computeStatsForRange]);
 
+  // 3-month average stats (mean of three preceding months) for the "3-mo avg" compare option.
+  const threeMoAvgStats = useMemo<ReportsStats>(() => {
+    const anchor = periodType === 'month' ? selectedDate : period.from;
+    let inc = 0, exp = 0, net = 0;
+    for (let i = 1; i <= 3; i++) {
+      const ref = subMonths(anchor, i);
+      const r = computeStatsForRange(startOfMonth(ref), endOfMonth(ref));
+      inc += r.income; exp += r.expenses; net += r.net;
+    }
+    return { income: inc / 3, expenses: exp / 3, netPeriodBalance: net / 3, initialBalance: 0, finalBalance: 0 };
+  }, [periodType, selectedDate, period, computeStatsForRange]);
+
+  // Same period one year ago.
+  const yearAgoPeriod = useMemo<{ from: Date; to: Date; label: string }>(() => {
+    const from = subYears(period.from, 1);
+    const to = subYears(period.to, 1);
+    return { from, to, label: format(from, 'MMM yyyy', { locale: fr }) };
+  }, [period]);
+
+  const yearAgoStats = useMemo<ReportsStats>(() => {
+    const r = computeStatsForRange(yearAgoPeriod.from, yearAgoPeriod.to);
+    return { income: r.income, expenses: r.expenses, netPeriodBalance: r.net, initialBalance: 0, finalBalance: 0 };
+  }, [yearAgoPeriod, computeStatsForRange]);
+
   // 6-month sparkline ending at the period's anchor month (current period's end month).
   const sparklineData = useMemo<SparklinePoint[]>(() => {
     const anchor = periodType === 'month' ? selectedDate : period.to;
