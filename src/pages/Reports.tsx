@@ -88,6 +88,9 @@ const Reports = () => {
     period,
     priorPeriod,
     priorStats,
+    threeMoAvgStats,
+    yearAgoStats,
+    yearAgoPeriod,
     sparklineData,
     stats,
     balanceEvolutionData,
@@ -109,6 +112,23 @@ const Reports = () => {
     scheduledDebtPaymentInfos,
     debtPaymentInfos,
   );
+
+  // Resolve compare-to selection into a single comparisonStats object + label
+  const { comparisonStats, comparisonLabel } = useMemo(() => {
+    if (compareTo === '3mo') {
+      return {
+        comparisonStats: threeMoAvgStats,
+        comparisonLabel: t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' }),
+      };
+    }
+    if (compareTo === 'yearAgo') {
+      return {
+        comparisonStats: yearAgoStats,
+        comparisonLabel: yearAgoPeriod.label,
+      };
+    }
+    return { comparisonStats: priorStats, comparisonLabel: priorPeriod.label };
+  }, [compareTo, priorStats, threeMoAvgStats, yearAgoStats, priorPeriod.label, yearAgoPeriod.label, t]);
 
   if (loading) {
     return <LoadingSpinner text={t('common.loading')} />;
