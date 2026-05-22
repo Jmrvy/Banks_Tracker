@@ -102,6 +102,9 @@ export function AppSidebar() {
       </nav>
 
       {/* Language selector */}
+      <SidebarResumePill />
+
+      {/* Language selector */}
       <div className="px-3 pb-2">
         <LanguageSelector />
       </div>
