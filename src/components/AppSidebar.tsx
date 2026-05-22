@@ -45,7 +45,7 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col">
+    <aside data-tour="nav" className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col">
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
         <div className="h-7 w-7 rounded-lg bg-foreground text-background dark:bg-primary dark:text-primary-foreground grid place-items-center font-bold text-sm tracking-tight">
