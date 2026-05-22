@@ -41,23 +41,23 @@ export function renderAccounts(ctx: ReportCtx) {
       opening: a.opening + c.opening,
       inflow: a.inflow + c.inflow,
       outflow: a.outflow + c.outflow,
-      net: a.net + c.net,
+      transfersNet: a.transfersNet + c.transfersNet,
       closing: a.closing + c.closing,
     }),
-    { opening: 0, inflow: 0, outflow: 0, net: 0, closing: 0 },
+    { opening: 0, inflow: 0, outflow: 0, transfersNet: 0, closing: 0 },
   );
 
-  // Column geometry (mm) tuned to the template's rhythm: a narrow ACCOUNT
-  // block (bold name wraps + mono masked tail), a mono TYPE word, then five
-  // right-aligned numeric columns whose right edges line up at
-  // OPENING≈90 · INCOME≈115 · EXPENSES≈140 · NET≈164 · CLOSING≈192.
+  // Column geometry (mm). Seven columns: ACCOUNT · TYPE · OPENING · INCOME
+  // · EXPENSES · TRANSFERS · CLOSING. Transfers are reported separately so
+  // they do not inflate INCOME, and Opening + Income − Expenses + Transfers
+  // reconciles to Closing.
   const W_ACCT = 30;
   const W_TYPE = 21;
   const W_OPEN = 28.3;
   const W_INC = 25.2;
   const W_EXP = 24.9;
-  const W_NET = 24.1;
-  const W_CLOSE = COL - W_ACCT - W_TYPE - W_OPEN - W_INC - W_EXP - W_NET;
+  const W_TRF = 24.1;
+  const W_CLOSE = COL - W_ACCT - W_TYPE - W_OPEN - W_INC - W_EXP - W_TRF;
 
   const numCell = (txt: string, color: [number, number, number], bold = false) => ({
     content: txt,
@@ -74,7 +74,7 @@ export function renderAccounts(ctx: ReportCtx) {
   autoTable(pdf, {
     startY: y,
     margin: { left: MARGIN_X, right: MARGIN_X },
-    head: [['ACCOUNT', 'TYPE', 'OPENING', 'INCOME', 'EXPENSES', 'NET', 'CLOSING']],
+    head: [['ACCOUNT', 'TYPE', 'OPENING', 'INCOME', 'EXPENSES', 'TRANSFERS', 'CLOSING']],
     body: accountFlows.map((a) => [
       // ACCOUNT — rendered manually in didDrawCell (bold name + mono tail)
       { content: '', styles: { minCellHeight: 17 } },
@@ -82,7 +82,9 @@ export function renderAccounts(ctx: ReportCtx) {
       numCell(fmt(a.opening), ink),
       a.inflow > 0 ? numCell(`+${fmt(a.inflow)}`, pos) : numCell('—', mute),
       a.outflow > 0 ? numCell(`−${fmt(a.outflow)}`, neg) : numCell('—', mute),
-      numCell(fmtSigned(a.net), a.net >= 0 ? pos : neg),
+      a.transfersNet !== 0
+        ? numCell(fmtSigned(a.transfersNet), a.transfersNet >= 0 ? pos : neg)
+        : numCell('—', mute),
       numCell(fmt(a.closing), a.closing < 0 ? neg : ink, true),
     ]),
     foot: [[
@@ -91,7 +93,9 @@ export function renderAccounts(ctx: ReportCtx) {
       numCell(fmt(tot.opening), ink, true),
       tot.inflow > 0 ? numCell(`+${fmt(tot.inflow)}`, pos, true) : numCell('—', mute, true),
       tot.outflow > 0 ? numCell(`−${fmt(tot.outflow)}`, neg, true) : numCell('—', mute, true),
-      numCell(fmtSigned(tot.net), tot.net >= 0 ? pos : neg, true),
+      tot.transfersNet !== 0
+        ? numCell(fmtSigned(tot.transfersNet), tot.transfersNet >= 0 ? pos : neg, true)
+        : numCell('—', mute, true),
       numCell(fmt(tot.closing), tot.closing < 0 ? neg : ink, true),
     ]],
     theme: 'plain',
@@ -118,7 +122,7 @@ export function renderAccounts(ctx: ReportCtx) {
       2: { cellWidth: W_OPEN, halign: 'right' },
       3: { cellWidth: W_INC, halign: 'right' },
       4: { cellWidth: W_EXP, halign: 'right' },
-      5: { cellWidth: W_NET, halign: 'right' },
+      5: { cellWidth: W_TRF, halign: 'right' },
       6: { cellWidth: W_CLOSE, halign: 'right' },
     },
     didDrawCell: (data: Record<string, unknown>) => {
