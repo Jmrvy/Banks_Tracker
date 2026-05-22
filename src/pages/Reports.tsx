@@ -215,7 +215,7 @@ const Reports = () => {
 
         {/* Hero — Net as headline. Uses the selected comparison source. */}
         <AnalysisHero
-          stats={stats}
+          stats={effectiveStats}
           priorStats={comparisonStats}
           period={period}
           priorPeriodLabel={comparisonLabel}
@@ -244,15 +244,16 @@ const Reports = () => {
           <TabsContent value="overtime" className="mt-3">
             <OverTimeTab
               balanceEvolutionData={balanceEvolutionData}
-              stats={stats}
+              stats={effectiveStats}
               recurringData={recurringData}
               period={period}
+              dateType={dateType}
             />
           </TabsContent>
 
           <TabsContent value="flows" className="mt-3">
             <FlowsTab
-              stats={stats}
+              stats={effectiveStats}
               comparisonStats={comparisonStats}
               comparisonLabel={comparisonLabel}
               filteredTransactions={filteredTransactions}
@@ -262,6 +263,7 @@ const Reports = () => {
               onExpensesClick={() => setShowExpensesModal(true)}
             />
           </TabsContent>
+
 
           <TabsContent value="coming" className="mt-3">
             <ComingTab recurringData={recurringData} period={period} />
