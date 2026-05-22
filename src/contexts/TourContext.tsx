@@ -132,6 +132,7 @@ export interface TourApi {
   state: TourState;
   totalSteps: number;
   start: () => void;
+  startEssentials: () => void;
   next: () => void;
   prev: () => void;
   skipStep: () => void;
