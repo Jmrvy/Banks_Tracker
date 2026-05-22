@@ -246,20 +246,44 @@ export function buildReportData(input: BuildInputs): ReportData {
   const totalBudget = budgetedCats.reduce((s, c) => s + c.budget, 0);
   const totalBudgetedSpent = budgetedCats.reduce((s, c) => s + c.spent, 0);
 
-  // ── Account flows (opening / closing inferred from period net) ────
+  // ── Account flows (opening / closing computed from real balance deltas) ──
+  // closing(end) = today_balance − Δ(after end); opening = closing − Δ(period).
+  // Deltas account for transfers and fees the same way update_account_balance()
+  // does, so opening reflects the actual balance on the period's first day —
+  // not an inference from income/expense alone (which excluded transfers).
+  const periodStart = actualDates.start;
+  const periodEnd = actualDates.end;
+  const accountDelta = (accId: string, from: Date | null, to: Date | null) => {
+    let d = 0;
+    for (const t of transactions) {
+      const td = txDateOf(t, config.dateType);
+      if (from && td < from) continue;
+      if (to && td > to) continue;
+      const amt = Number(t.amount);
+      if (t.account_id === accId) {
+        if (t.type === 'income') d += amt;
+        else if (t.type === 'expense') d -= amt;
+        else if (t.type === 'transfer') d -= amt + Number(t.transfer_fee || 0);
+      }
+      if (t.transfer_to_account_id === accId && t.type === 'transfer') d += amt;
+    }
+    return d;
+  };
   const accountFlows: AccountFlow[] = accounts.map((acc) => {
     const accTx = filteredTransactions.filter((t) => t.account_id === acc.id);
     const inflow = accTx.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
     const outflow = accTx.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
     const net = inflow - outflow;
-    const closing = Number(acc.balance);
+    const dayAfterEnd = new Date(periodEnd); dayAfterEnd.setDate(dayAfterEnd.getDate() + 1);
+    const closing = Number(acc.balance) - accountDelta(acc.id, dayAfterEnd, null);
+    const opening = closing - accountDelta(acc.id, periodStart, periodEnd);
     return {
       id: acc.id,
       name: acc.name,
       bank: acc.bank,
       type: acc.account_type,
       tail: acc.id.replace(/[^0-9a-z]/gi, '').slice(-4).toUpperCase(),
-      opening: closing - net,
+      opening,
       inflow,
       outflow,
       net,
