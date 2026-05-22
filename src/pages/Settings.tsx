@@ -444,18 +444,51 @@ const Settings = () => {
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
                       <Label className="text-sm">
-                        {t("settings.installPwa", { defaultValue: "Install Spending Tracker" })}
+                        {isStandalone
+                          ? t("settings.installPwaDone", { defaultValue: "JMRVY CB installée" })
+                          : t("settings.installPwa", { defaultValue: "Installer JMRVY CB" })}
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {t("settings.installPwaDesc", {
-                          defaultValue: "Add the app to your home screen for full-screen, offline-capable access.",
-                        })}
+                        {isStandalone
+                          ? t("settings.installPwaDoneDesc", {
+                              defaultValue: "L'app est déjà installée sur cet appareil.",
+                            })
+                          : isIOS
+                          ? t("settings.installPwaIosDesc", {
+                              defaultValue: "Sur iPhone : Partager → Sur l'écran d'accueil.",
+                            })
+                          : deferredPrompt
+                          ? t("settings.installPwaDesc", {
+                              defaultValue: "Ajoutez l'app à votre écran d'accueil pour un usage plein écran et hors ligne.",
+                            })
+                          : t("settings.installPwaUnavailable", {
+                              defaultValue: "Installation indisponible dans ce navigateur. Utilisez Chrome, Edge ou Safari sur mobile.",
+                            })}
                       </p>
+                      {showIosHelp && isIOS && (
+                        <ol className="mt-2 text-xs text-muted-foreground list-decimal pl-4 space-y-1">
+                          <li>Ouvrez cette page dans Safari</li>
+                          <li>Touchez l'icône Partager</li>
+                          <li>Choisissez "Sur l'écran d'accueil"</li>
+                          <li>Touchez "Ajouter"</li>
+                        </ol>
+                      )}
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleInstallPwa} className="h-8 text-xs">
-                      {t("settings.installPwaAction", { defaultValue: "Install…" })}
-                    </Button>
+                    {!isStandalone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleInstallPwa}
+                        disabled={!deferredPrompt && !isIOS}
+                        className="h-8 text-xs"
+                      >
+                        {isIOS
+                          ? t("settings.installPwaActionIos", { defaultValue: "Comment installer" })
+                          : t("settings.installPwaAction", { defaultValue: "Installer" })}
+                      </Button>
+                    )}
                   </div>
+
                 </div>
               </div>
             </section>
