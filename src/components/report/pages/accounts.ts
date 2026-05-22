@@ -185,7 +185,41 @@ export function renderAccounts(ctx: ReportCtx) {
   });
 
   const tableEnd = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-  y = tableEnd + 12;
+  y = tableEnd + 5;
+
+  // ── Reconciliation note · vs Budgets page ────────────────────────
+  // Accounts EXPENSES are gross so Opening + Income − Expenses + Transfers
+  // ties to Closing. Budgets are net of refunds and exclude stats-excluded
+  // items — surface the deltas so the two pages reconcile.
+  {
+    const txs = ctx.data.transactions;
+    let refundedExpense = 0;
+    let excludedExpense = 0;
+    for (const t of txs) {
+      if (t.type !== 'expense') continue;
+      const d = new Date(t.transaction_date);
+      if (d < actualDates.start || d > actualDates.end) continue;
+      if (t.include_in_stats === false) {
+        excludedExpense += Number(t.amount);
+      } else {
+        refundedExpense += Number(t.refunded_amount || 0);
+      }
+    }
+    const grossExp = tot.outflow;
+    const budgetExp = grossExp - refundedExpense - excludedExpense;
+    if (refundedExpense > 0 || excludedExpense > 0) {
+      mono(6.5);
+      setText(mute);
+      const parts = [
+        `Gross expenses ${fmt(grossExp)}`,
+        refundedExpense > 0 ? `− refunds ${fmt(refundedExpense)}` : null,
+        excludedExpense > 0 ? `− excluded ${fmt(excludedExpense)}` : null,
+        `= Budgets total ${fmt(budgetExp)}`,
+      ].filter(Boolean).join('   ');
+      pdf.text(parts, MARGIN_X, y);
+    }
+  }
+  y += 12;
 
   // ── Cumulative balance · all accounts ────────────────────────────
   y = drawSectionEyebrow(
