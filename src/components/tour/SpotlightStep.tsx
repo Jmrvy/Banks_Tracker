@@ -100,7 +100,7 @@ export function SpotlightStep() {
     };
   }, [rect, step, state.phase, next, dismissActive]);
 
-  // Keyboard shortcuts.
+  // Keyboard shortcuts + focus trap.
   useEffect(() => {
     if (!step) return;
     const onKey = (e: KeyboardEvent) => {
@@ -115,16 +115,45 @@ export function SpotlightStep() {
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         if (state.phase === "essentials") prev();
+      } else if (e.key === "Tab") {
+        // Focus trap: keep focus inside the tooltip.
+        const root = tooltipRef.current;
+        if (!root) return;
+        const focusables = root.querySelectorAll<HTMLElement>(
+          'button, [href], input, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [step, state.phase, next, prev, skipStep, dismissActive]);
 
-  // Focus tooltip on mount for screen readers.
+  // Focus tooltip + emit telemetry on step change.
   useEffect(() => {
     if (tooltipRef.current) tooltipRef.current.focus();
-  }, [step?.id]);
+    if (step) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("tour:event", {
+            detail: { type: "step_view", stepId: step.id, phase: state.phase },
+          }),
+        );
+      } catch {
+        /* noop */
+      }
+    }
+  }, [step?.id, state.phase]);
 
   const padded = useMemo(() => {
     if (!rect) return null;
