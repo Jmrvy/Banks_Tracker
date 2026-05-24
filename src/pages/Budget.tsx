@@ -8,9 +8,12 @@ import {
   ArrowUpRight,
   Bell,
   CalendarIcon,
+  CheckCircle2,
   ChevronDown,
   Download,
   Edit3,
+  History,
+  Pencil,
   Plus,
   Search,
   Sparkles,
@@ -19,6 +22,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wand2,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,7 @@ import { EditCategoryModal } from "@/components/EditCategoryModal";
 import { MiniDonut } from "@/components/MiniDonut";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import {
   useFinancialData,
@@ -218,6 +223,7 @@ const Budget = () => {
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { formatCurrency, preferences } = useUserPreferences();
+  const isMobile = useIsMobile();
 
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -1107,183 +1113,213 @@ const Budget = () => {
           )}
         </div>
 
-        {/* KPI strip — 3 tiles */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr_1fr] gap-3">
-          <KpiBudget
-            totalBudget={totals.totalBudget}
-            totalUsed={totals.totalUsed}
-            utilization={totals.utilization}
+        {/* Mobile triage view / Desktop KPI + list */}
+        {isMobile ? (
+          <MobileBudgetView
+            totals={totals}
+            stats={stats}
+            filtered={filtered}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            search={search}
+            setSearch={setSearch}
+            period={period}
+            showSuggestion={showSuggestion}
+            busyId={busyId}
+            applySuggestion={applySuggestion}
+            startEditing={startEditing}
+            handleDelete={handleDelete}
+            navigateToTransactions={navigateToTransactions}
             formatCurrency={formatCurrency}
             t={t}
           />
-          <KpiUsed
-            totalUsed={totals.totalUsed}
-            totalSpent={totals.totalSpent}
-            totalPrevSpent={totals.totalPrevSpent}
-            prevDelta={totals.prevDelta}
-            includeProjected={includeProjected}
-            elapsedDays={period.elapsedDays}
-            formatCurrency={formatCurrency}
-            t={t}
-          />
-          <KpiAttention
-            overCount={totals.overCount}
-            warnCount={totals.warnCount}
-            noBudgetCount={totals.noBudgetCount}
-            suggestableCount={totals.suggestableCount}
-            onAuto={autoBudgetMissing}
-            busy={bulkBusy}
-            t={t}
-          />
-        </div>
+        ) : (
+          <>
+            {/* KPI strip — 3 tiles */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr_1fr] gap-3">
+              <KpiBudget
+                totalBudget={totals.totalBudget}
+                totalUsed={totals.totalUsed}
+                utilization={totals.utilization}
+                formatCurrency={formatCurrency}
+                t={t}
+              />
+              <KpiUsed
+                totalUsed={totals.totalUsed}
+                totalSpent={totals.totalSpent}
+                totalPrevSpent={totals.totalPrevSpent}
+                prevDelta={totals.prevDelta}
+                includeProjected={includeProjected}
+                elapsedDays={period.elapsedDays}
+                formatCurrency={formatCurrency}
+                t={t}
+              />
+              <KpiAttention
+                overCount={totals.overCount}
+                warnCount={totals.warnCount}
+                noBudgetCount={totals.noBudgetCount}
+                suggestableCount={totals.suggestableCount}
+                onAuto={autoBudgetMissing}
+                busy={bulkBusy}
+                t={t}
+              />
+            </div>
 
-        {/* Filters */}
-        <div className="ft-card p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("budget.searchPlaceholder", {
-                  defaultValue: "Search a category...",
-                })}
-                className="h-9 pl-8 text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <FilterPill
-                active={statusFilter === "all"}
-                onClick={() => setStatusFilter("all")}
-                label={t("budget.filterAll", { defaultValue: "All" })}
-                count={stats.length}
-              />
-              <FilterPill
-                active={statusFilter === "over"}
-                onClick={() => setStatusFilter("over")}
-                label={t("budget.filterOver", { defaultValue: "Over" })}
-                count={totals.overCount}
-                tone="neg"
-              />
-              <FilterPill
-                active={statusFilter === "warn"}
-                onClick={() => setStatusFilter("warn")}
-                label={t("budget.filterWarn", { defaultValue: "Near limit" })}
-                count={totals.warnCount}
-                tone="warn"
-              />
-              <FilterPill
-                active={statusFilter === "noBudget"}
-                onClick={() => setStatusFilter("noBudget")}
-                label={t("budget.filterNoBudget", { defaultValue: "No budget" })}
-                count={totals.noBudgetCount}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Categories list */}
-        <div className="ft-card-flush flex flex-col">
-          <div className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 md:py-5 border-b border-line flex-wrap">
-            <div>
-              <h3 className="ft-card-title">
-                {t("budget.categoriesSection", { defaultValue: "Categories" })}
-              </h3>
-              <p className="ft-card-sub mt-0.5">
-                {filtered.length} / {categories.length} ·{" "}
-                {t("budget.scopedToPeriod", {
-                  defaultValue: "Stats scoped to the selected period",
-                })}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {rowView === "trend" && (
-                <div className="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block w-3 h-px bg-foreground/70" />
-                    {t("budget.legendCum", { defaultValue: "Cumulative" })}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block w-3 h-px border-t border-dashed border-line-strong" />
-                    {t("budget.legendBudget", { defaultValue: "Budget" })}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block w-px h-3 border-l border-dashed border-fg-dim" />
-                    {t("budget.legendToday", { defaultValue: "Today" })}
-                  </span>
+            {/* Filters */}
+            <div className="ft-card p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t("budget.searchPlaceholder", {
+                      defaultValue: "Search a category...",
+                    })}
+                    className="h-9 pl-8 text-sm"
+                  />
                 </div>
-              )}
-              <div
-                role="group"
-                aria-label={t("budget.rowViewToggle", {
-                  defaultValue: "Row visualisation",
-                })}
-                className="inline-flex rounded-lg border border-line bg-bg-subtle/50 p-0.5"
-              >
-                {(
-                  [
-                    ["trend", t("budget.viewTrend", { defaultValue: "Trend" })],
-                    ["gauge", t("budget.viewGauge", { defaultValue: "Gauge" })],
-                  ] as [RowView, string][]
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={rowView === key}
-                    onClick={() => setRowView(key)}
-                    className={cn(
-                      "px-2.5 h-7 rounded-md text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors",
-                      rowView === key
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+                <div className="flex flex-wrap gap-1.5">
+                  <FilterPill
+                    active={statusFilter === "all"}
+                    onClick={() => setStatusFilter("all")}
+                    label={t("budget.filterAll", { defaultValue: "All" })}
+                    count={stats.length}
+                  />
+                  {totals.overCount > 0 && (
+                    <FilterPill
+                      active={statusFilter === "over"}
+                      onClick={() => setStatusFilter("over")}
+                      label={t("budget.filterOver", { defaultValue: "Over" })}
+                      count={totals.overCount}
+                      tone="neg"
+                    />
+                  )}
+                  {totals.warnCount > 0 && (
+                    <FilterPill
+                      active={statusFilter === "warn"}
+                      onClick={() => setStatusFilter("warn")}
+                      label={t("budget.filterWarn", { defaultValue: "Near limit" })}
+                      count={totals.warnCount}
+                      tone="warn"
+                    />
+                  )}
+                  {totals.noBudgetCount > 0 && (
+                    <FilterPill
+                      active={statusFilter === "noBudget"}
+                      onClick={() => setStatusFilter("noBudget")}
+                      label={t("budget.filterNoBudget", { defaultValue: "No budget" })}
+                      count={totals.noBudgetCount}
+                    />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {filtered.length === 0 ? (
-            <div className="text-center py-10 text-sm text-muted-foreground">
-              {t("budget.noResults", {
-                defaultValue: "No categories match this filter.",
-              })}
+            {/* Categories list */}
+            <div className="ft-card-flush flex flex-col">
+              <div className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 md:py-5 border-b border-line flex-wrap">
+                <div>
+                  <h3 className="ft-card-title">
+                    {t("budget.categoriesSection", { defaultValue: "Categories" })}
+                  </h3>
+                  <p className="ft-card-sub mt-0.5">
+                    {filtered.length} / {categories.length} ·{" "}
+                    {t("budget.scopedToPeriod", {
+                      defaultValue: "Stats scoped to the selected period",
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {rowView === "trend" && (
+                    <div className="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block w-3 h-px bg-foreground/70" />
+                        {t("budget.legendCum", { defaultValue: "Cumulative" })}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block w-3 h-px border-t border-dashed border-line-strong" />
+                        {t("budget.legendBudget", { defaultValue: "Budget" })}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block w-px h-3 border-l border-dashed border-fg-dim" />
+                        {t("budget.legendToday", { defaultValue: "Today" })}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    role="group"
+                    aria-label={t("budget.rowViewToggle", {
+                      defaultValue: "Row visualisation",
+                    })}
+                    className="inline-flex rounded-lg border border-line bg-bg-subtle/50 p-0.5"
+                  >
+                    {(
+                      [
+                        ["trend", t("budget.viewTrend", { defaultValue: "Trend" })],
+                        ["gauge", t("budget.viewGauge", { defaultValue: "Gauge" })],
+                      ] as [RowView, string][]
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-pressed={rowView === key}
+                        onClick={() => setRowView(key)}
+                        className={cn(
+                          "px-2.5 h-7 rounded-md text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors",
+                          rowView === key
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {filtered.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground">
+                  {t("budget.noResults", {
+                    defaultValue: "No categories match this filter.",
+                  })}
+                </div>
+              ) : (
+                <div data-tour="budget-row" className="flex flex-col">
+                  {filtered.map((s) => (
+                    <CategoryRow
+                      key={s.category.id}
+                      s={s}
+                      expanded={!!expanded[s.category.id]}
+                      onToggle={() =>
+                        setExpanded((prev) => ({
+                          ...prev,
+                          [s.category.id]: !prev[s.category.id],
+                        }))
+                      }
+                      rowView={rowView}
+                      includeProjected={includeProjected}
+                      elapsedDays={period.elapsedBuckets}
+                      totalDays={period.buckets.count}
+                      elapsedFraction={period.elapsedFraction}
+                      showSuggestion={showSuggestion(s)}
+                      busy={busyId === s.category.id}
+                      onApplySuggestion={() =>
+                        applySuggestion(s.category.id, s.suggested)
+                      }
+                      onEdit={() => startEditing(s.category)}
+                      onDelete={() => handleDelete(s.category.id)}
+                      onViewTransactions={() => navigateToTransactions(s.category.id)}
+                      formatCurrency={formatCurrency}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div data-tour="budget-row" className="flex flex-col">
-              {filtered.map((s) => (
-                <CategoryRow
-                  key={s.category.id}
-                  s={s}
-                  expanded={!!expanded[s.category.id]}
-                  onToggle={() =>
-                    setExpanded((prev) => ({
-                      ...prev,
-                      [s.category.id]: !prev[s.category.id],
-                    }))
-                  }
-                  rowView={rowView}
-                  includeProjected={includeProjected}
-                  elapsedDays={period.elapsedBuckets}
-                  totalDays={period.buckets.count}
-                  elapsedFraction={period.elapsedFraction}
-                  showSuggestion={showSuggestion(s)}
-                  busy={busyId === s.category.id}
-                  onApplySuggestion={() =>
-                    applySuggestion(s.category.id, s.suggested)
-                  }
-                  onEdit={() => startEditing(s.category)}
-                  onDelete={() => handleDelete(s.category.id)}
-                  onViewTransactions={() => navigateToTransactions(s.category.id)}
-                  formatCurrency={formatCurrency}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       <EditCategoryModal
