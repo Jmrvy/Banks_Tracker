@@ -911,7 +911,8 @@
       "description": "Tap a feature to learn how to use it",
       "howTo": "How to use it",
       "preview": "Interface preview",
-      "tips": "Tips"
+      "tips": "Tips",
+      "goToPage": "Open in app"
     },
     "featureGuides": {
       "dashboard": {

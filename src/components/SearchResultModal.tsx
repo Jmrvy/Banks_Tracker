@@ -15,6 +15,7 @@ import {
   Target,
   TrendingUp,
   Wallet,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -43,12 +44,18 @@ export interface BudgetSummaryRow {
   monthlyBudget: number | null;
   /** Budget × number of months in the queried period. */
   expectedBudget: number | null;
-  /** Spent in the period (net of refunds). */
+  /** Spent in the period (net of refunds, actual transactions only). */
   spent: number;
-  /** Fraction of expected used, 0..N. Null when there's no budget. */
+  /** Projected future spend from recurring transactions (0 when not forecasted). */
+  projectedSpend: number;
+  /** Fraction of expected used (actual only), 0..N. Null when there's no budget. */
   pctUsed: number | null;
-  /** True when `spent > expectedBudget`. */
+  /** Fraction of expected used including projections, 0..N. Null when there's no budget. */
+  pctForecast: number | null;
+  /** True when `spent > expectedBudget` (actual). */
   breached: boolean;
+  /** True when `spent + projectedSpend > expectedBudget` (forecasted). */
+  forecastBreached: boolean;
 }
 
 /** Average-stats panel data. */
@@ -249,6 +256,14 @@ export function SearchResultModal({
         {/* BUDGET INTENT — progress bar per category */}
         {query.intent === "budget" && (
           <div className="space-y-2">
+            {query.forecasted && (
+              <div className="flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
+                <Zap className="w-3 h-3 text-info" />
+                {t("search.forecastedNote", {
+                  defaultValue: "Includes projected recurring transactions",
+                })}
+              </div>
+            )}
             {displayBudgetRows.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
                 {query.breachesOnly
@@ -261,13 +276,28 @@ export function SearchResultModal({
               </p>
             ) : (
               displayBudgetRows.map((row) => {
+                const isForecasted = query.forecasted && row.projectedSpend > 0;
+                // Actual bar uses actual pctUsed; forecast bar uses pctForecast
                 const pct = row.pctUsed ?? 0;
+                const pctF = row.pctForecast ?? pct;
                 const barPct = Math.min(100, pct * 100);
-                const barColor = row.breached
+                // Projected segment width: difference between forecast and actual, capped at 100 total
+                const projBarPct = isForecasted
+                  ? Math.min(100, pctF * 100) - barPct
+                  : 0;
+                const effectivePct = isForecasted ? pctF : pct;
+                const breachedNow = row.breached;
+                const breachedForecast = isForecasted ? row.forecastBreached : false;
+                const barColor = breachedNow
                   ? "bg-neg"
                   : pct >= 0.8
                   ? "bg-warning"
                   : "bg-pos";
+                const projBarColor = breachedForecast
+                  ? "bg-neg/50"
+                  : effectivePct >= 0.8
+                  ? "bg-warning/50"
+                  : "bg-pos/40";
                 return (
                   <div
                     key={row.categoryId}
@@ -280,7 +310,7 @@ export function SearchResultModal({
                           style={{ backgroundColor: row.color }}
                         />
                         <span className="text-sm font-medium truncate">{row.categoryName}</span>
-                        {row.breached ? (
+                        {breachedNow ? (
                           <Badge
                             variant="outline"
                             className="text-[10px] border-neg/40 text-neg bg-neg/10 px-1.5 py-0 h-4"
@@ -288,7 +318,15 @@ export function SearchResultModal({
                             <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
                             {t("search.breachBadge", { defaultValue: "Over budget" })}
                           </Badge>
-                        ) : row.pctUsed !== null && pct >= 0.8 ? (
+                        ) : breachedForecast ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-warning/40 text-warning bg-warning/10 px-1.5 py-0 h-4"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+                            {t("search.forecastBreachBadge", { defaultValue: "Forecast over" })}
+                          </Badge>
+                        ) : row.pctUsed !== null && effectivePct >= 0.8 ? (
                           <Badge
                             variant="outline"
                             className="text-[10px] border-warning/40 text-warning bg-warning/10 px-1.5 py-0 h-4"
@@ -306,44 +344,88 @@ export function SearchResultModal({
                         ) : null}
                       </div>
                       <span className="text-xs tabular-nums text-muted-foreground">
-                        {row.pctUsed !== null ? `${(pct * 100).toFixed(0)}%` : "—"}
+                        {row.pctUsed !== null
+                          ? isForecasted
+                            ? `${(pct * 100).toFixed(0)}% · ${(pctF * 100).toFixed(0)}% ${t("search.forecastSuffix", { defaultValue: "forecast" })}`
+                            : `${(pct * 100).toFixed(0)}%`
+                          : "—"}
                       </span>
                     </div>
                     {row.expectedBudget !== null ? (
                       <>
-                        <div className="h-1.5 rounded-full bg-bg-subtle overflow-hidden">
+                        {/* Split progress bar: solid = actual, hatched = projected */}
+                        <div className="h-1.5 rounded-full bg-bg-subtle overflow-hidden flex">
                           <div
-                            className={`h-full transition-all ${barColor}`}
+                            className={`h-full transition-all ${barColor} rounded-l-full`}
                             style={{ width: `${barPct}%` }}
                           />
-                          {row.breached && (
+                          {isForecasted && projBarPct > 0 && (
                             <div
-                              className="h-full bg-neg/40 -mt-1.5"
+                              className={`h-full transition-all ${projBarColor}`}
                               style={{
-                                width: `${Math.min(50, ((pct - 1) * 100))}%`,
-                                marginLeft: "100%",
+                                width: `${projBarPct}%`,
+                                backgroundImage:
+                                  "repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 4px)",
                               }}
                             />
                           )}
                         </div>
                         <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground tabular-nums">
-                          <span>
-                            <span className="text-foreground font-medium">
-                              {formatCurrency(row.spent)}
+                          {isForecasted ? (
+                            <span>
+                              <span className="text-foreground font-medium">
+                                {formatCurrency(row.spent)}
+                              </span>
+                              <span className="text-info/80">
+                                {" +"}
+                                {formatCurrency(row.projectedSpend)}
+                              </span>
+                              {" / "}
+                              {formatCurrency(row.expectedBudget)}
                             </span>
-                            {" / "}
-                            {formatCurrency(row.expectedBudget)}
-                          </span>
-                          <span className={row.breached ? "text-neg font-medium" : ""}>
-                            {row.breached
-                              ? `+${formatCurrency(row.spent - row.expectedBudget)} ${t("search.overBy", {
-                                  defaultValue: "over",
-                                })}`
-                              : `${formatCurrency(row.expectedBudget - row.spent)} ${t("search.left", {
-                                  defaultValue: "left",
-                                })}`}
-                          </span>
+                          ) : (
+                            <span>
+                              <span className="text-foreground font-medium">
+                                {formatCurrency(row.spent)}
+                              </span>
+                              {" / "}
+                              {formatCurrency(row.expectedBudget)}
+                            </span>
+                          )}
+                          {isForecasted ? (
+                            <span className={breachedForecast ? "text-warning font-medium" : ""}>
+                              {breachedForecast
+                                ? `+${formatCurrency(row.spent + row.projectedSpend - row.expectedBudget)} ${t("search.overBy", { defaultValue: "over" })}`
+                                : `${formatCurrency(row.expectedBudget - row.spent - row.projectedSpend)} ${t("search.left", { defaultValue: "left" })}`}
+                            </span>
+                          ) : (
+                            <span className={breachedNow ? "text-neg font-medium" : ""}>
+                              {breachedNow
+                                ? `+${formatCurrency(row.spent - row.expectedBudget)} ${t("search.overBy", { defaultValue: "over" })}`
+                                : `${formatCurrency(row.expectedBudget - row.spent)} ${t("search.left", { defaultValue: "left" })}`}
+                            </span>
+                          )}
                         </div>
+                        {/* Legend for forecasted view */}
+                        {isForecasted && (
+                          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-1">
+                              <span className="w-3 h-1.5 rounded-sm" style={{ backgroundColor: row.color }} />
+                              {t("search.actualLabel", { defaultValue: "Actual" })}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <span
+                                className="w-3 h-1.5 rounded-sm opacity-50"
+                                style={{
+                                  backgroundColor: row.color,
+                                  backgroundImage:
+                                    "repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)",
+                                }}
+                              />
+                              {t("search.projectedLabel", { defaultValue: "Projected" })}
+                            </span>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <p className="text-[11px] text-muted-foreground">
