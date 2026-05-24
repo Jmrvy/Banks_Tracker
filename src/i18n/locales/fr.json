@@ -911,7 +911,8 @@
       "description": "Touchez une fonctionnalité pour apprendre à l'utiliser",
       "howTo": "Comment l'utiliser",
       "preview": "Aperçu de l'interface",
-      "tips": "Astuces"
+      "tips": "Astuces",
+      "goToPage": "Ouvrir dans l'application"
     },
     "featureGuides": {
       "dashboard": {

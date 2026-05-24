@@ -20,9 +20,10 @@ import {
   ArrowUpRight, ArrowDownRight, MousePointerClick,
   Search, Download, Pencil, Trash2, MoreVertical,
   ChevronDown, CheckCircle2, Upload, Clock,
-  Command, ShieldCheck, EyeOff, Smartphone, Wifi, AlertTriangle
+  Command, ShieldCheck, EyeOff, Smartphone, Wifi, AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 
 const TOTAL_STEPS = 5;
 
@@ -1061,20 +1062,20 @@ const FeatureMockup = ({ id }: { id: string }) => {
 // fr.json. The component composes the full guide list at render time
 // via the `useGuideContent()` hook below so language toggles take
 // effect immediately.
-const GUIDE_META: { id: string; icon: typeof TrendingUp }[] = [
-  { id: 'dashboard', icon: TrendingUp },
-  { id: 'palette', icon: Command },
-  { id: 'accounts', icon: Wallet },
-  { id: 'transactions', icon: History },
-  { id: 'budget', icon: Target },
-  { id: 'savings', icon: PiggyBank },
-  { id: 'debts', icon: Scale },
-  { id: 'recurring', icon: Receipt },
-  { id: 'installments', icon: CreditCard },
-  { id: 'reports', icon: PieChart },
-  { id: 'notifications', icon: Bell },
-  { id: 'privacy', icon: ShieldCheck },
-  { id: 'settings', icon: Settings },
+const GUIDE_META: { id: string; icon: typeof TrendingUp; route: string }[] = [
+  { id: 'dashboard',     icon: TrendingUp,   route: '/' },
+  { id: 'palette',       icon: Command,      route: '/' },
+  { id: 'accounts',      icon: Wallet,       route: '/accounts' },
+  { id: 'transactions',  icon: History,      route: '/transactions' },
+  { id: 'budget',        icon: Target,       route: '/budget' },
+  { id: 'savings',       icon: PiggyBank,    route: '/savings' },
+  { id: 'debts',         icon: Scale,        route: '/scheduled?tab=loans' },
+  { id: 'recurring',     icon: Receipt,      route: '/scheduled?tab=subscriptions' },
+  { id: 'installments',  icon: CreditCard,   route: '/scheduled?tab=plans' },
+  { id: 'reports',       icon: PieChart,     route: '/analyse' },
+  { id: 'notifications', icon: Bell,         route: '/settings' },
+  { id: 'privacy',       icon: ShieldCheck,  route: '/' },
+  { id: 'settings',      icon: Settings,     route: '/settings' },
 ];
 
 
@@ -1112,6 +1113,7 @@ const Onboarding = () => {
           desc: t(`onboarding.featureGuides.${meta.id}.desc`, { defaultValue: '' }),
           steps: Array.isArray(steps) ? (steps as string[]) : [],
           tips: Array.isArray(tips) ? (tips as string[]) : [],
+          route: meta.route,
         };
       }),
     // i18n.language is the actual signal — t() is stable.
@@ -1255,6 +1257,44 @@ const Onboarding = () => {
     } else {
       // Last step: finish the setup
       handleFinish();
+    }
+  };
+
+  // Called from a guide sheet's "Go to page" button. Saves setup data
+  // (same as handleFinish) then navigates directly to the feature's route
+  // instead of the dashboard. In review mode just navigates immediately.
+  const handleGoToPage = async (route: string) => {
+    setLoading(true);
+    try {
+      if (!isReviewMode) {
+        for (const account of accounts) {
+          if (account.name.trim()) {
+            await createAccount({
+              name: account.name.trim(),
+              bank: account.bank as any,
+              account_type: account.account_type as any,
+              balance: parseFloat(account.balance) || 0,
+            });
+          }
+        }
+        for (const index of selectedCategories) {
+          const cat = defaultCategories[index];
+          await createCategory({ name: cat.name, color: cat.color, budget: null, icon: null });
+        }
+        updatePreferences({ currency });
+      }
+      localStorage.setItem('budget-app-onboarding-done', 'true');
+      localStorage.removeItem('budget-app-needs-onboarding');
+      const [path, search] = route.split('?');
+      navigate(`${path}${search ? `?${search}` : ''}`, { replace: true });
+    } catch {
+      toast({
+        title: t('common.error', { defaultValue: 'Error' }),
+        description: t('onboarding.toast.setupError', { defaultValue: 'An error occurred during setup.' }),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1649,6 +1689,20 @@ const Onboarding = () => {
                             </div>
                           )}
                         </div>
+
+                        {/* CTA — navigate to the actual page */}
+                        <SheetFooter className="pt-4 pb-2">
+                          <Button
+                            className="w-full gap-2"
+                            onClick={() => handleGoToPage(guide.route)}
+                            disabled={loading}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            {loading
+                              ? t('onboarding.configuring', { defaultValue: 'Setting up...' })
+                              : t('onboarding.guide.goToPage', { defaultValue: 'Open in app' })}
+                          </Button>
+                        </SheetFooter>
                       </>
                     );
                   })()}
