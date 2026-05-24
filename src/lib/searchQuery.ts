@@ -21,6 +21,10 @@ export type QueryType = "income" | "expense" | "transfer";
  */
 export type QueryIntent = "transactions" | "budget" | "top" | "average";
 
+/** Bilingual vocabulary for "forecasted" modifier on budget queries. */
+const FORECAST_RE =
+  /\b(forecast(?:ed)?|project(?:ed|ion)?|prevision(?:nel)?|previsionnels?|projete?s?|avec\s+projections?|including?\s+projections?)\b/i;
+
 export type PeriodKind =
   | "ytd"
   | "mtd"
@@ -44,6 +48,11 @@ export interface ParsedQuery {
   /** When intent === "budget", true if the user asked specifically for
    *  *breaches* (over-budget categories) rather than a status read. */
   breachesOnly: boolean;
+  /** When intent === "budget", true if the user asked for a forecasted
+   *  view that includes projected recurring transactions on top of
+   *  actual spend — mirrors the "with projections" toggle on the
+   *  Budget/Analysis page. */
+  forecasted: boolean;
   /** When intent === "top", how many rows to surface. Defaults to 5. */
   topN: number;
   type?: QueryType;
@@ -558,6 +567,17 @@ export function parseQuery(
     if (!breachesOnly) matchedDescription.push("intent:budget");
   }
 
+  // Forecast modifier — recognised on budget queries to include projected
+  // recurring spend on top of actual transactions. Can appear anywhere in
+  // the query ("Budget Shopping 2026 Forecasted", "Previsionnel budget").
+  let forecasted = false;
+  if (FORECAST_RE.test(working)) {
+    forecasted = true;
+    if (intent === "transactions") intent = "budget"; // imply budget intent
+    working = working.replace(FORECAST_RE, " ").trim();
+    matchedDescription.push("intent:budget_forecasted");
+  }
+
   const topRe = /\b(top|biggest|largest|plus\s+grosses?|plus\s+grandes?)(?:\s+(\d{1,3}))?\b/i;
   const topMatch = working.match(topRe);
   if (topMatch && intent === "transactions") {
@@ -697,6 +717,7 @@ export function parseQuery(
   return {
     intent,
     breachesOnly,
+    forecasted,
     topN,
     type: effectiveType,
     categoryIds: catMatch.ids,

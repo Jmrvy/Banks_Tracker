@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/command';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useDebts } from '@/hooks/useDebts';
+import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useDateFnsLocale } from '@/hooks/useDateFnsLocale';
@@ -41,6 +42,8 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { parseQuery, normalise, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
 import { aggregateTransactions } from '@/lib/transactionMath';
+import { getRecurringDisplayAmount, getRecurringEffectiveType, resolveDebtForRecurring } from '@/lib/recurringAmount';
+import { addDays, addWeeks, addMonths, addQuarters, addYears } from 'date-fns';
 import {
   SearchResultModal,
   type BudgetSummaryRow,
@@ -109,8 +112,9 @@ export const CommandPalette = () => {
   // instead of dispatching a synthetic keyboard event.
   const { open, setOpen, togglePalette, closePalette } = useCommandPalette();
   const navigate = useNavigate();
-  const { accounts, transactions, categories } = useFinancialData();
-  const { debts } = useDebts();
+  const { accounts, transactions, categories, recurringTransactions } = useFinancialData();
+  const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
+  const { installmentPayments } = useInstallmentPayments();
   const { goals } = useSavingsGoals();
   const { formatCurrency, preferences } = useUserPreferences();
 
@@ -297,6 +301,120 @@ export const CommandPalette = () => {
     return transactions.filter((tx) => matchPredicate(effectiveQuery, tx));
   }, [effectiveQuery, transactions, matchPredicate]);
 
+  // Projected spend per category from recurring transactions — used when the
+  // user adds "forecasted" to a budget query. Mirrors the Budget page logic.
+  const projectedByCategoryMap = useMemo<Map<string, number>>(() => {
+    const map = new Map<string, number>();
+    if (!effectiveQuery || effectiveQuery.intent !== 'budget' || !effectiveQuery.forecasted) return map;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const periodEnd = effectiveQuery.dateRange.end;
+    if (periodEnd < today) return map; // period entirely in the past, nothing to project
+
+    const installmentMap = new Map(installmentPayments.map((ip) => [ip.id, ip]));
+
+    const advanceDate = (d: Date, recType: string): Date => {
+      switch (recType) {
+        case 'daily': return addDays(d, 1);
+        case 'weekly': return addWeeks(d, 1);
+        case 'monthly': return addMonths(d, 1);
+        case 'quarterly': return addQuarters(d, 1);
+        case 'yearly': return addYears(d, 1);
+        default: return addMonths(d, 1);
+      }
+    };
+
+    for (const rt of recurringTransactions) {
+      if (!rt.is_active) continue;
+      if (!rt.next_due_date) continue;
+      if (!rt.category?.id) continue;
+
+      // Only expense-type recurrences (or installment reimbursements) count.
+      const effectiveType = getRecurringEffectiveType(rt, installmentPayments);
+      if (effectiveType !== 'expense') continue;
+
+      // Skip if only certain categories are targeted and this isn't one.
+      if (effectiveQuery.categoryIds.length && !effectiveQuery.categoryIds.includes(rt.category.id)) continue;
+
+      // Skip completed installments.
+      if (rt.installment_payment_id) {
+        const ip = installmentMap.get(rt.installment_payment_id);
+        if (!ip || !ip.is_active || ip.remaining_amount <= 0) continue;
+      }
+      // Skip completed debts.
+      if (rt.debt_id) {
+        const debt = debts.find((d) => d.id === rt.debt_id);
+        if (!debt || debt.status === 'completed' || debt.remaining_amount <= 0) continue;
+      }
+
+      // Compute effective end date respecting installment/debt caps.
+      const rtEndDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
+      let effectiveEnd: Date | null = rtEndDate;
+      const nextDue = parseLocalDate(rt.next_due_date);
+
+      if (rt.installment_payment_id) {
+        const ip = installmentMap.get(rt.installment_payment_id);
+        if (ip && ip.is_active && ip.installment_amount > 0) {
+          const maxFuture = Math.max(0, Math.ceil(ip.remaining_amount / ip.installment_amount));
+          if (maxFuture <= 0) {
+            const stop = new Date(nextDue.getTime() - 86400000);
+            if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
+          } else {
+            let last = new Date(nextDue);
+            for (let i = 1; i < maxFuture; i++) last = advanceDate(last, rt.recurrence_type);
+            if (!effectiveEnd || last < effectiveEnd) effectiveEnd = last;
+          }
+        }
+      }
+
+      const debt = resolveDebtForRecurring(rt, debts);
+      if (debt) {
+        if (debt.status === 'completed') {
+          const stop = new Date(nextDue.getTime() - 86400000);
+          if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
+        } else {
+          const unpaidCount = scheduledDebtPayments.filter(
+            (sp) => sp.debt_id === debt.id && !sp.is_paid
+          ).length;
+          const maxFuture =
+            unpaidCount > 0
+              ? unpaidCount
+              : debt.payment_amount > 0
+              ? Math.max(0, Math.ceil(debt.remaining_amount / debt.payment_amount))
+              : 0;
+          if (maxFuture <= 0) {
+            const stop = new Date(nextDue.getTime() - 86400000);
+            if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
+          } else {
+            let last = new Date(nextDue);
+            for (let i = 1; i < maxFuture; i++) last = advanceDate(last, rt.recurrence_type);
+            if (!effectiveEnd || last < effectiveEnd) effectiveEnd = last;
+          }
+        }
+      }
+
+      let cursor = new Date(nextDue);
+      cursor.setHours(0, 0, 0, 0);
+      const cap = 500;
+      let n = 0;
+      while (cursor <= periodEnd && n < cap) {
+        if (effectiveEnd && cursor > effectiveEnd) break;
+        // Only count occurrences that are in the future (from today onwards)
+        // and within the queried period.
+        if (cursor >= today && cursor >= effectiveQuery.dateRange.start) {
+          const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+          const amt = getRecurringDisplayAmount(rt, dateStr, installmentPayments, debts, scheduledDebtPayments);
+          const catId = rt.category.id;
+          map.set(catId, (map.get(catId) ?? 0) + amt);
+        }
+        cursor = advanceDate(cursor, rt.recurrence_type);
+        n++;
+      }
+    }
+    return map;
+  }, [effectiveQuery, recurringTransactions, installmentPayments, debts, scheduledDebtPayments]);
+
   // Budget rows: for every relevant category, compute spent (net of
   // refunds) over the period and compare to monthly_budget × months.
   // Targeted to the user-named categories when they specified some,
@@ -339,10 +457,17 @@ export const CommandPalette = () => {
           (acc, tx) => acc + (Number(tx.amount) - Number(tx.refunded_amount || 0)),
           0
         );
+        const projectedSpend = projectedByCategoryMap.get(cat.id) ?? 0;
         const monthlyBudget = cat.budget && cat.budget > 0 ? Number(cat.budget) : null;
         const expectedBudget = monthlyBudget !== null ? monthlyBudget * months : null;
         const pctUsed = expectedBudget !== null && expectedBudget > 0 ? spent / expectedBudget : null;
+        const pctForecast =
+          expectedBudget !== null && expectedBudget > 0
+            ? (spent + projectedSpend) / expectedBudget
+            : null;
         const breached = expectedBudget !== null && spent > expectedBudget;
+        const forecastBreached =
+          expectedBudget !== null && spent + projectedSpend > expectedBudget;
         return {
           categoryId: cat.id,
           categoryName: cat.name,
@@ -350,19 +475,25 @@ export const CommandPalette = () => {
           monthlyBudget,
           expectedBudget,
           spent,
+          projectedSpend,
           pctUsed,
+          pctForecast,
           breached,
+          forecastBreached,
         } satisfies BudgetSummaryRow;
       })
       // For a multi-category budget view, surface budgeted categories
       // first and sort breaches to the top.
       .sort((a, b) => {
-        if (a.breached !== b.breached) return a.breached ? -1 : 1;
-        const ap = a.pctUsed ?? -1;
-        const bp = b.pctUsed ?? -1;
+        // In forecasted mode, sort by forecast breach first.
+        const aBreached = effectiveQuery.forecasted ? a.forecastBreached : a.breached;
+        const bBreached = effectiveQuery.forecasted ? b.forecastBreached : b.breached;
+        if (aBreached !== bBreached) return aBreached ? -1 : 1;
+        const ap = (effectiveQuery.forecasted ? a.pctForecast : a.pctUsed) ?? -1;
+        const bp = (effectiveQuery.forecasted ? b.pctForecast : b.pctUsed) ?? -1;
         return bp - ap;
       });
-  }, [effectiveQuery, categories, transactions, matchPredicate]);
+  }, [effectiveQuery, categories, transactions, matchPredicate, projectedByCategoryMap]);
 
   // Average stats over the queried period: total / day / week / month.
   const averageStats = useMemo<AverageStats | null>(() => {
@@ -445,6 +576,10 @@ export const CommandPalette = () => {
     if (!effectiveQuery) return { headline: '', figure: '' };
     switch (effectiveQuery.intent) {
       case 'budget': {
+        const isForecasted = effectiveQuery.forecasted;
+        const forecastLabel = isForecasted
+          ? ` · ${t('search.forecastSuffix', { defaultValue: 'forecast' })}`
+          : '';
         if (effectiveQuery.breachesOnly) {
           const breaches = budgetRows.filter((r) => r.breached);
           return {
@@ -457,21 +592,23 @@ export const CommandPalette = () => {
         }
         if (budgetRows.length === 1) {
           const r = budgetRows[0];
-          if (r.expectedBudget !== null && r.pctUsed !== null) {
+          const pct = isForecasted ? (r.pctForecast ?? r.pctUsed) : r.pctUsed;
+          const remaining = isForecasted
+            ? Math.max(0, (r.expectedBudget ?? 0) - r.spent - r.projectedSpend)
+            : Math.max(0, (r.expectedBudget ?? 0) - r.spent);
+          if (r.expectedBudget !== null && pct !== null) {
             return {
-              headline: `${t('search.intent.budget', { defaultValue: 'Budget' })} · ${r.categoryName}`,
-              figure: `${(r.pctUsed * 100).toFixed(0)}% · ${formatCurrency(
-                Math.max(0, r.expectedBudget - r.spent)
-              )} ${t('search.left', { defaultValue: 'left' })}`,
+              headline: `${t('search.intent.budget', { defaultValue: 'Budget' })} · ${r.categoryName}${forecastLabel}`,
+              figure: `${(pct * 100).toFixed(0)}% · ${formatCurrency(remaining)} ${t('search.left', { defaultValue: 'left' })}`,
             };
           }
           return {
-            headline: `${t('search.intent.budget', { defaultValue: 'Budget' })} · ${r.categoryName}`,
+            headline: `${t('search.intent.budget', { defaultValue: 'Budget' })} · ${r.categoryName}${forecastLabel}`,
             figure: formatCurrency(r.spent),
           };
         }
         return {
-          headline: t('search.intent.budget', { defaultValue: 'Budget' }),
+          headline: `${t('search.intent.budget', { defaultValue: 'Budget' })}${forecastLabel}`,
           figure: t('search.budgetCategoryCount', {
             count: budgetRows.length,
             defaultValue: `${budgetRows.length} categor${budgetRows.length === 1 ? 'y' : 'ies'}`,
