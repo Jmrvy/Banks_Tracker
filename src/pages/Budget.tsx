@@ -1530,6 +1530,640 @@ function Pip({ toneClass, children }: { toneClass: string; children: React.React
 }
 
 // =============================================================================
+// Mobile components — PaceBar, OverCard, CompactRow, BudgetView
+// =============================================================================
+
+interface MobilePaceBarProps {
+  used: number;
+  budget: number | null;
+  elapsedFraction: number;
+  status: Status;
+  height?: number;
+}
+function MobilePaceBar({ used, budget, elapsedFraction, status, height = 6 }: MobilePaceBarProps) {
+  if (budget == null || budget <= 0) return null;
+  const ratio = Math.min(used / budget, 1.3);
+  const fillPct = Math.min(ratio, 1) * 100;
+  const overPct = ratio > 1 ? Math.min((ratio - 1) / 0.3, 1) * 25 : 0;
+  const fillColor =
+    status === "over" ? "bg-destructive" : status === "warn" ? "bg-warning" : "bg-pos";
+  return (
+    <div className="relative w-full overflow-visible" style={{ height }}>
+      {/* Track */}
+      <div className="absolute inset-0 rounded-full bg-bg-subtle" />
+      {/* Fill */}
+      <div
+        className={`absolute top-0 bottom-0 left-0 rounded-full ${fillColor}`}
+        style={{ width: `${fillPct}%` }}
+      />
+      {/* Overflow tail — striped */}
+      {ratio > 1 && (
+        <div
+          className="absolute top-0 bottom-0 rounded-full bg-destructive/50"
+          style={{ left: "100%", marginLeft: 2, width: `${overPct}%` }}
+        />
+      )}
+      {/* Today tick */}
+      <div
+        className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-white rounded-full shadow-sm border border-black/15"
+        style={{ left: `${elapsedFraction * 100}%`, marginLeft: -1 }}
+      />
+    </div>
+  );
+}
+
+interface MobileOverCardProps {
+  s: CategoryStats;
+  elapsedFraction: number;
+  showSuggestion: boolean;
+  busy: boolean;
+  onApplySuggestion: () => void;
+  onEdit: () => void;
+  onViewTransactions: () => void;
+  formatCurrency: (n: number) => string;
+  t: (k: string, o?: any) => string;
+}
+function MobileOverCard({
+  s,
+  elapsedFraction,
+  showSuggestion,
+  busy,
+  onApplySuggestion,
+  onEdit,
+  onViewTransactions,
+  formatCurrency,
+  t,
+}: MobileOverCardProps) {
+  const ratio = s.periodBudget && s.periodBudget > 0 ? s.used / s.periodBudget : 0;
+  const overAmt = Math.max(0, s.used - (s.periodBudget ?? 0));
+  return (
+    <div className="ft-card p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        <CategoryIcon icon={s.category.icon} color={s.category.color} size={42} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-semibold tracking-tight">{s.category.name}</p>
+          <p className="text-[12px] text-destructive font-semibold font-mono tabular-nums mt-0.5">
+            +{formatCurrency(overAmt)} {t("budget.over", { defaultValue: "over" })}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold font-mono tabular-nums text-destructive tracking-tight">
+            {Math.round(ratio * 100)}%
+          </p>
+          <p className="text-[10.5px] text-muted-foreground font-mono">
+            {t("budget.ofBudget", { defaultValue: "of budget" })}
+          </p>
+        </div>
+      </div>
+      <MobilePaceBar
+        used={s.used}
+        budget={s.periodBudget}
+        elapsedFraction={elapsedFraction}
+        status="over"
+        height={6}
+      />
+      <div className="flex items-center justify-between text-[11.5px] font-mono tabular-nums">
+        <span className="font-medium">{formatCurrency(s.used)}</span>
+        <span className="text-muted-foreground">
+          {t("budget.budget", { defaultValue: "budget" })}{" "}
+          {s.periodBudget != null ? formatCurrency(s.periodBudget) : "—"}
+        </span>
+      </div>
+      <div className="flex gap-2">
+        {showSuggestion && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 h-9 text-xs gap-1.5"
+            onClick={onApplySuggestion}
+            disabled={busy}
+          >
+            <Zap className="h-3.5 w-3.5 text-warning" />
+            {busy
+              ? t("common.saving", { defaultValue: "Saving…" })
+              : `${t("budget.suggest", { defaultValue: "Suggest" })} ${formatCurrency(s.suggested)}`}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 px-3 text-xs text-muted-foreground"
+          onClick={onViewTransactions}
+        >
+          <History className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 px-3 text-xs text-muted-foreground"
+          onClick={onEdit}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+interface MobileCompactRowProps {
+  s: CategoryStats;
+  elapsedFraction: number;
+  onEdit: () => void;
+  onViewTransactions: () => void;
+  formatCurrency: (n: number) => string;
+  t: (k: string, o?: any) => string;
+  border?: boolean;
+}
+function MobileCompactRow({
+  s,
+  elapsedFraction,
+  onEdit,
+  onViewTransactions,
+  formatCurrency,
+  t,
+  border = false,
+}: MobileCompactRowProps) {
+  const ratio = s.periodBudget && s.periodBudget > 0 ? s.used / s.periodBudget : 0;
+  const metaMap: Record<string, { dot: string; label: string; color: string }> = {
+    over: {
+      dot: "bg-destructive",
+      label: t("categories.overBudget", { defaultValue: "Over" }),
+      color: "text-destructive",
+    },
+    warn: {
+      dot: "bg-warning",
+      label: t("categories.nearLimit", { defaultValue: "Near limit" }),
+      color: "text-warning",
+    },
+    ok: {
+      dot: "bg-pos",
+      label: t("budget.onTrack", { defaultValue: "OK" }),
+      color: "text-pos",
+    },
+    noBudget: {
+      dot: "bg-muted-foreground/40",
+      label: t("categories.noBudgetTag", { defaultValue: "No budget" }),
+      color: "text-muted-foreground",
+    },
+  };
+  const meta = metaMap[s.status] ?? {
+    dot: "bg-muted-foreground/40",
+    label: "",
+    color: "text-muted-foreground",
+  };
+
+  return (
+    <div className={cn("flex items-start gap-3 px-4 py-3.5", border && "border-t border-line")}>
+      <CategoryIcon icon={s.category.icon} color={s.category.color} size={38} />
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[14.5px] font-semibold tracking-tight truncate">
+              {s.category.name}
+            </p>
+            <p className="text-[11.5px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+              <span className={cn("w-2 h-2 rounded-full flex-shrink-0", meta.dot)} />
+              <span className={cn("font-semibold", meta.color)}>{meta.label}</span>
+              {s.periodBudget != null && (
+                <span className="text-muted-foreground/60">
+                  · {Math.round(ratio * 100)}%
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[13.5px] font-semibold font-mono tabular-nums">
+              {formatCurrency(s.used)}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono tabular-nums mt-0.5">
+              {s.periodBudget != null ? `/ ${formatCurrency(s.periodBudget)}` : "—"}
+            </p>
+          </div>
+        </div>
+        {s.periodBudget != null && (
+          <MobilePaceBar
+            used={s.used}
+            budget={s.periodBudget}
+            elapsedFraction={elapsedFraction}
+            status={s.status}
+            height={5}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface MobileBudgetViewProps {
+  totals: {
+    totalBudget: number;
+    totalSpent: number;
+    totalUsed: number;
+    overCount: number;
+    warnCount: number;
+    noBudgetCount: number;
+    utilization: number;
+  };
+  stats: CategoryStats[];
+  filtered: CategoryStats[];
+  statusFilter: StatusFilter;
+  setStatusFilter: (f: StatusFilter) => void;
+  search: string;
+  setSearch: (v: string) => void;
+  period: {
+    label: string;
+    elapsedDays: number;
+    totalDays: number;
+    elapsedFraction: number;
+  };
+  showSuggestion: (s: CategoryStats) => boolean;
+  busyId: string | null;
+  applySuggestion: (categoryId: string, suggested: number) => void;
+  startEditing: (cat: any) => void;
+  handleDelete: (id: string) => void;
+  navigateToTransactions: (id: string) => void;
+  formatCurrency: (n: number) => string;
+  t: (k: string, o?: any) => string;
+}
+
+function MobileBudgetView({
+  totals,
+  stats,
+  filtered,
+  statusFilter,
+  setStatusFilter,
+  search,
+  setSearch,
+  period,
+  showSuggestion,
+  busyId,
+  applySuggestion,
+  startEditing,
+  handleDelete,
+  navigateToTransactions,
+  formatCurrency,
+  t,
+}: MobileBudgetViewProps) {
+  const [healthyOpen, setHealthyOpen] = useState(false);
+
+  // Split into groups for triage layout
+  const overStats = filtered.filter((s) => s.status === "over");
+  const warnStats = filtered.filter((s) => s.status === "warn");
+  const healthyStats = filtered.filter(
+    (s) => s.status === "ok" || s.status === "noBudget"
+  );
+
+  const totalOver = overStats.reduce(
+    (sum, s) => sum + Math.max(0, s.used - (s.periodBudget ?? 0)),
+    0
+  );
+
+  // Show triage layout only when filter is "all" or "over" and there are over-budget items
+  const showTriage =
+    (statusFilter === "all" || statusFilter === "over") && totals.overCount > 0;
+
+  type TabTone = "neg" | "warn" | undefined;
+  const tabs: { id: StatusFilter; label: string; count: number; tone?: TabTone }[] = [
+    { id: "all", label: t("budget.filterAll", { defaultValue: "All" }), count: stats.length },
+    {
+      id: "over",
+      label: t("budget.filterOver", { defaultValue: "Over" }),
+      count: totals.overCount,
+      tone: "neg",
+    },
+    ...(totals.warnCount > 0
+      ? [
+          {
+            id: "warn" as StatusFilter,
+            label: t("budget.filterWarn", { defaultValue: "Near limit" }),
+            count: totals.warnCount,
+            tone: "warn" as TabTone,
+          },
+        ]
+      : []),
+    ...(totals.noBudgetCount > 0
+      ? [
+          {
+            id: "noBudget" as StatusFilter,
+            label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
+            count: totals.noBudgetCount,
+            tone: undefined,
+          },
+        ]
+      : []),
+  ];
+
+  return (
+    <div className="space-y-3">
+      {/* Period summary card */}
+      <div className="ft-card p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("budget.spentThisPeriod", { defaultValue: "Spent this period" })}
+            </p>
+            <p className="text-2xl font-bold tracking-tight font-mono tabular-nums mt-0.5">
+              {formatCurrency(totals.totalSpent)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("budget.budgetForPeriod", { defaultValue: "Budget" })}
+            </p>
+            <p
+              className={cn(
+                "text-sm font-semibold font-mono tabular-nums mt-1",
+                totals.utilization > period.elapsedFraction + 0.05
+                  ? "text-destructive"
+                  : "text-pos"
+              )}
+            >
+              {(totals.utilization * 100).toFixed(0)}%{" "}
+              · {t("budget.expected", { defaultValue: "expected" })}{" "}
+              {(period.elapsedFraction * 100).toFixed(0)}%
+            </p>
+          </div>
+        </div>
+        <MobilePaceBar
+          used={totals.totalSpent}
+          budget={totals.totalBudget}
+          elapsedFraction={period.elapsedFraction}
+          status={
+            totals.utilization >= 1
+              ? "over"
+              : totals.utilization > period.elapsedFraction + 0.05
+              ? "warn"
+              : "ok"
+          }
+          height={8}
+        />
+        {totals.overCount > 0 && (
+          <p className="text-[12.5px] text-muted-foreground flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+            <span>
+              <span className="font-semibold text-foreground">
+                {totals.overCount}{" "}
+                {t("budget.categoriesOver", { defaultValue: "categories over" })}
+              </span>
+              {" · "}
+              {formatCurrency(totalOver)}{" "}
+              {t("budget.abovePace", { defaultValue: "above budget" })}
+            </span>
+          </p>
+        )}
+      </div>
+
+      {/* Filter + search */}
+      <div className="space-y-2">
+        <div className="ft-card flex items-center gap-2 px-3 py-2.5">
+          <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("budget.searchPlaceholder", {
+              defaultValue: "Search a category…",
+            })}
+            className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+          {tabs.map((tab) => {
+            const active = statusFilter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={cn(
+                  "flex-shrink-0 h-8 px-3 rounded-full text-[12.5px] font-semibold border transition-colors inline-flex items-center gap-1.5",
+                  active
+                    ? tab.tone === "neg"
+                      ? "bg-destructive text-white border-destructive"
+                      : tab.tone === "warn"
+                      ? "bg-warning text-warning-foreground border-warning"
+                      : "bg-foreground text-background border-foreground"
+                    : "bg-card text-muted-foreground border-line"
+                )}
+              >
+                {tab.label}
+                <span
+                  className={cn(
+                    "text-[11px] font-mono",
+                    active ? "opacity-70" : "text-muted-foreground/60"
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Triage: hero card when there are over-budget items (filter=all or filter=over) */}
+      {showTriage && (
+        <>
+          {/* Dark hero card */}
+          <div className="rounded-2xl bg-foreground text-background p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-destructive grid place-items-center flex-shrink-0">
+                <AlertTriangle className="h-3.5 w-3.5 text-white" />
+              </div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
+                {t("budget.needsAttention", { defaultValue: "Needs attention" })}
+              </span>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold tracking-tight font-mono">
+                  {totals.overCount}
+                </span>
+                <span className="text-base font-medium opacity-80">
+                  {t("budget.categoriesExceeded", {
+                    defaultValue: "categories exceeded",
+                  })}
+                </span>
+              </div>
+              <p className="text-sm opacity-60 mt-1 font-mono tabular-nums">
+                {formatCurrency(totalOver)}{" "}
+                {t("budget.aboveBudgetTotal", {
+                  defaultValue: "above budgeted total",
+                })}
+              </p>
+            </div>
+            {/* Worst offenders horizontal strip */}
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+              {overStats.slice(0, 5).map((s) => {
+                const ratio =
+                  s.periodBudget && s.periodBudget > 0
+                    ? s.used / s.periodBudget
+                    : 0;
+                return (
+                  <div
+                    key={s.category.id}
+                    className="flex-shrink-0 min-w-[120px] rounded-xl p-3 space-y-1.5"
+                    style={{
+                      background: "rgba(255,255,255,0.07)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded-lg grid place-items-center flex-shrink-0"
+                        style={{ background: `${s.category.color}30` }}
+                      >
+                        <CategoryIcon
+                          icon={s.category.icon}
+                          color={s.category.color}
+                          size={16}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold truncate">
+                        {s.category.name}
+                      </span>
+                    </div>
+                    <p className="text-lg font-bold font-mono tabular-nums tracking-tight">
+                      {Math.round(ratio * 100)}%
+                    </p>
+                    <p className="text-[10.5px] opacity-55 font-mono tabular-nums">
+                      +{formatCurrency(Math.max(0, s.used - (s.periodBudget ?? 0)))}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Over-budget cards */}
+          {overStats.length > 0 && (
+            <div className="space-y-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                {t("budget.exceeded", { defaultValue: "Exceeded" })} ·{" "}
+                {overStats.length}
+              </p>
+              {overStats.map((s) => (
+                <MobileOverCard
+                  key={s.category.id}
+                  s={s}
+                  elapsedFraction={period.elapsedFraction}
+                  showSuggestion={showSuggestion(s)}
+                  busy={busyId === s.category.id}
+                  onApplySuggestion={() =>
+                    applySuggestion(s.category.id, s.suggested)
+                  }
+                  onEdit={() => startEditing(s.category)}
+                  onViewTransactions={() =>
+                    navigateToTransactions(s.category.id)
+                  }
+                  formatCurrency={formatCurrency}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Warn cards — compact */}
+          {warnStats.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                {t("budget.filterWarn", { defaultValue: "Near limit" })} ·{" "}
+                {warnStats.length}
+              </p>
+              {warnStats.map((s) => (
+                <MobileCompactRow
+                  key={s.category.id}
+                  s={s}
+                  elapsedFraction={period.elapsedFraction}
+                  onEdit={() => startEditing(s.category)}
+                  onViewTransactions={() =>
+                    navigateToTransactions(s.category.id)
+                  }
+                  formatCurrency={formatCurrency}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Healthy accordion */}
+          <button
+            type="button"
+            onClick={() => setHealthyOpen((o) => !o)}
+            className="ft-card w-full flex items-center gap-3 p-4 text-left"
+          >
+            <div className="w-8 h-8 rounded-xl bg-pos/10 grid place-items-center flex-shrink-0">
+              <CheckCircle2 className="h-4 w-4 text-pos" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">
+                {t("budget.onTrack", { defaultValue: "On track" })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {healthyStats.length}{" "}
+                {t("budget.categoriesOnTrack", {
+                  defaultValue: "categories on track",
+                })}
+              </p>
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                healthyOpen && "rotate-180"
+              )}
+            />
+          </button>
+
+          {healthyOpen && (
+            <div className="ft-card-flush overflow-hidden">
+              {healthyStats.map((s, i) => (
+                <MobileCompactRow
+                  key={s.category.id}
+                  s={s}
+                  elapsedFraction={period.elapsedFraction}
+                  onEdit={() => startEditing(s.category)}
+                  onViewTransactions={() =>
+                    navigateToTransactions(s.category.id)
+                  }
+                  formatCurrency={formatCurrency}
+                  t={t}
+                  border={i > 0}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Non-triage: show all filtered as compact rows */}
+      {!showTriage && (
+        <div className="ft-card-flush overflow-hidden">
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {t("budget.noResults", {
+                defaultValue: "No categories match this filter.",
+              })}
+            </p>
+          ) : (
+            filtered.map((s, i) => (
+              <MobileCompactRow
+                key={s.category.id}
+                s={s}
+                elapsedFraction={period.elapsedFraction}
+                onEdit={() => startEditing(s.category)}
+                onViewTransactions={() => navigateToTransactions(s.category.id)}
+                formatCurrency={formatCurrency}
+                t={t}
+                border={i > 0}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // Category row — condensed by default, expands inline
 // =============================================================================
 
