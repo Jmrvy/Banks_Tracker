@@ -19,7 +19,7 @@ export interface TourStep {
   placement?: "top" | "bottom" | "left" | "right";
 }
 
-export const TOUR_VERSION = 1;
+export const TOUR_VERSION = 2;
 export const TOUR_STORAGE_KEY = "budget-app-tour-progress";
 export const TOUR_VERSION_KEY = "budget-app-tour-version";
 

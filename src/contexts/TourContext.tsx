@@ -46,6 +46,7 @@ type Action =
   | { type: "openChecklist"; id: string }
   | { type: "dismissActive" }
   | { type: "toggleRail" }
+  | { type: "setRailOpen"; open: boolean }
   | { type: "finish" }
   | { type: "restart" };
 
@@ -65,7 +66,15 @@ function complete(state: TourState, id: string): string[] {
 function reducer(state: TourState, action: Action): TourState {
   switch (action.type) {
     case "hydrate":
-      return { ...state, ...action.payload };
+      return {
+        ...state,
+        ...action.payload,
+        completed: normalizeCompleted(action.payload.completed),
+        activeChecklistId:
+          typeof action.payload.activeChecklistId === "string" && KNOWN_STEP_IDS.has(action.payload.activeChecklistId)
+            ? action.payload.activeChecklistId
+            : null,
+      };
     case "start":
       return { ...initial, phase: "welcome", completed: state.completed, goal: state.goal };
     case "setGoal":
@@ -113,7 +122,7 @@ function reducer(state: TourState, action: Action): TourState {
       const id = state.activeChecklistId;
       if (!id) return state;
       const completed = complete(state, id);
-      const isDone = completed.length >= TOTAL_STEPS;
+      const isDone = hasCompletedTour(completed);
       return {
         ...state,
         completed,
@@ -123,6 +132,8 @@ function reducer(state: TourState, action: Action): TourState {
     }
     case "toggleRail":
       return { ...state, railDismissed: !state.railDismissed };
+    case "setRailOpen":
+      return { ...state, railDismissed: !action.open };
     case "finish":
       return { ...state, phase: "finished", activeChecklistId: null };
     case "restart":
@@ -144,12 +155,24 @@ export interface TourApi {
   openChecklist: (id: string) => void;
   dismissActive: () => void;
   toggleRail: () => void;
+  setRailOpen: (open: boolean) => void;
   setGoal: (g: TourGoal) => void;
   restart: () => void;
   finish: () => void;
 }
 
 const TourContext = createContext<TourApi | null>(null);
+
+const KNOWN_STEP_IDS = new Set(ALL_STEPS.map((step) => step.id));
+
+function normalizeCompleted(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.filter((id): id is string => typeof id === "string" && KNOWN_STEP_IDS.has(id))));
+}
+
+function hasCompletedTour(completed: string[]): boolean {
+  return ALL_STEPS.every((step) => completed.includes(step.id));
+}
 
 export function TourProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
@@ -158,14 +181,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage on mount.
   useEffect(() => {
     try {
+      const ver = Number(localStorage.getItem(TOUR_VERSION_KEY) || "0");
+      if (ver < TOUR_VERSION) {
+        localStorage.removeItem(TOUR_STORAGE_KEY);
+        localStorage.setItem(TOUR_VERSION_KEY, String(TOUR_VERSION));
+        return;
+      }
       const raw = localStorage.getItem(TOUR_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<TourState>;
         dispatch({ type: "hydrate", payload: parsed });
-      }
-      const ver = Number(localStorage.getItem(TOUR_VERSION_KEY) || "0");
-      if (ver < TOUR_VERSION) {
-        localStorage.setItem(TOUR_VERSION_KEY, String(TOUR_VERSION));
       }
     } catch {
       /* ignore */
@@ -201,6 +226,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       openChecklist: (id) => dispatch({ type: "openChecklist", id }),
       dismissActive: () => dispatch({ type: "dismissActive" }),
       toggleRail: () => dispatch({ type: "toggleRail" }),
+      setRailOpen: (open) => dispatch({ type: "setRailOpen", open }),
       setGoal: (g) => dispatch({ type: "setGoal", goal: g }),
       restart: () => dispatch({ type: "restart" }),
       finish: () => dispatch({ type: "finish" }),

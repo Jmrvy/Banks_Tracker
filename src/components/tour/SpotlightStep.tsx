@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -65,6 +65,8 @@ export function SpotlightStep() {
   const location = useLocation();
   const tooltipRef = useRef<HTMLDivElement>(null);
   const autoSkipTimer = useRef<number | null>(null);
+  const navigationTimer = useRef<number | null>(null);
+  const [isNavigatingToStep, setIsNavigatingToStep] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -72,14 +74,33 @@ export function SpotlightStep() {
     const needPath = step.route && location.pathname !== step.route;
     const needSearch = step.search && location.search !== step.search;
     if (needPath || needSearch) {
+      setIsNavigatingToStep(true);
       navigate(`${step.route ?? location.pathname}${step.search ?? ""}`);
+      return;
     }
+    if (navigationTimer.current) window.clearTimeout(navigationTimer.current);
+    navigationTimer.current = window.setTimeout(() => setIsNavigatingToStep(false), 350);
+    return () => {
+      if (navigationTimer.current) window.clearTimeout(navigationTimer.current);
+    };
   }, [step, location.pathname, location.search, navigate]);
 
   const rect = usePositionRect(step?.selector ?? null, [step?.id, location.pathname]);
 
   useEffect(() => {
-    if (!step) return;
+    if (!rect || isNavigatingToStep) return;
+    const target = document.querySelector(step?.selector ?? "") as HTMLElement | null;
+    if (!target) return;
+    const bottomInset = isMobile ? 180 : 32;
+    const clippedTop = rect.top < 12;
+    const clippedBottom = rect.top + rect.height > window.innerHeight - bottomInset;
+    if (clippedTop || clippedBottom) {
+      target.scrollIntoView({ block: isMobile ? "center" : "nearest", inline: "nearest", behavior: "smooth" });
+    }
+  }, [rect, step?.selector, isMobile, isNavigatingToStep]);
+
+  useEffect(() => {
+    if (!step || isNavigatingToStep) return;
     if (rect) {
       if (autoSkipTimer.current) {
         window.clearTimeout(autoSkipTimer.current);
@@ -89,12 +110,12 @@ export function SpotlightStep() {
     }
     autoSkipTimer.current = window.setTimeout(() => {
       if (state.phase === "essentials") next();
-      else dismissActive();
+      else skipStep();
     }, 2500);
     return () => {
       if (autoSkipTimer.current) window.clearTimeout(autoSkipTimer.current);
     };
-  }, [rect, step, state.phase, next, dismissActive]);
+  }, [rect, step, state.phase, next, skipStep, isNavigatingToStep]);
 
   useEffect(() => {
     if (!step) return;
@@ -146,7 +167,7 @@ export function SpotlightStep() {
         /* noop */
       }
     }
-  }, [step?.id, state.phase]);
+  }, [step, state.phase]);
 
   const padded = useMemo(() => {
     if (!rect) return null;
@@ -183,7 +204,7 @@ export function SpotlightStep() {
         <div
           className="tour-scrim"
           style={scrimStyle}
-          onClick={() => (isEssential ? skipStep() : dismissActive())}
+          onClick={() => (isEssential ? skipStep() : skipStep())}
           aria-hidden="true"
         />
         {padded && (
@@ -306,7 +327,7 @@ export function SpotlightStep() {
       <div
         className="tour-scrim"
         style={scrimStyle}
-        onClick={() => (isEssential ? skipStep() : dismissActive())}
+        onClick={() => (isEssential ? skipStep() : skipStep())}
         aria-hidden="true"
       />
       {padded && (
@@ -344,7 +365,7 @@ export function SpotlightStep() {
           <button
             type="button"
             aria-label={t("common.close", { defaultValue: "Close" })}
-            onClick={() => (isEssential ? skipAll() : dismissActive())}
+            onClick={() => (isEssential ? skipAll() : skipStep())}
             className="text-muted-foreground hover:text-foreground -mt-0.5 -mr-1 p-1 rounded-md hover:bg-muted/50"
           >
             <X className="h-3.5 w-3.5" />
