@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTour, ESSENTIAL_STEPS, CHECKLIST_STEPS } from "@/contexts/TourContext";
 import { usePositionRect } from "./usePositionRect";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { TourStep } from "./tour-config";
 import "./tour.css";
 
@@ -37,15 +38,12 @@ function computeTooltipPosition(
       top = rect.top + rect.height / 2 - size.h / 2;
       left = rect.left - size.w - GAP;
     }
-    // Clamp inside viewport.
     const cTop = Math.max(12, Math.min(top, vh - size.h - 12));
     const cLeft = Math.max(12, Math.min(left, vw - size.w - 12));
-    // If the placement fits without major clamp, use it.
     if (Math.abs(cTop - top) < 16 && Math.abs(cLeft - left) < 16) {
       return { top: cTop, left: cLeft };
     }
   }
-  // Fallback: clamped bottom.
   const top = Math.max(12, Math.min(rect.top + rect.height + GAP, vh - size.h - 12));
   const left = Math.max(12, Math.min(rect.left + rect.width / 2 - size.w / 2, vw - size.w - 12));
   return { top, left };
@@ -67,8 +65,8 @@ export function SpotlightStep() {
   const location = useLocation();
   const tooltipRef = useRef<HTMLDivElement>(null);
   const autoSkipTimer = useRef<number | null>(null);
+  const isMobile = useIsMobile();
 
-  // Navigate to step's route if we aren't already there.
   useEffect(() => {
     if (!step) return;
     const needPath = step.route && location.pathname !== step.route;
@@ -80,8 +78,6 @@ export function SpotlightStep() {
 
   const rect = usePositionRect(step?.selector ?? null, [step?.id, location.pathname]);
 
-  // If the anchor can't be found within 2.5s, auto-skip so the user isn't
-  // stranded on a dead step.
   useEffect(() => {
     if (!step) return;
     if (rect) {
@@ -100,7 +96,6 @@ export function SpotlightStep() {
     };
   }, [rect, step, state.phase, next, dismissActive]);
 
-  // Keyboard shortcuts + focus trap.
   useEffect(() => {
     if (!step) return;
     const onKey = (e: KeyboardEvent) => {
@@ -116,7 +111,6 @@ export function SpotlightStep() {
         e.preventDefault();
         if (state.phase === "essentials") prev();
       } else if (e.key === "Tab") {
-        // Focus trap: keep focus inside the tooltip.
         const root = tooltipRef.current;
         if (!root) return;
         const focusables = root.querySelectorAll<HTMLElement>(
@@ -139,7 +133,6 @@ export function SpotlightStep() {
     return () => window.removeEventListener("keydown", onKey);
   }, [step, state.phase, next, prev, skipStep, dismissActive]);
 
-  // Focus tooltip + emit telemetry on step change.
   useEffect(() => {
     if (tooltipRef.current) tooltipRef.current.focus();
     if (step) {
@@ -174,7 +167,135 @@ export function SpotlightStep() {
   const tipTitle = t(`tour.tips.${step.id}.title`, { defaultValue: step.id });
   const tipBody = t(`tour.tips.${step.id}.body`, { defaultValue: "" });
 
-  // Tooltip position (best-effort; refines after layout)
+  const scrimStyle = padded
+    ? ({
+        ["--tour-x" as string]: `${padded.left}px`,
+        ["--tour-y" as string]: `${padded.top}px`,
+        ["--tour-w" as string]: `${padded.width}px`,
+        ["--tour-h" as string]: `${padded.height}px`,
+      } as React.CSSProperties)
+    : undefined;
+
+  // ── Mobile: bottom-sheet card ────────────────────────────────────────────
+  if (isMobile) {
+    return createPortal(
+      <>
+        <div
+          className="tour-scrim"
+          style={scrimStyle}
+          onClick={() => (isEssential ? skipStep() : dismissActive())}
+          aria-hidden="true"
+        />
+        {padded && (
+          <div
+            className="tour-ring"
+            style={{
+              top: padded.top,
+              left: padded.left,
+              width: padded.width,
+              height: padded.height,
+            }}
+            aria-hidden="true"
+          />
+        )}
+        <div
+          ref={tooltipRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tour-tip-title"
+          tabIndex={-1}
+          className="tour-bottom-card"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
+
+          {/* Progress dots for essential steps */}
+          {isEssential && (
+            <div className="flex justify-center gap-1.5 mb-3">
+              {ESSENTIAL_STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all duration-200 ${
+                    i === idx
+                      ? "w-5 bg-primary"
+                      : i < idx
+                      ? "w-1.5 bg-primary/40"
+                      : "w-1.5 bg-muted-foreground/25"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Eyebrow label */}
+          <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
+            {isEssential
+              ? t("tour.essentialStep", {
+                  current: idx + 1,
+                  total,
+                  defaultValue: `Step ${idx + 1} of ${total}`,
+                })
+              : t("tour.tipLabel", { defaultValue: "Tip" })}
+          </div>
+
+          <h3 id="tour-tip-title" className="text-[17px] font-semibold leading-snug mb-1.5">
+            {tipTitle}
+          </h3>
+          {tipBody && (
+            <p className="text-[14px] text-muted-foreground leading-relaxed mb-4">{tipBody}</p>
+          )}
+
+          {/* Action row */}
+          {isEssential ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={skipAll}
+                className="text-[13px] text-muted-foreground py-2.5 px-1 shrink-0"
+              >
+                {t("tour.skipAll", { defaultValue: "Skip" })}
+              </button>
+              <div className="flex-1" />
+              {idx > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prev}
+                  className="h-11 w-11 p-0 shrink-0"
+                  aria-label={t("common.previous", { defaultValue: "Previous" })}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
+              <Button size="sm" onClick={next} className="h-11 px-5 gap-1 min-w-[110px]">
+                {idx === ESSENTIAL_STEPS.length - 1
+                  ? t("tour.openChecklist", { defaultValue: "Open checklist" })
+                  : t("common.next", { defaultValue: "Next" })}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={dismissActive}
+                className="text-[13px] text-muted-foreground py-2.5 px-1 shrink-0"
+              >
+                {t("tour.markDone", { defaultValue: "Mark as seen" })}
+              </button>
+              <Button size="sm" onClick={dismissActive} className="flex-1 h-11">
+                {t("common.gotIt", { defaultValue: "Got it" })}
+              </Button>
+            </div>
+          )}
+        </div>
+      </>,
+      document.body,
+    );
+  }
+
+  // ── Desktop: floating tooltip ────────────────────────────────────────────
   const SIZE = { w: 360, h: 180 };
   const pos = padded
     ? computeTooltipPosition(padded, step.placement, SIZE)
@@ -184,16 +305,7 @@ export function SpotlightStep() {
     <>
       <div
         className="tour-scrim"
-        style={
-          padded
-            ? ({
-                ["--tour-x" as string]: `${padded.left}px`,
-                ["--tour-y" as string]: `${padded.top}px`,
-                ["--tour-w" as string]: `${padded.width}px`,
-                ["--tour-h" as string]: `${padded.height}px`,
-              } as React.CSSProperties)
-            : undefined
-        }
+        style={scrimStyle}
         onClick={() => (isEssential ? skipStep() : dismissActive())}
         aria-hidden="true"
       />

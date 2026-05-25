@@ -79,7 +79,9 @@
     "searchPlaceholder": "Rechercher...",
     "today2": "Auj.",
     "noAccountsAvailable": "Aucun compte disponible",
-    "transfers": "Virements"
+    "transfers": "Virements",
+    "gotIt": "Compris",
+    "previous": "Précédent"
   },
   "navigation": {
     "home": "Accueil",
@@ -903,7 +905,11 @@
     "kbdNavigate": "naviguer",
     "kbdOpen": "ouvrir",
     "kbdClose": "fermer",
-    "kbdToggle": "afficher"
+    "kbdToggle": "afficher",
+    "budgetByCategory": "Budget par catégorie",
+    "completeQuery": "Compléter la requête",
+    "addCategory": "catégorie",
+    "addForecast": "Ajouter prévisions"
   },
   "onboarding": {
     "guide": {

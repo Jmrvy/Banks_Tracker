@@ -91,6 +91,38 @@
 }
 .tour-chip:hover { transform: translateY(-1px); }
 
+/* On mobile, float the chip above the bottom nav bar (~56px) */
+@media (max-width: 767px) {
+  .tour-chip {
+    bottom: 72px;
+    right: 16px;
+  }
+}
+
+/* Mobile bottom-sheet card used instead of the floating tooltip */
+.tour-bottom-card {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 62;
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border-top: 1px solid hsl(var(--border));
+  border-radius: 20px 20px 0 0;
+  padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  box-shadow: 0 -20px 50px -12px rgba(0, 0, 0, 0.35);
+  animation: tour-bottom-card-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes tour-bottom-card-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .tour-scrim, .tour-ring, .tour-tooltip { transition: none !important; animation: none !important; }
+  .tour-scrim, .tour-ring, .tour-tooltip, .tour-bottom-card {
+    transition: none !important;
+    animation: none !important;
+  }
 }

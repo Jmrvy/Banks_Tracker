@@ -37,6 +37,10 @@ import {
   Clock,
   Search,
   X,
+  Target,
+  CalendarDays,
+  Zap,
+  TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
@@ -641,20 +645,163 @@ export const CommandPalette = () => {
     }
   })();
 
-  // Empty-state suggestions teach the parser's grammar in-context.
-  // Selecting a suggestion fills the input so the user can iterate.
-  const suggestions = useMemo(
-    () => [
-      { hint: t('palette.suggestion1', { defaultValue: 'expenses ytd' }), q: 'expenses ytd' },
-      { hint: t('palette.suggestion2', { defaultValue: 'income last month' }), q: 'income last month' },
-      {
-        hint: t('palette.suggestion3', { defaultValue: 'expenses {{cat}} this month', cat: categories[0]?.name ?? 'rent' }),
-        q: `expenses ${categories[0]?.name ?? 'rent'} this month`,
-      },
-      { hint: t('palette.suggestion4', { defaultValue: 'income 2025' }), q: 'income 2025' },
-    ],
-    [t, categories]
+  // ── Query chip types ────────────────────────────────────────────────────
+  type ChipVariant = 'base' | 'category' | 'period' | 'forecast' | 'type';
+  interface QChip { text: string; variant: ChipVariant }
+
+  const CHIP_STYLE: Record<ChipVariant, string> = {
+    base:     'bg-muted/80 text-foreground',
+    type:     'bg-muted/80 text-foreground',
+    category: 'bg-primary/10 text-primary border border-primary/25',
+    period:   'bg-info/10 text-info border border-info/25',
+    forecast: 'bg-warning/10 text-warning border border-warning/25',
+  };
+
+  const renderChips = (chips: QChip[]) => (
+    <span className="flex items-center gap-1 flex-wrap">
+      {chips.map((c, i) => (
+        <span key={i} className={`px-1.5 py-0.5 rounded text-[11px] font-medium leading-none ${CHIP_STYLE[c.variant]}`}>
+          {c.text}
+        </span>
+      ))}
+    </span>
   );
+
+  // ── Budget starters (empty state) ────────────────────────────────────────
+  // One row per category that has a monthly budget set. Tapping fills
+  // the input with "budget <Category> this month" so the user can tweak
+  // period or add "forecasted" without needing to know the query syntax.
+  const budgetStarters = useMemo(() => {
+    const budgeted = categories.filter((c) => c.budget && c.budget > 0);
+    // Fall back to first few categories if none have budgets (new users).
+    const source = budgeted.length > 0 ? budgeted : categories;
+    return source.slice(0, 6).map((cat) => ({
+      id: `budget-starter-${cat.id}`,
+      query: `budget ${cat.name} this month`,
+      chips: [
+        { text: 'budget', variant: 'base' as const },
+        { text: cat.name, variant: 'category' as const },
+        { text: t('search.period.mtd', { defaultValue: 'This month' }), variant: 'period' as const },
+      ] as QChip[],
+    }));
+  }, [categories, t]);
+
+  // ── Quick query starters (empty state) ──────────────────────────────────
+  const quickSuggestions = useMemo(() => {
+    const year = new Date().getFullYear();
+    return [
+      {
+        id: 'expenses-thismonth',
+        query: 'expenses this month',
+        chips: [
+          { text: t('search.type.expense', { defaultValue: 'Expenses' }), variant: 'type' as const },
+          { text: t('search.period.mtd', { defaultValue: 'This month' }), variant: 'period' as const },
+        ] as QChip[],
+        Icon: ArrowUpRight,
+      },
+      {
+        id: 'income-ytd',
+        query: 'income ytd',
+        chips: [
+          { text: t('search.type.income', { defaultValue: 'Income' }), variant: 'type' as const },
+          { text: t('search.period.ytd', { defaultValue: 'YTD' }), variant: 'period' as const },
+        ] as QChip[],
+        Icon: ArrowDownLeft,
+      },
+      {
+        id: 'top5-thismonth',
+        query: 'top 5 this month',
+        chips: [
+          { text: 'Top 5', variant: 'base' as const },
+          { text: t('search.period.mtd', { defaultValue: 'This month' }), variant: 'period' as const },
+        ] as QChip[],
+        Icon: TrendingUp,
+      },
+      {
+        id: 'expenses-year',
+        query: `expenses ${year}`,
+        chips: [
+          { text: t('search.type.expense', { defaultValue: 'Expenses' }), variant: 'type' as const },
+          { text: String(year), variant: 'period' as const },
+        ] as QChip[],
+        Icon: ArrowUpRight,
+      },
+    ];
+  }, [t]);
+
+  // ── Contextual completions (while typing) ────────────────────────────────
+  // Shown when the user has a partial budget query. Guides them through
+  // adding a category → a period → "forecasted" in three progressive stages.
+  const contextualCompletions = useMemo(() => {
+    if (!input || !parsed || parsed.intent !== 'budget' || parsed.breachesOnly) return [];
+    type Completion = { id: string; query: string; chips: QChip[]; hint?: string; Icon: typeof Target };
+    const result: Completion[] = [];
+
+    const hasCat = parsed.categoryIds.length > 0;
+    const hasPeriod = !parsed.periodWasDefault;
+    const catName = hasCat
+      ? (categories.find((c) => c.id === parsed.categoryIds[0])?.name ?? '')
+      : '';
+
+    if (!hasCat) {
+      // Stage 1: budget typed but no category — suggest adding one.
+      const catsSorted = [...categories].sort(
+        (a, b) => (b.budget && b.budget > 0 ? 1 : 0) - (a.budget && a.budget > 0 ? 1 : 0)
+      );
+      catsSorted.slice(0, 5).forEach((cat) => {
+        result.push({
+          id: `complete-cat-${cat.id}`,
+          query: `budget ${cat.name}`,
+          chips: [
+            { text: 'budget', variant: 'base' },
+            { text: cat.name, variant: 'category' },
+          ],
+          hint: t('palette.addCategory', { defaultValue: 'category' }),
+          Icon: Target,
+        });
+      });
+    } else if (!hasPeriod) {
+      // Stage 2: category present, period not explicit — suggest periods.
+      const year = new Date().getFullYear();
+      ([
+        {
+          key: 'thismonth', query: `budget ${catName} this month`,
+          chips: [{ text: 'budget', variant: 'base' }, { text: catName, variant: 'category' }, { text: t('search.period.mtd', { defaultValue: 'This month' }), variant: 'period' }] as QChip[],
+        },
+        {
+          key: 'ytd', query: `budget ${catName} ytd`,
+          chips: [{ text: 'budget', variant: 'base' }, { text: catName, variant: 'category' }, { text: t('search.period.ytd', { defaultValue: 'YTD' }), variant: 'period' }] as QChip[],
+        },
+        {
+          key: 'lastmonth', query: `budget ${catName} last month`,
+          chips: [{ text: 'budget', variant: 'base' }, { text: catName, variant: 'category' }, { text: t('search.period.lastMonth', { defaultValue: 'Last month' }), variant: 'period' }] as QChip[],
+        },
+        {
+          key: 'year', query: `budget ${catName} ${year}`,
+          chips: [{ text: 'budget', variant: 'base' }, { text: catName, variant: 'category' }, { text: String(year), variant: 'period' }] as QChip[],
+        },
+      ]).forEach(({ key, query, chips }) => {
+        result.push({ id: `complete-period-${key}`, query, chips, Icon: CalendarDays });
+      });
+    } else if (!parsed.forecasted) {
+      // Stage 3: category + explicit period present, no forecast — offer it.
+      const periodLabel = t(parsed.periodLabelKey, { defaultValue: parsed.periodLabelDefault });
+      result.push({
+        id: 'complete-forecast',
+        query: `${input.trim()} forecasted`,
+        chips: [
+          { text: 'budget', variant: 'base' },
+          { text: catName, variant: 'category' },
+          { text: periodLabel, variant: 'period' },
+          { text: uiLocale === 'fr' ? 'prévisionnel' : 'forecasted', variant: 'forecast' },
+        ],
+        hint: t('palette.addForecast', { defaultValue: 'Add forecast' }),
+        Icon: Zap,
+      });
+    }
+
+    return result;
+  }, [input, parsed, categories, t, uiLocale]);
 
   return (
     <>
@@ -712,17 +859,35 @@ export const CommandPalette = () => {
           </CommandGroup>
         )}
 
+        {!input && budgetStarters.length > 0 && (
+          <CommandGroup heading={t('palette.budgetByCategory', { defaultValue: 'Budget by category' })}>
+            {budgetStarters.map((s) => (
+              <CommandItem
+                key={s.id}
+                value={`__budget_starter__ ${s.id}`}
+                onSelect={() => setInput(s.query)}
+              >
+                <Target className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                {renderChips(s.chips)}
+                <span className="ml-auto text-[11px] text-muted-foreground shrink-0">
+                  {t('palette.suggestionHint', { defaultValue: 'Insert' })}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         {!input && (
           <CommandGroup heading={t('palette.tryGroup', { defaultValue: 'Try a query' })}>
-            {suggestions.map((s) => (
+            {quickSuggestions.map((s) => (
               <CommandItem
-                key={s.q}
-                value={`__suggestion__ ${s.q}`}
-                onSelect={() => setInput(s.q)}
+                key={s.id}
+                value={`__suggestion__ ${s.id}`}
+                onSelect={() => setInput(s.query)}
               >
-                <Lightbulb className="mr-2 h-4 w-4 text-warning" />
-                <span className="text-sm font-mono text-foreground">{s.hint}</span>
-                <span className="ml-auto text-[11px] text-muted-foreground">
+                <s.Icon className="mr-2 h-4 w-4 text-warning shrink-0" />
+                {renderChips(s.chips)}
+                <span className="ml-auto text-[11px] text-muted-foreground shrink-0">
                   {t('palette.suggestionHint', { defaultValue: 'Insert' })}
                 </span>
               </CommandItem>
@@ -823,6 +988,31 @@ export const CommandPalette = () => {
                   </span>
                 </div>
               </CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
+
+        {/* Contextual completions — progressive budget query builder.
+            Guides the user to add category → period → forecast step by step. */}
+        {input && contextualCompletions.length > 0 && (
+          <>
+            <CommandGroup heading={t('palette.completeQuery', { defaultValue: 'Complete your query' })}>
+              {contextualCompletions.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  // Include input in value so cmdk always scores this group
+                  // visible when there's a partial budget query.
+                  value={`__completion__ ${input} ${s.id}`}
+                  onSelect={() => setInput(s.query)}
+                >
+                  <s.Icon className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                  {renderChips(s.chips)}
+                  {s.hint && (
+                    <span className="ml-auto text-[11px] text-muted-foreground shrink-0">{s.hint}</span>
+                  )}
+                </CommandItem>
+              ))}
             </CommandGroup>
             <CommandSeparator />
           </>

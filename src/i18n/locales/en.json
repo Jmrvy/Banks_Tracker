@@ -79,7 +79,9 @@
     "searchPlaceholder": "Search...",
     "today2": "Today",
     "noAccountsAvailable": "No accounts available",
-    "transfers": "Transfers"
+    "transfers": "Transfers",
+    "gotIt": "Got it",
+    "previous": "Previous"
   },
   "navigation": {
     "home": "Home",
@@ -903,7 +905,11 @@
     "kbdNavigate": "navigate",
     "kbdOpen": "open",
     "kbdClose": "close",
-    "kbdToggle": "toggle"
+    "kbdToggle": "toggle",
+    "budgetByCategory": "Budget by category",
+    "completeQuery": "Complete your query",
+    "addCategory": "category",
+    "addForecast": "Add forecast"
   },
   "onboarding": {
     "guide": {
