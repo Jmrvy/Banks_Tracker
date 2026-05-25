@@ -23,8 +23,9 @@ export const MobileNavigation = () => {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-line z-50 md:hidden safe-area-inset-bottom">
+      <nav data-tour="nav" className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-line z-50 md:hidden safe-area-inset-bottom">
         <div className="flex items-center justify-around px-1 py-1">
+
           {/* Home and Accounts from config */}
           {mobileBottomNav.map((item) => {
             const isItemActive = location.pathname === item.path;
@@ -73,7 +74,9 @@ export const MobileNavigation = () => {
               the 5th tab so it's reachable without leaving the bottom
               nav or relying on a hidden ⌘K shortcut. */}
           <Button
+            data-tour="search"
             variant="ghost"
+
             size="sm"
             onClick={togglePalette}
             aria-label={t('common.search', { defaultValue: 'Search' })}
