@@ -104,7 +104,11 @@ function reducer(state: TourState, action: Action): TourState {
     case "skipAll":
       return { ...state, phase: "dormant", activeChecklistId: null };
     case "openChecklist":
-      return { ...state, phase: "checklist", activeChecklistId: action.id, railDismissed: false };
+      // Auto-dismiss the rail so the spotlight is visible (especially the
+      // mobile bottom sheet which would otherwise cover the target).
+      // The user can reopen the rail at any time via the ChecklistChip.
+      return { ...state, phase: "checklist", activeChecklistId: action.id, railDismissed: true };
+
     case "dismissActive": {
       const id = state.activeChecklistId;
       if (!id) return state;
