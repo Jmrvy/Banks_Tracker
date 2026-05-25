@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -65,6 +65,8 @@ export function SpotlightStep() {
   const location = useLocation();
   const tooltipRef = useRef<HTMLDivElement>(null);
   const autoSkipTimer = useRef<number | null>(null);
+  const navigationTimer = useRef<number | null>(null);
+  const [isNavigatingToStep, setIsNavigatingToStep] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -72,14 +74,21 @@ export function SpotlightStep() {
     const needPath = step.route && location.pathname !== step.route;
     const needSearch = step.search && location.search !== step.search;
     if (needPath || needSearch) {
+      setIsNavigatingToStep(true);
       navigate(`${step.route ?? location.pathname}${step.search ?? ""}`);
+      return;
     }
+    if (navigationTimer.current) window.clearTimeout(navigationTimer.current);
+    navigationTimer.current = window.setTimeout(() => setIsNavigatingToStep(false), 350);
+    return () => {
+      if (navigationTimer.current) window.clearTimeout(navigationTimer.current);
+    };
   }, [step, location.pathname, location.search, navigate]);
 
   const rect = usePositionRect(step?.selector ?? null, [step?.id, location.pathname]);
 
   useEffect(() => {
-    if (!step) return;
+    if (!step || isNavigatingToStep) return;
     if (rect) {
       if (autoSkipTimer.current) {
         window.clearTimeout(autoSkipTimer.current);
@@ -94,7 +103,7 @@ export function SpotlightStep() {
     return () => {
       if (autoSkipTimer.current) window.clearTimeout(autoSkipTimer.current);
     };
-  }, [rect, step, state.phase, next, dismissActive]);
+  }, [rect, step, state.phase, next, dismissActive, isNavigatingToStep]);
 
   useEffect(() => {
     if (!step) return;
