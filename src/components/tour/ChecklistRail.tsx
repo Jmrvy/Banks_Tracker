@@ -119,11 +119,11 @@ function Rail() {
 
 export function ChecklistRail() {
   const isMobile = useIsMobile();
-  const { state, toggleRail } = useTour();
+  const { state, toggleRail, setRailOpen } = useTour();
 
   if (isMobile) {
     return (
-      <Sheet open={!state.railDismissed} onOpenChange={() => toggleRail()}>
+      <Sheet open={!state.railDismissed} onOpenChange={setRailOpen}>
         <SheetContent
           side="bottom"
           className="rounded-t-2xl p-0 flex flex-col"
