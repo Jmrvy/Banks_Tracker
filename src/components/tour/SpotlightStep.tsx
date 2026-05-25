@@ -88,6 +88,18 @@ export function SpotlightStep() {
   const rect = usePositionRect(step?.selector ?? null, [step?.id, location.pathname]);
 
   useEffect(() => {
+    if (!rect || isNavigatingToStep) return;
+    const target = document.querySelector(step?.selector ?? "") as HTMLElement | null;
+    if (!target) return;
+    const bottomInset = isMobile ? 180 : 32;
+    const clippedTop = rect.top < 12;
+    const clippedBottom = rect.top + rect.height > window.innerHeight - bottomInset;
+    if (clippedTop || clippedBottom) {
+      target.scrollIntoView({ block: isMobile ? "center" : "nearest", inline: "nearest", behavior: "smooth" });
+    }
+  }, [rect, step?.selector, isMobile, isNavigatingToStep]);
+
+  useEffect(() => {
     if (!step || isNavigatingToStep) return;
     if (rect) {
       if (autoSkipTimer.current) {
