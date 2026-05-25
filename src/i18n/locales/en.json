@@ -905,7 +905,11 @@
     "kbdNavigate": "navigate",
     "kbdOpen": "open",
     "kbdClose": "close",
-    "kbdToggle": "toggle"
+    "kbdToggle": "toggle",
+    "budgetByCategory": "Budget by category",
+    "completeQuery": "Complete your query",
+    "addCategory": "category",
+    "addForecast": "Add forecast"
   },
   "onboarding": {
     "guide": {
