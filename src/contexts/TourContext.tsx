@@ -46,6 +46,7 @@ type Action =
   | { type: "openChecklist"; id: string }
   | { type: "dismissActive" }
   | { type: "toggleRail" }
+  | { type: "setRailOpen"; open: boolean }
   | { type: "finish" }
   | { type: "restart" };
 
@@ -131,6 +132,8 @@ function reducer(state: TourState, action: Action): TourState {
     }
     case "toggleRail":
       return { ...state, railDismissed: !state.railDismissed };
+    case "setRailOpen":
+      return { ...state, railDismissed: !action.open };
     case "finish":
       return { ...state, phase: "finished", activeChecklistId: null };
     case "restart":
@@ -152,6 +155,7 @@ export interface TourApi {
   openChecklist: (id: string) => void;
   dismissActive: () => void;
   toggleRail: () => void;
+  setRailOpen: (open: boolean) => void;
   setGoal: (g: TourGoal) => void;
   restart: () => void;
   finish: () => void;
@@ -220,6 +224,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       openChecklist: (id) => dispatch({ type: "openChecklist", id }),
       dismissActive: () => dispatch({ type: "dismissActive" }),
       toggleRail: () => dispatch({ type: "toggleRail" }),
+      setRailOpen: (open) => dispatch({ type: "setRailOpen", open }),
       setGoal: (g) => dispatch({ type: "setGoal", goal: g }),
       restart: () => dispatch({ type: "restart" }),
       finish: () => dispatch({ type: "finish" }),
