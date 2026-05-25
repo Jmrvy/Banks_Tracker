@@ -79,7 +79,9 @@
     "searchPlaceholder": "Search...",
     "today2": "Today",
     "noAccountsAvailable": "No accounts available",
-    "transfers": "Transfers"
+    "transfers": "Transfers",
+    "gotIt": "Got it",
+    "previous": "Previous"
   },
   "navigation": {
     "home": "Home",

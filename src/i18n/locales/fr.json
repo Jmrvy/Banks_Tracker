@@ -79,7 +79,9 @@
     "searchPlaceholder": "Rechercher...",
     "today2": "Auj.",
     "noAccountsAvailable": "Aucun compte disponible",
-    "transfers": "Virements"
+    "transfers": "Virements",
+    "gotIt": "Compris",
+    "previous": "Précédent"
   },
   "navigation": {
     "home": "Accueil",
