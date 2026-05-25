@@ -167,7 +167,7 @@ export function SpotlightStep() {
         /* noop */
       }
     }
-  }, [step?.id, state.phase]);
+  }, [step, state.phase]);
 
   const padded = useMemo(() => {
     if (!rect) return null;
