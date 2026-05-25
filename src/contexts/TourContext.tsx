@@ -65,7 +65,15 @@ function complete(state: TourState, id: string): string[] {
 function reducer(state: TourState, action: Action): TourState {
   switch (action.type) {
     case "hydrate":
-      return { ...state, ...action.payload };
+      return {
+        ...state,
+        ...action.payload,
+        completed: normalizeCompleted(action.payload.completed),
+        activeChecklistId:
+          typeof action.payload.activeChecklistId === "string" && KNOWN_STEP_IDS.has(action.payload.activeChecklistId)
+            ? action.payload.activeChecklistId
+            : null,
+      };
     case "start":
       return { ...initial, phase: "welcome", completed: state.completed, goal: state.goal };
     case "setGoal":
@@ -113,7 +121,7 @@ function reducer(state: TourState, action: Action): TourState {
       const id = state.activeChecklistId;
       if (!id) return state;
       const completed = complete(state, id);
-      const isDone = completed.length >= TOTAL_STEPS;
+      const isDone = hasCompletedTour(completed);
       return {
         ...state,
         completed,
