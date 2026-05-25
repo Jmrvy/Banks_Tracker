@@ -110,12 +110,12 @@ export function SpotlightStep() {
     }
     autoSkipTimer.current = window.setTimeout(() => {
       if (state.phase === "essentials") next();
-      else dismissActive();
+      else skipStep();
     }, 2500);
     return () => {
       if (autoSkipTimer.current) window.clearTimeout(autoSkipTimer.current);
     };
-  }, [rect, step, state.phase, next, dismissActive, isNavigatingToStep]);
+  }, [rect, step, state.phase, next, skipStep, isNavigatingToStep]);
 
   useEffect(() => {
     if (!step) return;
@@ -204,7 +204,7 @@ export function SpotlightStep() {
         <div
           className="tour-scrim"
           style={scrimStyle}
-          onClick={() => (isEssential ? skipStep() : dismissActive())}
+          onClick={() => (isEssential ? skipStep() : skipStep())}
           aria-hidden="true"
         />
         {padded && (
@@ -327,7 +327,7 @@ export function SpotlightStep() {
       <div
         className="tour-scrim"
         style={scrimStyle}
-        onClick={() => (isEssential ? skipStep() : dismissActive())}
+        onClick={() => (isEssential ? skipStep() : skipStep())}
         aria-hidden="true"
       />
       {padded && (
@@ -365,7 +365,7 @@ export function SpotlightStep() {
           <button
             type="button"
             aria-label={t("common.close", { defaultValue: "Close" })}
-            onClick={() => (isEssential ? skipAll() : dismissActive())}
+            onClick={() => (isEssential ? skipAll() : skipStep())}
             className="text-muted-foreground hover:text-foreground -mt-0.5 -mr-1 p-1 rounded-md hover:bg-muted/50"
           >
             <X className="h-3.5 w-3.5" />
