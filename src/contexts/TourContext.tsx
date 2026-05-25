@@ -181,14 +181,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage on mount.
   useEffect(() => {
     try {
+      const ver = Number(localStorage.getItem(TOUR_VERSION_KEY) || "0");
+      if (ver < TOUR_VERSION) {
+        localStorage.removeItem(TOUR_STORAGE_KEY);
+        localStorage.setItem(TOUR_VERSION_KEY, String(TOUR_VERSION));
+        return;
+      }
       const raw = localStorage.getItem(TOUR_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<TourState>;
         dispatch({ type: "hydrate", payload: parsed });
-      }
-      const ver = Number(localStorage.getItem(TOUR_VERSION_KEY) || "0");
-      if (ver < TOUR_VERSION) {
-        localStorage.setItem(TOUR_VERSION_KEY, String(TOUR_VERSION));
       }
     } catch {
       /* ignore */
