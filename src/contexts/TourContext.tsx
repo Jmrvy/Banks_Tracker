@@ -151,6 +151,17 @@ export interface TourApi {
 
 const TourContext = createContext<TourApi | null>(null);
 
+const KNOWN_STEP_IDS = new Set(ALL_STEPS.map((step) => step.id));
+
+function normalizeCompleted(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.filter((id): id is string => typeof id === "string" && KNOWN_STEP_IDS.has(id))));
+}
+
+function hasCompletedTour(completed: string[]): boolean {
+  return ALL_STEPS.every((step) => completed.includes(step.id));
+}
+
 export function TourProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
   const hydrated = useRef(false);
