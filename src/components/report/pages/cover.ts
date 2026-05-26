@@ -6,7 +6,10 @@ export function renderCover(ctx: ReportCtx) {
     pdf, MARGIN_X, PW, setFill, setText, ink, ink2, ink3, mute, lineCol, pos, neg,
     sans, mono, fmt, fmtSigned, newPage, locale, reference, totalPagesEstimate,
   } = ctx;
-  const { accounts, actualDates, config, totalIncome, totalExpenses, netResult, periodDays } = ctx.data;
+  const {
+    accounts, actualDates, config, periodDays,
+    combinedIncome, combinedExpenses, combinedNet,
+  } = ctx.data;
   const { periodCompact, generatedAt } = ctx;
   const COL = ctx.COL;
   const RIGHT = PW - MARGIN_X;
@@ -82,9 +85,9 @@ export function renderCover(ctx: ReportCtx) {
 
   const fcellW = COL / 3;
   const figCells = [
-    { lbl: 'INCOME', val: fmt(totalIncome), color: pos },
-    { lbl: 'EXPENSES', val: fmt(totalExpenses), color: neg },
-    { lbl: 'NET RESULT', val: fmtSigned(netResult), color: netResult >= 0 ? pos : neg },
+    { lbl: 'INCOME', val: fmt(combinedIncome), color: pos },
+    { lbl: 'EXPENSES', val: fmt(combinedExpenses), color: neg },
+    { lbl: 'NET RESULT', val: fmtSigned(combinedNet), color: combinedNet >= 0 ? pos : neg },
   ];
   figCells.forEach((c, i) => {
     const x = MARGIN_X + i * fcellW;

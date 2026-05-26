@@ -19,9 +19,11 @@ export function renderAccounts(ctx: ReportCtx) {
     s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
   const round0 = (n: number) => Math.round(n);
   const initBal = round0(stats.initialBalance);
-  const endBal = round0(balanceEnd);
+  // Use the combined final balance when forecast is on so the
+  // sparkline's trailing label matches the closing column.
+  const endBal = round0(ctx.data.combinedFinalBalance);
   const pct = stats.initialBalance
-    ? Math.round(((balanceEnd - stats.initialBalance) / stats.initialBalance) * 1000) / 10
+    ? Math.round(((ctx.data.combinedFinalBalance - stats.initialBalance) / stats.initialBalance) * 1000) / 10
     : 0;
   const pctStr = `${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(1)}%`;
   const asOf = format(actualDates.end, 'd MMM yyyy', { locale }).toUpperCase();
@@ -36,14 +38,27 @@ export function renderAccounts(ctx: ReportCtx) {
   );
 
   // ── Statement table ──────────────────────────────────────────────
+  // When forecast is enabled, the per-row figures show the combined
+  // (actual + projected) flow and closing balance; otherwise they
+  // collapse to actuals.
+  const useCombined = ctx.data.includeForecasted;
+  const rowVals = (a: typeof accountFlows[number]) => ({
+    inflow: a.inflow + (useCombined ? a.projectedInflow : 0),
+    outflow: a.outflow + (useCombined ? a.projectedOutflow : 0),
+    net: a.net + (useCombined ? a.projectedInflow - a.projectedOutflow : 0),
+    closing: useCombined ? a.projectedClosing : a.closing,
+  });
   const tot = accountFlows.reduce(
-    (a, c) => ({
-      opening: a.opening + c.opening,
-      inflow: a.inflow + c.inflow,
-      outflow: a.outflow + c.outflow,
-      net: a.net + c.net,
-      closing: a.closing + c.closing,
-    }),
+    (acc, c) => {
+      const v = rowVals(c);
+      return {
+        opening: acc.opening + c.opening,
+        inflow: acc.inflow + v.inflow,
+        outflow: acc.outflow + v.outflow,
+        net: acc.net + v.net,
+        closing: acc.closing + v.closing,
+      };
+    },
     { opening: 0, inflow: 0, outflow: 0, net: 0, closing: 0 },
   );
 
@@ -75,16 +90,19 @@ export function renderAccounts(ctx: ReportCtx) {
     startY: y,
     margin: { left: MARGIN_X, right: MARGIN_X },
     head: [['ACCOUNT', 'TYPE', 'OPENING', 'INCOME', 'EXPENSES', 'NET', 'CLOSING']],
-    body: accountFlows.map((a) => [
-      // ACCOUNT — rendered manually in didDrawCell (bold name + mono tail)
-      { content: '', styles: { minCellHeight: 17 } },
-      { content: cap(a.type), styles: { font: 'courier', fontSize: 8, textColor: ink2 } },
-      numCell(fmt(a.opening), ink),
-      a.inflow > 0 ? numCell(`+${fmt(a.inflow)}`, pos) : numCell('—', mute),
-      a.outflow > 0 ? numCell(`−${fmt(a.outflow)}`, neg) : numCell('—', mute),
-      numCell(fmtSigned(a.net), a.net >= 0 ? pos : neg),
-      numCell(fmt(a.closing), a.closing < 0 ? neg : ink, true),
-    ]),
+    body: accountFlows.map((a) => {
+      const v = rowVals(a);
+      return [
+        // ACCOUNT — rendered manually in didDrawCell (bold name + mono tail)
+        { content: '', styles: { minCellHeight: 17 } },
+        { content: cap(a.type), styles: { font: 'courier', fontSize: 8, textColor: ink2 } },
+        numCell(fmt(a.opening), ink),
+        v.inflow > 0 ? numCell(`+${fmt(v.inflow)}`, pos) : numCell('—', mute),
+        v.outflow > 0 ? numCell(`−${fmt(v.outflow)}`, neg) : numCell('—', mute),
+        numCell(fmtSigned(v.net), v.net >= 0 ? pos : neg),
+        numCell(fmt(v.closing), v.closing < 0 ? neg : ink, true),
+      ];
+    }),
     foot: [[
       { content: 'Net total', styles: { fontStyle: 'bold', textColor: ink } },
       '',
@@ -224,24 +242,13 @@ export function renderAccounts(ctx: ReportCtx) {
     PW - MARGIN_X - padX, labelY, { align: 'right' },
   );
 
-  // Projected total (only when forecast is enabled). Drawn just above
-  // the bottom strip so it reads as the forward-looking complement.
-  if (ctx.data.includeForecasted) {
-    const projectedTotal = accountFlows.reduce((s, a) => s + a.projectedClosing, 0);
-    const py = ctx.STRIP_Y - 9;
-    mono(7, 'normal', 8);
-    setText(mute);
-    pdf.text(`Projected total · ${format(actualDates.end, 'd MMM yyyy', { locale })}`, MARGIN_X, py);
-    mono(11, 'normal', -20);
-    setText(mute);
-    pdf.text(fmt(projectedTotal), ctx.PW - MARGIN_X, py, { align: 'right' });
-    pdf.setCharSpace(0);
-  }
-
   // ── Bottom strip ─────────────────────────────────────────────────
+  // tot.closing is combined (= sum of projectedClosing) when forecast
+  // is enabled, otherwise sum of actual closings.
   drawBottomStrip(
     `Total balance · ${format(actualDates.end, 'd MMM yyyy', { locale })}`,
-    fmt(totalBalance),
+    fmt(tot.closing),
   );
+  void totalBalance;
   drawBottomChrome(state.pageIdx, totalPagesEstimate);
 }

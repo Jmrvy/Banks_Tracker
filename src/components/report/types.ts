@@ -182,6 +182,17 @@ export interface ReportData {
   forecastExpenses: number;
   /** forecastIncome − forecastExpenses. */
   forecastNet: number;
+  /** Headline combined figures — actuals + projections when the
+   *  forecast toggle is on; equal to the actuals when it's off. Every
+   *  page's KPI bands and totals should display these. */
+  combinedIncome: number;
+  combinedExpenses: number;
+  combinedNet: number;
+  combinedFinalBalance: number;
+  combinedTotalCatSpent: number;
+  combinedTotalBudgetedSpent: number;
+  combinedGrossIncome: number;
+  combinedGrossExpenses: number;
   /** Number of distinct recurring items with at least one occurrence
    *  in [now, end] (used in the Recurring page's right-secondary). */
   recurringUpcoming: number;

@@ -8,7 +8,11 @@ export function renderCategories(ctx: ReportCtx) {
     sans, mono, fmt, fmtSigned, newPage, state, totalPagesEstimate, locale,
     drawTopChrome, drawPageTitle, drawProgressBar, drawBottomStrip, drawBottomChrome,
   } = ctx;
-  const { expenseCats, totalCatSpent, totalBudget, breachedCats, actualDates } = ctx.data;
+  const {
+    expenseCats, totalBudget, actualDates,
+    combinedTotalCatSpent: totalCatSpent,
+  } = ctx.data;
+  const breachedCats = expenseCats.filter((c) => (ctx.data.includeForecasted ? c.combinedOver : c.over));
 
   // The template's BUDGET / Δ columns use whole euros (no cents) so the
   // narrow columns never wrap. Strip the fractional part locale-agnostically
@@ -46,29 +50,33 @@ export function renderCategories(ctx: ReportCtx) {
 
   const body: Record<string, unknown>[][] = [];
 
+  const useCombined = ctx.data.includeForecasted;
   for (const c of shown) {
-    const over = c.over;
+    const spentDisplay = useCombined ? c.combinedSpent : c.spent;
+    const over = useCombined ? c.combinedOver : c.over;
     const hasBudget = c.budget > 0;
     const figCol = over ? neg : ink;
+    const delta = useCombined ? c.combinedSpent - c.budget : c.deltaVsBudget;
+    const pctOfTotal = totalCatSpent > 0 ? (spentDisplay / totalCatSpent) * 100 : 0;
     rowMeta.push({
       over,
       muted: false,
       nameTag: over,
       nameText: c.name,
-      barFraction: hasBudget ? c.spent / c.budget : c.spent / maxSpent,
+      barFraction: hasBudget ? spentDisplay / c.budget : spentDisplay / maxSpent,
       barOver: over,
     });
     body.push([
       { content: c.name, styles: { textColor: figCol } },
-      { content: fmt(c.spent), styles: { halign: 'right', font: 'courier', textColor: figCol } },
-      { content: `${Math.round(c.pctOfTotal)}%`, styles: { halign: 'right', font: 'courier', textColor: over ? neg : mute } },
+      { content: fmt(spentDisplay), styles: { halign: 'right', font: 'courier', textColor: figCol } },
+      { content: `${Math.round(pctOfTotal)}%`, styles: { halign: 'right', font: 'courier', textColor: over ? neg : mute } },
       hasBudget
         ? { content: m0(c.budget), styles: { halign: 'right', font: 'courier', textColor: mute } }
         : { content: '—', styles: { halign: 'right', font: 'courier', textColor: mute } },
       hasBudget
         ? {
-            content: sd(c.deltaVsBudget),
-            styles: { halign: 'right', font: 'courier', textColor: c.deltaVsBudget > 0 ? neg : ctx.pos },
+            content: sd(delta),
+            styles: { halign: 'right', font: 'courier', textColor: delta > 0 ? neg : ctx.pos },
           }
         : { content: '—', styles: { halign: 'right', font: 'courier', textColor: mute } },
       { content: '', styles: {} },
@@ -76,7 +84,7 @@ export function renderCategories(ctx: ReportCtx) {
   }
 
   if (rest.length > 0) {
-    const restSpent = rest.reduce((s, c) => s + c.spent, 0);
+    const restSpent = rest.reduce((s, c) => s + (useCombined ? c.combinedSpent : c.spent), 0);
     const restPct = totalCatSpent > 0 ? (restSpent / totalCatSpent) * 100 : 0;
     rowMeta.push({
       over: false,

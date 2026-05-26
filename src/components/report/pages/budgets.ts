@@ -10,12 +10,15 @@ export function renderBudgets(ctx: ReportCtx) {
     drawBottomStrip, drawBottomChrome,
   } = ctx;
   const {
-    budgetedCats, breachedCats, nearCats, totalBudget, totalBudgetedSpent,
+    budgetedCats, nearCats, totalBudget,
+    combinedTotalBudgetedSpent: totalBudgetedSpent,
     filteredTransactions, actualDates,
   } = ctx.data;
 
+  const useCombined = ctx.data.includeForecasted;
   const remaining = totalBudget - totalBudgetedSpent;
   const usedPct = totalBudget > 0 ? Math.round((totalBudgetedSpent / totalBudget) * 100) : 0;
+  const breachedCats = budgetedCats.filter((c) => (useCombined ? c.combinedOver : c.over));
 
   newPage();
   drawTopChrome(state.pageIdx, totalPagesEstimate);
@@ -72,16 +75,19 @@ export function renderBudgets(ctx: ReportCtx) {
   y += kpiH + 6;
 
   // ── Breach callout band ─────────────────────────────────────────
+  const accessor = (b: typeof budgetedCats[number]) =>
+    useCombined ? b.combinedSpent : b.spent;
   const worst =
     breachedCats.length > 0
       ? breachedCats.reduce((a, b) =>
-          (b.budget > 0 ? b.spent / b.budget : 0) > (a.budget > 0 ? a.spent / a.budget : 0) ? b : a,
+          (b.budget > 0 ? accessor(b) / b.budget : 0) > (a.budget > 0 ? accessor(a) / a.budget : 0) ? b : a,
         )
       : null;
 
   if (worst) {
-    const wPct = worst.budget > 0 ? Math.round((worst.spent / worst.budget) * 100) : 0;
-    const overBy = worst.spent - worst.budget;
+    const worstSpent = accessor(worst);
+    const wPct = worst.budget > 0 ? Math.round((worstSpent / worst.budget) * 100) : 0;
+    const overBy = worstSpent - worst.budget;
     const wName = (worst.name || '').toLowerCase();
     const txCount = filteredTransactions.filter(
       (tx) => tx.type === 'expense' && (tx.category?.name || '').toLowerCase() === wName,
@@ -112,7 +118,7 @@ export function renderBudgets(ctx: ReportCtx) {
     sans(8);
     setText(ink3);
     pdf.text(
-      `${fmt(worst.spent)} of ${fmt(worst.budget)} · ${txCount} transaction${txCount === 1 ? '' : 's'}`,
+      `${fmt(worstSpent)} of ${fmt(worst.budget)} · ${txCount} transaction${txCount === 1 ? '' : 's'}`,
       tx,
       calloutY + 15,
     );
@@ -125,10 +131,11 @@ export function renderBudgets(ctx: ReportCtx) {
   const rowH = 16;
   for (const c of budgetedCats) {
     if (y + rowH > BODY_BOTTOM) break;
-    const pct = c.budget > 0 ? c.spent / c.budget : 0;
+    const spentDisplay = useCombined ? c.combinedSpent : c.spent;
+    const pct = c.budget > 0 ? spentDisplay / c.budget : 0;
     const pctRound = Math.round(pct * 100);
-    const over = c.over;
-    const near = c.near;
+    const over = useCombined ? c.combinedOver : c.over;
+    const near = c.near && !over;
     const accent = over ? neg : near ? amber : ink;
 
     // category name
@@ -150,7 +157,7 @@ export function renderBudgets(ctx: ReportCtx) {
     mono(8, 'bold');
     setText(accent);
     pdf.text(
-      `${fmt(c.spent)} / ${fmt(c.budget)} · ${pctRound}%`,
+      `${fmt(spentDisplay)} / ${fmt(c.budget)} · ${pctRound}%`,
       PW - MARGIN_X,
       y,
       { align: 'right' },

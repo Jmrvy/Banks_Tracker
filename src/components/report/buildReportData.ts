@@ -201,7 +201,10 @@ export function buildReportData(input: BuildInputs): ReportData {
 
   // ── Categories ───────────────────────────────────────────────────
   const baseCats = categoryChartData
-    .filter((c) => Number(c.spent) > 0)
+    // Keep any category with actual spend OR a defined budget — the
+    // latter so a budgeted category that only sees projected spend
+    // still surfaces on the Categories/Budgets pages.
+    .filter((c) => Number(c.spent) > 0 || Number(c.budget) > 0)
     .map((c) => {
       const spent = Number(c.spent);
       const budget = Number(c.budget) || 0;
@@ -220,25 +223,32 @@ export function buildReportData(input: BuildInputs): ReportData {
     combinedOver: c.over,
   }));
 
-  const namedTop = expenseCats.slice(0, 5).map((c) => ({
-    name: c.name,
-    spent: c.spent,
-    pct: totalCatSpent > 0 ? (c.spent / totalCatSpent) * 100 : 0,
-    over: c.over,
-    count: 1,
-  }));
-  const restCats = expenseCats.slice(5);
-  const topCatsWithOther = [...namedTop];
-  if (restCats.length > 0) {
-    const restSpent = restCats.reduce((s, c) => s + c.spent, 0);
-    topCatsWithOther.push({
-      name: `Other (${restCats.length})`,
-      spent: restSpent,
-      pct: totalCatSpent > 0 ? (restSpent / totalCatSpent) * 100 : 0,
-      over: false,
-      count: restCats.length,
-    });
-  }
+  // Top-cats donut is rebuilt later if projections kick in so the
+  // breakdown stays consistent with the headline figures. This factory
+  // picks the spent accessor so it can be reused before & after.
+  const buildTopCats = (use: 'spent' | 'combinedSpent', denom: number) => {
+    const sortedByUse = expenseCats.slice().sort((a, b) => b[use] - a[use]);
+    const named = sortedByUse.slice(0, 5).map((c) => ({
+      name: c.name,
+      spent: c[use],
+      pct: denom > 0 ? (c[use] / denom) * 100 : 0,
+      over: use === 'combinedSpent' ? c.combinedOver : c.over,
+      count: 1,
+    }));
+    const rest = sortedByUse.slice(5);
+    if (rest.length > 0) {
+      const restSpent = rest.reduce((s, c) => s + c[use], 0);
+      named.push({
+        name: `Other (${rest.length})`,
+        spent: restSpent,
+        pct: denom > 0 ? (restSpent / denom) * 100 : 0,
+        over: false,
+        count: rest.length,
+      });
+    }
+    return named;
+  };
+  let topCatsWithOther = buildTopCats('spent', totalCatSpent);
 
   const budgetedCats = expenseCats.filter((c) => c.budget > 0).sort((a, b) => b.spent / b.budget - a.spent / a.budget);
   const breachedCats = budgetedCats.filter((c) => c.over);
@@ -279,38 +289,49 @@ export function buildReportData(input: BuildInputs): ReportData {
   const refundTotal = refundItems.reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
   const refundCount = refundItems.length;
 
-  const incomeTx = filteredTransactions.filter(
-    (t) => t.type === 'income' && !t.refund_of_transaction_id && inStats(t),
-  );
-  const sourceMap = new Map<string, { amount: number; count: number; recurring: boolean; category: string }>();
-  for (const t of incomeTx) {
-    const key = t.description || t.category?.name || 'Income';
-    const prev = sourceMap.get(key) ?? {
-      amount: 0,
-      count: 0,
-      recurring: false,
-      category: t.category?.name || 'Income',
+  // Income aggregation runs first against the actual transactions and
+  // is later refreshed in the projection block so the Income page's
+  // PER SOURCE table and recurring/one-off totals naturally include
+  // the projected income when forecast is on.
+  const aggregateIncome = (txs: Transaction[]) => {
+    const ix = txs.filter((t) => t.type === 'income' && !t.refund_of_transaction_id && inStats(t));
+    const sm = new Map<string, { amount: number; count: number; recurring: boolean; category: string }>();
+    for (const t of ix) {
+      const key = t.description || t.category?.name || 'Income';
+      const prev = sm.get(key) ?? {
+        amount: 0,
+        count: 0,
+        recurring: false,
+        category: t.category?.name || 'Income',
+      };
+      prev.amount += Number(t.amount);
+      prev.count += 1;
+      if (t.recurring_transaction_id) prev.recurring = true;
+      sm.set(key, prev);
+    }
+    const gross = ix.reduce((s, t) => s + Number(t.amount), 0);
+    const sources: IncomeSource[] = Array.from(sm.entries())
+      .map(([name, v]) => ({
+        name, category: v.category, count: v.count, amount: v.amount,
+        share: gross > 0 ? (v.amount / gross) * 100 : 0, recurring: v.recurring,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+    return {
+      sources,
+      gross: gross || 0,
+      recurringTotal: sources.filter((s) => s.recurring).reduce((s, x) => s + x.amount, 0),
+      recurringCount: sources.filter((s) => s.recurring).length,
+      oneOffTotal: gross - sources.filter((s) => s.recurring).reduce((s, x) => s + x.amount, 0),
+      oneOffCount: sources.filter((s) => !s.recurring).length,
     };
-    prev.amount += Number(t.amount);
-    prev.count += 1;
-    if (t.recurring_transaction_id) prev.recurring = true;
-    sourceMap.set(key, prev);
-  }
-  const grossIncome = incomeTx.reduce((s, t) => s + Number(t.amount), 0) || totalIncome;
-  const incomeSources: IncomeSource[] = Array.from(sourceMap.entries())
-    .map(([name, v]) => ({
-      name,
-      category: v.category,
-      count: v.count,
-      amount: v.amount,
-      share: grossIncome > 0 ? (v.amount / grossIncome) * 100 : 0,
-      recurring: v.recurring,
-    }))
-    .sort((a, b) => b.amount - a.amount);
-  const recurringIncomeTotal = incomeSources.filter((s) => s.recurring).reduce((s, x) => s + x.amount, 0);
-  const recurringIncomeCount = incomeSources.filter((s) => s.recurring).length;
-  const oneOffIncomeTotal = grossIncome - recurringIncomeTotal;
-  const oneOffIncomeCount = incomeSources.filter((s) => !s.recurring).length;
+  };
+  const incomeAgg0 = aggregateIncome(filteredTransactions);
+  let incomeSources = incomeAgg0.sources;
+  let grossIncome = incomeAgg0.gross || totalIncome;
+  let recurringIncomeTotal = incomeAgg0.recurringTotal;
+  let recurringIncomeCount = incomeAgg0.recurringCount;
+  let oneOffIncomeTotal = incomeAgg0.oneOffTotal;
+  let oneOffIncomeCount = incomeAgg0.oneOffCount;
   // Refunds are treated as income (shown positive/green), so they do not
   // offset or inflate gross expenses.
   const grossExpenses = totalExpenses;
@@ -363,8 +384,27 @@ export function buildReportData(input: BuildInputs): ReportData {
   // "Excluded movements" section, not in the headline cashflow.
   const isCashflowRow = (t: Transaction) =>
     !t.refund_of_transaction_id && t.include_in_stats !== false;
+
+  // Map every original expense to the total refunds that hit it within
+  // this period, so outflow rows can rank and display by their net
+  // impact (e.g. a 467 € Dentiste expense with 423 € of in-period
+  // refunds shows up as a 44 € effective outflow).
+  const refundsByOriginal = new Map<string, number>();
+  for (const t of filteredTransactions) {
+    if (t.refund_of_transaction_id) {
+      refundsByOriginal.set(
+        t.refund_of_transaction_id,
+        (refundsByOriginal.get(t.refund_of_transaction_id) ?? 0) + Number(t.amount),
+      );
+    }
+  }
+
   const inflowTx = filteredTransactions.filter((t) => t.type === 'income' && isCashflowRow(t)).sort(sortByAmtDesc);
-  const outflowTx = filteredTransactions.filter((t) => t.type === 'expense' && isCashflowRow(t)).sort(sortByAmtDesc);
+  const outflowRanked = filteredTransactions
+    .filter((t) => t.type === 'expense' && isCashflowRow(t))
+    .map((t) => ({ tx: t, effective: Number(t.amount) - (refundsByOriginal.get(t.id) ?? 0) }))
+    .filter((x) => x.effective > 0.01) // fully-refunded expenses drop out of the cashflow story
+    .sort((a, b) => b.effective - a.effective);
   // Movement rows mirror the template, which shows the bare description
   // (e.g. "Salary · Acme SAS") without the category appended.
   const labelOf = (t: Transaction) => t.description;
@@ -373,10 +413,10 @@ export function buildReportData(input: BuildInputs): ReportData {
     label: labelOf(t),
     amount: Number(t.amount),
   }));
-  const topOutflows = outflowTx.slice(0, 4).map((t) => ({
-    date: txDateOf(t, config.dateType),
-    label: labelOf(t),
-    amount: -Number(t.amount),
+  const topOutflows = outflowRanked.slice(0, 4).map((x) => ({
+    date: txDateOf(x.tx, config.dateType),
+    label: labelOf(x.tx),
+    amount: -x.effective,
   }));
 
   // ── Ledger (newest-first with running balance) ───────────────────
@@ -423,6 +463,10 @@ export function buildReportData(input: BuildInputs): ReportData {
           c.combinedSpent = c.spent + c.projectedSpent;
           c.combinedOver = c.budget > 0 && c.combinedSpent > c.budget;
         }
+        // Rebuild the top-cats donut breakdown so the segments and the
+        // centre figure match the combined headline total.
+        const combinedCatTotal = expenseCats.reduce((s, c) => s + c.combinedSpent, 0);
+        topCatsWithOther = buildTopCats('combinedSpent', combinedCatTotal);
 
         // Per-account projected inflow/outflow.
         const projByAcc = new Map<string, { in: number; out: number }>();
@@ -477,6 +521,17 @@ export function buildReportData(input: BuildInputs): ReportData {
           return { tx, date: txDateOf(tx, config.dateType), balance: r, isProjection: !!tx.isProjection };
         });
         augmentedLedgerRows = ascRowsProj.slice().reverse();
+
+        // Re-aggregate income from the merged set so the Income page
+        // (PER SOURCE table + Recurring/One-offs/Gross income KPIs and
+        // strip) naturally reflects the projected income too.
+        const agg = aggregateIncome(augmentedFiltered);
+        incomeSources = agg.sources;
+        grossIncome = agg.gross || totalIncome + forecastIncome;
+        recurringIncomeTotal = agg.recurringTotal;
+        recurringIncomeCount = agg.recurringCount;
+        oneOffIncomeTotal = agg.oneOffTotal;
+        oneOffIncomeCount = agg.oneOffCount;
       }
 
       // Count distinct recurring items with at least one future occurrence
@@ -550,13 +605,27 @@ export function buildReportData(input: BuildInputs): ReportData {
     topInflows,
     topOutflows,
     grossInflowCount: inflowTx.length,
-    grossOutflowCount: outflowTx.length,
+    grossOutflowCount: outflowRanked.length,
     filteredTransactions: augmentedFiltered,
     ledgerRows: augmentedLedgerRows,
     includeForecasted,
     forecastIncome,
     forecastExpenses,
     forecastNet: forecastIncome - forecastExpenses,
+    // Headline combined figures — when forecast is on these are the
+    // forward-looking totals that every page should display by default;
+    // when forecast is off they collapse to the actuals.
+    combinedIncome: totalIncome + forecastIncome,
+    combinedExpenses: totalExpenses + forecastExpenses,
+    combinedNet: (totalIncome + forecastIncome) - (totalExpenses + forecastExpenses),
+    combinedFinalBalance: balanceEnd + (forecastIncome - forecastExpenses),
+    combinedTotalCatSpent: expenseCats.reduce((s, c) => s + c.combinedSpent, 0),
+    combinedTotalBudgetedSpent: budgetedCats.reduce((s, c) => s + c.combinedSpent, 0),
+    // `grossIncome` is refreshed when forecast is on (includes projected
+    // entries), and equals the actual when forecast is off, so it is
+    // already the combined headline figure.
+    combinedGrossIncome: grossIncome,
+    combinedGrossExpenses: grossExpenses + forecastExpenses,
     recurringUpcoming,
     openingBalance: stats.initialBalance,
     ledgerPageCount,

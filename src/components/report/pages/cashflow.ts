@@ -9,7 +9,10 @@ export function renderCashflow(ctx: ReportCtx) {
     drawSectionEyebrow, drawBottomStrip, drawBottomChrome,
   } = ctx;
   const {
-    actualDates, netResult, evolutionChartData, grossIncome, grossExpenses,
+    actualDates, evolutionChartData,
+    combinedGrossIncome: grossIncome,
+    combinedGrossExpenses: grossExpenses,
+    combinedNet: netResult,
     refundTotal, refundCount, grossInflowCount, grossOutflowCount,
     typicalDailyExpense, topInflows, topOutflows, periodDays,
   } = ctx.data;

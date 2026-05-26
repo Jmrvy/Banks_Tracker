@@ -13,11 +13,22 @@ export function renderSummary(ctx: ReportCtx) {
     balanceEnd, accounts, breachedCats, expenseCats, totalCatSpent,
     topCatsWithOther, sparkPoints, stats, periodDays, incomeMoM, expenseMoM,
     prevPeriodLabel, prevExpenses,
+    combinedIncome, combinedExpenses, combinedNet, combinedFinalBalance,
+    combinedTotalCatSpent,
   } = ctx.data;
+  // When forecast is included, every headline figure shows the
+  // forward-looking total; otherwise the combined values equal the
+  // actuals so the same code path is used.
+  const headIncome = combinedIncome;
+  const headExpenses = combinedExpenses;
+  const headNet = combinedNet;
+  const headBalance = combinedFinalBalance;
+  const headCatSpent = combinedTotalCatSpent;
+  void totalIncome; void totalExpenses; void netResult; void balanceEnd; void totalCatSpent;
 
   // ── helpers ──────────────────────────────────────────────────────
   const sign1 = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(1)}`;
-  const savingsRate = totalIncome > 0 ? Math.round((netResult / totalIncome) * 100) : 0;
+  const savingsRate = headIncome > 0 ? Math.round((headNet / headIncome) * 100) : 0;
   const monthName = format(actualDates.start, 'MMMM', { locale });
   const balDate = format(actualDates.end, 'd MMM', { locale }).toUpperCase();
 
@@ -35,29 +46,29 @@ export function renderSummary(ctx: ReportCtx) {
   const cells = [
     {
       label: 'Income',
-      value: fmt(totalIncome),
+      value: fmt(headIncome),
       valueColor: pos,
       sub: incomeMoM == null ? '—' : `${sign1(incomeMoM)}% vs ${prevPeriodLabel}`,
       subColor: incomeMoM == null ? mute : incomeMoM >= 0 ? pos : neg,
     },
     {
       label: 'Expenses',
-      value: fmt(totalExpenses),
+      value: fmt(headExpenses),
       valueColor: neg,
       sub: expenseMoM == null ? '—' : `${sign1(expenseMoM)}% vs ${prevPeriodLabel}`,
       subColor: expenseMoM == null ? mute : expenseMoM < 0 ? pos : neg,
     },
     {
       label: 'Net result',
-      value: fmtSigned(netResult),
-      valueColor: netResult >= 0 ? pos : neg,
+      value: fmtSigned(headNet),
+      valueColor: headNet >= 0 ? pos : neg,
       sub: `${savingsRate}% savings`,
       subColor: mute,
       wrapValue: true,
     },
     {
       label: `Balance · ${balDate}`,
-      value: fmt(balanceEnd),
+      value: fmt(headBalance),
       valueColor: ink,
       sub: `across ${accounts.length} accts`,
       subColor: mute,
@@ -152,7 +163,7 @@ export function renderSummary(ctx: ReportCtx) {
   if (donutSegs.length > 0) drawDonut(donutCx, donutCy, 30, 18, donutSegs);
   mono(10, 'bold');
   setText(ink);
-  pdf.text(fmt(Math.round(totalCatSpent)), donutCx, donutCy + 0.5, { align: 'center' });
+  pdf.text(fmt(Math.round(headCatSpent)), donutCx, donutCy + 0.5, { align: 'center' });
   mono(6);
   setText(mute);
   pdf.text('EXPENSES', donutCx, donutCy + 5, { align: 'center' });
@@ -178,7 +189,7 @@ export function renderSummary(ctx: ReportCtx) {
   // ── Balance trend · {periodDays} days ────────────────────────────
   y = drawSectionEyebrow(
     `Balance trend · ${periodDays} days`,
-    `${fmt(Math.round(stats.initialBalance))} → ${fmt(Math.round(balanceEnd))}`,
+    `${fmt(Math.round(stats.initialBalance))} → ${fmt(Math.round(headBalance))}`,
     y,
   );
   const sparkH = 34;
@@ -220,15 +231,15 @@ export function renderSummary(ctx: ReportCtx) {
     MARGIN_X + COL / 2, y + sparkH + 7, { align: 'center' },
   );
   pdf.text(
-    `${format(actualDates.end, 'd MMM', { locale }).toUpperCase()} · ${fmt(Math.round(balanceEnd))}`,
+    `${format(actualDates.end, 'd MMM', { locale }).toUpperCase()} · ${fmt(Math.round(headBalance))}`,
     PW - MARGIN_X, y + sparkH + 7, { align: 'right' },
   );
 
   // ── Bottom strip ─────────────────────────────────────────────────
   drawBottomStrip(
     `Net result · ${ctx.periodLabel}`,
-    fmtSigned(netResult),
-    netResult >= 0 ? pos : neg,
+    fmtSigned(headNet),
+    headNet >= 0 ? pos : neg,
   );
   drawBottomChrome(state.pageIdx, totalPagesEstimate);
 }
