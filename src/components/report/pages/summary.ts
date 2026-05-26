@@ -167,6 +167,14 @@ export function renderSummary(ctx: ReportCtx) {
   mono(6);
   setText(mute);
   pdf.text('EXPENSES', donutCx, donutCy + 5, { align: 'center' });
+  // Make the forecast inclusion explicit on the donut so the
+  // combined breakdown doesn't read as actuals.
+  if (ctx.data.includeForecasted && ctx.data.forecastExpenses > 0) {
+    mono(5.5, 'normal', 8);
+    setText(ctx.mute2);
+    pdf.text('INCL. FORECAST', donutCx, donutCy + 9.5, { align: 'center' });
+    pdf.setCharSpace(0);
+  }
 
   const legendX = MARGIN_X + 70;
   let legendY = y + 9;
@@ -234,6 +242,14 @@ export function renderSummary(ctx: ReportCtx) {
     `${format(actualDates.end, 'd MMM', { locale }).toUpperCase()} · ${fmt(Math.round(headBalance))}`,
     PW - MARGIN_X, y + sparkH + 7, { align: 'right' },
   );
+  // Small actual / forecast key when the sparkline carries a dashed tail.
+  if (ctx.data.includeForecasted && ctx.data.projectionStartIndex > 0) {
+    const keyY = y + sparkH + 11;
+    mono(5.5, 'normal', 8);
+    setText(ctx.mute2);
+    pdf.text('— ACTUAL  · - - FORECAST', PW - MARGIN_X, keyY, { align: 'right' });
+    pdf.setCharSpace(0);
+  }
 
   // ── Bottom strip ─────────────────────────────────────────────────
   drawBottomStrip(

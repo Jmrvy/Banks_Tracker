@@ -336,7 +336,10 @@ export function buildReportData(input: BuildInputs): ReportData {
   // offset or inflate gross expenses.
   const grossExpenses = totalExpenses;
 
-  // 12-month income trend (calendar months ending at period end)
+  // 12-month income trend (calendar months ending at period end).
+  // The last bar represents the current report period — when forecast
+  // is on we expose its projected portion alongside the actual so the
+  // renderer can stack them and clearly mark the forecast slice.
   const monthlyIncomeSeries: MonthBar[] = [];
   for (let i = 11; i >= 0; i--) {
     const mStart = startOfMonth(subMonths(end, i));
@@ -586,6 +589,7 @@ export function buildReportData(input: BuildInputs): ReportData {
     refundCount,
     grossExpenses,
     monthlyIncomeSeries,
+    monthlyIncomeProjected: forecastIncome,
     incomeTrendStable,
     recurring: recurringData,
     activeRecurring,

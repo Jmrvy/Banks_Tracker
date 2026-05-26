@@ -136,6 +136,9 @@ export interface ReportData {
   refundCount: number;
   grossExpenses: number;
   monthlyIncomeSeries: MonthBar[];
+  /** Projected income added to the *last* (current-period) bar of the
+   *  12-month trend when forecast is on. 0 otherwise. */
+  monthlyIncomeProjected: number;
   incomeTrendStable: boolean;
 
   // recurring

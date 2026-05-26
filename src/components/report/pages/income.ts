@@ -234,17 +234,14 @@ export function renderIncome(ctx: ReportCtx) {
   y += 5;
 
   // ── 12-month income trend ────────────────────────────────────────
+  const trendMetaBase = incomeTrendStable ? 'stable, no missing months' : 'has gaps';
+  const trendMeta = ctx.data.includeForecasted && ctx.data.monthlyIncomeProjected > 0
+    ? `${trendMetaBase} · incl. forecast`
+    : trendMetaBase;
   if (y + 46 > BODY_LIMIT) {
-    y = contPage(
-      '12-month income trend',
-      incomeTrendStable ? 'stable, no missing months' : 'has gaps',
-    );
+    y = contPage('12-month income trend', trendMeta);
   } else {
-    y = drawSectionEyebrow(
-      '12-month income trend',
-      incomeTrendStable ? 'stable, no missing months' : 'has gaps',
-      y,
-    );
+    y = drawSectionEyebrow('12-month income trend', trendMeta, y);
   }
   y += 4;
 
@@ -253,20 +250,36 @@ export function renderIncome(ctx: ReportCtx) {
   const chartH = 30;
   const chartBase = y + chartH;
   const series = monthlyIncomeSeries.length ? monthlyIncomeSeries : [];
-  const maxVal = Math.max(1, ...series.map((m) => m.value));
+  const lastIdx = series.length - 1;
+  // The forecast projection rides on the LAST bar (the current period).
+  const projOnLast = ctx.data.includeForecasted ? ctx.data.monthlyIncomeProjected : 0;
+  const maxVal = Math.max(
+    1,
+    ...series.map((m, i) => m.value + (i === lastIdx ? projOnLast : 0)),
+  );
   const n = Math.max(1, series.length);
   const slot = chartW / n;
   const bw = Math.min(11, slot * 0.7);
   const tallestIdx = series.reduce(
-    (best, m, i) => (m.value > series[best].value ? i : best),
+    (best, m, i) => {
+      const v = m.value + (i === lastIdx ? projOnLast : 0);
+      const bestV = series[best].value + (best === lastIdx ? projOnLast : 0);
+      return v > bestV ? i : best;
+    },
     0,
   );
 
   series.forEach((m, i) => {
     const cx = chartX + slot * i + slot / 2;
-    const h = Math.max(0.6, (m.value / maxVal) * chartH);
+    const actualH = Math.max(0.6, (m.value / maxVal) * chartH);
     setFill(i === tallestIdx ? ink : ink2);
-    pdf.rect(cx - bw / 2, chartBase - h, bw, h, 'F');
+    pdf.rect(cx - bw / 2, chartBase - actualH, bw, actualH, 'F');
+    // Stack the projected portion on top in mute2 for the last bar.
+    if (i === lastIdx && projOnLast > 0) {
+      const projH = (projOnLast / maxVal) * chartH;
+      setFill(ctx.mute2);
+      pdf.rect(cx - bw / 2, chartBase - actualH - projH, bw, projH, 'F');
+    }
   });
 
   // baseline
@@ -295,6 +308,28 @@ export function renderIncome(ctx: ReportCtx) {
       axisY,
       { align: 'right' },
     );
+  }
+
+  // Actual / Forecast key for the last bar.
+  if (ctx.data.includeForecasted && projOnLast > 0) {
+    const keyY = axisY + 5;
+    const keyX = chartX + chartW;
+    sans(7, 'normal');
+    const fcW = pdf.getTextWidth('Forecast');
+    const acW = pdf.getTextWidth('Actual');
+    const swatch = 2.6;
+    const gapSwatch = 1.5;   // swatch ↔ its own label
+    const gapBetween = 6;    // Actual block ↔ Forecast block
+    // Forecast (right)
+    setFill(ctx.mute2);
+    pdf.rect(keyX - fcW - swatch - gapSwatch, keyY - 2.4, swatch, swatch, 'F');
+    setText(ctx.mute);
+    pdf.text('Forecast', keyX, keyY, { align: 'right' });
+    // Actual (left of Forecast)
+    const actualRightX = keyX - fcW - swatch - gapSwatch - gapBetween;
+    setFill(ink2);
+    pdf.rect(actualRightX - acW - swatch - gapSwatch, keyY - 2.4, swatch, swatch, 'F');
+    pdf.text('Actual', actualRightX, keyY, { align: 'right' });
   }
 
   // ── Bottom strip (only on the final page) ────────────────────────

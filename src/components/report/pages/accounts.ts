@@ -241,6 +241,16 @@ export function renderAccounts(ctx: ReportCtx) {
     fmt(endBal),
     PW - MARGIN_X - padX, labelY, { align: 'right' },
   );
+  // Actual / forecast key for the dashed-tail sparkline.
+  if (ctx.data.includeForecasted && ctx.data.projectionStartIndex > 0) {
+    mono(5.5, 'normal', 8);
+    setText(mute2);
+    pdf.text(
+      '— ACTUAL  · - - FORECAST',
+      PW - MARGIN_X - padX, labelY + 4, { align: 'right' },
+    );
+    pdf.setCharSpace(0);
+  }
 
   // ── Bottom strip ─────────────────────────────────────────────────
   // tot.closing is combined (= sum of projectedClosing) when forecast
