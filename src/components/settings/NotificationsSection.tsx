@@ -135,6 +135,26 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
     }
   };
 
+  const sendTestReport = async () => {
+    setTestReportLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-monthly-reports');
+      if (error) throw error;
+      toast({
+        title: t('settings.testReportSent', { defaultValue: 'Test report sent' }),
+        description: t('settings.testReportSentDesc', { defaultValue: 'Check your inbox in a few moments.' }),
+      });
+    } catch {
+      toast({
+        title: t('common.error'),
+        description: t('errors.generic'),
+        variant: "destructive",
+      });
+    } finally {
+      setTestReportLoading(false);
+    }
+  };
+
   const toggleSection = (s: EmailSection) => {
     setNotificationPrefs((prev) => ({
       ...prev,
