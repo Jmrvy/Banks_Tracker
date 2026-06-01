@@ -238,6 +238,37 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
             </Select>
           </div>
 
+          {/* Date convention — keeps email totals aligned with the in-app
+              analysis. Defaults to accounting date. */}
+          {reportsOn && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                {t('settings.reportDateConvention', { defaultValue: 'Date convention' })}
+              </Label>
+              <Select
+                value={notificationPrefs.dateType}
+                onValueChange={(v: 'accounting' | 'value') =>
+                  setNotificationPrefs((p) => ({ ...p, dateType: v }))
+                }
+              >
+                <SelectTrigger className="h-9 text-sm w-full sm:w-[240px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="accounting">{t('settings.accountingDate', { defaultValue: 'Accounting date' })}</SelectItem>
+                  <SelectItem value="value">{t('settings.valueDate', { defaultValue: 'Value date' })}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {t('settings.reportDateConventionHint', {
+                  defaultValue: 'Pick the same convention as the Reports page so totals match.',
+                })}
+              </p>
+            </div>
+          )}
+
+
+
           {/* 2 — Sections to include */}
           {reportsOn && (
             <div className="space-y-2">
