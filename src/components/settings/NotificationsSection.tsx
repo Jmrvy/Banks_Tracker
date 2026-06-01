@@ -33,9 +33,11 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
     sections: ['summary', 'categories', 'budgets', 'accounts', 'recurring'] as EmailSection[],
     attachPdf: true,
     topN: 6,
+    dateType: 'accounting' as 'accounting' | 'value',
   });
   const [notifLoading, setNotifLoading] = useState(false);
   const [testBudgetLoading, setTestBudgetLoading] = useState(false);
+  const [testReportLoading, setTestReportLoading] = useState(false);
 
   useEffect(() => {
     const loadNotificationPrefs = async () => {
@@ -55,6 +57,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           ?? (row.monthly_reports ? 'monthly' : 'off');
         const sectionsRaw = (row.monthly_report_sections as EmailSection[] | undefined)
           ?? ['summary', 'categories', 'budgets', 'accounts', 'recurring'];
+        const dateTypeRaw = (row.date_type as string | undefined) === 'value' ? 'value' : 'accounting';
         setNotificationPrefs({
           budgetAlerts: !!row.budget_alerts,
           cadence: (['off', 'weekly', 'monthly', 'quarterly'] as Cadence[]).includes(cadenceRaw)
@@ -65,6 +68,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
             : ['summary', 'categories', 'budgets', 'accounts', 'recurring'],
           attachPdf: row.monthly_report_attach_pdf !== false,
           topN: Math.max(1, Math.min(20, Number(row.monthly_report_top_n) || 6)),
+          dateType: dateTypeRaw,
         });
       }
     };
@@ -89,6 +93,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           monthly_report_sections: notificationPrefs.sections,
           monthly_report_attach_pdf: notificationPrefs.attachPdf,
           monthly_report_top_n: notificationPrefs.topN,
+          date_type: notificationPrefs.dateType,
         } as never);
 
       if (error) throw error;
@@ -127,6 +132,26 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
       });
     } finally {
       setTestBudgetLoading(false);
+    }
+  };
+
+  const sendTestReport = async () => {
+    setTestReportLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-monthly-reports');
+      if (error) throw error;
+      toast({
+        title: t('settings.testReportSent', { defaultValue: 'Test report sent' }),
+        description: t('settings.testReportSentDesc', { defaultValue: 'Check your inbox in a few moments.' }),
+      });
+    } catch {
+      toast({
+        title: t('common.error'),
+        description: t('errors.generic'),
+        variant: "destructive",
+      });
+    } finally {
+      setTestReportLoading(false);
     }
   };
 
@@ -212,6 +237,37 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Date convention — keeps email totals aligned with the in-app
+              analysis. Defaults to accounting date. */}
+          {reportsOn && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                {t('settings.reportDateConvention', { defaultValue: 'Date convention' })}
+              </Label>
+              <Select
+                value={notificationPrefs.dateType}
+                onValueChange={(v: 'accounting' | 'value') =>
+                  setNotificationPrefs((p) => ({ ...p, dateType: v }))
+                }
+              >
+                <SelectTrigger className="h-9 text-sm w-full sm:w-[240px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="accounting">{t('settings.accountingDate', { defaultValue: 'Accounting date' })}</SelectItem>
+                  <SelectItem value="value">{t('settings.valueDate', { defaultValue: 'Value date' })}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {t('settings.reportDateConventionHint', {
+                  defaultValue: 'Pick the same convention as the Reports page so totals match.',
+                })}
+              </p>
+            </div>
+          )}
+
+
 
           {/* 2 — Sections to include */}
           {reportsOn && (
@@ -308,6 +364,11 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           </Button>
           <Button onClick={testBudgetCheck} disabled={testBudgetLoading} variant="outline" size="sm" className="h-8 text-sm">
             {testBudgetLoading ? t('settings.testing') : t('settings.testBudgetCheck')}
+          </Button>
+          <Button onClick={sendTestReport} disabled={testReportLoading} variant="outline" size="sm" className="h-8 text-sm">
+            {testReportLoading
+              ? t('settings.sendingTestReport', { defaultValue: 'Sending…' })
+              : t('settings.sendTestReport', { defaultValue: 'Send test report now' })}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">

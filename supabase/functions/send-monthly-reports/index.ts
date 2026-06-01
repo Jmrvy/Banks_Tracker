@@ -390,51 +390,70 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authHeader = req.headers.get('x-cron-secret');
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
+  // Two entry points:
+  //   1. Cron — must present `x-cron-secret`. Processes every user whose
+  //      cadence fires today.
+  //   2. In-app test — authenticated user clicks "send now". The caller's
+  //      JWT identifies the user, and we process only that row with the
+  //      calendar gate bypassed.
+  const cronHeader = req.headers.get('x-cron-secret');
   const expectedSecret = Deno.env.get('CRON_SECRET');
-  if (!authHeader || authHeader !== expectedSecret) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  const isCron = !!cronHeader && cronHeader === expectedSecret;
+
+  let testUserId: string | null = null;
+  if (!isCron) {
+    const auth = req.headers.get('authorization') || req.headers.get('Authorization');
+    const token = auth && auth.toLowerCase().startsWith('bearer ') ? auth.slice(7) : null;
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+    if (userErr || !userData?.user?.id) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    testUserId = userData.user.id;
   }
 
   try {
-    console.log("Starting monthly reports generation...");
+    console.log(isCron ? "Starting monthly reports generation (cron)..." : `Starting test report for user ${testUserId}...`);
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // Calendar gate: today's date determines which cadences fire.
-    //   - weekly: Monday (date-fns weekday() === 1) for ISO weeks
-    //   - monthly: 1st of the month
-    //   - quarterly: 1st of Jan / Apr / Jul / Oct
     const now = new Date();
-    const dow = now.getDay(); // 0 = Sun, 1 = Mon, …
-    const dom = now.getDate();
-    const month = now.getMonth(); // 0 = Jan
     const todayCadences: Array<'weekly' | 'monthly' | 'quarterly'> = [];
-    if (dow === 1) todayCadences.push('weekly');
-    if (dom === 1) todayCadences.push('monthly');
-    if (dom === 1 && (month === 0 || month === 3 || month === 6 || month === 9)) todayCadences.push('quarterly');
+    if (isCron) {
+      const dow = now.getDay();
+      const dom = now.getDate();
+      const month = now.getMonth();
+      if (dow === 1) todayCadences.push('weekly');
+      if (dom === 1) todayCadences.push('monthly');
+      if (dom === 1 && (month === 0 || month === 3 || month === 6 || month === 9)) todayCadences.push('quarterly');
+      if (todayCadences.length === 0) {
+        console.log('No cadence triggers fire today; exiting.');
+        return new Response(
+          JSON.stringify({ message: 'No cadence triggers today', sent: 0 }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
-    // Pull every user whose cadence might fire today. Filter at the DB
-    // layer so we don't drag down every notification preference row.
     let query = supabaseAdmin
       .from('notification_preferences')
       .select('user_id, date_type, monthly_report_cadence, monthly_report_sections, monthly_report_attach_pdf, monthly_report_top_n, monthly_reports');
-    if (todayCadences.length === 0) {
-      // No cadence triggers today — return early. (Cron may run daily;
-      // this is the silent path for non-event days.)
-      console.log('No cadence triggers fire today; exiting.');
-      return new Response(
-        JSON.stringify({ message: 'No cadence triggers today', sent: 0 }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isCron) {
+      query = query.in('monthly_report_cadence', todayCadences);
+    } else {
+      query = query.eq('user_id', testUserId!);
     }
-    query = query.in('monthly_report_cadence', todayCadences);
     const { data: usersWithNotifs, error: usersError } = await query;
 
     if (usersError) throw usersError;
@@ -442,16 +461,17 @@ const handler = async (req: Request): Promise<Response> => {
     const usersWithEmails = await Promise.all(
       (usersWithNotifs || []).map(async (pref: any) => {
         const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pref.user_id);
-        // Fall back to legacy defaults when the new columns are missing
-        // (e.g. row created before this migration; should be rare but
-        // protects against partial deploys).
-        const cadence = (pref.monthly_report_cadence ?? (pref.monthly_reports ? 'monthly' : 'off')) as
+        const rawCadence = (pref.monthly_report_cadence ?? (pref.monthly_reports ? 'monthly' : 'off')) as
           'off' | 'weekly' | 'monthly' | 'quarterly';
         const sections: string[] = Array.isArray(pref.monthly_report_sections) && pref.monthly_report_sections.length
           ? pref.monthly_report_sections
           : ['summary', 'categories', 'budgets', 'accounts', 'recurring'];
         const attachPdf: boolean = pref.monthly_report_attach_pdf !== false;
         const topN: number = Math.max(1, Math.min(20, Number(pref.monthly_report_top_n) || 6));
+        // For test runs we want a preview even when cadence is "off"; we
+        // fall through to a monthly window in that case so the user can
+        // verify their setup.
+        const cadence = (!isCron && rawCadence === 'off') ? 'monthly' : rawCadence;
         return {
           user_id: pref.user_id,
           email: authUser?.user?.email || null,
@@ -464,8 +484,10 @@ const handler = async (req: Request): Promise<Response> => {
       })
     );
 
-    const validUsers = usersWithEmails.filter((u: any) => u.email && u.cadence !== 'off');
-    console.log(`Found ${validUsers.length} users due for a report today (cadences: ${todayCadences.join(', ')})`);
+    const validUsers = isCron
+      ? usersWithEmails.filter((u: any) => u.email && u.cadence !== 'off')
+      : usersWithEmails.filter((u: any) => u.email);
+    console.log(`Found ${validUsers.length} users to process${isCron ? ` (cadences: ${todayCadences.join(', ')})` : ' (test)'}`);
 
     // Period helpers — choose the right window per user's cadence.
     const periodForCadence = (cadence: 'weekly' | 'monthly' | 'quarterly') => {
