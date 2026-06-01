@@ -259,10 +259,10 @@ const Settings = () => {
           </nav>
 
           {/* Desktop: sticky left rail */}
-          <aside className="hidden lg:block">
+          <aside className="hidden lg:block sticky top-6 self-start">
             <nav
               aria-label={t("settings.sectionsAria", { defaultValue: "Settings sections" })}
-              className="sticky top-6 flex flex-col gap-px"
+              className="flex flex-col gap-px"
             >
               {visibleSections.map((s) => {
                 const Icon = s.icon;
