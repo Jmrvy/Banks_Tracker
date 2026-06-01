@@ -33,9 +33,11 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
     sections: ['summary', 'categories', 'budgets', 'accounts', 'recurring'] as EmailSection[],
     attachPdf: true,
     topN: 6,
+    dateType: 'accounting' as 'accounting' | 'value',
   });
   const [notifLoading, setNotifLoading] = useState(false);
   const [testBudgetLoading, setTestBudgetLoading] = useState(false);
+  const [testReportLoading, setTestReportLoading] = useState(false);
 
   useEffect(() => {
     const loadNotificationPrefs = async () => {
