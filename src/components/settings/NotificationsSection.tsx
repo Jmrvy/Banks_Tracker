@@ -365,6 +365,11 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           <Button onClick={testBudgetCheck} disabled={testBudgetLoading} variant="outline" size="sm" className="h-8 text-sm">
             {testBudgetLoading ? t('settings.testing') : t('settings.testBudgetCheck')}
           </Button>
+          <Button onClick={sendTestReport} disabled={testReportLoading} variant="outline" size="sm" className="h-8 text-sm">
+            {testReportLoading
+              ? t('settings.sendingTestReport', { defaultValue: 'Sending…' })
+              : t('settings.sendTestReport', { defaultValue: 'Send test report now' })}
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground">
           {t('settings.testBudgetHint')}
