@@ -57,6 +57,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           ?? (row.monthly_reports ? 'monthly' : 'off');
         const sectionsRaw = (row.monthly_report_sections as EmailSection[] | undefined)
           ?? ['summary', 'categories', 'budgets', 'accounts', 'recurring'];
+        const dateTypeRaw = (row.date_type as string | undefined) === 'value' ? 'value' : 'accounting';
         setNotificationPrefs({
           budgetAlerts: !!row.budget_alerts,
           cadence: (['off', 'weekly', 'monthly', 'quarterly'] as Cadence[]).includes(cadenceRaw)
@@ -67,6 +68,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
             : ['summary', 'categories', 'budgets', 'accounts', 'recurring'],
           attachPdf: row.monthly_report_attach_pdf !== false,
           topN: Math.max(1, Math.min(20, Number(row.monthly_report_top_n) || 6)),
+          dateType: dateTypeRaw,
         });
       }
     };
