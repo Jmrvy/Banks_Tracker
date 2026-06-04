@@ -207,10 +207,16 @@ function PaceBar({
   height?: number;
   showTick?: boolean;
 }) {
+  const { t } = useTranslation();
   const ratio = budget > 0 ? used / budget : 0;
   const fillPct = Math.min(ratio, 1) * 100;
   const over = ratio > 1;
-  const overWidth = over ? Math.min(ratio - 1, 1) * 26 : 0;
+  // Overrun "spike" — purely a visual signal that the row is past
+  // budget. We size it in pixels (not % of bar width) and cap it at
+  // 16px so it never overflows the card's right padding. Larger
+  // overshoots are already conveyed by the status pill / colour /
+  // remaining figure; the spike just adds a quick at-a-glance cue.
+  const overWidthPx = over ? Math.min(Math.ceil((ratio - 1) * 24), 16) : 0;
   const calm = status === "ok" || status === "noBudget";
   const colorClass =
     status === "over"
@@ -220,6 +226,7 @@ function PaceBar({
       : status === "ok"
       ? "bg-pos"
       : "bg-muted-foreground/40";
+  const elapsedPctLabel = Math.round(Math.min(elapsedFraction, 1) * 100);
   return (
     <div
       className="relative w-full rounded-full bg-bg-subtle overflow-visible"
@@ -229,12 +236,12 @@ function PaceBar({
         className={cn("absolute left-0 top-0 bottom-0 rounded-full transition-all", colorClass)}
         style={{ width: `${fillPct}%`, opacity: calm ? 0.6 : 1 }}
       />
-      {over && (
+      {over && overWidthPx > 0 && (
         <div
           className="absolute top-0 bottom-0 rounded-r-full"
           style={{
             left: "calc(100% + 3px)",
-            width: `${overWidth}%`,
+            width: `${overWidthPx}px`,
             background:
               status === "over"
                 ? "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 3px, hsl(var(--neg) / 0.35) 3px 6px)"
@@ -244,8 +251,18 @@ function PaceBar({
       )}
       {showTick && budget > 0 && (
         <div
-          className="absolute -top-1 -bottom-1 w-0.5 -ml-px rounded-sm bg-card ring-[1.5px] ring-foreground/30"
+          // Today marker. The position reflects the elapsed share of
+          // the period; comparing the fill's right edge to this tick
+          // tells the user whether they're ahead of or behind pace.
+          className="absolute -top-1 -bottom-1 w-0.5 -ml-px rounded-sm bg-card ring-[1.5px] ring-foreground/30 cursor-help"
           style={{ left: `${Math.min(elapsedFraction, 1) * 100}%` }}
+          title={t("budget.todayTickTooltip", {
+            pct: elapsedPctLabel,
+            defaultValue: `Today · {{pct}}% of the period elapsed`,
+          })}
+          aria-label={t("budget.todayTickAria", {
+            defaultValue: "Today marker",
+          })}
         />
       )}
     </div>
