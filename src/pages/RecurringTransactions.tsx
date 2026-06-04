@@ -40,7 +40,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
   const [managingDebtId, setManagingDebtId] = useState<string | null>(null);
   const [deletingRecurring, setDeletingRecurring] = useState<RecurringTransaction | null>(null);
   const { formatCurrency } = useUserPreferences();
-  const { installmentPayments } = useInstallmentPayments();
+  const { installmentPayments, installmentRecords } = useInstallmentPayments();
   const { debts, payments: debtPayments } = useDebts();
   const { user } = useAuth();
   const [scheduledDebtPayments, setScheduledDebtPayments] = useState<ScheduledDebtPayment[]>([]);
@@ -360,6 +360,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                   transactions={recurringTransactions}
                   actualTransactions={transactions}
                   installmentPayments={installmentPayments}
+                  installmentRecords={installmentRecords}
                   debts={debts}
                   debtPayments={debtPayments}
                   scheduledDebtPayments={scheduledDebtPayments}

@@ -37,6 +37,19 @@ export interface InstallmentPayment {
   updated_at: string;
 }
 
+/** One row in a personalized installment schedule. Present only for
+ *  custom plans; uniform plans use installment_amount + frequency. */
+export interface InstallmentPaymentRecord {
+  id: string;
+  installment_payment_id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean;
+  paid_date: string | null;
+  actual_amount: number | null;
+  transaction_id: string | null;
+}
+
 export interface InstallmentPaymentHistory {
   id: string;
   installment_payment_id: string;
@@ -63,6 +76,10 @@ const toInstallmentPayment = (row: any): InstallmentPayment => ({
 export const useInstallmentPayments = () => {
   const { user } = useAuth();
   const [installmentPayments, setInstallmentPayments] = useState<InstallmentPayment[]>([]);
+  // All personalized-schedule records for the current user, sorted per plan
+  // by scheduled_date. Consumers that need to show variable amounts/dates
+  // (calendar, projections) look up records by installment_payment_id.
+  const [installmentRecords, setInstallmentRecords] = useState<InstallmentPaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchInstallmentPayments = async () => {
@@ -80,6 +97,41 @@ export const useInstallmentPayments = () => {
       const processedData: InstallmentPayment[] = (data || []).map(toInstallmentPayment);
       setInstallmentPayments(processedData);
     }
+  };
+
+  const fetchInstallmentRecords = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('installment_payment_records' as never)
+      .select('id, installment_payment_id, scheduled_date, scheduled_amount, is_paid, paid_date, actual_amount, transaction_id')
+      .eq('user_id', user.id)
+      .order('scheduled_date', { ascending: true });
+    if (error) {
+      console.error('Error fetching installment records:', error);
+      return;
+    }
+    const rows = (data ?? []) as unknown as Array<{
+      id: string;
+      installment_payment_id: string;
+      scheduled_date: string;
+      scheduled_amount: number | string;
+      is_paid: boolean;
+      paid_date: string | null;
+      actual_amount: number | string | null;
+      transaction_id: string | null;
+    }>;
+    setInstallmentRecords(
+      rows.map((r) => ({
+        id: r.id,
+        installment_payment_id: r.installment_payment_id,
+        scheduled_date: r.scheduled_date,
+        scheduled_amount: Number(r.scheduled_amount),
+        is_paid: !!r.is_paid,
+        paid_date: r.paid_date,
+        actual_amount: r.actual_amount != null ? Number(r.actual_amount) : null,
+        transaction_id: r.transaction_id,
+      }))
+    );
   };
 
   // Fetch history for a specific installment payment
@@ -832,7 +884,7 @@ export const useInstallmentPayments = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await fetchInstallmentPayments();
+      await Promise.all([fetchInstallmentPayments(), fetchInstallmentRecords()]);
       setLoading(false);
     };
 
@@ -845,6 +897,7 @@ export const useInstallmentPayments = () => {
         refetchTimer = setTimeout(() => {
           refetchTimer = null;
           fetchInstallmentPayments();
+          fetchInstallmentRecords();
         }, 250);
       };
 
@@ -866,7 +919,10 @@ export const useInstallmentPayments = () => {
       // Local synchronous notify path so every consumer instance refetches
       // immediately after a write done in this tab (realtime is the
       // cross-tab path; this is the same-tab fast path).
-      const handleLocalUpdate = () => fetchInstallmentPayments();
+      const handleLocalUpdate = () => {
+        fetchInstallmentPayments();
+        fetchInstallmentRecords();
+      };
       window.addEventListener('installment-updated', handleLocalUpdate);
 
       return () => {
@@ -1192,6 +1248,7 @@ export const useInstallmentPayments = () => {
 
   return {
     installmentPayments,
+    installmentRecords,
     loading,
     createInstallmentPayment,
     updateInstallmentPayment,

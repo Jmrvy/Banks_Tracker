@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { RecurringTransaction, Transaction } from "@/hooks/useFinancialData";
-import { InstallmentPayment } from "@/hooks/useInstallmentPayments";
+import { InstallmentPayment, InstallmentPaymentRecord } from "@/hooks/useInstallmentPayments";
 import { Debt, DebtPayment } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
@@ -28,6 +28,12 @@ interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
   actualTransactions?: Transaction[];
   installmentPayments?: InstallmentPayment[];
+  /**
+   * All personalized-schedule records for the user. Plans with records
+   * get their occurrences (dates + amounts) read from this list instead
+   * of regenerated from frequency. Uniform plans simply have no rows here.
+   */
+  installmentRecords?: InstallmentPaymentRecord[];
   debts?: Debt[];
   debtPayments?: DebtPayment[];
   scheduledDebtPayments?: ScheduledDebtPayment[];
@@ -109,7 +115,7 @@ function advanceDate(date: Date, recurrenceType: string): Date {
 type DateField = 'value_date' | 'transaction_date';
 const getTxDate = (tx: Transaction, field: DateField): string => field === 'value_date' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
 
-const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
+const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], installmentRecords = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
   const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
@@ -229,6 +235,20 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return map;
   }, [installmentPayments]);
 
+  // Per-plan custom schedule, sorted by date. A plan with rows here has a
+  // personalized schedule (variable dates and/or amounts) and the calendar
+  // should drive its occurrences from these rows instead of frequency.
+  const recordsByPlanId = useMemo(() => {
+    const map = new Map<string, InstallmentPaymentRecord[]>();
+    installmentRecords.forEach((r) => {
+      const list = map.get(r.installment_payment_id) ?? [];
+      list.push(r);
+      map.set(r.installment_payment_id, list);
+    });
+    map.forEach((list) => list.sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date)));
+    return map;
+  }, [installmentRecords]);
+
   // Count actual installment transactions to know how many have been paid
   const installmentPaidCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -319,6 +339,39 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       if (transaction.end_date) {
         endDateLimit = parseLocalDate(transaction.end_date);
         if (endDateLimit < monthStart) return;
+      }
+
+      // Personalized installment schedule: the plan has explicit per-row
+      // dates and amounts. Skip the frequency walk and emit one occurrence
+      // per record that falls in this month. Past unpaid records still show
+      // (overdue path) so the calendar matches the plan's schedule timeline.
+      if (transaction.installment_payment_id) {
+        const planRecords = recordsByPlanId.get(transaction.installment_payment_id);
+        if (planRecords && planRecords.length > 0) {
+          planRecords.forEach((rec) => {
+            // For paid records prefer the linked transaction's real date
+            // (the user may have paid earlier or later than scheduled);
+            // for unpaid records use the scheduled date.
+            let displayDate = parseLocalDate(rec.scheduled_date);
+            let displayAmount = rec.scheduled_amount;
+            if (rec.is_paid && rec.transaction_id) {
+              const linkedTx = actualTransactions.find((t) => t.id === rec.transaction_id);
+              if (linkedTx) {
+                displayDate = parseLocalDate(linkedTx.transaction_date);
+                displayAmount = Math.abs(linkedTx.amount);
+              } else if (rec.actual_amount != null) {
+                displayAmount = rec.actual_amount;
+              }
+            }
+            if (!isSameMonth(displayDate, currentMonth)) return;
+            const key = format(displayDate, 'yyyy-MM-dd');
+            const isPast = isBefore(displayDate, today);
+            const entries = map.get(key) || [];
+            entries.push({ transaction, isPast, isOverdue: false, displayAmount, occurrenceDate: key });
+            map.set(key, entries);
+          });
+          return;
+        }
       }
 
       const startDate = parseLocalDate(transaction.start_date);
@@ -650,7 +703,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, resolveDebt, debtActualAmounts, debtActualByDay, scheduledDebtPaymentsByDebtMonth, debts, dateField]);
+  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, recordsByPlanId, actualTransactions, resolveDebt, debtActualAmounts, debtActualByDay, scheduledDebtPaymentsByDebtMonth, debts, dateField]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
