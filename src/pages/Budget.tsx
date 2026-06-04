@@ -1,28 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
+  ArrowDownRight,
   ArrowUpRight,
-  Bell,
   CalendarIcon,
+  Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Download,
   Edit3,
-  History,
-  Pencil,
+  Minus,
   Plus,
   Search,
   Sparkles,
-  Target,
   Trash2,
-  TrendingDown,
-  TrendingUp,
   Wand2,
-  Zap,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,12 +27,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { YearPicker } from "@/components/ui/year-picker";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { BudgetRowSparkline } from "@/components/BudgetRowSparkline";
-import { BudgetRowGauge } from "@/components/BudgetRowGauge";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { EditCategoryModal } from "@/components/EditCategoryModal";
-import { MiniDonut } from "@/components/MiniDonut";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -75,7 +76,6 @@ import {
 // =============================================================================
 
 type StatusFilter = "all" | "over" | "warn" | "noBudget";
-type RowView = "trend" | "gauge";
 type PeriodKey = "1m" | "3m" | "6m" | "ytd" | "1y" | "month" | "year" | "custom";
 type Status = "noBudget" | "ok" | "warn" | "over";
 
@@ -88,31 +88,18 @@ interface Driver {
 
 interface CategoryStats {
   category: Category;
-  /** Actual spend within the selected period. */
   spent: number;
-  /** Actual spend within the equivalent prior period (clamped to elapsed). */
   prevSpent: number;
-  /** Future projected spend (recurring) inside the period — 0 if toggle off. */
   projected: number;
-  /** Total used = spent + projected. */
   used: number;
-  /** Period budget = monthlyBudget × effectiveMonthsInPeriod (null if no monthly budget set). */
   periodBudget: number | null;
-  /** periodBudget − used (null when no budget set). */
   remaining: number | null;
-  /** Average actual spend per month over the last 6 *complete* months. */
   monthlyAvg: number;
-  /** Suggested *monthly* budget. Returns 0 when no useful history. */
   suggested: number;
-  /** used / periodBudget (0 if no budget). */
   pct: number;
-  /** Time-aware status flag. */
   status: Status;
-  /** Bucketed actual spend over the period — drives the sparkline. */
   buckets: number[];
-  /** Bucketed projected spend over the period (parallel to `buckets`). */
   projectedBuckets: number[];
-  /** Top-5 actual transactions in the period (descending by amount). */
   topDrivers: Driver[];
 }
 
@@ -122,7 +109,7 @@ interface PeriodBuckets {
 }
 
 // =============================================================================
-// Pure helpers
+// Pure helpers — preserved verbatim from v1
 // =============================================================================
 
 function netExpense(tx: Transaction): number {
@@ -167,10 +154,6 @@ function advanceDate(date: Date, recurrenceType: RecurringTransaction["recurrenc
   }
 }
 
-/**
- * Sum of (overlap_days / month_days) across every month touched by the window.
- * Result reads as the "fair" number of months that fit inside the window.
- */
 function effectiveMonthsBetween(from: Date, to: Date): number {
   if (to <= from) return 0;
   let total = 0;
@@ -188,20 +171,6 @@ function effectiveMonthsBetween(from: Date, to: Date): number {
   return total;
 }
 
-/**
- * Time-aware status. The "warn" threshold is pace-aware so that 85% used
- * on day 3 of 31 still raises a flag, but we reserve "over" for rows that
- * have *actually* exceeded their budget — €600 spent against a €600 budget
- * is on-target, not a breach.
- *
- *   over: ratio > 1                    (strictly exceeded — no false alarms at 100%)
- *   warn: elapsed + 0.15 ≤ ratio < 1   (pacing too hot, not yet over)
- *   ok  : below pace, or exactly at budget
- *
- * The row's `pace X% · used Y%` micro-line carries the pacing story, so
- * exactly-at-budget reads cleanly as "On track" instead of triggering noise
- * on a fixed monthly like rent.
- */
 function statusOf(used: number, periodBudget: number | null, elapsed: number): Status {
   if (periodBudget == null) return "noBudget";
   if (periodBudget <= 0) return "ok";
@@ -209,6 +178,927 @@ function statusOf(used: number, periodBudget: number | null, elapsed: number): S
   if (ratio > 1) return "over";
   if (ratio < 1 && ratio >= elapsed + 0.15) return "warn";
   return "ok";
+}
+
+// =============================================================================
+// Visual primitives — built fresh for the v2 design
+// =============================================================================
+
+/**
+ * Pace bar. Track + fill clamped to 100 %; when the row is over-budget the
+ * fill paints the entire track and a hatched "overrun" strip sticks out to
+ * the right. A small tick marks today's elapsed share of the period.
+ *
+ * Status colour drives the fill tone; 'ok' rows are muted on purpose so the
+ * dashboard reads quiet when everything is on track and loud only when not.
+ */
+function PaceBar({
+  used,
+  budget,
+  status,
+  elapsedFraction,
+  height = 8,
+  showTick = true,
+}: {
+  used: number;
+  budget: number;
+  status: Status;
+  elapsedFraction: number;
+  height?: number;
+  showTick?: boolean;
+}) {
+  const ratio = budget > 0 ? used / budget : 0;
+  const fillPct = Math.min(ratio, 1) * 100;
+  const over = ratio > 1;
+  const overWidth = over ? Math.min(ratio - 1, 1) * 26 : 0;
+  const calm = status === "ok" || status === "noBudget";
+  const colorClass =
+    status === "over"
+      ? "bg-neg"
+      : status === "warn"
+      ? "bg-warning"
+      : status === "ok"
+      ? "bg-pos"
+      : "bg-muted-foreground/40";
+  return (
+    <div
+      className="relative w-full rounded-full bg-bg-subtle overflow-visible"
+      style={{ height }}
+    >
+      <div
+        className={cn("absolute left-0 top-0 bottom-0 rounded-full transition-all", colorClass)}
+        style={{ width: `${fillPct}%`, opacity: calm ? 0.6 : 1 }}
+      />
+      {over && (
+        <div
+          className="absolute top-0 bottom-0 rounded-r-full"
+          style={{
+            left: "calc(100% + 3px)",
+            width: `${overWidth}%`,
+            background:
+              status === "over"
+                ? "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 3px, hsl(var(--neg) / 0.35) 3px 6px)"
+                : "repeating-linear-gradient(135deg, hsl(var(--warning)) 0 3px, hsl(var(--warning) / 0.35) 3px 6px)",
+          }}
+        />
+      )}
+      {showTick && budget > 0 && (
+        <div
+          className="absolute -top-1 -bottom-1 w-0.5 -ml-px rounded-sm bg-card ring-[1.5px] ring-foreground/30"
+          style={{ left: `${Math.min(elapsedFraction, 1) * 100}%` }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Ring gauge — the centerpiece of the Overview card. SVG-only.
+ *
+ * The ring stroke colour signals breach: green when below budget, red when
+ * actual + projected exceeds it. The "today" mark on the rim is a small
+ * white dot outlined in foreground so the user can tell at a glance whether
+ * they're ahead of or behind pace, without reading any text.
+ */
+function RingGauge({
+  ratio,
+  elapsedFraction,
+  size = 124,
+  stroke = 12,
+}: {
+  ratio: number;
+  elapsedFraction: number;
+  size?: number;
+  stroke?: number;
+}) {
+  const r = (size - stroke) / 2;
+  const c = size / 2;
+  const circ = 2 * Math.PI * r;
+  const clamped = Math.min(ratio, 1);
+  const over = ratio > 1;
+  const tickAngle = -90 + Math.min(elapsedFraction, 1) * 360;
+  const tx = c + r * Math.cos((tickAngle * Math.PI) / 180);
+  const ty = c + r * Math.sin((tickAngle * Math.PI) / 180);
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke="hsl(var(--bg-subtle))"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke={over ? "hsl(var(--neg))" : "hsl(var(--pos))"}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${circ * clamped} ${circ}`}
+          transform={`rotate(-90 ${c} ${c})`}
+          style={{ transition: "stroke-dasharray .5s ease" }}
+        />
+        <circle
+          cx={tx}
+          cy={ty}
+          r={3.6}
+          fill="hsl(var(--card))"
+          stroke="hsl(var(--foreground))"
+          strokeWidth={1.6}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+        <div
+          className={cn(
+            "text-2xl font-bold tabular-nums tracking-tight leading-none",
+            over ? "text-neg" : "text-foreground"
+          )}
+        >
+          {Math.round(ratio * 100)}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Cumulative spend-vs-budget trend chart.
+ *
+ * Aggregates the per-category bucket series into a single cumulative spend
+ * curve. Renders:
+ *  - a soft area fill under the actual curve
+ *  - the actual cumulative line (solid foreground)
+ *  - the projection segment as a softer dashed line continuing from today
+ *  - a dashed horizontal "budget" reference line
+ *  - a vertical tick at the elapsed bucket with a dot at today's cumulative
+ */
+function TrendChart({
+  stats,
+  includeProjected,
+  period,
+  formatCurrency,
+}: {
+  stats: CategoryStats[];
+  includeProjected: boolean;
+  period: PeriodSpec;
+  formatCurrency: (n: number) => string;
+}) {
+  const W = 520;
+  const H = 168;
+  const padL = 6;
+  const padR = 6;
+  const padT = 12;
+  const padB = 22;
+  const n = period.buckets.count;
+  const elapsedIdx = Math.max(0, Math.min(n - 1, period.elapsedBuckets - 1));
+
+  // Daily/bucket totals across all categories.
+  const dailyActual = new Array(n).fill(0);
+  const dailyProj = new Array(n).fill(0);
+  let totalBudget = 0;
+  for (const s of stats) {
+    if (s.periodBudget != null) totalBudget += s.periodBudget;
+    for (let i = 0; i < n; i++) {
+      dailyActual[i] += s.buckets[i] ?? 0;
+      if (includeProjected) dailyProj[i] += s.projectedBuckets[i] ?? 0;
+    }
+  }
+
+  // Cumulative actual (up to today) and cumulative actual + projected (full).
+  const cumA: (number | null)[] = [];
+  const cumAP: number[] = [];
+  let sa = 0;
+  let sap = 0;
+  for (let i = 0; i < n; i++) {
+    sa += dailyActual[i];
+    sap += dailyActual[i] + dailyProj[i];
+    cumA.push(i <= elapsedIdx ? sa : null);
+    cumAP.push(sap);
+  }
+  const maxV = Math.max(totalBudget, sap, ...cumAP, 1) * 1.06;
+  const x = (i: number) => padL + (i / Math.max(1, n - 1)) * (W - padL - padR);
+  const y = (v: number) => padT + (1 - v / maxV) * (H - padT - padB);
+
+  const actualPath = cumA
+    .map((v, i) => (v == null ? null : `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`))
+    .filter(Boolean)
+    .join(" ");
+  const projPts: string[] = [];
+  for (let i = elapsedIdx; i < n; i++) {
+    projPts.push(`${i === elapsedIdx ? "M" : "L"} ${x(i).toFixed(1)} ${y(cumAP[i]).toFixed(1)}`);
+  }
+  const projPath = projPts.join(" ");
+  const lastA = (cumA[elapsedIdx] as number) ?? 0;
+  const areaPath = actualPath
+    ? `${actualPath} L ${x(elapsedIdx).toFixed(1)} ${(H - padB).toFixed(1)} L ${x(0).toFixed(1)} ${(
+        H - padB
+      ).toFixed(1)} Z`
+    : "";
+  const budgetY = y(totalBudget);
+  const paceX = x(elapsedIdx);
+
+  return (
+    <svg
+      className="block w-full"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{ height: 168 }}
+    >
+      <defs>
+        <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--foreground))" stopOpacity="0.10" />
+          <stop offset="100%" stopColor="hsl(var(--foreground))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {totalBudget > 0 && (
+        <>
+          <line
+            x1={padL}
+            x2={W - padR}
+            y1={budgetY}
+            y2={budgetY}
+            stroke="hsl(var(--muted-foreground))"
+            strokeWidth={1.2}
+            strokeDasharray="4 4"
+            opacity={0.55}
+          />
+          <text
+            x={W - padR}
+            y={Math.max(padT + 8, budgetY - 6)}
+            textAnchor="end"
+            fontSize={10}
+            fontFamily="ui-monospace, SFMono-Regular, monospace"
+            fill="hsl(var(--muted-foreground))"
+          >
+            {formatCurrency(totalBudget)}
+          </text>
+        </>
+      )}
+      {areaPath && <path d={areaPath} fill="url(#trendFill)" />}
+      {projPath && (
+        <path
+          d={projPath}
+          fill="none"
+          stroke="hsl(var(--muted-foreground))"
+          strokeWidth={1.8}
+          strokeDasharray="2 3"
+          opacity={0.55}
+          strokeLinejoin="round"
+        />
+      )}
+      {actualPath && (
+        <path
+          d={actualPath}
+          fill="none"
+          stroke="hsl(var(--foreground))"
+          strokeWidth={2.2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      )}
+      <line
+        x1={paceX}
+        x2={paceX}
+        y1={padT}
+        y2={H - padB}
+        stroke="hsl(var(--muted-foreground))"
+        strokeWidth={0.8}
+        strokeDasharray="2 3"
+        opacity={0.6}
+      />
+      <circle cx={paceX} cy={y(lastA)} r={3.6} fill="hsl(var(--foreground))" />
+    </svg>
+  );
+}
+
+// =============================================================================
+// Budget card — replaces the v1 CategoryRow
+// =============================================================================
+
+interface BudgetCardProps {
+  stat: CategoryStats;
+  period: PeriodSpec;
+  includeProjected: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onEditBudget: (s: CategoryStats) => void;
+  onEditCategory: (cat: Category) => void;
+  onDelete: (id: string) => void;
+  onNavigateToTransactions: (categoryId: string) => void;
+  applySuggestion: (id: string, suggested: number) => void;
+  showSuggestion: (s: CategoryStats) => boolean;
+  busyId: string | null;
+  formatCurrency: (n: number) => string;
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}
+
+function BudgetCard({
+  stat,
+  period,
+  includeProjected,
+  expanded,
+  onToggleExpand,
+  onEditBudget,
+  onEditCategory,
+  onDelete,
+  onNavigateToTransactions,
+  applySuggestion,
+  showSuggestion,
+  busyId,
+  formatCurrency,
+  t,
+}: BudgetCardProps) {
+  const used = stat.spent + (includeProjected ? stat.projected : 0);
+  const budget = stat.periodBudget;
+  const remaining =
+    budget != null ? budget - used : null;
+
+  const statusMeta: Record<Status, { label: string; tone: string; dotClass: string }> = {
+    over: {
+      label: t("budget.statusOver", { defaultValue: "Over budget" }),
+      tone: "text-neg",
+      dotClass: "bg-neg",
+    },
+    warn: {
+      label: t("budget.statusWarn", { defaultValue: "Approaching limit" }),
+      tone: "text-warning",
+      dotClass: "bg-warning",
+    },
+    ok: {
+      label: t("budget.statusOk", { defaultValue: "On track" }),
+      tone: "text-pos",
+      dotClass: "bg-pos",
+    },
+    noBudget: {
+      label: t("budget.statusNoBudget", { defaultValue: "No budget" }),
+      tone: "text-muted-foreground",
+      dotClass: "bg-muted-foreground/40",
+    },
+  };
+  const meta = statusMeta[stat.status];
+  const canApplySuggestion = showSuggestion(stat);
+
+  return (
+    <div
+      className={cn(
+        "ft-card p-4 sm:p-5 flex flex-col gap-3 transition-shadow",
+        stat.status === "over" && "border-neg/30"
+      )}
+    >
+      {/* Header: icon + name + status + edit */}
+      <div className="flex items-center gap-3">
+        <CategoryIcon
+          color={stat.category.color}
+          icon={stat.category.icon}
+          size={42}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-semibold tracking-tight truncate leading-snug">
+            {stat.category.name}
+          </div>
+          <div
+            className={cn("text-xs font-semibold inline-flex items-center gap-1.5 mt-0.5", meta.tone)}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", meta.dotClass)} />
+            {meta.label}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onEditBudget(stat)}
+          aria-label={t("budget.editBudget", { defaultValue: "Edit budget" })}
+          title={t("budget.editBudget", { defaultValue: "Edit budget" })}
+          className="h-8 w-8 rounded-lg border border-transparent text-muted-foreground hover:bg-bg-subtle hover:text-foreground hover:border-line grid place-items-center transition-colors"
+        >
+          <Edit3 className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Used / Budget figure + remaining */}
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-xl font-bold tabular-nums tracking-tight leading-none">
+            {formatCurrency(used)}
+          </span>
+          <span className="text-sm text-muted-foreground tabular-nums ml-1">
+            {budget != null
+              ? `/ ${formatCurrency(budget)}`
+              : `· ${t("budget.noBudgetShort", { defaultValue: "no budget" })}`}
+          </span>
+        </div>
+        {remaining != null ? (
+          <div
+            className={cn(
+              "text-xs font-semibold tabular-nums text-right whitespace-nowrap",
+              remaining < 0 ? "text-neg" : "text-muted-foreground"
+            )}
+          >
+            {remaining >= 0 ? (
+              <>
+                {formatCurrency(remaining)}{" "}
+                <span className="font-medium text-muted-foreground">
+                  {t("budget.remaining", { defaultValue: "left" })}
+                </span>
+              </>
+            ) : (
+              <>
+                −{formatCurrency(Math.abs(remaining))}{" "}
+                <span className="font-medium text-muted-foreground">
+                  {t("budget.over", { defaultValue: "over" })}
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground tabular-nums text-right whitespace-nowrap">
+            <span className="font-medium">
+              {t("budget.avgShort", { defaultValue: "avg." })}
+            </span>{" "}
+            {formatCurrency(stat.monthlyAvg)}/
+            {t("budget.month", { defaultValue: "mo" })}
+          </div>
+        )}
+      </div>
+
+      {budget != null && (
+        <PaceBar
+          used={used}
+          budget={budget}
+          status={stat.status}
+          elapsedFraction={period.elapsedFraction}
+        />
+      )}
+
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+        <span>
+          {budget != null
+            ? `${Math.round((stat.pct ?? 0) * 100)} % ${t("budget.ofBudget", {
+                defaultValue: "of budget",
+              })}`
+            : `${formatCurrency(stat.spent)} ${t("budget.thisPeriod", {
+                defaultValue: "this period",
+              })}`}
+        </span>
+        <span>
+          {t("budget.dayN", {
+            n: period.elapsedDays,
+            total: period.totalDays,
+            defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
+          })}
+        </span>
+      </div>
+
+      {/* Apply suggested (inline) */}
+      {stat.status === "noBudget" && canApplySuggestion && (
+        <button
+          type="button"
+          onClick={() => applySuggestion(stat.category.id, stat.suggested)}
+          disabled={busyId === stat.category.id}
+          className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-bg-subtle border border-line text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+            <span className="text-muted-foreground truncate">
+              {t("budget.applySuggestion", { defaultValue: "Apply suggested" })}
+            </span>
+          </span>
+          <span className="tabular-nums font-semibold text-foreground whitespace-nowrap">
+            {formatCurrency(stat.suggested)}
+          </span>
+        </button>
+      )}
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="border-t border-line/60 pt-3 flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <DetailStat
+              label={t("budget.statSpent", { defaultValue: "Spent" })}
+              value={formatCurrency(stat.spent)}
+            />
+            <DetailStat
+              label={t("budget.statProjected", { defaultValue: "Projected" })}
+              value={formatCurrency(stat.projected)}
+              muted={stat.projected === 0}
+            />
+            <DetailStat
+              label={t("budget.statAvg", { defaultValue: "Avg / mo (6mo)" })}
+              value={formatCurrency(stat.monthlyAvg)}
+              muted={stat.monthlyAvg === 0}
+            />
+            <DetailStat
+              label={t("budget.statPrev", { defaultValue: "Prev period" })}
+              value={formatCurrency(stat.prevSpent)}
+              muted={stat.prevSpent === 0}
+            />
+          </div>
+
+          {stat.status === "over" && stat.topDrivers.length > 0 && (
+            <div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-2">
+                {t("budget.topDrivers", { defaultValue: "Top drivers · 5 biggest" })}
+              </div>
+              <div>
+                {stat.topDrivers.map((d, i) => (
+                  <div
+                    key={d.id}
+                    className={cn(
+                      "flex items-center gap-3 py-1.5",
+                      i > 0 && "border-t border-line/40"
+                    )}
+                  >
+                    <span className="text-sm font-medium flex-1 truncate">{d.description}</span>
+                    <span className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">
+                      {format(d.date, "d MMM")}
+                    </span>
+                    <span className="text-sm tabular-nums font-semibold text-neg whitespace-nowrap">
+                      {formatCurrency(d.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => onEditBudget(stat)}
+            >
+              <Edit3 className="h-3 w-3 mr-1.5" />
+              {t("budget.editBudget", { defaultValue: "Edit budget" })}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => onNavigateToTransactions(stat.category.id)}
+            >
+              {t("budget.viewTransactions", { defaultValue: "View transactions" })}
+              <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-muted-foreground"
+              onClick={() => onEditCategory(stat.category)}
+            >
+              {t("budget.editCategory", { defaultValue: "Edit category" })}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-neg/70 hover:text-neg hover:bg-neg/10"
+              onClick={() => onDelete(stat.category.id)}
+            >
+              <Trash2 className="h-3 w-3 mr-1.5" />
+              {t("common.delete", { defaultValue: "Delete" })}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={onToggleExpand}
+        className={cn(
+          "flex items-center justify-center gap-1.5 w-full py-1.5 rounded-md text-xs font-semibold text-muted-foreground border border-dashed border-line hover:bg-bg-subtle hover:text-foreground transition-colors",
+          expanded && "border-transparent"
+        )}
+      >
+        {expanded
+          ? t("budget.collapse", { defaultValue: "Hide details" })
+          : t("budget.expand", { defaultValue: "Details & transactions" })}
+        <ChevronDown
+          className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
+        />
+      </button>
+    </div>
+  );
+}
+
+function DetailStat({
+  label,
+  value,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "text-sm font-semibold tabular-nums mt-0.5",
+          muted && "text-muted-foreground/70 font-medium"
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Budget edit sheet — slide-over on desktop, bottom sheet on mobile
+// =============================================================================
+
+function BudgetEditSheet({
+  stat,
+  open,
+  onOpenChange,
+  onSave,
+  formatCurrency,
+}: {
+  stat: CategoryStats | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (categoryId: string, monthlyBudget: number) => Promise<void>;
+  formatCurrency: (n: number) => string;
+}) {
+  const { t } = useTranslation();
+  const isMobile = useIsMobile();
+  const [val, setVal] = useState<number>(0);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!stat) return;
+    const current =
+      stat.category.budget != null ? Number(stat.category.budget) : stat.suggested || 0;
+    setVal(current);
+  }, [stat]);
+
+  if (!stat) return null;
+
+  const step = niceRoundStep(Math.max(val, 1));
+  const suggestedMonthly = stat.suggested || 0;
+  const currentMonthly = stat.category.budget != null ? Number(stat.category.budget) : null;
+  const showSuggest = suggestedMonthly > 0 && Math.abs(suggestedMonthly - val) >= step;
+  const delta = currentMonthly != null ? val - currentMonthly : null;
+
+  const dec = () => setVal((v) => Math.max(0, Math.round((v - step) / step) * step));
+  const inc = () => setVal((v) => Math.round(v / step) * step + step);
+
+  const onSubmit = async () => {
+    setSaving(true);
+    try {
+      await onSave(stat.category.id, val);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className={cn(
+          "p-0 flex flex-col gap-0",
+          isMobile
+            ? "max-h-[90vh] rounded-t-2xl border-t border-line"
+            : "w-[420px] sm:max-w-[420px]"
+        )}
+      >
+        <SheetHeader className="px-6 pt-5 pb-4 border-b border-line">
+          <div className="flex items-center gap-3">
+            <CategoryIcon color={stat.category.color} icon={stat.category.icon} size={40} />
+            <div className="flex-1 min-w-0">
+              <SheetTitle className="text-base sm:text-lg font-semibold tracking-tight truncate">
+                {stat.category.name}
+              </SheetTitle>
+              <SheetDescription className="text-xs text-muted-foreground">
+                {t("budget.monthlyBudget", { defaultValue: "Monthly budget" })}
+              </SheetDescription>
+            </div>
+          </div>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Stepper */}
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2.5">
+              {t("budget.monthlyBudget", { defaultValue: "Monthly budget" })}
+            </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={dec}
+                aria-label={t("common.decrease", { defaultValue: "Decrease" })}
+                className="h-12 w-11 rounded-xl border border-line bg-bg-subtle grid place-items-center hover:bg-bg-hover transition-colors"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <div className="flex-1 h-12 rounded-xl border border-line bg-card flex items-center px-4 gap-1">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={val}
+                  onChange={(e) =>
+                    setVal(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className="border-0 bg-transparent text-right text-xl font-bold tabular-nums tracking-tight h-auto p-0 focus-visible:ring-0"
+                />
+                <span className="text-base text-muted-foreground tabular-nums">€</span>
+              </div>
+              <button
+                type="button"
+                onClick={inc}
+                aria-label={t("common.increase", { defaultValue: "Increase" })}
+                className="h-12 w-11 rounded-xl border border-line bg-bg-subtle grid place-items-center hover:bg-bg-hover transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            {delta != null && delta !== 0 && (
+              <div className="mt-2 text-xs tabular-nums text-muted-foreground">
+                {delta > 0 ? "▲" : "▼"} {formatCurrency(Math.abs(delta))}{" "}
+                {t("budget.vsCurrent", { defaultValue: "vs current budget" })}
+              </div>
+            )}
+          </div>
+
+          {/* Suggestion */}
+          {showSuggest && (
+            <button
+              type="button"
+              onClick={() => setVal(suggestedMonthly)}
+              className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/8 border border-primary/30 hover:bg-primary/12 transition-colors"
+            >
+              <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center flex-shrink-0">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">
+                  {t("budget.suggestion", {
+                    defaultValue: "Suggestion: {{amt}} / month",
+                    amt: formatCurrency(suggestedMonthly),
+                  })}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {t("budget.suggestionBasis", {
+                    defaultValue: "Based on your last 6 months + current pace",
+                  })}
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+
+          {/* Context */}
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2.5">
+              {t("budget.context", { defaultValue: "Context" })}
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <ContextCell
+                label={t("budget.statSpent", { defaultValue: "Spent" })}
+                value={formatCurrency(stat.spent)}
+              />
+              <ContextCell
+                label={t("budget.statProjected", { defaultValue: "Projected" })}
+                value={formatCurrency(stat.projected)}
+              />
+              <ContextCell
+                label={t("budget.statAvg", { defaultValue: "Avg / mo" })}
+                value={formatCurrency(stat.monthlyAvg)}
+              />
+              <ContextCell
+                label={t("budget.statPrev", { defaultValue: "Prev period" })}
+                value={formatCurrency(stat.prevSpent)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-line flex gap-2">
+          <SheetClose asChild>
+            <Button variant="outline" className="flex-1 h-10">
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+          </SheetClose>
+          <Button
+            onClick={onSubmit}
+            disabled={saving}
+            className="flex-1 h-10"
+          >
+            <Check className="h-4 w-4 mr-1.5" />
+            {saving ? t("common.saving", { defaultValue: "Saving…" }) : t("common.save", { defaultValue: "Save" })}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ContextCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-bg-subtle border border-line rounded-lg px-3.5 py-3">
+      <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="text-base font-bold tabular-nums tracking-tight mt-1">{value}</div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Attention pip + date pill
+// =============================================================================
+
+function AttentionPip({
+  toneClass,
+  count,
+  label,
+  onClick,
+  active,
+}: {
+  toneClass: string;
+  count: number;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 h-8 px-3 rounded-md border text-xs font-semibold transition-colors",
+        active
+          ? "bg-foreground text-background border-foreground"
+          : "bg-bg-subtle border-line text-foreground hover:bg-bg-hover"
+      )}
+    >
+      <span className={cn("w-2 h-2 rounded-full", toneClass)} />
+      <span className="tabular-nums">{count}</span>
+      <span className="font-medium">{label}</span>
+    </button>
+  );
+}
+
+function DatePill({
+  value,
+  onChange,
+  label,
+}: {
+  value: Date;
+  onChange: (d: Date) => void;
+  label: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-line bg-card text-xs font-medium hover:bg-bg-subtle transition-colors"
+        >
+          <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">{label}</span>
+          <span className="tabular-nums">{format(value, "d MMM yyyy")}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={(d) => d && onChange(d)}
+          captionLayout="dropdown"
+        />
+        <div className="px-3 py-1.5 text-xs text-muted-foreground border-t border-line">
+          {t("budget.dateHint", { defaultValue: "Pick a date" })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// =============================================================================
+// Period type
+// =============================================================================
+
+interface PeriodSpec {
+  from: Date;
+  to: Date;
+  label: string;
+  effectiveMonths: number;
+  prevFrom: Date;
+  prevTo: Date;
+  buckets: PeriodBuckets;
+  totalDays: number;
+  elapsedDays: number;
+  elapsedFraction: number;
+  elapsedBuckets: number;
 }
 
 // =============================================================================
@@ -225,8 +1115,11 @@ const Budget = () => {
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
 
+  // --- editing + selection state ----------------------------------------
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
+  const [editCategoryOpen, setEditCategoryOpen] = useState(false);
+  const [editingBudgetStat, setEditingBudgetStat] = useState<CategoryStats | null>(null);
+  const [editBudgetOpen, setEditBudgetOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -235,17 +1128,14 @@ const Budget = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [rowView, setRowView] = useState<RowView>("trend");
 
+  // --- period state -----------------------------------------------------
   const [periodKey, setPeriodKey] = useState<PeriodKey>("1m");
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
-  // Anchor date for the "specific month" / "specific year" pickers. The
-  // picker pills only become active when the user explicitly chooses one;
-  // the relative presets (1m / 3m / …) ignore this value.
   const [pickedMonth, setPickedMonth] = useState<Date>(() => startOfMonth(new Date()));
   const [pickedYear, setPickedYear] = useState<Date>(() => startOfYear(new Date()));
   const [customRange, setCustomRange] = useState<{ from: Date; to: Date }>({
@@ -254,10 +1144,8 @@ const Budget = () => {
   });
   const [includeProjected, setIncludeProjected] = useState(true);
 
-  // -----------------------------------------------------------------------
-  // Period — window, prior-window, bucketing
-  // -----------------------------------------------------------------------
-  const period = useMemo(() => {
+  // --- period derivation (preserved verbatim from v1) -------------------
+  const period = useMemo<PeriodSpec>(() => {
     const now = new Date();
     let from: Date;
     let to: Date;
@@ -301,8 +1189,6 @@ const Budget = () => {
         prevTo = endOfYear(subYears(now, 1));
         break;
       case "month":
-        // Specific calendar month (any month, past or future) chosen via the
-        // MonthPicker. Prior period = the month before.
         from = startOfMonth(pickedMonth);
         to = endOfMonth(pickedMonth);
         label = format(pickedMonth, "MMMM yyyy");
@@ -310,7 +1196,6 @@ const Budget = () => {
         prevTo = endOfMonth(subMonths(pickedMonth, 1));
         break;
       case "year":
-        // Specific calendar year (any year). Prior period = the year before.
         from = startOfYear(pickedYear);
         to = endOfYear(pickedYear);
         label = format(pickedYear, "yyyy");
@@ -320,7 +1205,7 @@ const Budget = () => {
       case "custom": {
         from = customRange.from;
         to = customRange.to;
-        label = `${format(from, "dd MMM yy")} → ${format(to, "dd MMM yy")}`;
+        label = `${format(from, "d MMM yy")} → ${format(to, "d MMM yy")}`;
         const lengthDaysC = Math.max(1, differenceInCalendarDays(to, from) + 1);
         prevTo = addDays(from, -1);
         prevFrom = addDays(from, -lengthDaysC);
@@ -330,13 +1215,10 @@ const Budget = () => {
 
     const effectiveMonths = effectiveMonthsBetween(from, to);
     const totalDays = Math.max(1, differenceInCalendarDays(to, from) + 1);
-
-    // Elapsed days (clamped) and the same-elapsed clamp on the prior window.
     let elapsedDays: number;
     if (today < from) elapsedDays = 0;
     else if (today >= to) elapsedDays = totalDays;
     else elapsedDays = differenceInCalendarDays(today, from) + 1;
-
     if (elapsedDays === 0) {
       prevTo = addDays(prevFrom, -1);
     } else if (elapsedDays < totalDays) {
@@ -344,7 +1226,6 @@ const Budget = () => {
     }
     const elapsedFraction = elapsedDays / totalDays;
 
-    // Bucket the period into ~12–30 buckets for sparkline rendering.
     let bucketCount: number;
     let bucketSizeDays: number;
     if (totalDays <= 35) {
@@ -376,8 +1257,6 @@ const Budget = () => {
     };
 
     const buckets: PeriodBuckets = { count: bucketCount, bucketOf };
-
-    // Today's index inside the bucket array (for the sparkline tick).
     const elapsedBuckets = (() => {
       if (today < from) return 0;
       if (today >= to) return bucketCount;
@@ -407,29 +1286,19 @@ const Budget = () => {
     [preferences.dateType]
   );
 
-  // -----------------------------------------------------------------------
-  // Projection — mirrors the Analysis page (installment + debt caps,
-  // scheduled debt amount resolution, next_due_date alignment).
-  // -----------------------------------------------------------------------
+  // --- projection (preserved verbatim) -----------------------------------
   const projectedByCategory = useMemo(() => {
     type Entry = { total: number; series: number[] };
     const map = new Map<string, Entry>();
     if (!includeProjected || period.to < today) return map;
 
     const installmentMap = new Map(installmentPayments.map((ip) => [ip.id, ip]));
-    // Debt resolution now goes through `resolveDebtForRecurring` which
-    // accepts the description-fallback path Analysis uses.
     const sdpByDebtMonth = new Map<string, number>();
     for (const sp of scheduledDebtPayments) {
       sdpByDebtMonth.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
     }
 
     const effectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
-      // Use the same debt-resolution path the Analysis page uses, including
-      // the description-match fallback. Without it, legacy recurrences (no
-      // `debt_id` set, but described as `"... (Remboursement dette)"`) would
-      // be projected at `rt.amount` instead of the debt's scheduled amount,
-      // and they wouldn't be capped to the remaining payments.
       const debt = resolveDebtForRecurring(rt, debts);
       if (debt) {
         const monthKey = dateStr.substring(0, 7);
@@ -489,8 +1358,6 @@ const Budget = () => {
         }
       }
 
-      // Use the same debt resolver as `effectiveAmount` so the cap and the
-      // amount agree on which debt this recurrence is linked to.
       {
         const debt = resolveDebtForRecurring(rt, debts);
         if (debt) {
@@ -556,10 +1423,7 @@ const Budget = () => {
     today,
   ]);
 
-  /**
-   * Per-category monthly totals for the last 6 *complete* months — the basis
-   * for both the "monthlyAvg" stat and the suggestion engine.
-   */
+  // --- history (preserved) ----------------------------------------------
   const historyByCategory = useMemo(() => {
     const todayDate = new Date();
     const monthsBack = 6;
@@ -596,9 +1460,7 @@ const Budget = () => {
     return out;
   }, [transactions, categories, dateOf]);
 
-  // -----------------------------------------------------------------------
-  // Per-category stats — now also computes status (time-aware) and topDrivers.
-  // -----------------------------------------------------------------------
+  // --- stats (preserved) ------------------------------------------------
   const stats = useMemo<CategoryStats[]>(() => {
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
@@ -642,18 +1504,6 @@ const Budget = () => {
       const pct = periodBudget != null && periodBudget > 0 ? used / periodBudget : 0;
       const status = statusOf(used, periodBudget, period.elapsedFraction);
 
-      // ── Suggestion engine ──────────────────────────────────────────────
-      // The suggested *monthly* budget is the max of three signals:
-      //  1. p75 of the last 6 complete months — robust historical baseline.
-      //  2. blended current-month projection — `currentSpent + (1-frac)·avg`,
-      //     prevents day-1 spikes from dominating early in the month.
-      //  3. **period-pace projection** — extrapolate the user's rate against
-      //     the *selected* period and reduce to a monthly-equivalent.
-      //
-      //  Signal 3 is what makes the suggestion respond when a category is
-      //  near its cap mid-period. Example: yearly view, mid-year, 90% of the
-      //  yearly budget already spent → projected period total ≈ 1.8× budget,
-      //  suggested monthly ≈ 1.8× current monthly.
       const history = historyByCategory.get(category.id) ?? [];
       const hasHistory = history.some((v) => v > 0);
       const monthlyAvg =
@@ -663,9 +1513,6 @@ const Budget = () => {
         totalDaysInMonth > 0 ? Math.min(1, dayInMonth / totalDaysInMonth) : 1;
       const expectedMonthTotal = currentMonthSpent + (1 - monthFraction) * monthlyAvg;
 
-      // Pace-projected monthly equivalent. Ignored until at least 5 % of the
-      // period has elapsed to avoid extrapolating from one purchase on day 1,
-      // and ignored when the period doesn't span any full month.
       let pacedMonthly = 0;
       if (period.elapsedFraction > 0.05 && period.effectiveMonths > 0 && spent > 0) {
         const projectedPeriodTotal = spent / period.elapsedFraction;
@@ -676,10 +1523,7 @@ const Budget = () => {
       const suggested =
         hasHistory || currentMonthSpent > 0 || pacedMonthly > 0 ? niceRound(base) : 0;
 
-      // Top-5 drivers (descending amount) inside the period.
-      const topDrivers = driversInPeriod
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 5);
+      const topDrivers = driversInPeriod.sort((a, b) => b.amount - a.amount).slice(0, 5);
 
       return {
         category,
@@ -700,9 +1544,7 @@ const Budget = () => {
     });
   }, [categories, transactions, dateOf, period, projectedByCategory, historyByCategory, today]);
 
-  // -----------------------------------------------------------------------
-  // Aggregate totals for KPIs.
-  // -----------------------------------------------------------------------
+  // --- totals (preserved) -----------------------------------------------
   const totals = useMemo(() => {
     const totalBudget = stats.reduce((s, x) => s + (x.periodBudget ?? 0), 0);
     const totalSpent = stats.reduce((s, x) => s + x.spent, 0);
@@ -716,8 +1558,6 @@ const Budget = () => {
       (x) => x.status === "noBudget" && x.suggested > 0
     ).length;
     const utilization = totalBudget > 0 ? totalUsed / totalBudget : 0;
-    // Delta is computed against actual spend (totalSpent), not totalUsed —
-    // including projected would produce an apples-to-oranges comparison.
     const prevDelta =
       totalPrevSpent > 0 && totalSpent > 0
         ? (totalSpent - totalPrevSpent) / totalPrevSpent
@@ -737,9 +1577,7 @@ const Budget = () => {
     };
   }, [stats]);
 
-  // -----------------------------------------------------------------------
-  // List filtering + search.
-  // -----------------------------------------------------------------------
+  // --- filtering (preserved) --------------------------------------------
   const filtered = useMemo(() => {
     let out = stats;
     if (statusFilter !== "all") {
@@ -747,13 +1585,6 @@ const Budget = () => {
     }
     const q = search.trim().toLowerCase();
     if (q) out = out.filter((s) => s.category.name.toLowerCase().includes(q));
-    // Sort: most-breached first.
-    //  1. Group by status (over → warn → noBudget → ok) so the most actionable
-    //     rows land at the top in a predictable order.
-    //  2. Within each group, sort by overrun magnitude — for budgeted rows
-    //     that's `pct` desc (highest utilisation first); for noBudget rows
-    //     by current spend desc; for ok rows by remaining-budget asc (those
-    //     closest to their limit appear first).
     return [...out].sort((a, b) => {
       const order: Record<Status, number> = { over: 0, warn: 1, noBudget: 2, ok: 3 };
       const so = order[a.status] - order[b.status];
@@ -762,7 +1593,6 @@ const Budget = () => {
         const dpct = b.pct - a.pct;
         if (Math.abs(dpct) > 0.0001) return dpct;
       } else {
-        // noBudget: sort by current period spend desc (heaviest unbudgeted spend first).
         const dspend = b.used - a.used;
         if (Math.abs(dspend) > 0.0001) return dspend;
       }
@@ -770,12 +1600,36 @@ const Budget = () => {
     });
   }, [stats, statusFilter, search]);
 
-  // -----------------------------------------------------------------------
-  // Mutations.
-  // -----------------------------------------------------------------------
-  const startEditing = (category: Category) => {
+  // --- mutations --------------------------------------------------------
+  const startEditingCategory = (category: Category) => {
     setEditingCategory(category);
-    setEditOpen(true);
+    setEditCategoryOpen(true);
+  };
+
+  const startEditingBudget = (s: CategoryStats) => {
+    setEditingBudgetStat(s);
+    setEditBudgetOpen(true);
+  };
+
+  const saveBudget = async (categoryId: string, monthlyBudget: number) => {
+    try {
+      const { error } = await supabase
+        .from("categories")
+        .update({ budget: monthlyBudget > 0 ? monthlyBudget : null })
+        .eq("id", categoryId);
+      if (error) throw error;
+      refetch();
+      setEditBudgetOpen(false);
+      toast({
+        title: t("categories.budgetUpdated", { defaultValue: "Budget updated" }),
+      });
+    } catch {
+      toast({
+        title: t("common.error"),
+        description: t("errors.updateError"),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = (categoryId: string) => {
@@ -802,10 +1656,6 @@ const Budget = () => {
     }
   };
 
-  /**
-   * Hide the suggestion when it differs from the current monthly budget by
-   * less than one rounding step (pure rounding noise).
-   */
   const showSuggestion = (s: CategoryStats): boolean => {
     if (s.suggested <= 0) return false;
     const currentMonthly = s.category.budget != null ? Number(s.category.budget) : null;
@@ -827,7 +1677,6 @@ const Budget = () => {
       refetch();
       toast({
         title: t("categories.budgetUpdated", { defaultValue: "Budget updated" }),
-        description: t("settings.preferencesSavedDesc"),
       });
     } catch {
       toast({
@@ -957,9 +1806,26 @@ const Budget = () => {
     });
   };
 
-  // -----------------------------------------------------------------------
-  // Render.
-  // -----------------------------------------------------------------------
+  // --- derived: overview verdict + showProjectedToggle ------------------
+  const expectedNow = totals.totalBudget * period.elapsedFraction;
+  const paceDelta = totals.totalSpent - expectedNow;
+  const aheadOfPace = paceDelta > 0;
+  const showProjectedToggle = period.to >= today;
+
+  const filterChips: { id: StatusFilter; label: string; n: number }[] = [
+    { id: "all", label: t("budget.filterAll", { defaultValue: "All" }), n: stats.length },
+    { id: "over", label: t("budget.filterOver", { defaultValue: "Over" }), n: totals.overCount },
+    { id: "warn", label: t("budget.filterWarn", { defaultValue: "Close" }), n: totals.warnCount },
+    {
+      id: "noBudget",
+      label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
+      n: totals.noBudgetCount,
+    },
+  ].filter((c) => c.id === "all" || c.n > 0);
+
+  // ---------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
       <div className="ft-page">
@@ -967,56 +1833,56 @@ const Budget = () => {
         <div className="ft-page-head">
           <div>
             <div className="ft-eyebrow">{t("navigation.tools")}</div>
-            <h1 className="ft-page-title">{t("budget.pageTitle", { defaultValue: "Budget" })}</h1>
+            <h1 className="ft-page-title">
+              {t("budget.pageTitle", { defaultValue: "Budget" })}
+            </h1>
             <div className="ft-page-sub">
-              {t("budget.pageSubV2", {
+              {t("budget.pageSub", {
                 defaultValue:
-                  "Personalize categories, set budgets, and see what's drifting against actuals.",
+                  "Track each category against the selected period, spot what's drifting, and adjust your budgets.",
               })}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              className="h-9 text-xs gap-1.5"
-            >
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
               <Download className="h-3.5 w-3.5" />
-              {t("transactions.exportCSV", { defaultValue: "Export CSV" })}
+              {t("budget.exportCsv", { defaultValue: "Export CSV" })}
             </Button>
-            <Button size="sm" onClick={() => setNewOpen(true)} className="h-9 text-xs gap-1.5">
+            <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" />
-              {t("categories.newCategory", { defaultValue: "New category" })}
+              {t("budget.newCategory", { defaultValue: "New category" })}
             </Button>
           </div>
         </div>
 
-        {/* Period selector */}
-        <div className="ft-card p-4 sm:p-5">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-              <div className="ft-eyebrow">
-                {t("budget.analyzeOver", { defaultValue: "Analyze over" })}
+        {/* Period bar */}
+        <div className="ft-card p-3 sm:p-4 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-lg bg-bg-subtle border border-line grid place-items-center text-muted-foreground flex-shrink-0">
+                <CalendarIcon className="h-4.5 w-4.5" />
               </div>
-              <div className="text-sm font-semibold mt-0.5">
-                {period.label}
-                <span className="text-fg-dim font-normal ml-2">
-                  ·{" "}
-                  {t("budget.dayOf", {
-                    elapsed: period.elapsedDays,
+              <div className="min-w-0">
+                <div className="text-base font-semibold tracking-tight truncate">
+                  {period.label}
+                </div>
+                <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                  {t("budget.dayN", {
+                    n: period.elapsedDays,
                     total: period.totalDays,
-                    defaultValue: `day ${period.elapsedDays} of ${period.totalDays}`,
-                  })}
-                </span>
+                    defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
+                  })}{" "}
+                  · {Math.round(period.elapsedFraction * 100)}%{" "}
+                  {t("budget.elapsed", { defaultValue: "elapsed" })}
+                </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {/* Quick relative presets — anchored to today. */}
-              <div className="ft-seg flex-wrap">
+              {/* Preset segmented control */}
+              <div className="inline-flex p-0.5 gap-0.5 bg-bg-subtle border border-line rounded-md">
                 {(
                   [
-                    ["1m", t("budget.p1m", { defaultValue: "This month" })],
+                    ["1m", t("budget.p1m", { defaultValue: "1M" })],
                     ["3m", t("budget.p3m", { defaultValue: "3M" })],
                     ["6m", t("budget.p6m", { defaultValue: "6M" })],
                     ["ytd", t("budget.pYtd", { defaultValue: "YTD" })],
@@ -1027,22 +1893,25 @@ const Budget = () => {
                   <button
                     key={k}
                     type="button"
-                    className={periodKey === k ? "active" : ""}
                     onClick={() => setPeriodKey(k as PeriodKey)}
+                    className={cn(
+                      "h-7 px-2.5 rounded text-[12px] font-semibold transition-colors",
+                      periodKey === k
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
                   >
                     {l}
                   </button>
                 ))}
               </div>
-              {/* Specific-month / specific-year pickers — same flexibility the
-                  Analysis page offers. The picker labels show the active
-                  selection; clicking opens a popover. */}
+              {/* Month / Year specific pickers */}
               <div
                 className={cn(
-                  "inline-flex h-9 rounded-md border transition-colors",
+                  "inline-flex h-8 rounded-md border transition-colors",
                   periodKey === "month"
                     ? "border-foreground bg-foreground text-background"
-                    : "border-line bg-card text-muted-foreground hover:bg-bg-hover hover:text-foreground"
+                    : "border-line bg-card text-muted-foreground hover:bg-bg-subtle hover:text-foreground"
                 )}
               >
                 <MonthPicker
@@ -1054,15 +1923,15 @@ const Budget = () => {
                     }
                   }}
                   placeholder={t("budget.pickMonth", { defaultValue: "Pick a month" })}
-                  className="h-9 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
+                  className="h-8 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
                 />
               </div>
               <div
                 className={cn(
-                  "inline-flex h-9 rounded-md border transition-colors",
+                  "inline-flex h-8 rounded-md border transition-colors",
                   periodKey === "year"
                     ? "border-foreground bg-foreground text-background"
-                    : "border-line bg-card text-muted-foreground hover:bg-bg-hover hover:text-foreground"
+                    : "border-line bg-card text-muted-foreground hover:bg-bg-subtle hover:text-foreground"
                 )}
               >
                 <YearPicker
@@ -1074,16 +1943,12 @@ const Budget = () => {
                     }
                   }}
                   placeholder={t("budget.pickYear", { defaultValue: "Pick a year" })}
-                  className="h-9 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
+                  className="h-8 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
                 />
               </div>
-              {period.to >= today && (
-                <label
-                  className={cn(
-                    "inline-flex items-center gap-2 h-8 px-3 rounded-md border border-line text-xs font-medium cursor-pointer transition-colors",
-                    "bg-bg-subtle text-muted-foreground hover:bg-bg-hover hover:text-foreground"
-                  )}
-                >
+              {/* Projected toggle (only when period is in the future) */}
+              {showProjectedToggle && (
+                <label className="inline-flex items-center gap-2 h-8 px-3 rounded-md border border-line bg-bg-subtle text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                   <Switch
                     checked={includeProjected}
                     onCheckedChange={setIncludeProjected}
@@ -1096,9 +1961,8 @@ const Budget = () => {
               )}
             </div>
           </div>
-
           {periodKey === "custom" && (
-            <div className="flex flex-wrap items-end gap-2 mt-3">
+            <div className="flex flex-wrap items-end gap-2">
               <DatePill
                 value={customRange.from}
                 onChange={(d) => setCustomRange((r) => ({ ...r, from: d }))}
@@ -1113,1509 +1977,318 @@ const Budget = () => {
           )}
         </div>
 
-        {/* Mobile triage view / Desktop KPI + list */}
-        {isMobile ? (
-          <MobileBudgetView
-            totals={totals}
-            stats={stats}
-            filtered={filtered}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            search={search}
-            setSearch={setSearch}
-            period={period}
-            showSuggestion={showSuggestion}
-            busyId={busyId}
-            applySuggestion={applySuggestion}
-            startEditing={startEditing}
-            handleDelete={handleDelete}
-            navigateToTransactions={navigateToTransactions}
-            formatCurrency={formatCurrency}
-            t={t}
-          />
-        ) : (
-          <>
-            {/* KPI strip — 3 tiles */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr_1fr] gap-3">
-              <KpiBudget
-                totalBudget={totals.totalBudget}
-                totalUsed={totals.totalUsed}
-                utilization={totals.utilization}
-                formatCurrency={formatCurrency}
-                t={t}
-              />
-              <KpiUsed
-                totalUsed={totals.totalUsed}
-                totalSpent={totals.totalSpent}
-                totalPrevSpent={totals.totalPrevSpent}
-                prevDelta={totals.prevDelta}
-                includeProjected={includeProjected}
-                elapsedDays={period.elapsedDays}
-                formatCurrency={formatCurrency}
-                t={t}
-              />
-              <KpiAttention
-                overCount={totals.overCount}
-                warnCount={totals.warnCount}
-                noBudgetCount={totals.noBudgetCount}
-                suggestableCount={totals.suggestableCount}
-                onAuto={autoBudgetMissing}
-                busy={bulkBusy}
-                t={t}
-              />
+        {/* Overview: summary card + trend card */}
+        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] gap-3 md:gap-4">
+          {/* Summary card */}
+          <div className="ft-card p-4 sm:p-5 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                {t("budget.overview", { defaultValue: "Overview" })} · {period.label}
+              </div>
+              <div className="text-[11px] text-muted-foreground/80 tabular-nums">
+                {t("budget.expected", { defaultValue: "expected" })}{" "}
+                {Math.round(period.elapsedFraction * 100)}%
+              </div>
             </div>
-
-            {/* Filters */}
-            <div className="ft-card p-4 sm:p-5">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("budget.searchPlaceholder", {
-                      defaultValue: "Search a category...",
-                    })}
-                    className="h-9 pl-8 text-sm"
-                  />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <RingGauge
+                ratio={totals.utilization}
+                elapsedFraction={period.elapsedFraction}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight leading-none">
+                  {formatCurrency(totals.totalUsed)}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <FilterPill
-                    active={statusFilter === "all"}
-                    onClick={() => setStatusFilter("all")}
-                    label={t("budget.filterAll", { defaultValue: "All" })}
-                    count={stats.length}
-                  />
-                  {totals.overCount > 0 && (
-                    <FilterPill
-                      active={statusFilter === "over"}
-                      onClick={() => setStatusFilter("over")}
-                      label={t("budget.filterOver", { defaultValue: "Over" })}
-                      count={totals.overCount}
-                      tone="neg"
-                    />
-                  )}
-                  {totals.warnCount > 0 && (
-                    <FilterPill
-                      active={statusFilter === "warn"}
-                      onClick={() => setStatusFilter("warn")}
-                      label={t("budget.filterWarn", { defaultValue: "Near limit" })}
-                      count={totals.warnCount}
-                      tone="warn"
-                    />
-                  )}
-                  {totals.noBudgetCount > 0 && (
-                    <FilterPill
-                      active={statusFilter === "noBudget"}
-                      onClick={() => setStatusFilter("noBudget")}
-                      label={t("budget.filterNoBudget", { defaultValue: "No budget" })}
-                      count={totals.noBudgetCount}
-                    />
+                <div className="text-sm text-muted-foreground tabular-nums mt-1">
+                  / {formatCurrency(totals.totalBudget)}{" "}
+                  {t("budget.budget", { defaultValue: "budget" })}
+                </div>
+                {totals.totalBudget > 0 && (
+                  <div
+                    className={cn(
+                      "inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full text-xs font-semibold",
+                      aheadOfPace
+                        ? "bg-neg/10 text-neg"
+                        : "bg-pos/10 text-pos"
+                    )}
+                  >
+                    {aheadOfPace ? (
+                      <AlertTriangle className="h-3 w-3" />
+                    ) : (
+                      <CheckCircle2 className="h-3 w-3" />
+                    )}
+                    {aheadOfPace
+                      ? t("budget.overPace", {
+                          amt: formatCurrency(paceDelta),
+                          defaultValue: `${formatCurrency(paceDelta)} over pace`,
+                        })
+                      : t("budget.underPace", {
+                          amt: formatCurrency(Math.abs(paceDelta)),
+                          defaultValue: `${formatCurrency(Math.abs(paceDelta))} under pace`,
+                        })}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
+                  {includeProjected && totals.totalProjected > 0 ? (
+                    <>
+                      {t("budget.includingProjected", {
+                        amt: formatCurrency(totals.totalProjected),
+                        defaultValue: `Including {{amt}} of projected upcoming spend.`,
+                      })}
+                    </>
+                  ) : (
+                    t("budget.actualOnly", {
+                      defaultValue: "Based on actual spend so far.",
+                    })
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Categories list */}
-            <div className="ft-card-flush flex flex-col">
-              <div className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 md:py-5 border-b border-line flex-wrap">
-                <div>
-                  <h3 className="ft-card-title">
-                    {t("budget.categoriesSection", { defaultValue: "Categories" })}
-                  </h3>
-                  <p className="ft-card-sub mt-0.5">
-                    {filtered.length} / {categories.length} ·{" "}
-                    {t("budget.scopedToPeriod", {
-                      defaultValue: "Stats scoped to the selected period",
-                    })}
-                  </p>
+            {/* Attention pips → quick filters */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              <AttentionPip
+                toneClass="bg-neg"
+                count={totals.overCount}
+                label={t("budget.pipOver", { defaultValue: "over" })}
+                onClick={() => setStatusFilter("over")}
+                active={statusFilter === "over"}
+              />
+              <AttentionPip
+                toneClass="bg-warning"
+                count={totals.warnCount}
+                label={t("budget.pipWarn", { defaultValue: "close" })}
+                onClick={() => setStatusFilter("warn")}
+                active={statusFilter === "warn"}
+              />
+              <AttentionPip
+                toneClass="bg-muted-foreground/40"
+                count={totals.noBudgetCount}
+                label={t("budget.pipNoBudget", { defaultValue: "no budget" })}
+                onClick={() => setStatusFilter("noBudget")}
+                active={statusFilter === "noBudget"}
+              />
+            </div>
+
+            {/* Auto-budget banner */}
+            {totals.suggestableCount > 0 && (
+              <div className="flex items-center gap-3 mt-4 p-3 rounded-lg bg-primary/8 border border-primary/30">
+                <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center flex-shrink-0">
+                  <Wand2 className="h-4 w-4" />
                 </div>
-                <div className="flex items-center gap-3">
-                  {rowView === "trend" && (
-                    <div className="hidden md:flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block w-3 h-px bg-foreground/70" />
-                        {t("budget.legendCum", { defaultValue: "Cumulative" })}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block w-3 h-px border-t border-dashed border-line-strong" />
-                        {t("budget.legendBudget", { defaultValue: "Budget" })}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block w-px h-3 border-l border-dashed border-fg-dim" />
-                        {t("budget.legendToday", { defaultValue: "Today" })}
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    role="group"
-                    aria-label={t("budget.rowViewToggle", {
-                      defaultValue: "Row visualisation",
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold">
+                    {t("budget.autoBudgetTitle", {
+                      n: totals.suggestableCount,
+                      defaultValue: `${totals.suggestableCount} categor${
+                        totals.suggestableCount === 1 ? "y" : "ies"
+                      } without a budget`,
                     })}
-                    className="inline-flex rounded-lg border border-line bg-bg-subtle/50 p-0.5"
-                  >
-                    {(
-                      [
-                        ["trend", t("budget.viewTrend", { defaultValue: "Trend" })],
-                        ["gauge", t("budget.viewGauge", { defaultValue: "Gauge" })],
-                      ] as [RowView, string][]
-                    ).map(([key, label]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        aria-pressed={rowView === key}
-                        onClick={() => setRowView(key)}
-                        className={cn(
-                          "px-2.5 h-7 rounded-md text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors",
-                          rowView === key
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t("budget.autoBudgetSub", {
+                      defaultValue: "Apply suggested budgets based on history.",
+                    })}
                   </div>
                 </div>
+                <Button
+                  size="sm"
+                  onClick={autoBudgetMissing}
+                  disabled={bulkBusy}
+                  className="gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {bulkBusy
+                    ? t("common.working", { defaultValue: "Working…" })
+                    : t("budget.autoBudgetAction", { defaultValue: "Auto-budget" })}
+                </Button>
               </div>
-
-              {filtered.length === 0 ? (
-                <div className="text-center py-10 text-sm text-muted-foreground">
-                  {t("budget.noResults", {
-                    defaultValue: "No categories match this filter.",
-                  })}
-                </div>
-              ) : (
-                <div data-tour="budget-row" className="flex flex-col">
-                  {filtered.map((s) => (
-                    <CategoryRow
-                      key={s.category.id}
-                      s={s}
-                      expanded={!!expanded[s.category.id]}
-                      onToggle={() =>
-                        setExpanded((prev) => ({
-                          ...prev,
-                          [s.category.id]: !prev[s.category.id],
-                        }))
-                      }
-                      rowView={rowView}
-                      includeProjected={includeProjected}
-                      elapsedDays={period.elapsedBuckets}
-                      totalDays={period.buckets.count}
-                      elapsedFraction={period.elapsedFraction}
-                      showSuggestion={showSuggestion(s)}
-                      busy={busyId === s.category.id}
-                      onApplySuggestion={() =>
-                        applySuggestion(s.category.id, s.suggested)
-                      }
-                      onEdit={() => startEditing(s.category)}
-                      onDelete={() => handleDelete(s.category.id)}
-                      onViewTransactions={() => navigateToTransactions(s.category.id)}
-                      formatCurrency={formatCurrency}
-                      t={t}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      <EditCategoryModal
-        open={editOpen}
-        category={editingCategory}
-        onOpenChange={setEditOpen}
-        onSaved={refetch}
-      />
-
-      <NewCategoryModal open={newOpen} onOpenChange={setNewOpen} onCreated={refetch} />
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        onConfirm={confirmDelete}
-        title={t("confirmations.deleteTitle")}
-        description={t("categories.confirmDelete")}
-      />
-    </div>
-  );
-};
-
-// =============================================================================
-// KPI tiles
-// =============================================================================
-
-interface KpiBudgetProps {
-  totalBudget: number;
-  totalUsed: number;
-  utilization: number;
-  formatCurrency: (n: number) => string;
-  t: (k: string, o?: any) => string;
-}
-function KpiBudget({ totalBudget, totalUsed, utilization, formatCurrency, t }: KpiBudgetProps) {
-  return (
-    <div className="ft-kpi">
-      <div className="flex items-center gap-2">
-        <div className="ft-kpi-icon acc flex-shrink-0">
-          <Target className="h-3.5 w-3.5" />
-        </div>
-        <span className="ft-kpi-label flex items-center gap-1 min-w-0 truncate">
-          {t("budget.budgetForPeriod", { defaultValue: "Budget for period" })}
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="ft-kpi-value truncate">{formatCurrency(totalBudget)}</div>
-          <div className="text-[11px] text-fg-dim truncate">
-            <span className="font-mono tabular-nums">{formatCurrency(totalUsed)}</span>{" "}
-            <span className="opacity-80">
-              {t("budget.usedX", {
-                pct: `${(utilization * 100).toFixed(0)}%`,
-                defaultValue: `used · ${(utilization * 100).toFixed(0)}%`,
-              })}
-            </span>
+            )}
           </div>
-        </div>
-        <MiniDonut pct={utilization} size={42} />
-      </div>
-    </div>
-  );
-}
 
-interface KpiUsedProps {
-  totalUsed: number;
-  totalSpent: number;
-  totalPrevSpent: number;
-  prevDelta: number | null;
-  includeProjected: boolean;
-  elapsedDays: number;
-  formatCurrency: (n: number) => string;
-  t: (k: string, o?: any) => string;
-}
-function KpiUsed({
-  totalUsed,
-  totalSpent,
-  totalPrevSpent,
-  prevDelta,
-  includeProjected,
-  elapsedDays,
-  formatCurrency,
-  t,
-}: KpiUsedProps) {
-  // Hide the delta chip when the headline includes projected — the chip
-  // compares actuals only and would otherwise read as apples-to-oranges.
-  const showDelta = !includeProjected && prevDelta != null;
-  const isUp = (prevDelta ?? 0) > 0;
-  const goodDown = !isUp;
-  const chipClass = showDelta
-    ? goodDown
-      ? "text-pos bg-pos/12"
-      : "text-destructive bg-destructive/12"
-    : "";
-  return (
-    <div className="ft-kpi">
-      <div className="flex items-center gap-2">
-        <div className="ft-kpi-icon flex-shrink-0">
-          <Bell className="h-3.5 w-3.5" />
-        </div>
-        <span className="ft-kpi-label flex items-center gap-1 min-w-0 truncate">
-          {includeProjected
-            ? t("budget.spentAndProjected", { defaultValue: "Spent + projected" })
-            : t("budget.spentSoFar", { defaultValue: "Spent so far" })}
-        </span>
-      </div>
-      <div className="flex items-baseline gap-2 min-w-0">
-        <div className="ft-kpi-value truncate">{formatCurrency(totalUsed)}</div>
-        {showDelta && (
-          <span
-            className={`inline-flex items-center gap-1 px-1.5 h-5 rounded-md text-[10.5px] font-semibold ${chipClass}`}
-          >
-            {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-            {`${isUp ? "+" : ""}${((prevDelta ?? 0) * 100).toFixed(0)}%`}
-          </span>
-        )}
-      </div>
-      <div className="text-[11px] text-fg-dim truncate">
-        {totalPrevSpent > 0
-          ? t("budget.vsSameElapsed", {
-              days: elapsedDays,
-              value: formatCurrency(totalPrevSpent),
-              defaultValue: `vs ${formatCurrency(totalPrevSpent)} same ${elapsedDays}d last period`,
-            })
-          : t("budget.noPriorData", { defaultValue: "No prior-period data" })}
-      </div>
-    </div>
-  );
-}
-
-interface KpiAttentionProps {
-  overCount: number;
-  warnCount: number;
-  noBudgetCount: number;
-  suggestableCount: number;
-  onAuto: () => void;
-  busy: boolean;
-  t: (k: string, o?: any) => string;
-}
-function KpiAttention({
-  overCount,
-  warnCount,
-  noBudgetCount,
-  suggestableCount,
-  onAuto,
-  busy,
-  t,
-}: KpiAttentionProps) {
-  const total = overCount + warnCount + noBudgetCount;
-  const iconCls = overCount > 0 ? "neg" : warnCount > 0 ? "warn" : "";
-  return (
-    <div className="ft-kpi gap-2">
-      <div className="flex items-center gap-2">
-        <div className={`ft-kpi-icon ${iconCls} flex-shrink-0`}>
-          <AlertTriangle className="h-3.5 w-3.5" />
-        </div>
-        <span className="ft-kpi-label flex items-center gap-1 min-w-0 truncate">
-          {t("budget.attention", { defaultValue: "Attention" })}
-        </span>
-      </div>
-      <div className="ft-kpi-value">{total}</div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] font-medium text-muted-foreground">
-        <Pip toneClass="bg-destructive">
-          {t("budget.attnOver", {
-            count: overCount,
-            defaultValue: `${overCount} over`,
-          })}
-        </Pip>
-        <Pip toneClass="bg-warning">
-          {t("budget.attnNear", {
-            count: warnCount,
-            defaultValue: `${warnCount} near`,
-          })}
-        </Pip>
-        <Pip toneClass="bg-fg-dim">
-          {t("budget.attnUnset", {
-            count: noBudgetCount,
-            defaultValue: `${noBudgetCount} unset`,
-          })}
-        </Pip>
-      </div>
-      {suggestableCount > 0 && (
-        <Button
-          size="sm"
-          onClick={onAuto}
-          disabled={busy}
-          className="mt-1 h-8 text-xs gap-1.5 self-start"
-        >
-          <Wand2 className="h-3.5 w-3.5" />
-          {busy
-            ? t("common.saving", { defaultValue: "Saving..." })
-            : t("budget.autoBudgetN", {
-                count: suggestableCount,
-                defaultValue: `Auto-budget ${suggestableCount}`,
-              })}
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function Pip({ toneClass, children }: { toneClass: string; children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`inline-block w-1.5 h-1.5 rounded-full ${toneClass}`} />
-      {children}
-    </span>
-  );
-}
-
-// =============================================================================
-// Mobile components — PaceBar, OverCard, CompactRow, BudgetView
-// =============================================================================
-
-interface MobilePaceBarProps {
-  used: number;
-  budget: number | null;
-  elapsedFraction: number;
-  status: Status;
-  height?: number;
-}
-function MobilePaceBar({ used, budget, elapsedFraction, status, height = 6 }: MobilePaceBarProps) {
-  if (budget == null || budget <= 0) return null;
-  const ratio = Math.min(used / budget, 1.3);
-  const fillPct = Math.min(ratio, 1) * 100;
-  const overPct = ratio > 1 ? Math.min((ratio - 1) / 0.3, 1) * 25 : 0;
-  const fillColor =
-    status === "over" ? "bg-destructive" : status === "warn" ? "bg-warning" : "bg-pos";
-  return (
-    <div className="relative w-full overflow-visible" style={{ height }}>
-      {/* Track */}
-      <div className="absolute inset-0 rounded-full bg-bg-subtle" />
-      {/* Fill */}
-      <div
-        className={`absolute top-0 bottom-0 left-0 rounded-full ${fillColor}`}
-        style={{ width: `${fillPct}%` }}
-      />
-      {/* Overflow tail — striped */}
-      {ratio > 1 && (
-        <div
-          className="absolute top-0 bottom-0 rounded-full bg-destructive/50"
-          style={{ left: "100%", marginLeft: 2, width: `${overPct}%` }}
-        />
-      )}
-      {/* Today tick */}
-      <div
-        className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-white rounded-full shadow-sm border border-black/15"
-        style={{ left: `${elapsedFraction * 100}%`, marginLeft: -1 }}
-      />
-    </div>
-  );
-}
-
-interface MobileOverCardProps {
-  s: CategoryStats;
-  elapsedFraction: number;
-  showSuggestion: boolean;
-  busy: boolean;
-  onApplySuggestion: () => void;
-  onEdit: () => void;
-  onViewTransactions: () => void;
-  formatCurrency: (n: number) => string;
-  t: (k: string, o?: any) => string;
-}
-function MobileOverCard({
-  s,
-  elapsedFraction,
-  showSuggestion,
-  busy,
-  onApplySuggestion,
-  onEdit,
-  onViewTransactions,
-  formatCurrency,
-  t,
-}: MobileOverCardProps) {
-  const ratio = s.periodBudget && s.periodBudget > 0 ? s.used / s.periodBudget : 0;
-  const overAmt = Math.max(0, s.used - (s.periodBudget ?? 0));
-  return (
-    <div className="ft-card p-4 space-y-3">
-      <div className="flex items-center gap-3">
-        <CategoryIcon icon={s.category.icon} color={s.category.color} size={42} />
-        <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-semibold tracking-tight">{s.category.name}</p>
-          <p className="text-[12px] text-destructive font-semibold font-mono tabular-nums mt-0.5">
-            +{formatCurrency(overAmt)} {t("budget.over", { defaultValue: "over" })}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-bold font-mono tabular-nums text-destructive tracking-tight">
-            {Math.round(ratio * 100)}%
-          </p>
-          <p className="text-[10.5px] text-muted-foreground font-mono">
-            {t("budget.ofBudget", { defaultValue: "of budget" })}
-          </p>
-        </div>
-      </div>
-      <MobilePaceBar
-        used={s.used}
-        budget={s.periodBudget}
-        elapsedFraction={elapsedFraction}
-        status="over"
-        height={6}
-      />
-      <div className="flex items-center justify-between text-[11.5px] font-mono tabular-nums">
-        <span className="font-medium">{formatCurrency(s.used)}</span>
-        <span className="text-muted-foreground">
-          {t("budget.budget", { defaultValue: "budget" })}{" "}
-          {s.periodBudget != null ? formatCurrency(s.periodBudget) : "—"}
-        </span>
-      </div>
-      <div className="flex gap-2">
-        {showSuggestion && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 h-9 text-xs gap-1.5"
-            onClick={onApplySuggestion}
-            disabled={busy}
-          >
-            <Zap className="h-3.5 w-3.5 text-warning" />
-            {busy
-              ? t("common.saving", { defaultValue: "Saving…" })
-              : `${t("budget.suggest", { defaultValue: "Suggest" })} ${formatCurrency(s.suggested)}`}
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 px-3 text-xs text-muted-foreground"
-          onClick={onViewTransactions}
-        >
-          <History className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 px-3 text-xs text-muted-foreground"
-          onClick={onEdit}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-interface MobileCompactRowProps {
-  s: CategoryStats;
-  elapsedFraction: number;
-  onEdit: () => void;
-  onViewTransactions: () => void;
-  formatCurrency: (n: number) => string;
-  t: (k: string, o?: any) => string;
-  border?: boolean;
-}
-function MobileCompactRow({
-  s,
-  elapsedFraction,
-  onEdit,
-  onViewTransactions,
-  formatCurrency,
-  t,
-  border = false,
-}: MobileCompactRowProps) {
-  const ratio = s.periodBudget && s.periodBudget > 0 ? s.used / s.periodBudget : 0;
-  const metaMap: Record<string, { dot: string; label: string; color: string }> = {
-    over: {
-      dot: "bg-destructive",
-      label: t("categories.overBudget", { defaultValue: "Over" }),
-      color: "text-destructive",
-    },
-    warn: {
-      dot: "bg-warning",
-      label: t("categories.nearLimit", { defaultValue: "Near limit" }),
-      color: "text-warning",
-    },
-    ok: {
-      dot: "bg-pos",
-      label: t("budget.onTrack", { defaultValue: "OK" }),
-      color: "text-pos",
-    },
-    noBudget: {
-      dot: "bg-muted-foreground/40",
-      label: t("categories.noBudgetTag", { defaultValue: "No budget" }),
-      color: "text-muted-foreground",
-    },
-  };
-  const meta = metaMap[s.status] ?? {
-    dot: "bg-muted-foreground/40",
-    label: "",
-    color: "text-muted-foreground",
-  };
-
-  return (
-    <div className={cn("flex items-start gap-3 px-4 py-3.5", border && "border-t border-line")}>
-      <CategoryIcon icon={s.category.icon} color={s.category.color} size={38} />
-      <div className="flex-1 min-w-0 space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-[14.5px] font-semibold tracking-tight truncate">
-              {s.category.name}
-            </p>
-            <p className="text-[11.5px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
-              <span className={cn("w-2 h-2 rounded-full flex-shrink-0", meta.dot)} />
-              <span className={cn("font-semibold", meta.color)}>{meta.label}</span>
-              {s.periodBudget != null && (
-                <span className="text-muted-foreground/60">
-                  · {Math.round(ratio * 100)}%
+          {/* Trend card */}
+          <div className="ft-card p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                {t("budget.spendPace", { defaultValue: "Spending pace" })}
+              </div>
+              <div className="flex gap-3 text-[10.5px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block w-3.5 h-[2.5px] rounded bg-foreground" />
+                  {t("budget.legendActual", { defaultValue: "actual" })}
                 </span>
-              )}
-            </p>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-[13.5px] font-semibold font-mono tabular-nums">
-              {formatCurrency(s.used)}
-            </p>
-            <p className="text-[11px] text-muted-foreground font-mono tabular-nums mt-0.5">
-              {s.periodBudget != null ? `/ ${formatCurrency(s.periodBudget)}` : "—"}
-            </p>
-          </div>
-        </div>
-        {s.periodBudget != null && (
-          <MobilePaceBar
-            used={s.used}
-            budget={s.periodBudget}
-            elapsedFraction={elapsedFraction}
-            status={s.status}
-            height={5}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface MobileBudgetViewProps {
-  totals: {
-    totalBudget: number;
-    totalSpent: number;
-    totalUsed: number;
-    overCount: number;
-    warnCount: number;
-    noBudgetCount: number;
-    utilization: number;
-  };
-  stats: CategoryStats[];
-  filtered: CategoryStats[];
-  statusFilter: StatusFilter;
-  setStatusFilter: (f: StatusFilter) => void;
-  search: string;
-  setSearch: (v: string) => void;
-  period: {
-    label: string;
-    elapsedDays: number;
-    totalDays: number;
-    elapsedFraction: number;
-  };
-  showSuggestion: (s: CategoryStats) => boolean;
-  busyId: string | null;
-  applySuggestion: (categoryId: string, suggested: number) => void;
-  startEditing: (cat: any) => void;
-  handleDelete: (id: string) => void;
-  navigateToTransactions: (id: string) => void;
-  formatCurrency: (n: number) => string;
-  t: (k: string, o?: any) => string;
-}
-
-function MobileBudgetView({
-  totals,
-  stats,
-  filtered,
-  statusFilter,
-  setStatusFilter,
-  search,
-  setSearch,
-  period,
-  showSuggestion,
-  busyId,
-  applySuggestion,
-  startEditing,
-  handleDelete,
-  navigateToTransactions,
-  formatCurrency,
-  t,
-}: MobileBudgetViewProps) {
-  const [healthyOpen, setHealthyOpen] = useState(false);
-
-  // Split into groups for triage layout
-  const overStats = filtered.filter((s) => s.status === "over");
-  const warnStats = filtered.filter((s) => s.status === "warn");
-  const healthyStats = filtered.filter(
-    (s) => s.status === "ok" || s.status === "noBudget"
-  );
-
-  const totalOver = overStats.reduce(
-    (sum, s) => sum + Math.max(0, s.used - (s.periodBudget ?? 0)),
-    0
-  );
-
-  // Show triage layout only when filter is "all" or "over" and there are over-budget items
-  const showTriage =
-    (statusFilter === "all" || statusFilter === "over") && totals.overCount > 0;
-
-  type TabTone = "neg" | "warn" | undefined;
-  const tabs: { id: StatusFilter; label: string; count: number; tone?: TabTone }[] = [
-    { id: "all", label: t("budget.filterAll", { defaultValue: "All" }), count: stats.length },
-    {
-      id: "over",
-      label: t("budget.filterOver", { defaultValue: "Over" }),
-      count: totals.overCount,
-      tone: "neg",
-    },
-    ...(totals.warnCount > 0
-      ? [
-          {
-            id: "warn" as StatusFilter,
-            label: t("budget.filterWarn", { defaultValue: "Near limit" }),
-            count: totals.warnCount,
-            tone: "warn" as TabTone,
-          },
-        ]
-      : []),
-    ...(totals.noBudgetCount > 0
-      ? [
-          {
-            id: "noBudget" as StatusFilter,
-            label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
-            count: totals.noBudgetCount,
-            tone: undefined,
-          },
-        ]
-      : []),
-  ];
-
-  return (
-    <div className="space-y-3">
-      {/* Period summary card */}
-      <div className="ft-card p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("budget.spentThisPeriod", { defaultValue: "Spent this period" })}
-            </p>
-            <p className="text-2xl font-bold tracking-tight font-mono tabular-nums mt-0.5">
-              {formatCurrency(totals.totalSpent)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("budget.budgetForPeriod", { defaultValue: "Budget" })}
-            </p>
-            <p
-              className={cn(
-                "text-sm font-semibold font-mono tabular-nums mt-1",
-                totals.utilization > period.elapsedFraction + 0.05
-                  ? "text-destructive"
-                  : "text-pos"
-              )}
-            >
-              {(totals.utilization * 100).toFixed(0)}%{" "}
-              · {t("budget.expected", { defaultValue: "expected" })}{" "}
-              {(period.elapsedFraction * 100).toFixed(0)}%
-            </p>
-          </div>
-        </div>
-        <MobilePaceBar
-          used={totals.totalSpent}
-          budget={totals.totalBudget}
-          elapsedFraction={period.elapsedFraction}
-          status={
-            totals.utilization >= 1
-              ? "over"
-              : totals.utilization > period.elapsedFraction + 0.05
-              ? "warn"
-              : "ok"
-          }
-          height={8}
-        />
-        {totals.overCount > 0 && (
-          <p className="text-[12.5px] text-muted-foreground flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-            <span>
-              <span className="font-semibold text-foreground">
-                {totals.overCount}{" "}
-                {t("budget.categoriesOver", { defaultValue: "categories over" })}
+                {includeProjected && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-3.5 h-0 border-t-[1.5px] border-dashed border-muted-foreground"
+                      style={{ opacity: 0.55 }}
+                    />
+                    {t("budget.legendProjected", { defaultValue: "projected" })}
+                  </span>
+                )}
+                {totals.totalBudget > 0 && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-3.5 h-0 border-t-[1.5px] border-dashed border-muted-foreground"
+                      style={{ opacity: 0.55 }}
+                    />
+                    {t("budget.legendBudget", { defaultValue: "budget" })}
+                  </span>
+                )}
+              </div>
+            </div>
+            <TrendChart
+              stats={stats}
+              includeProjected={includeProjected}
+              period={period}
+              formatCurrency={formatCurrency}
+            />
+            <div className="flex justify-between mt-2 text-[10.5px] text-muted-foreground tabular-nums">
+              <span>
+                {t("budget.cumulativeSpend", {
+                  defaultValue: "cumulative spend over the period",
+                })}
               </span>
-              {" · "}
-              {formatCurrency(totalOver)}{" "}
-              {t("budget.abovePace", { defaultValue: "above budget" })}
-            </span>
-          </p>
-        )}
-      </div>
-
-      {/* Filter + search */}
-      <div className="space-y-2">
-        <div className="ft-card flex items-center gap-2 px-3 py-2.5">
-          <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("budget.searchPlaceholder", {
-              defaultValue: "Search a category…",
-            })}
-            className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
-          />
+              <span>
+                {Math.round(totals.utilization * 100)}%{" "}
+                {t("budget.ofBudgetCompact", { defaultValue: "of budget" })}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-          {tabs.map((tab) => {
-            const active = statusFilter === tab.id;
-            return (
+
+        {/* Filter chips + search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="flex flex-wrap gap-1.5 -mx-1 px-1 overflow-x-auto sm:overflow-visible">
+            {filterChips.map((c) => (
               <button
-                key={tab.id}
+                key={c.id}
                 type="button"
-                onClick={() => setStatusFilter(tab.id)}
+                onClick={() => setStatusFilter(c.id)}
                 className={cn(
-                  "flex-shrink-0 h-8 px-3 rounded-full text-[12.5px] font-semibold border transition-colors inline-flex items-center gap-1.5",
-                  active
-                    ? tab.tone === "neg"
-                      ? "bg-destructive text-white border-destructive"
-                      : tab.tone === "warn"
-                      ? "bg-warning text-warning-foreground border-warning"
+                  "inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-semibold whitespace-nowrap transition-colors",
+                  statusFilter === c.id
+                    ? c.id === "over"
+                      ? "bg-neg text-white border-neg"
+                      : c.id === "warn"
+                      ? "bg-warning text-white border-warning"
                       : "bg-foreground text-background border-foreground"
-                    : "bg-card text-muted-foreground border-line"
+                    : "bg-card border-line text-muted-foreground hover:text-foreground"
                 )}
               >
-                {tab.label}
+                {c.label}
                 <span
                   className={cn(
-                    "text-[11px] font-mono",
-                    active ? "opacity-70" : "text-muted-foreground/60"
+                    "tabular-nums text-[11px] font-medium opacity-70",
+                    statusFilter === c.id && "opacity-90"
                   )}
                 >
-                  {tab.count}
+                  {c.n}
                 </span>
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Triage: hero card when there are over-budget items (filter=all or filter=over) */}
-      {showTriage && (
-        <>
-          {/* Dark hero card */}
-          <div className="rounded-2xl bg-foreground text-background p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-destructive grid place-items-center flex-shrink-0">
-                <AlertTriangle className="h-3.5 w-3.5 text-white" />
-              </div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
-                {t("budget.needsAttention", { defaultValue: "Needs attention" })}
-              </span>
-            </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold tracking-tight font-mono">
-                  {totals.overCount}
-                </span>
-                <span className="text-base font-medium opacity-80">
-                  {t("budget.categoriesExceeded", {
-                    defaultValue: "categories exceeded",
-                  })}
-                </span>
-              </div>
-              <p className="text-sm opacity-60 mt-1 font-mono tabular-nums">
-                {formatCurrency(totalOver)}{" "}
-                {t("budget.aboveBudgetTotal", {
-                  defaultValue: "above budgeted total",
-                })}
-              </p>
-            </div>
-            {/* Worst offenders horizontal strip */}
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-              {overStats.slice(0, 5).map((s) => {
-                const ratio =
-                  s.periodBudget && s.periodBudget > 0
-                    ? s.used / s.periodBudget
-                    : 0;
-                return (
-                  <div
-                    key={s.category.id}
-                    className="flex-shrink-0 min-w-[120px] rounded-xl p-3 space-y-1.5"
-                    style={{
-                      background: "rgba(255,255,255,0.07)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded-lg grid place-items-center flex-shrink-0"
-                        style={{ background: `${s.category.color}30` }}
-                      >
-                        <CategoryIcon
-                          icon={s.category.icon}
-                          color={s.category.color}
-                          size={16}
-                        />
-                      </div>
-                      <span className="text-xs font-semibold truncate">
-                        {s.category.name}
-                      </span>
-                    </div>
-                    <p className="text-lg font-bold font-mono tabular-nums tracking-tight">
-                      {Math.round(ratio * 100)}%
-                    </p>
-                    <p className="text-[10.5px] opacity-55 font-mono tabular-nums">
-                      +{formatCurrency(Math.max(0, s.used - (s.periodBudget ?? 0)))}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+            ))}
           </div>
-
-          {/* Over-budget cards */}
-          {overStats.length > 0 && (
-            <div className="space-y-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                {t("budget.exceeded", { defaultValue: "Exceeded" })} ·{" "}
-                {overStats.length}
-              </p>
-              {overStats.map((s) => (
-                <MobileOverCard
-                  key={s.category.id}
-                  s={s}
-                  elapsedFraction={period.elapsedFraction}
-                  showSuggestion={showSuggestion(s)}
-                  busy={busyId === s.category.id}
-                  onApplySuggestion={() =>
-                    applySuggestion(s.category.id, s.suggested)
-                  }
-                  onEdit={() => startEditing(s.category)}
-                  onViewTransactions={() =>
-                    navigateToTransactions(s.category.id)
-                  }
-                  formatCurrency={formatCurrency}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Warn cards — compact */}
-          {warnStats.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                {t("budget.filterWarn", { defaultValue: "Near limit" })} ·{" "}
-                {warnStats.length}
-              </p>
-              {warnStats.map((s) => (
-                <MobileCompactRow
-                  key={s.category.id}
-                  s={s}
-                  elapsedFraction={period.elapsedFraction}
-                  onEdit={() => startEditing(s.category)}
-                  onViewTransactions={() =>
-                    navigateToTransactions(s.category.id)
-                  }
-                  formatCurrency={formatCurrency}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Healthy accordion */}
-          <button
-            type="button"
-            onClick={() => setHealthyOpen((o) => !o)}
-            className="ft-card w-full flex items-center gap-3 p-4 text-left"
-          >
-            <div className="w-8 h-8 rounded-xl bg-pos/10 grid place-items-center flex-shrink-0">
-              <CheckCircle2 className="h-4 w-4 text-pos" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold">
-                {t("budget.onTrack", { defaultValue: "On track" })}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {healthyStats.length}{" "}
-                {t("budget.categoriesOnTrack", {
-                  defaultValue: "categories on track",
-                })}
-              </p>
-            </div>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform",
-                healthyOpen && "rotate-180"
-              )}
-            />
-          </button>
-
-          {healthyOpen && (
-            <div className="ft-card-flush overflow-hidden">
-              {healthyStats.map((s, i) => (
-                <MobileCompactRow
-                  key={s.category.id}
-                  s={s}
-                  elapsedFraction={period.elapsedFraction}
-                  onEdit={() => startEditing(s.category)}
-                  onViewTransactions={() =>
-                    navigateToTransactions(s.category.id)
-                  }
-                  formatCurrency={formatCurrency}
-                  t={t}
-                  border={i > 0}
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Non-triage: show all filtered as compact rows */}
-      {!showTriage && (
-        <div className="ft-card-flush overflow-hidden">
-          {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              {t("budget.noResults", {
-                defaultValue: "No categories match this filter.",
+          <div className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-line bg-card min-w-0 sm:min-w-[200px]">
+            <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("budget.searchPlaceholder", {
+                defaultValue: "Search a category…",
               })}
-            </p>
+              className="border-0 bg-transparent h-full text-sm p-0 focus-visible:ring-0"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label={t("common.clear", { defaultValue: "Clear" })}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Cards grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+          {filtered.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-sm text-muted-foreground">
+              {t("budget.emptyFiltered", {
+                defaultValue: "No categories match the current filter.",
+              })}
+            </div>
           ) : (
-            filtered.map((s, i) => (
-              <MobileCompactRow
+            filtered.map((s) => (
+              <BudgetCard
                 key={s.category.id}
-                s={s}
-                elapsedFraction={period.elapsedFraction}
-                onEdit={() => startEditing(s.category)}
-                onViewTransactions={() => navigateToTransactions(s.category.id)}
+                stat={s}
+                period={period}
+                includeProjected={includeProjected}
+                expanded={!!expanded[s.category.id]}
+                onToggleExpand={() =>
+                  setExpanded((prev) => ({
+                    ...prev,
+                    [s.category.id]: !prev[s.category.id],
+                  }))
+                }
+                onEditBudget={startEditingBudget}
+                onEditCategory={startEditingCategory}
+                onDelete={handleDelete}
+                onNavigateToTransactions={navigateToTransactions}
+                applySuggestion={applySuggestion}
+                showSuggestion={showSuggestion}
+                busyId={busyId}
                 formatCurrency={formatCurrency}
                 t={t}
-                border={i > 0}
               />
             ))
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-// =============================================================================
-// Category row — condensed by default, expands inline
-// =============================================================================
-
-interface CategoryRowProps {
-  s: CategoryStats;
-  expanded: boolean;
-  onToggle: () => void;
-  rowView: RowView;
-  includeProjected: boolean;
-  elapsedDays: number;
-  totalDays: number;
-  elapsedFraction: number;
-  showSuggestion: boolean;
-  busy: boolean;
-  onApplySuggestion: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onViewTransactions: () => void;
-  formatCurrency: (n: number) => string;
-  t: (k: string, o?: any) => string;
-}
-
-function CategoryRow({
-  s,
-  expanded,
-  onToggle,
-  rowView,
-  includeProjected,
-  elapsedDays,
-  totalDays,
-  elapsedFraction,
-  showSuggestion,
-  busy,
-  onApplySuggestion,
-  onEdit,
-  onDelete,
-  onViewTransactions,
-  formatCurrency,
-  t,
-}: CategoryRowProps) {
-  const { category, used, periodBudget, remaining, status, pct, suggested } = s;
-  const monthly = category.budget != null ? Number(category.budget) : null;
-  const budgetForFigure = periodBudget;
-  const suggestDelta = monthly != null ? suggested - monthly : null;
-
-  const statusMeta: Record<Status, { label: string; cls: string }> = {
-    over: {
-      label: t("categories.overBudget", { defaultValue: "Over" }),
-      cls: "bg-destructive/15 text-destructive",
-    },
-    warn: {
-      label: t("categories.nearLimit", { defaultValue: "Near limit" }),
-      cls: "bg-warning/15 text-warning",
-    },
-    noBudget: {
-      label: t("categories.noBudgetTag", { defaultValue: "No budget" }),
-      cls: "bg-bg-subtle text-fg-dim",
-    },
-    ok: {
-      label: t("budget.onTrack", { defaultValue: "On track" }),
-      cls: "bg-pos/12 text-pos",
-    },
-  };
-
-  return (
-    <div
-      className={cn(
-        "border-t border-line first:border-t-0 transition-colors",
-        expanded && "bg-bg-subtle/50"
-      )}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        className={cn(
-          "w-full grid items-center gap-3 lg:gap-4 px-5 md:px-6 py-3.5 text-left transition-colors hover:bg-bg-subtle",
-          // Mobile: icon | identity | figure | chevron
-          // Desktop: icon | identity | figure | sparkline | chevron
-          "grid-cols-[36px_1fr_auto_14px] lg:grid-cols-[36px_1.4fr_1.1fr_1.6fr_14px]"
-        )}
-      >
-        <CategoryIcon icon={category.icon} color={category.color} size={36} />
-
-        <div className="min-w-0">
-          <div className="text-[13.5px] font-semibold tracking-tight truncate">
-            {category.name}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span
-              className={`inline-flex items-center gap-1 px-1.5 h-5 rounded-full text-[10.5px] font-semibold ${statusMeta[status].cls}`}
-            >
-              {status === "over" && <AlertTriangle className="h-3 w-3" />}
-              {statusMeta[status].label}
-            </span>
-            {monthly != null && status !== "ok" && (
-              <span className="text-[10.5px] font-mono tabular-nums text-fg-dim">
-                {t("budget.paceUsed", {
-                  pace: `${(elapsedFraction * 100).toFixed(0)}%`,
-                  used: `${(pct * 100).toFixed(0)}%`,
-                  defaultValue: `pace ${(elapsedFraction * 100).toFixed(0)}% · used ${(pct * 100).toFixed(0)}%`,
-                })}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="text-right min-w-0">
-          <div className="text-[13.5px]">
-            <span className="font-mono font-medium tabular-nums">
-              {formatCurrency(used)}
-            </span>
-            <span className="text-fg-dim mx-1">/</span>
-            <span className="font-mono tabular-nums text-fg-dim">
-              {budgetForFigure != null ? formatCurrency(budgetForFigure) : "—"}
-            </span>
-          </div>
-          <div className="text-[11.5px] text-fg-dim mt-0.5 truncate">
-            {remaining != null ? (
-              remaining >= 0 ? (
-                <>
-                  <span className="font-mono tabular-nums text-pos">
-                    {formatCurrency(remaining)}
-                  </span>{" "}
-                  <span>{t("budget.left", { defaultValue: "left" })}</span>
-                </>
-              ) : (
-                <>
-                  <span className="font-mono tabular-nums text-destructive">
-                    −{formatCurrency(Math.abs(remaining))}
-                  </span>{" "}
-                  <span>{t("budget.over", { defaultValue: "over" })}</span>
-                </>
-              )
-            ) : (
-              <>
-                <span>{t("budget.avg", { defaultValue: "avg" })}</span>{" "}
-                <span className="font-mono tabular-nums">
-                  {formatCurrency(s.monthlyAvg)}
-                </span>
-                <span>/{t("budget.moShort", { defaultValue: "mo" })}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="hidden lg:block h-9 min-w-0">
-          {rowView === "gauge" ? (
-            <div className="flex items-center h-full">
-              <BudgetRowGauge
-                used={used}
-                budget={periodBudget}
-                pct={pct}
-                status={status}
-                elapsedFraction={elapsedFraction}
-                t={t}
-              />
-            </div>
-          ) : (
-            <BudgetRowSparkline
-              buckets={s.buckets}
-              projected={includeProjected ? s.projectedBuckets : null}
-              color={category.color}
-              budget={periodBudget}
-              elapsedDays={elapsedDays}
-              totalDays={totalDays}
-              height={36}
-            />
-          )}
-        </div>
-
-        <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 text-muted-foreground transition-transform",
-            expanded && "rotate-180"
-          )}
-        />
-      </button>
-
-      {expanded && (
-        <div className="px-5 md:px-6 lg:pl-[88px] pt-3 pb-5 border-t border-dashed border-line flex flex-col gap-4">
-          {/* Mobile sparkline (hidden in the row when small) */}
-          <div className="lg:hidden">
-            {rowView === "gauge" ? (
-              <BudgetRowGauge
-                used={used}
-                budget={periodBudget}
-                pct={pct}
-                status={status}
-                elapsedFraction={elapsedFraction}
-                t={t}
-              />
-            ) : (
-              <BudgetRowSparkline
-                buckets={s.buckets}
-                projected={includeProjected ? s.projectedBuckets : null}
-                color={category.color}
-                budget={periodBudget}
-                elapsedDays={elapsedDays}
-                totalDays={totalDays}
-                height={42}
-              />
-            )}
-          </div>
-
-          {/* 4-stat grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-2">
-            <DetailStat
-              label={t("categories.spent", { defaultValue: "Spent" })}
-              value={formatCurrency(s.spent)}
-            />
-            <DetailStat
-              label={t("budget.projected", { defaultValue: "Projected" })}
-              value={formatCurrency(s.projected)}
-              muted={s.projected === 0}
-            />
-            <DetailStat
-              label={t("budget.monthlyAvg", { defaultValue: "Avg / mo (6 mo)" })}
-              value={s.monthlyAvg > 0 ? formatCurrency(s.monthlyAvg) : "—"}
-              muted={s.monthlyAvg <= 0}
-            />
-            <DetailStat
-              label={t("budget.lastSameDays", {
-                defaultValue: "Last period, same days",
-              })}
-              value={formatCurrency(s.prevSpent)}
-              muted={s.prevSpent === 0}
-            />
-          </div>
-
-          {/* Action row */}
-          <div className="flex flex-wrap items-center gap-2">
-            {showSuggestion && suggested > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onApplySuggestion();
-                }}
-                disabled={busy}
-                className="h-8 text-xs gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                {monthly == null
-                  ? t("budget.setBudgetTo", {
-                      value: formatCurrency(suggested),
-                      defaultValue: `Set budget to ${formatCurrency(suggested)}`,
-                    })
-                  : t("budget.suggestValue", {
-                      value: formatCurrency(suggested),
-                      defaultValue: `Suggest ${formatCurrency(suggested)}`,
-                    })}
-                {suggestDelta != null && (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-0.5 px-1 h-4 rounded text-[10px] font-semibold",
-                      suggestDelta > 0
-                        ? "bg-warning/15 text-warning"
-                        : "bg-pos/12 text-pos"
-                    )}
-                  >
-                    {suggestDelta > 0 ? (
-                      <ArrowUp className="h-2.5 w-2.5" />
-                    ) : (
-                      <ArrowDown className="h-2.5 w-2.5" />
-                    )}
-                    {formatCurrency(Math.abs(suggestDelta))}
-                  </span>
-                )}
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="h-8 text-xs gap-1.5"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              {t("budget.editCategory", { defaultValue: "Edit category" })}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewTransactions();
-              }}
-              className="h-8 text-xs gap-1.5"
-            >
-              {t("budget.viewTransactions", { defaultValue: "View transactions" })}
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="h-8 w-8 p-0 ml-auto text-muted-foreground hover:text-destructive"
-              aria-label={t("common.delete", { defaultValue: "Delete" })}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* What's driving it — only on over-budget rows */}
-          {status === "over" && s.topDrivers.length > 0 && (
-            <div className="rounded-lg border border-line bg-bg-elev p-3 sm:p-4">
-              <div className="flex items-baseline justify-between gap-3 mb-2">
-                <span className="text-[10.5px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
-                  {t("budget.whatsDriving", { defaultValue: "What's driving it" })}
-                </span>
-                <span className="text-[11px] text-fg-dim">
-                  {t("budget.topNTransactions", {
-                    n: s.topDrivers.length,
-                    defaultValue: `top ${s.topDrivers.length} transactions this period`,
-                  })}
-                </span>
-              </div>
-              <ul className="flex flex-col">
-                {s.topDrivers.map((d) => (
-                  <li
-                    key={d.id}
-                    className="grid grid-cols-[1fr_auto_auto] items-center gap-3 sm:gap-4 py-1.5 border-t border-line first:border-t-0 text-[12.5px]"
-                  >
-                    <span className="font-medium truncate">{d.description}</span>
-                    <span className="text-fg-dim font-mono tabular-nums text-[11.5px]">
-                      {format(d.date, "MMM d")}
-                    </span>
-                    <span className="font-mono tabular-nums text-destructive">
-                      {formatCurrency(d.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DetailStat({
-  label,
-  value,
-  muted,
-}: {
-  label: string;
-  value: string;
-  muted?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground/80 truncate">
-        {label}
       </div>
-      <div
-        className={cn(
-          "font-mono tabular-nums text-[13.5px] font-medium mt-0.5 truncate",
-          muted && "text-fg-dim"
-        )}
-      >
-        {value}
-      </div>
+
+      {/* Modals + sheets */}
+      <BudgetEditSheet
+        stat={editingBudgetStat}
+        open={editBudgetOpen}
+        onOpenChange={setEditBudgetOpen}
+        onSave={saveBudget}
+        formatCurrency={formatCurrency}
+      />
+      <EditCategoryModal
+        open={editCategoryOpen}
+        onOpenChange={setEditCategoryOpen}
+        category={editingCategory}
+        onSaved={() => {
+          refetch();
+          setEditCategoryOpen(false);
+        }}
+      />
+      <NewCategoryModal
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        onSaved={() => {
+          refetch();
+          setNewOpen(false);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t("categories.confirmDelete", {
+          defaultValue: "Delete this category?",
+        })}
+        description={t("categories.confirmDeleteDesc", {
+          defaultValue:
+            "All transactions in this category will become uncategorised. This cannot be undone.",
+        })}
+        confirmText={t("common.delete", { defaultValue: "Delete" })}
+        onConfirm={confirmDelete}
+        variant="destructive"
+      />
     </div>
   );
-}
-
-// =============================================================================
-// Filter pill + date pill
-// =============================================================================
-
-function FilterPill({
-  active,
-  onClick,
-  label,
-  count,
-  tone = "default",
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  tone?: "default" | "neg" | "warn";
-}) {
-  const activeCls =
-    tone === "neg"
-      ? "bg-destructive text-destructive-foreground border-destructive"
-      : tone === "warn"
-      ? "bg-warning text-warning-foreground border-warning"
-      : "bg-foreground text-background border-foreground";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "h-8 px-3 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors",
-        active
-          ? activeCls
-          : "border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover bg-card"
-      )}
-    >
-      {label}
-      <span className={cn("font-mono tabular-nums", active ? "opacity-80" : "text-fg-dim")}>
-        {count}
-      </span>
-    </button>
-  );
-}
-
-function DatePill({
-  value,
-  onChange,
-  label,
-}: {
-  value: Date;
-  onChange: (d: Date) => void;
-  label: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground/80">
-        {label}
-      </span>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 px-2 text-xs gap-1.5">
-            <CalendarIcon className="h-3.5 w-3.5" />
-            {format(value, "dd MMM yyyy")}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={(d) => {
-              if (d) {
-                const safe = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
-                onChange(safe);
-              }
-            }}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
+};
 
 export default Budget;
