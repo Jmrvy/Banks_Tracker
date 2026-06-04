@@ -221,6 +221,19 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
       ? manualInstallments[0]?.date || formData.start_date
       : formData.start_date;
 
+    // When the user defined a personalized schedule (manual mode) pass
+    // the full list so it gets persisted as installment_payment_records.
+    // The processor then materializes each row at its own date+amount
+    // instead of falling back to the uniform frequency loop.
+    const customSchedule = calculationMode === 'manual'
+      ? manualInstallments
+          .filter((m) => m.date && parseFloat(m.amount) > 0)
+          .map((m) => ({
+            date: format(m.date, 'yyyy-MM-dd'),
+            amount: parseFloat(m.amount),
+          }))
+      : undefined;
+
     const { error } = await createInstallmentPayment({
       description: formData.description,
       total_amount: parseFloat(formData.total_amount),
@@ -230,6 +243,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
       payment_type: formData.payment_type,
+      schedule: customSchedule,
     });
 
     if (error) {

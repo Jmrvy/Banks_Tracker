@@ -136,8 +136,25 @@ export const useInstallmentPayments = () => {
     account_id: string;
     category_id?: string;
     payment_type: 'reimbursement' | 'payment';
+    /**
+     * Optional explicit schedule. When supplied, each entry becomes one
+     * row in installment_payment_records and the processor uses those
+     * rows verbatim instead of generating occurrences from frequency.
+     * Use this when the user defines a personalized schedule with
+     * varying dates or amounts; omit for uniform plans (frequency-based).
+     */
+    schedule?: { date: string; amount: number }[];
   }) => {
     if (!user) return { error: new Error('User not authenticated') };
+
+    const hasCustomSchedule = Array.isArray(data.schedule) && data.schedule.length > 0;
+    // For custom schedules the plan-level installment_amount becomes a
+    // sensible default (the first row); the recurring processor uses
+    // the per-record amount when materializing each occurrence.
+    const planInstallmentAmount = hasCustomSchedule
+      ? Number(data.schedule![0].amount)
+      : data.installment_amount;
+    const planStartDate = hasCustomSchedule ? data.schedule![0].date : data.start_date;
 
     const { data: installmentData, error: installmentError } = await supabase
       .from('installment_payments')
@@ -146,10 +163,10 @@ export const useInstallmentPayments = () => {
         description: data.description,
         total_amount: data.total_amount,
         remaining_amount: data.total_amount,
-        installment_amount: data.installment_amount,
+        installment_amount: planInstallmentAmount,
         frequency: data.frequency,
-        start_date: data.start_date,
-        next_payment_date: data.start_date,
+        start_date: planStartDate,
+        next_payment_date: planStartDate,
         account_id: data.account_id,
         category_id: data.category_id || null,
         payment_type: data.payment_type,
@@ -162,6 +179,27 @@ export const useInstallmentPayments = () => {
       return { error: installmentError };
     }
 
+    // Persist the personalized schedule (one row per planned installment).
+    // The recurring processor will read these and use their date+amount
+    // instead of advancing by frequency.
+    if (hasCustomSchedule) {
+      const recordRows = data.schedule!.map((s) => ({
+        installment_payment_id: installmentData.id,
+        user_id: user.id,
+        scheduled_date: s.date,
+        scheduled_amount: Number(s.amount),
+      }));
+      const { error: recordsError } = await supabase
+        // Cast to bypass the auto-generated types until the next pull.
+        .from('installment_payment_records' as never)
+        .insert(recordRows as never);
+      if (recordsError) {
+        console.error('Error creating installment records:', recordsError);
+        await supabase.from('installment_payments').delete().eq('id', installmentData.id);
+        return { error: recordsError };
+      }
+    }
+
     // Log creation in history
     await logHistoryChange(
       installmentData.id,
@@ -169,9 +207,11 @@ export const useInstallmentPayments = () => {
       null,
       {
         total_amount: data.total_amount,
-        installment_amount: data.installment_amount,
+        installment_amount: planInstallmentAmount,
         frequency: data.frequency,
         payment_type: data.payment_type,
+        custom_schedule: hasCustomSchedule,
+        schedule_length: hasCustomSchedule ? data.schedule!.length : null,
       },
       `Création du paiement échelonné: ${data.description}`
     );
@@ -189,11 +229,11 @@ export const useInstallmentPayments = () => {
       .insert({
         user_id: user.id,
         description: `${data.description} (${descriptionSuffix})`,
-        amount: data.installment_amount,
+        amount: planInstallmentAmount,
         type: recurringType,
         recurrence_type: recurringFrequency,
-        start_date: data.start_date,
-        next_due_date: data.start_date,
+        start_date: planStartDate,
+        next_due_date: planStartDate,
         account_id: data.account_id,
         category_id: data.category_id || null,
         is_active: true,
