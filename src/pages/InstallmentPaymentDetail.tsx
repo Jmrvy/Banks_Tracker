@@ -50,6 +50,20 @@ import {
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+/** Personalized-schedule record loaded for a custom installment plan.
+ *  When present, the timeline renders these instead of regenerating the
+ *  schedule from installment_amount + frequency. */
+interface InstallmentRecord {
+  id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean;
+  paid_date: string | null;
+  actual_amount: number | null;
+  transaction_id: string | null;
+}
 
 import { InstallmentScheduleTimeline } from '@/components/InstallmentScheduleTimeline';
 import { RecordInstallmentPaymentModal } from '@/components/RecordInstallmentPaymentModal';
@@ -118,6 +132,48 @@ const InstallmentPaymentDetail = () => {
     () => (plan && plan.category_id ? categories.find((c) => c.id === plan.category_id) : null),
     [categories, plan]
   );
+
+  // Personalized schedule rows for this plan. When non-empty the plan
+  // has a custom schedule (variable dates and/or amounts) and the
+  // timeline below should render from these instead of regenerating
+  // dates from start_date + frequency.
+  const [planRecords, setPlanRecords] = useState<InstallmentRecord[]>([]);
+  useEffect(() => {
+    if (!plan) {
+      setPlanRecords([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('installment_payment_records')
+        .select('id, scheduled_date, scheduled_amount, is_paid, paid_date, actual_amount, transaction_id')
+        .eq('installment_payment_id', plan.id)
+        .order('scheduled_date', { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        console.warn('Failed to fetch installment records', error);
+        setPlanRecords([]);
+        return;
+      }
+      setPlanRecords(
+        (data ?? []).map((r) => ({
+          id: r.id as string,
+          scheduled_date: r.scheduled_date as string,
+          scheduled_amount: Number(r.scheduled_amount),
+          is_paid: !!r.is_paid,
+          paid_date: (r.paid_date as string | null) ?? null,
+          actual_amount: r.actual_amount != null ? Number(r.actual_amount) : null,
+          transaction_id: (r.transaction_id as string | null) ?? null,
+        }))
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-fetch when the plan id changes or when linked transactions
+    // change (the processor may have updated is_paid + transaction_id).
+  }, [plan, linkedTransactions.length]);
 
   // When opening the undo dialog, fetch transactions created since that entry
   useEffect(() => {
@@ -349,15 +405,21 @@ const InstallmentPaymentDetail = () => {
             <Progress value={progress} className="h-2 mt-3" />
             <div className="flex justify-between text-[11px] text-muted-foreground mt-1.5">
               <span>
-                {plan.installment_amount > 0 && (
-                  <>
-                    {formatCurrency(plan.installment_amount)} /
-                    {plan.frequency === 'weekly'
-                      ? ` ${t('installments.wk', { defaultValue: 'wk' })}`
-                      : plan.frequency === 'quarterly'
-                      ? ` ${t('installments.qtr', { defaultValue: 'qtr' })}`
-                      : ` ${t('installments.mo', { defaultValue: 'mo' })}`}
-                  </>
+                {planRecords.length > 0 ? (
+                  // Custom schedule: per-installment amount/frequency varies, so
+                  // showing "X/mo" would be misleading.
+                  <>{t('installments.variableSchedule', { defaultValue: 'Custom schedule' })}</>
+                ) : (
+                  plan.installment_amount > 0 && (
+                    <>
+                      {formatCurrency(plan.installment_amount)} /
+                      {plan.frequency === 'weekly'
+                        ? ` ${t('installments.wk', { defaultValue: 'wk' })}`
+                        : plan.frequency === 'quarterly'
+                        ? ` ${t('installments.qtr', { defaultValue: 'qtr' })}`
+                        : ` ${t('installments.mo', { defaultValue: 'mo' })}`}
+                    </>
+                  )
                 )}
               </span>
               <span>
@@ -403,6 +465,7 @@ const InstallmentPaymentDetail = () => {
               plan={plan}
               accountName={account?.name ?? null}
               linkedTransactions={linkedTransactions}
+              scheduleRecords={planRecords}
               onTransactionClick={(tx) => setViewingTxn(tx)}
             />
             {linkedTransactions.length > 0 && (

@@ -16,6 +16,18 @@ import {
 import { fr, enUS } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 
+/** Personalized-schedule row — one per planned installment.
+ *  Present only for custom plans; uniform plans don't have records. */
+export interface InstallmentScheduleRecord {
+  id: string;
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean;
+  paid_date: string | null;
+  actual_amount: number | null;
+  transaction_id: string | null;
+}
+
 interface Props {
   plan: InstallmentPayment;
   accountName?: string | null;
@@ -26,6 +38,12 @@ interface Props {
    * a paid step opens its detail.
    */
   linkedTransactions?: Transaction[];
+  /**
+   * Personalized schedule rows. When non-empty the timeline renders these
+   * exact dates and amounts (variable per row) instead of regenerating a
+   * uniform schedule from `installment_amount + frequency`.
+   */
+  scheduleRecords?: InstallmentScheduleRecord[];
   onTransactionClick?: (txn: Transaction) => void;
 }
 
@@ -47,19 +65,37 @@ export function InstallmentScheduleTimeline({
   plan,
   accountName,
   linkedTransactions,
+  scheduleRecords,
   onTransactionClick,
 }: Props) {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { formatCurrency } = useUserPreferences();
 
+  // A plan has a personalized (custom) schedule when records are loaded
+  // for it. Custom plans drive the timeline from records (variable dates
+  // and amounts); uniform plans fall back to installment_amount + frequency.
+  const sortedRecords = useMemo(
+    () =>
+      (scheduleRecords ?? [])
+        .slice()
+        .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date)),
+    [scheduleRecords]
+  );
+  const hasCustomSchedule = sortedRecords.length > 0;
+
   const totalSteps = useMemo(() => {
+    if (hasCustomSchedule) return sortedRecords.length;
     if (plan.installment_amount <= 0) return 1;
     return Math.max(1, Math.ceil(plan.total_amount / plan.installment_amount));
-  }, [plan.total_amount, plan.installment_amount]);
+  }, [hasCustomSchedule, sortedRecords.length, plan.total_amount, plan.installment_amount]);
 
-  // Expected dates per step from start_date + frequency
+  // Expected dates per step. For custom schedules each row supplies its own
+  // date; otherwise generate them from start_date + frequency.
   const expectedDates = useMemo(() => {
+    if (hasCustomSchedule) {
+      return sortedRecords.map((r) => parseLocalDate(r.scheduled_date));
+    }
     const start = parseISO(plan.start_date);
     return Array.from({ length: totalSteps }, (_, i) => {
       switch (plan.frequency) {
@@ -71,7 +107,14 @@ export function InstallmentScheduleTimeline({
           return addMonths(start, i);
       }
     });
-  }, [plan.start_date, plan.frequency, totalSteps]);
+  }, [hasCustomSchedule, sortedRecords, plan.start_date, plan.frequency, totalSteps]);
+
+  // Per-step expected amount. Custom schedules vary by row; uniform plans
+  // use the single installment_amount.
+  const expectedAmounts = useMemo(() => {
+    if (hasCustomSchedule) return sortedRecords.map((r) => r.scheduled_amount);
+    return Array.from({ length: totalSteps }, () => plan.installment_amount);
+  }, [hasCustomSchedule, sortedRecords, totalSteps, plan.installment_amount]);
 
   const today = startOfDay(new Date());
 
@@ -86,10 +129,34 @@ export function InstallmentScheduleTimeline({
           parseLocalDate(a.transaction_date).getTime() -
           parseLocalDate(b.transaction_date).getTime()
       );
+    const txnById = new Map(sortedTxns.map((t) => [t.id, t]));
     const used = new Set<string>();
-    const result: StepStatus[] = expectedDates.map((expectedDate) => {
-      // Find the nearest unattached linked transaction within ±21 days (covers
-      // late and early payments without crossing into the next step's window).
+
+    const result: StepStatus[] = expectedDates.map((expectedDate, i) => {
+      const expectedAmount = expectedAmounts[i];
+
+      // Custom schedule: trust the record. If the processor has marked it
+      // paid and attached a transaction id, surface that transaction.
+      if (hasCustomSchedule) {
+        const record = sortedRecords[i];
+        const recordTxn = record.transaction_id
+          ? txnById.get(record.transaction_id)
+          : undefined;
+        if (recordTxn) used.add(recordTxn.id);
+        return {
+          status: record.is_paid ? "paid" : "upcoming",
+          date: expectedDate,
+          amount:
+            recordTxn != null
+              ? Math.abs(recordTxn.amount)
+              : record.actual_amount ?? expectedAmount,
+          transaction: recordTxn,
+        };
+      }
+
+      // Uniform schedule: find the nearest unattached linked transaction
+      // within ±21 days (covers late/early payments without crossing into
+      // the next step's window).
       let bestTxn: Transaction | undefined;
       let bestDiff = Infinity;
       for (const tx of sortedTxns) {
@@ -106,7 +173,7 @@ export function InstallmentScheduleTimeline({
       return {
         status: bestTxn ? "paid" : "upcoming",
         date: expectedDate,
-        amount: bestTxn ? Math.abs(bestTxn.amount) : plan.installment_amount,
+        amount: bestTxn ? Math.abs(bestTxn.amount) : expectedAmount,
         transaction: bestTxn,
       };
     });
@@ -115,9 +182,10 @@ export function InstallmentScheduleTimeline({
     const firstUnpaid = result.findIndex((s) => s.status === "upcoming");
     if (firstUnpaid >= 0) result[firstUnpaid].status = "next";
 
-    // Fallback for plans without linked transactions data: derive paid count
-    // from total/remaining (legacy behavior).
-    if (!linkedTransactions) {
+    // Fallback for uniform plans without linked transactions data: derive
+    // paid count from total/remaining (legacy behavior). Custom schedules
+    // already know their paid state from the records.
+    if (!hasCustomSchedule && !linkedTransactions) {
       const paidCount =
         plan.installment_amount > 0
           ? Math.max(
@@ -141,6 +209,9 @@ export function InstallmentScheduleTimeline({
     return result;
   }, [
     expectedDates,
+    expectedAmounts,
+    hasCustomSchedule,
+    sortedRecords,
     linkedTransactions,
     plan.installment_amount,
     plan.total_amount,
@@ -175,7 +246,13 @@ export function InstallmentScheduleTimeline({
             </h3>
             <div className="text-xs text-muted-foreground mt-1">
               {t("installments.startedOn", { defaultValue: "Plan started" })}{" "}
-              {format(parseISO(plan.start_date), "PP", { locale: dateLocale })}
+              {format(
+                hasCustomSchedule
+                  ? parseLocalDate(sortedRecords[0].scheduled_date)
+                  : parseISO(plan.start_date),
+                "PP",
+                { locale: dateLocale }
+              )}
               {accountName && (
                 <>
                   {" · "}
@@ -213,8 +290,17 @@ export function InstallmentScheduleTimeline({
             {t("installments.perInstallment", { defaultValue: "Per installment" })}
           </div>
           <div className="font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1">
-            {formatCurrency(plan.installment_amount)}
+            {hasCustomSchedule
+              ? nextStep
+                ? formatCurrency(nextStep.amount)
+                : t("installments.variable", { defaultValue: "Variable" })
+              : formatCurrency(plan.installment_amount)}
           </div>
+          {hasCustomSchedule && (
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {t("installments.variableSchedule", { defaultValue: "Custom schedule" })}
+            </div>
+          )}
         </div>
         <div>
           <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
