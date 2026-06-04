@@ -238,14 +238,18 @@ function PaceBar({
       />
       {over && overWidthPx > 0 && (
         <div
-          className="absolute top-0 bottom-0 rounded-r-full"
+          // Overrun "spike" — rendered INSIDE the bar's right end so it
+          // can never overflow the card padding regardless of the
+          // overshoot magnitude. The hatched pattern overlays the solid
+          // fill, signalling the row is past budget without competing
+          // with the status pill or remaining figure.
+          className="absolute right-0 top-0 bottom-0 rounded-r-full ring-1 ring-card/50"
           style={{
-            left: "calc(100% + 3px)",
             width: `${overWidthPx}px`,
             background:
               status === "over"
-                ? "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 3px, hsl(var(--neg) / 0.35) 3px 6px)"
-                : "repeating-linear-gradient(135deg, hsl(var(--warning)) 0 3px, hsl(var(--warning) / 0.35) 3px 6px)",
+                ? "repeating-linear-gradient(135deg, #ffffff 0 2px, transparent 2px 5px)"
+                : "repeating-linear-gradient(135deg, #ffffff 0 2px, transparent 2px 5px)",
           }}
         />
       )}
