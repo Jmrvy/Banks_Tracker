@@ -251,8 +251,13 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // `filters.dateType` pins which column the date range applies to —
+  // used when navigation upstream (e.g. Budget → "view transactions")
+  // wants the displayed set to mirror its own counting. Falls back to
+  // the user's global preference.
+  const activeDateType = filters?.dateType ?? preferences.dateType;
   const dateOf = (txn: Transaction) =>
-    preferences.dateType === 'value'
+    activeDateType === 'value'
       ? parseLocalDate(txn.value_date || txn.transaction_date)
       : parseLocalDate(txn.transaction_date);
 
@@ -300,7 +305,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
     }
 
     return filtered.sort((a, b) => dateOf(b).getTime() - dateOf(a).getTime());
-  }, [transactions, preferences.dateType, filters]);
+  }, [transactions, activeDateType, filters]);
 
   const displayedTransactions = filteredAndSortedTransactions.slice(0, displayCount);
 
@@ -328,7 +333,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
       groups.push({ key, label: value.label, items: value.items, total });
     }
     return groups;
-  }, [displayedTransactions, preferences.dateType, dateLocale]);
+  }, [displayedTransactions, activeDateType, dateLocale]);
 
   const handleDelete = async () => {
     if (!deletingTransaction) return;
@@ -416,7 +421,7 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
             <TransactionRow
               key={transaction.id}
               transaction={transaction}
-              dateType={preferences.dateType}
+              dateType={activeDateType}
               formatCurrency={formatCurrency}
               onView={setViewingTransaction}
               onEdit={setEditingTransaction}

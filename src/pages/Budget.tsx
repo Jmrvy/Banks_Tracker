@@ -1823,6 +1823,10 @@ const Budget = () => {
         categoryId,
         dateFrom: format(period.from, "yyyy-MM-dd"),
         dateTo: format(period.to, "yyyy-MM-dd"),
+        // Pin the date type the budget was using so the filtered list
+        // matches exactly what the card was counting, even if the user
+        // changes their global preference later.
+        dateType: preferences.dateType,
       },
     });
   };

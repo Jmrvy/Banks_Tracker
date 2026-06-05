@@ -29,6 +29,13 @@ export interface TransactionFilters {
   dateTo: string;
   amountMin: string;
   amountMax: string;
+  /**
+   * Optional override for which date column the dateFrom/dateTo range
+   * applies to. When set, takes precedence over the user's global
+   * preferences.dateType. Used when navigating from Budget so the
+   * filtered set matches exactly what the budget card was counting.
+   */
+  dateType?: "accounting" | "value";
 }
 
 interface TransactionSearchProps {

@@ -14,12 +14,16 @@ interface TransactionsLocationState {
   categoryId?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** Date column the dateFrom/dateTo range should apply to. When provided
+   *  (e.g. coming from Budget), pins the filter so the list matches the
+   *  source page regardless of the user's current global preference. */
+  dateType?: "accounting" | "value";
 }
 
 const Transactions = () => {
   const { t } = useTranslation();
   const { transactions } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { toast } = useToast();
   const location = useLocation();
   const navState = (location.state ?? {}) as TransactionsLocationState;
@@ -33,6 +37,7 @@ const Transactions = () => {
     dateTo: navState.dateTo ?? "",
     amountMin: "",
     amountMax: "",
+    dateType: navState.dateType,
   }));
 
   const activeFiltersCount = useMemo(() => {
@@ -80,8 +85,16 @@ const Transactions = () => {
         tx.transfer_to_account_id !== filters.accountId
       )
         return false;
-      if (filters.dateFrom && tx.transaction_date < filters.dateFrom) return false;
-      if (filters.dateTo && tx.transaction_date > filters.dateTo) return false;
+      // Date range uses the active date type — `filters.dateType` pins it
+      // when the navigation specifies one (e.g. Budget → "view
+      // transactions"); otherwise fall back to the global preference so
+      // the export matches what the user sees on screen.
+      const activeDateType = filters.dateType ?? preferences.dateType;
+      const txDate = activeDateType === "value"
+        ? (tx.value_date || tx.transaction_date)
+        : tx.transaction_date;
+      if (filters.dateFrom && txDate < filters.dateFrom) return false;
+      if (filters.dateTo && txDate > filters.dateTo) return false;
       if (filters.amountMin && Math.abs(tx.amount) < parseFloat(filters.amountMin)) return false;
       if (filters.amountMax && Math.abs(tx.amount) > parseFloat(filters.amountMax)) return false;
       return true;
