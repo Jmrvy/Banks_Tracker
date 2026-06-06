@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Trash2, Pencil, Link as LinkIcon, Unlink, Calendar } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import {
+  Trash2,
+  Pencil,
+  Link as LinkIcon,
+  Unlink,
+  X,
+} from 'lucide-react';
+import { format } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
@@ -15,6 +19,14 @@ import { useToast } from '@/hooks/use-toast';
 import { SpecialBudgetModal } from '@/components/SpecialBudgetModal';
 import { LinkTransactionsToSpecialBudget } from '@/components/LinkTransactionsToSpecialBudget';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { cn } from '@/lib/utils';
+import {
+  computeSpecialBudget,
+  formatSpecialBudgetRange,
+  getSpecialBudgetIcon,
+  paletteForColor,
+  SPECIAL_BUDGET_STATUS_META,
+} from '@/lib/specialBudgetUtils';
 
 interface SpecialBudgetDetailModalProps {
   isOpen: boolean;
@@ -22,8 +34,13 @@ interface SpecialBudgetDetailModalProps {
   budget: SpecialBudget | null;
 }
 
-export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBudgetDetailModalProps) => {
+export const SpecialBudgetDetailModal = ({
+  isOpen,
+  onClose,
+  budget,
+}: SpecialBudgetDetailModalProps) => {
   const { t, i18n } = useTranslation();
+  const locale: 'fr' | 'en' = i18n.language === 'fr' ? 'fr' : 'en';
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const { formatCurrency } = useUserPreferences();
   const { transactions } = useFinancialData();
@@ -46,17 +63,17 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
       );
   }, [transactions, budget]);
 
-  const spent = useMemo(() => {
-    return linkedTxs
-      .filter((t) => t.type === 'expense' && t.include_in_stats !== false)
-      .reduce((s, t) => s + Math.max(0, t.amount - (t.refunded_amount || 0)), 0);
-  }, [linkedTxs]);
+  const c = useMemo(
+    () => (budget ? computeSpecialBudget(budget, transactions) : null),
+    [budget, transactions]
+  );
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; spent: number }>();
     for (const tx of linkedTxs) {
       if (tx.type !== 'expense' || tx.include_in_stats === false) continue;
-      const name = tx.category?.name ?? t('common.uncategorized', { defaultValue: 'Uncategorized' });
+      const name =
+        tx.category?.name ?? t('common.uncategorized', { defaultValue: 'Uncategorized' });
       const color = tx.category?.color ?? '#6b7280';
       const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
       const cur = map.get(name) ?? { name, color, spent: 0 };
@@ -71,18 +88,73 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
     [budget, goals]
   );
 
-  if (!budget) return null;
+  if (!budget || !c) return null;
 
-  const total = budget.total_budget || 0;
-  const remaining = total - spent;
-  const progress = total > 0 ? Math.min(100, Math.round((spent / total) * 1000) / 10) : 0;
-  const overBudget = total > 0 && spent > total;
+  const palette = paletteForColor(budget.color);
+  const Icon = getSpecialBudgetIcon(budget.icon);
+  const statusCls = SPECIAL_BUDGET_STATUS_META[budget.status].cls;
+  const muted = budget.status !== 'active';
+  const fillPct = Math.min(c.ratio, 1) * 100;
+  const overPct = c.over ? Math.min(c.ratio - 1, 1) * 26 : 0;
+  const showTick = c.elapsedFrac != null && !c.over;
+  const totalGoal = linkedGoal ? linkedGoal.target_amount : 0;
+  const goalPct = totalGoal > 0 ? (linkedGoal!.current_amount / totalGoal) * 100 : 0;
+
+  const guidanceText = (() => {
+    if (budget.status === 'closed') {
+      return c.over
+        ? t('specialBudgets.overBy', {
+            defaultValue: '{{amt}} over',
+            amt: formatCurrency(Math.abs(c.remaining)),
+          })
+        : t('specialBudgets.unspent', {
+            defaultValue: '{{amt}} unspent',
+            amt: formatCurrency(c.remaining),
+          });
+    }
+    if (budget.status === 'planned') {
+      return c.startsIn != null
+        ? t('specialBudgets.startsInShort', {
+            defaultValue: 'In {{n}}d',
+            n: c.startsIn,
+          })
+        : t('specialBudgets.upcoming', { defaultValue: 'Upcoming' });
+    }
+    if (c.over) {
+      return t('specialBudgets.overshoot', {
+        defaultValue: '{{amt}} overshoot',
+        amt: formatCurrency(Math.abs(c.remaining)),
+      });
+    }
+    if (c.daysLeft != null) {
+      if (c.daysLeft <= 0) return t('specialBudgets.lastDay', { defaultValue: 'Last day' });
+      const perDay = Math.round(c.remaining / Math.max(1, c.daysLeft));
+      return t('specialBudgets.burnRate', {
+        defaultValue: '{{amt}}/d · {{n}}d left',
+        amt: formatCurrency(perDay),
+        n: c.daysLeft,
+      });
+    }
+    return formatSpecialBudgetRange(budget.start_date, null, locale);
+  })();
 
   const handleDelete = async () => {
-    if (!confirm(t('specialBudgets.deleteConfirm', { defaultValue: 'Delete this special budget? Linked transactions will revert to their regular category budget.' }))) return;
+    if (
+      !confirm(
+        t('specialBudgets.deleteConfirm', {
+          defaultValue:
+            'Delete this special budget? Linked transactions will revert to their regular category budget.',
+        })
+      )
+    )
+      return;
     const { error } = await deleteSpecialBudget(budget.id);
     if (error) {
-      toast({ title: t('common.error'), description: (error as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
       return;
     }
     toast({ title: t('specialBudgets.deleted', { defaultValue: 'Special budget deleted' }) });
@@ -92,7 +164,11 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
   const handleUnlink = async (txId: string) => {
     const { error } = await linkTransactions([txId], null);
     if (error) {
-      toast({ title: t('common.error'), description: (error as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
       return;
     }
     toast({ title: t('specialBudgets.unlinked', { defaultValue: 'Transaction unlinked' }) });
@@ -100,95 +176,158 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden gap-0">
-          <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-5 flex-shrink-0 border-b border-line">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0">
-                <div
-                  className="h-10 w-10 rounded-xl flex-shrink-0"
-                  style={{ background: budget.color ?? '#3B82F6' }}
-                />
-                <div className="min-w-0">
-                  <DialogTitle className="text-base sm:text-lg">{budget.name}</DialogTitle>
-                  {budget.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {budget.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Badge
-                  variant={budget.status === 'closed' ? 'secondary' : 'outline'}
-                  className="text-[10px]"
-                >
-                  {t(`specialBudgets.status${budget.status[0].toUpperCase() + budget.status.slice(1)}`, {
-                    defaultValue: budget.status,
-                  })}
-                </Badge>
+      <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-[460px] p-0 flex flex-col gap-0 bg-card"
+        >
+          {/* Header */}
+          <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-line flex-shrink-0">
+            <div
+              className="h-[46px] w-[46px] rounded-[13px] flex-shrink-0 grid place-items-center"
+              style={{ background: palette.tint, color: palette.ink }}
+            >
+              <Icon className="h-6 w-6" strokeWidth={1.8} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-lg font-semibold tracking-tight truncate">{budget.name}</div>
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                {formatSpecialBudgetRange(budget.start_date, budget.end_date, locale)}
+                {budget.description && ` · ${budget.description}`}
               </div>
             </div>
-          </DialogHeader>
+            <span
+              className={cn(
+                'self-start text-[10.5px] uppercase tracking-[0.05em] font-semibold px-2 py-[3px] rounded-full whitespace-nowrap',
+                statusCls === 'active' && 'bg-pos/12 text-pos',
+                statusCls === 'planned' && 'bg-primary/12 text-primary',
+                statusCls === 'closed' && 'bg-bg-subtle text-muted-foreground border border-line'
+              )}
+            >
+              {t(`specialBudgets.status${budget.status[0].toUpperCase()}${budget.status.slice(1)}`, {
+                defaultValue: budget.status,
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-8 w-8 rounded-md flex-shrink-0 grid place-items-center text-muted-foreground hover:bg-bg-subtle"
+              aria-label={t('common.close', { defaultValue: 'Close' })}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 space-y-5">
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
             {/* KPIs */}
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
-                  {t('specialBudgets.total', { defaultValue: 'Total' })}
+              <div className="bg-bg-subtle border border-line rounded-xl px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-[0.04em] font-semibold text-muted-foreground">
+                  {t('specialBudgets.committed', { defaultValue: 'Committed' })}
                 </div>
-                <div className="font-mono text-xl font-medium tracking-tight mt-0.5">
-                  {formatCurrency(total)}
+                <div className="font-mono text-lg font-bold tracking-tight mt-1">
+                  {formatCurrency(c.total)}
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+              <div className="bg-bg-subtle border border-line rounded-xl px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-[0.04em] font-semibold text-muted-foreground">
                   {t('specialBudgets.spent', { defaultValue: 'Spent' })}
                 </div>
-                <div className={`font-mono text-xl font-medium tracking-tight mt-0.5 ${overBudget ? 'text-neg' : ''}`}>
-                  {formatCurrency(spent)}
+                <div
+                  className={cn(
+                    'font-mono text-lg font-bold tracking-tight mt-1',
+                    c.over && 'text-neg'
+                  )}
+                >
+                  {formatCurrency(c.spent)}
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+              <div className="bg-bg-subtle border border-line rounded-xl px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-[0.04em] font-semibold text-muted-foreground">
                   {t('specialBudgets.remaining', { defaultValue: 'Remaining' })}
                 </div>
-                <div className={`font-mono text-xl font-medium tracking-tight mt-0.5 ${remaining < 0 ? 'text-neg' : 'text-pos'}`}>
-                  {formatCurrency(remaining)}
+                <div
+                  className={cn(
+                    'font-mono text-lg font-bold tracking-tight mt-1',
+                    c.remaining < 0 ? 'text-neg' : 'text-pos'
+                  )}
+                >
+                  {c.remaining < 0
+                    ? `−${formatCurrency(Math.abs(c.remaining))}`
+                    : formatCurrency(c.remaining)}
                 </div>
               </div>
             </div>
-            <Progress value={Math.min(100, progress)} className="h-2" />
 
-            {/* Period + linked goal row */}
-            {(budget.start_date || budget.end_date || linkedGoal) && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                {(budget.start_date || budget.end_date) && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {budget.start_date && format(parseISO(budget.start_date), 'PP', { locale: dateLocale })}
-                    {(budget.start_date || budget.end_date) && ' → '}
-                    {budget.end_date
-                      ? format(parseISO(budget.end_date), 'PP', { locale: dateLocale })
-                      : t('specialBudgets.ongoing', { defaultValue: 'ongoing' })}
-                  </span>
+            {/* Pace bar */}
+            <div className="space-y-2">
+              <div className="relative h-[9px] rounded-full bg-bg-subtle">
+                <div
+                  className="absolute left-0 top-0 bottom-0 rounded-full"
+                  style={{
+                    width: `${fillPct}%`,
+                    background: c.over ? 'hsl(var(--neg))' : palette.color,
+                    opacity: muted ? 0.55 : 1,
+                  }}
+                />
+                {c.over && (
+                  <div
+                    className="absolute top-0 bottom-0 rounded-r-full"
+                    style={{
+                      left: 'calc(100% + 3px)',
+                      width: `${overPct}%`,
+                      background:
+                        'repeating-linear-gradient(135deg, hsl(var(--neg)) 0 3px, hsl(var(--neg) / 0.34) 3px 6px)',
+                    }}
+                  />
                 )}
-                {linkedGoal && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <LinkIcon className="h-3.5 w-3.5" />
-                    {t('specialBudgets.savingsGoal', { defaultValue: 'Goal' })}: {linkedGoal.name}
-                    <span className="font-mono">
-                      ({formatCurrency(linkedGoal.current_amount)} / {formatCurrency(linkedGoal.target_amount)})
-                    </span>
-                  </span>
+                {showTick && (
+                  <div
+                    className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-foreground/85 rounded-full"
+                    style={{ left: `${Math.min(c.elapsedFrac ?? 0, 1) * 100}%` }}
+                  />
                 )}
+              </div>
+              <div className="flex items-center justify-between text-[11.5px] text-muted-foreground font-mono">
+                <span className="truncate">{guidanceText}</span>
+                <span className="text-muted-foreground flex-shrink-0">
+                  {(c.ratio * 100).toFixed(0)} %{' '}
+                  {t('specialBudgets.usedShort', { defaultValue: 'used' })}
+                </span>
+              </div>
+            </div>
+
+            {/* Linked savings goal */}
+            {linkedGoal && (
+              <div className="bg-primary/8 border border-primary/24 rounded-xl px-4 py-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.04em] font-semibold text-primary">
+                    <LinkIcon className="h-3 w-3" />
+                    {t('specialBudgets.linkedGoalShort', { defaultValue: 'Linked goal' })}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {Math.round(goalPct)} %
+                  </span>
+                </div>
+                <div className="text-sm font-semibold mt-2 mb-2">{linkedGoal.name}</div>
+                <div className="h-1.5 rounded-full bg-card overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.min(100, goalPct)}%` }}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground mt-2 font-mono">
+                  {formatCurrency(linkedGoal.current_amount)}{' '}
+                  {t('specialBudgets.goalOf', { defaultValue: 'of' })}{' '}
+                  {formatCurrency(linkedGoal.target_amount)}
+                </div>
               </div>
             )}
 
-            {/* Category breakdown */}
-            <div className="space-y-2.5">
-              <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
+            {/* By category */}
+            <div>
+              <div className="text-[10.5px] uppercase tracking-[0.04em] font-semibold text-muted-foreground mb-3">
                 {t('specialBudgets.byCategory', { defaultValue: 'By category' })}
               </div>
               {byCategory.length === 0 ? (
@@ -196,26 +335,27 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
                   {t('specialBudgets.noSpendYet', { defaultValue: 'No spending yet.' })}
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {byCategory.map((c) => {
-                    const pct = spent > 0 ? (c.spent / spent) * 100 : 0;
+                <div className="space-y-2.5">
+                  {byCategory.map((cat) => {
+                    const pct = c.spent > 0 ? (cat.spent / c.spent) * 100 : 0;
                     return (
-                      <div key={c.name} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="inline-flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ background: c.color }}
-                            />
-                            {c.name}
-                          </span>
-                          <span className="font-mono">
-                            {formatCurrency(c.spent)} <span className="text-muted-foreground">· {pct.toFixed(0)}%</span>
-                          </span>
+                      <div key={cat.name} className="flex items-center gap-2.5">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                          style={{ background: cat.color }}
+                        />
+                        <span className="text-[13px] font-medium w-24 truncate flex-shrink-0">
+                          {cat.name}
+                        </span>
+                        <div className="flex-1 h-[7px] rounded-full bg-bg-subtle overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, background: cat.color, opacity: 0.85 }}
+                          />
                         </div>
-                        <div className="h-1 rounded-full bg-bg-subtle overflow-hidden">
-                          <div className="h-full" style={{ width: `${pct}%`, background: c.color }} />
-                        </div>
+                        <span className="font-mono text-xs font-semibold w-16 text-right flex-shrink-0">
+                          {formatCurrency(cat.spent)}
+                        </span>
                       </div>
                     );
                   })}
@@ -224,18 +364,23 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
             </div>
 
             {/* Linked transactions */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
-                  {t('specialBudgets.linkedTx', {
-                    defaultValue: 'Linked transactions',
-                  })}{' '}
-                  <span className="text-muted-foreground">({linkedTxs.length})</span>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.04em] font-semibold text-muted-foreground">
+                  {t('specialBudgets.linkedTx', { defaultValue: 'Linked transactions' })}
+                  <span className="text-muted-foreground font-mono normal-case tracking-normal">
+                    ({linkedTxs.length})
+                  </span>
+                </span>
                 {budget.status !== 'closed' && (
-                  <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)} className="h-7 gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setLinkOpen(true)}
+                    className="h-7 gap-1.5 text-xs"
+                  >
                     <LinkIcon className="h-3 w-3" />
-                    {t('specialBudgets.link', { defaultValue: 'Link transactions' })}
+                    {t('specialBudgets.link', { defaultValue: 'Link' })}
                   </Button>
                 )}
               </div>
@@ -244,40 +389,45 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
                   {t('specialBudgets.noTxYet', { defaultValue: 'No transactions linked yet.' })}
                 </p>
               ) : (
-                <div className="border border-line rounded-lg divide-y divide-line">
+                <div className="border border-line rounded-xl divide-y divide-line overflow-hidden">
                   {linkedTxs.map((tx) => (
-                    <div key={tx.id} className="px-3 py-2 flex items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-medium truncate">{tx.description}</div>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                          <span>{format(parseLocalDate(tx.transaction_date), 'PP', { locale: dateLocale })}</span>
-                          {tx.category && (
-                            <>
-                              <span>·</span>
-                              <span className="inline-flex items-center gap-1">
-                                <span
-                                  className="h-1.5 w-1.5 rounded-full"
-                                  style={{ background: tx.category.color }}
-                                />
-                                {tx.category.name}
-                              </span>
-                            </>
-                          )}
+                    <div key={tx.id} className="px-3 py-2.5 flex items-center gap-3">
+                      <div
+                        className="h-[30px] w-[30px] rounded-[9px] grid place-items-center flex-shrink-0"
+                        style={{
+                          background: tx.category
+                            ? `${tx.category.color}1f`
+                            : 'hsl(var(--bg-subtle))',
+                          color: tx.category?.color ?? 'hsl(var(--muted-foreground))',
+                        }}
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: tx.category?.color ?? 'currentColor' }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-medium truncate">{tx.description}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          {format(parseLocalDate(tx.transaction_date), 'd MMM', {
+                            locale: dateLocale,
+                          })}
+                          {tx.category && ` · ${tx.category.name}`}
                         </div>
                       </div>
-                      <div className="font-mono text-xs flex-shrink-0">
+                      <span className="font-mono text-[13px] font-semibold flex-shrink-0">
                         {formatCurrency(tx.amount)}
-                      </div>
+                      </span>
                       {budget.status !== 'closed' && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 flex-shrink-0"
+                        <button
+                          type="button"
                           onClick={() => handleUnlink(tx.id)}
+                          className="h-7 w-7 rounded-md grid place-items-center text-muted-foreground hover:bg-neg/10 hover:text-neg flex-shrink-0"
+                          aria-label={t('specialBudgets.unlink', { defaultValue: 'Unlink' })}
                           title={t('specialBudgets.unlink', { defaultValue: 'Unlink' })}
                         >
                           <Unlink className="h-3.5 w-3.5" />
-                        </Button>
+                        </button>
                       )}
                     </div>
                   ))}
@@ -286,21 +436,25 @@ export const SpecialBudgetDetailModal = ({ isOpen, onClose, budget }: SpecialBud
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-line flex-shrink-0">
-            <Button variant="ghost" onClick={handleDelete} className="text-neg gap-1.5">
+          {/* Footer */}
+          <div className="flex items-center gap-2 px-5 py-3 border-t border-line flex-shrink-0">
+            <Button
+              variant="ghost"
+              onClick={handleDelete}
+              className="text-neg gap-1.5 hover:text-neg hover:bg-neg/10"
+            >
               <Trash2 className="h-3.5 w-3.5" />
               {t('common.delete', { defaultValue: 'Delete' })}
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditOpen(true)} className="gap-1.5">
-                <Pencil className="h-3.5 w-3.5" />
-                {t('common.edit', { defaultValue: 'Edit' })}
-              </Button>
-              <Button onClick={onClose}>{t('common.close', { defaultValue: 'Close' })}</Button>
-            </div>
+            <div className="flex-1" />
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="gap-1.5">
+              <Pencil className="h-3.5 w-3.5" />
+              {t('common.edit', { defaultValue: 'Edit' })}
+            </Button>
+            <Button onClick={onClose}>{t('common.close', { defaultValue: 'Close' })}</Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <SpecialBudgetModal
         isOpen={editOpen}

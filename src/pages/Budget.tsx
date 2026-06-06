@@ -55,6 +55,14 @@ import { useSavingsGoals } from "@/hooks/useSavingsGoals";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { SpecialBudgetModal } from "@/components/SpecialBudgetModal";
 import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal";
+import {
+  computeSpecialBudget,
+  formatSpecialBudgetRange,
+  getSpecialBudgetIcon,
+  paletteForColor,
+  SPECIAL_BUDGET_STATUS_META,
+} from "@/lib/specialBudgetUtils";
+import { Plane as PlaneEmptyIcon, Wallet as WalletIcon } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
@@ -2394,21 +2402,11 @@ function SpecialBudgetsSection({
   formatCurrency,
   t,
 }: SpecialBudgetsSectionProps) {
-  // Per-budget spend within the active period: only expense tx tagged
-  // to this budget, with refunds subtracted. The detail view shows
-  // lifetime spend; this is the period card view.
-  const spendByBudget = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const tx of transactions) {
-      if (!tx.special_budget_id) continue;
-      if (tx.type !== "expense" || tx.include_in_stats === false) continue;
-      const d = parseLocalDate(tx.transaction_date);
-      if (d < period.from || d > period.to) continue;
-      const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
-      map.set(tx.special_budget_id, (map.get(tx.special_budget_id) ?? 0) + net);
-    }
-    return map;
-  }, [transactions, period.from, period.to]);
+  // Per-budget data carries lifetime spend (the section's metric of
+  // record: a trip's burn-rate is meaningless if clipped to the period).
+  // The selected period only filters which closed envelopes show by
+  // default — active/planned always render.
+  const today = useMemo(() => new Date(), [period.to]); // refresh today reference when period changes
 
   const visible = useMemo(() => {
     const active = specialBudgets.filter((b) => b.status !== "closed");
@@ -2427,17 +2425,38 @@ function SpecialBudgetsSection({
     return m;
   }, [savingsGoals]);
 
+  // Aggregate strip: "N en cours · X engagés · sur Y provisionnés".
+  const active = useMemo(
+    () => specialBudgets.filter((b) => b.status !== "closed"),
+    [specialBudgets]
+  );
+  const aggregate = useMemo(() => {
+    let committed = 0;
+    let engaged = 0;
+    for (const b of active) {
+      committed += b.total_budget || 0;
+      const c = computeSpecialBudget(b, transactions, today);
+      engaged += c.spent;
+    }
+    const pct = committed > 0 ? Math.min(100, (engaged / committed) * 100) : 0;
+    return { committed, engaged, pct };
+  }, [active, transactions, today]);
+
   return (
-    <section className="mt-6 sm:mt-8">
-      <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
+    <section className="mt-8 pt-6 border-t border-line">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
-          <h2 className="text-sm font-semibold tracking-tight">
+          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+            <WalletIcon className="h-3 w-3" />
+            {t("specialBudgets.eyebrow", { defaultValue: "Envelopes" })}
+          </div>
+          <h2 className="text-base sm:text-lg font-bold tracking-tight mt-1">
             {t("specialBudgets.sectionTitle", { defaultValue: "Special budgets" })}
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[12px] text-muted-foreground mt-1 max-w-[56ch]">
             {t("specialBudgets.sectionSubtitle", {
               defaultValue:
-                "Event or trip envelopes — linked transactions stay out of regular category budgets.",
+                "Trips & events — linked transactions stay out of category budgets and are tracked here.",
             })}
           </p>
         </div>
@@ -2450,11 +2469,9 @@ function SpecialBudgetsSection({
               onClick={onToggleShowClosed}
             >
               {showClosed
-                ? t("specialBudgets.hideClosed", {
-                    defaultValue: "Hide closed",
-                  })
+                ? t("specialBudgets.hideClosed", { defaultValue: "Hide closed" })
                 : t("specialBudgets.showClosed", {
-                    defaultValue: "Show closed ({{n}})",
+                    defaultValue: "Closed ({{n}})",
                     n: closedCount,
                   })}
             </Button>
@@ -2466,80 +2483,300 @@ function SpecialBudgetsSection({
         </div>
       </div>
 
+      {active.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap text-[11.5px] text-muted-foreground bg-bg-subtle/60 border border-line rounded-lg px-3 py-2 mb-3">
+          <span className="whitespace-nowrap">
+            <span className="font-mono font-semibold text-foreground">{active.length}</span>{" "}
+            {t("specialBudgets.aggOngoing", { defaultValue: "ongoing" })}
+          </span>
+          <span className="h-3 w-px bg-line" />
+          <span className="whitespace-nowrap">
+            <span className="font-mono font-semibold text-foreground">{formatCurrency(aggregate.engaged)}</span>{" "}
+            {t("specialBudgets.aggEngaged", { defaultValue: "engaged" })}
+          </span>
+          <span className="h-3 w-px bg-line" />
+          <span className="whitespace-nowrap">
+            {t("specialBudgets.aggOf", { defaultValue: "of" })}{" "}
+            <span className="font-mono">{formatCurrency(aggregate.committed)}</span>{" "}
+            {t("specialBudgets.aggCommitted", { defaultValue: "committed" })}
+          </span>
+          <div className="flex-1 min-w-[80px] h-1.5 rounded-full bg-bg-subtle overflow-hidden">
+            <div
+              className="h-full bg-foreground/80"
+              style={{ width: `${aggregate.pct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {visible.length === 0 ? (
-        <div className="ft-card p-6 text-center text-xs text-muted-foreground">
-          {t("specialBudgets.empty", {
-            defaultValue:
-              "No special budgets yet. Create one for an upcoming trip or event.",
-          })}
+        <div className="ft-card p-8 flex flex-col items-center justify-center gap-2 text-center">
+          <div className="h-12 w-12 rounded-2xl bg-bg-subtle text-muted-foreground grid place-items-center">
+            <PlaneEmptyIcon className="h-5 w-5" />
+          </div>
+          <div className="text-sm font-semibold">
+            {t("specialBudgets.emptyTitle", { defaultValue: "No active special budgets" })}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {t("specialBudgets.empty", {
+              defaultValue: "Create an envelope for an upcoming trip or event.",
+            })}
+          </div>
+          <Button size="sm" className="h-8 px-3 text-xs gap-1.5 mt-1" onClick={onNew}>
+            <Plus className="h-3.5 w-3.5" />
+            {t("specialBudgets.add", { defaultValue: "New" })}
+          </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {visible.map((b) => {
-            const spent = spendByBudget.get(b.id) ?? 0;
-            const total = b.total_budget || 0;
-            const pct = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
-            const over = total > 0 && spent > total;
-            const goalName = b.savings_goal_id ? goalNameById.get(b.savings_goal_id) : null;
-            return (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => onOpen(b)}
-                className="ft-card p-4 text-left hover:border-line-strong transition flex flex-col gap-2.5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    <div
-                      className="h-8 w-8 rounded-lg flex-shrink-0"
-                      style={{ background: b.color ?? "#3B82F6" }}
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold truncate">{b.name}</div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {goalName
-                          ? t("specialBudgets.linkedToGoal", {
-                              defaultValue: "Goal: {{n}}",
-                              n: goalName,
-                            })
-                          : b.status === "closed"
-                            ? t("specialBudgets.statusClosed", { defaultValue: "Closed" })
-                            : b.status === "planned"
-                              ? t("specialBudgets.statusPlanned", { defaultValue: "Planned" })
-                              : t("specialBudgets.statusActive", { defaultValue: "Active" })}
-                      </div>
-                    </div>
-                  </div>
-                  {over && (
-                    <span className="ft-tag neg text-[10px]">
-                      {t("budget.over", { defaultValue: "Over" })}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className={`font-mono text-base font-medium ${over ? "text-neg" : ""}`}>
-                    {formatCurrency(spent)}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground font-mono">
-                    / {formatCurrency(total)}
-                  </span>
-                </div>
-
-                <div className="h-1.5 rounded-full bg-bg-subtle overflow-hidden">
-                  <div
-                    className={`h-full ${over ? "bg-neg" : ""}`}
-                    style={{
-                      width: `${pct}%`,
-                      background: over ? undefined : (b.color ?? "#3B82F6"),
-                    }}
-                  />
-                </div>
-              </button>
-            );
-          })}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+          {visible.map((b) => (
+            <SpecialBudgetCard
+              key={b.id}
+              budget={b}
+              transactions={transactions}
+              today={today}
+              goalName={b.savings_goal_id ? goalNameById.get(b.savings_goal_id) ?? null : null}
+              formatCurrency={formatCurrency}
+              onOpen={onOpen}
+              t={t}
+            />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+// =============================================================================
+// Trip-aware envelope card. Shows: status pill, name + range, money row,
+// pace bar with today-tick scaled to the trip's own timeline + over-budget
+// hatch, burn-rate guidance line ("X €/day · Y days left"), remaining,
+// "hot pace" indicator, and an optional linked-goal footer.
+// =============================================================================
+
+interface SpecialBudgetCardProps {
+  budget: SpecialBudget;
+  transactions: Transaction[];
+  today: Date;
+  goalName: string | null;
+  formatCurrency: (n: number) => string;
+  onOpen: (b: SpecialBudget) => void;
+  t: ReturnType<typeof useTranslation>["t"];
+}
+
+function SpecialBudgetCard({
+  budget,
+  transactions,
+  today,
+  goalName,
+  formatCurrency,
+  onOpen,
+  t,
+}: SpecialBudgetCardProps) {
+  const { i18n } = useTranslation();
+  const locale: "fr" | "en" = i18n.language === "fr" ? "fr" : "en";
+
+  const c = useMemo(
+    () => computeSpecialBudget(budget, transactions, today),
+    [budget, transactions, today]
+  );
+  const palette = paletteForColor(budget.color);
+  const Icon = getSpecialBudgetIcon(budget.icon);
+  const muted = budget.status === "closed" || budget.status === "planned";
+  const fillPct = Math.min(c.ratio, 1) * 100;
+  const overPct = c.over ? Math.min(c.ratio - 1, 1) * 26 : 0;
+  const showTick = c.elapsedFrac != null && !c.over;
+  const statusCls = SPECIAL_BUDGET_STATUS_META[budget.status].cls;
+
+  const guidance = useMemo(() => {
+    if (budget.status === "closed") {
+      return c.over
+        ? t("specialBudgets.overBy", {
+            defaultValue: "{{amt}} over",
+            amt: formatCurrency(Math.abs(c.remaining)),
+          })
+        : t("specialBudgets.unspent", {
+            defaultValue: "{{amt}} unspent",
+            amt: formatCurrency(c.remaining),
+          });
+    }
+    if (budget.status === "planned") {
+      if (c.startsIn != null && budget.start_date) {
+        const startDay = formatSpecialBudgetRange(budget.start_date, null, locale)
+          .replace(/^(depuis le |since )/i, "")
+          .trim();
+        return t("specialBudgets.startsIn", {
+          defaultValue: "In {{n}}d · {{date}}",
+          n: c.startsIn,
+          date: startDay,
+        });
+      }
+      return t("specialBudgets.upcoming", { defaultValue: "Upcoming" });
+    }
+    if (c.over) {
+      return t("specialBudgets.overshoot", {
+        defaultValue: "{{amt}} overshoot",
+        amt: formatCurrency(Math.abs(c.remaining)),
+      });
+    }
+    if (c.daysLeft != null && budget.end_date) {
+      if (c.daysLeft <= 0) {
+        return t("specialBudgets.lastDay", { defaultValue: "Last day" });
+      }
+      const perDay = Math.round(c.remaining / Math.max(1, c.daysLeft));
+      return t("specialBudgets.burnRate", {
+        defaultValue: "{{amt}}/d · {{n}}d left",
+        amt: formatCurrency(perDay),
+        n: c.daysLeft,
+      });
+    }
+    if (budget.start_date) {
+      return formatSpecialBudgetRange(budget.start_date, null, locale);
+    }
+    return null;
+  }, [budget, c, formatCurrency, locale, t]);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(budget)}
+      className={cn(
+        "relative overflow-hidden bg-card border border-line rounded-2xl text-left p-4 sm:p-[18px] flex flex-col gap-3 transition-all",
+        "hover:border-line-strong hover:shadow-sm",
+        c.over && "border-neg/40",
+        budget.status === "closed" && "opacity-80"
+      )}
+    >
+      {/* Colored edge */}
+      <span
+        className="absolute top-0 left-0 bottom-0 w-[3px]"
+        style={{ background: palette.color }}
+        aria-hidden
+      />
+
+      {/* Top row: icon + identity + status pill */}
+      <div className="flex items-center gap-3">
+        <div
+          className="h-10 w-10 rounded-xl flex-shrink-0 grid place-items-center"
+          style={{ background: palette.tint, color: palette.ink }}
+        >
+          <Icon className="h-[21px] w-[21px]" strokeWidth={1.8} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-semibold tracking-tight truncate">{budget.name}</div>
+          <div className="inline-flex items-center gap-1.5 mt-0.5 text-[11.5px] text-muted-foreground font-mono">
+            <CalendarIcon className="h-3 w-3 opacity-80" />
+            {formatSpecialBudgetRange(budget.start_date, budget.end_date, locale)}
+          </div>
+        </div>
+        <span
+          className={cn(
+            "text-[10.5px] uppercase tracking-[0.05em] font-semibold px-2 py-[3px] rounded-full whitespace-nowrap",
+            statusCls === "active" && "bg-pos/12 text-pos",
+            statusCls === "planned" && "bg-primary/12 text-primary",
+            statusCls === "closed" && "bg-bg-subtle text-muted-foreground border border-line"
+          )}
+        >
+          {t(`specialBudgets.status${budget.status[0].toUpperCase()}${budget.status.slice(1)}`, {
+            defaultValue: budget.status,
+          })}
+        </span>
+      </div>
+
+      {/* Money row */}
+      <div className="flex items-baseline gap-1.5">
+        <span
+          className={cn(
+            "font-mono text-[20px] font-bold tracking-tight",
+            c.over && "text-neg"
+          )}
+        >
+          {formatCurrency(c.spent)}
+        </span>
+        <span className="text-[12.5px] text-muted-foreground font-mono">
+          / {formatCurrency(c.total)}
+        </span>
+      </div>
+
+      {/* Pace bar with today tick + over hatch */}
+      <div className="relative h-[9px] rounded-full bg-bg-subtle">
+        <div
+          className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
+          style={{
+            width: `${fillPct}%`,
+            background: c.over ? "hsl(var(--neg))" : palette.color,
+            opacity: muted ? 0.55 : 1,
+          }}
+        />
+        {c.over && (
+          <div
+            className="absolute top-0 bottom-0 rounded-r-full"
+            style={{
+              left: "calc(100% + 3px)",
+              width: `${overPct}%`,
+              background:
+                "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 3px, hsl(var(--neg) / 0.34) 3px 6px)",
+            }}
+            aria-hidden
+          />
+        )}
+        {showTick && (
+          <div
+            className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-foreground/85 rounded-full"
+            style={{ left: `${Math.min(c.elapsedFrac ?? 0, 1) * 100}%` }}
+            title={t("budget.today", { defaultValue: "Today" })}
+            aria-hidden
+          />
+        )}
+      </div>
+
+      {/* Meta row: guidance + remaining */}
+      <div className="flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground">
+        <span className="font-mono truncate flex-1 min-w-0">
+          {guidance}
+          {c.hot && (
+            <span className="text-warning font-semibold ml-1.5">
+              · {t("specialBudgets.hotPace", { defaultValue: "high pace" })}
+            </span>
+          )}
+        </span>
+        <span
+          className={cn(
+            "font-mono font-semibold whitespace-nowrap flex-shrink-0",
+            c.remaining < 0 && "text-neg"
+          )}
+        >
+          {c.remaining >= 0 ? (
+            <>
+              {formatCurrency(c.remaining)}{" "}
+              <span className="text-muted-foreground font-medium">
+                {t("specialBudgets.remainingShort", { defaultValue: "left" })}
+              </span>
+            </>
+          ) : (
+            <>
+              −{formatCurrency(Math.abs(c.remaining))}{" "}
+              <span className="text-muted-foreground font-medium">
+                {t("specialBudgets.overShort", { defaultValue: "over" })}
+              </span>
+            </>
+          )}
+        </span>
+      </div>
+
+      {/* Optional savings-goal footer */}
+      {goalName && (
+        <div className="flex items-center gap-2 text-[11.5px] pt-2 border-t border-line">
+          <span
+            className="inline-block h-2 w-2 rounded-full flex-shrink-0"
+            style={{ background: palette.color }}
+            aria-hidden
+          />
+          <span className="font-medium truncate flex-1 min-w-0">
+            {t("specialBudgets.linkedToGoal", { defaultValue: "Goal: {{n}}", n: goalName })}
+          </span>
+        </div>
+      )}
+    </button>
   );
 }
