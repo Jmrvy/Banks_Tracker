@@ -7,6 +7,10 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
 import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
+import { useSpecialBudgets, type SpecialBudget } from "@/hooks/useSpecialBudgets";
+import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal";
+import { SpecialBudgetModal } from "@/components/SpecialBudgetModal";
+import { Wallet } from "lucide-react";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { NewSavingsGoalModal } from "@/components/NewSavingsGoalModal";
 import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
@@ -31,6 +35,14 @@ const Savings = () => {
   const { transactions, categories, loading } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { goals, isLoading: goalsLoading } = useSavingsGoals();
+  const { specialBudgets } = useSpecialBudgets();
+  const specialBudgetByGoalId = useMemo(() => {
+    const m = new Map<string, SpecialBudget>();
+    specialBudgets.forEach((b) => {
+      if (b.savings_goal_id) m.set(b.savings_goal_id, b);
+    });
+    return m;
+  }, [specialBudgets]);
   const { installmentPayments, loading: installmentsLoading } = useInstallmentPayments();
   const { dateRange, periodLabel } = usePeriod();
   const { t } = useTranslation();
@@ -38,6 +50,8 @@ const Savings = () => {
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [selectedReimbursement, setSelectedReimbursement] = useState<InstallmentPayment | null>(null);
+  const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
+  const [newSpecialBudgetForGoal, setNewSpecialBudgetForGoal] = useState<string | null>(null);
 
   // Get reimbursement installments (these count as savings)
   const reimbursementInstallments = useMemo(() => {
@@ -452,6 +466,47 @@ const Savings = () => {
                       </div>
                     </div>
 
+                    {(() => {
+                      const linkedBudget = specialBudgetByGoalId.get(goal.id);
+                      return (
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-line pt-2 -mb-1">
+                          <span className="inline-flex items-center gap-1.5 truncate">
+                            <Wallet className="h-3 w-3 flex-shrink-0" />
+                            {linkedBudget
+                              ? t('specialBudgets.linkedBudget', {
+                                  defaultValue: 'Budget: {{n}}',
+                                  n: linkedBudget.name,
+                                })
+                              : t('specialBudgets.noLinkedBudget', {
+                                  defaultValue: 'No linked special budget',
+                                })}
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            className="ft-link text-[11px] flex-shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (linkedBudget) setOpenSpecialBudget(linkedBudget);
+                              else setNewSpecialBudgetForGoal(goal.id);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (linkedBudget) setOpenSpecialBudget(linkedBudget);
+                                else setNewSpecialBudgetForGoal(goal.id);
+                              }
+                            }}
+                          >
+                            {linkedBudget
+                              ? t('specialBudgets.open', { defaultValue: 'Open' })
+                              : t('specialBudgets.add', { defaultValue: 'Add' })}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                     {!isComplete && (
                       <div className="flex flex-col gap-1 pt-3 border-t border-line">
                         {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
@@ -506,6 +561,17 @@ const Savings = () => {
           installment={selectedReimbursement}
         />
       )}
+
+      <SpecialBudgetDetailModal
+        isOpen={!!openSpecialBudget}
+        onClose={() => setOpenSpecialBudget(null)}
+        budget={openSpecialBudget}
+      />
+      <SpecialBudgetModal
+        isOpen={!!newSpecialBudgetForGoal}
+        onClose={() => setNewSpecialBudgetForGoal(null)}
+        defaultSavingsGoalId={newSpecialBudgetForGoal}
+      />
     </div>
   );
 };

@@ -50,7 +50,11 @@ import {
 } from "@/hooks/useFinancialData";
 import { useDebts } from "@/hooks/useDebts";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useSpecialBudgets, type SpecialBudget } from "@/hooks/useSpecialBudgets";
+import { useSavingsGoals } from "@/hooks/useSavingsGoals";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { SpecialBudgetModal } from "@/components/SpecialBudgetModal";
+import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
@@ -115,6 +119,19 @@ interface PeriodBuckets {
 function netExpense(tx: Transaction): number {
   if (tx.type !== "expense") return 0;
   if (tx.include_in_stats === false) return 0;
+  // Tagged to a special event/trip budget — counted there, not under
+  // the regular category budget bracket.
+  if (tx.special_budget_id) return 0;
+  const refunded = tx.refunded_amount || 0;
+  return Math.max(0, tx.amount - refunded);
+}
+
+/** Amount a transaction contributes to a special budget. Mirrors
+ *  netExpense but for the special-budget bracket (no category filter). */
+function specialBudgetSpend(tx: Transaction): number {
+  if (tx.type !== "expense") return 0;
+  if (tx.include_in_stats === false) return 0;
+  if (!tx.special_budget_id) return 0;
   const refunded = tx.refunded_amount || 0;
   return Math.max(0, tx.amount - refunded);
 }
@@ -1133,6 +1150,8 @@ const Budget = () => {
   const { categories, transactions, recurringTransactions, refetch } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
+  const { specialBudgets } = useSpecialBudgets();
+  const { goals: savingsGoals } = useSavingsGoals();
   const { formatCurrency, preferences } = useUserPreferences();
   const isMobile = useIsMobile();
 
@@ -1144,6 +1163,9 @@ const Budget = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [newSpecialOpen, setNewSpecialOpen] = useState(false);
+  const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
+  const [showClosedSpecial, setShowClosedSpecial] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -2271,9 +2293,34 @@ const Budget = () => {
             ))
           )}
         </div>
+
+        {/* Special budgets — discrete event/trip envelopes (NYC Trip etc).
+            Their transactions are excluded from the category budget grid
+            above and counted here instead. */}
+        <SpecialBudgetsSection
+          period={period}
+          specialBudgets={specialBudgets}
+          transactions={transactions}
+          savingsGoals={savingsGoals}
+          showClosed={showClosedSpecial}
+          onToggleShowClosed={() => setShowClosedSpecial((v) => !v)}
+          onNew={() => setNewSpecialOpen(true)}
+          onOpen={(b) => setOpenSpecialBudget(b)}
+          formatCurrency={formatCurrency}
+          t={t}
+        />
       </div>
 
       {/* Modals + sheets */}
+      <SpecialBudgetModal
+        isOpen={newSpecialOpen}
+        onClose={() => setNewSpecialOpen(false)}
+      />
+      <SpecialBudgetDetailModal
+        isOpen={!!openSpecialBudget}
+        onClose={() => setOpenSpecialBudget(null)}
+        budget={openSpecialBudget}
+      />
       <BudgetEditSheet
         stat={editingBudgetStat}
         open={editBudgetOpen}
@@ -2317,3 +2364,182 @@ const Budget = () => {
 };
 
 export default Budget;
+
+// =============================================================================
+// Special budgets section — discrete event/trip envelopes on the Budget page
+// =============================================================================
+
+interface SpecialBudgetsSectionProps {
+  period: PeriodSpec;
+  specialBudgets: SpecialBudget[];
+  transactions: Transaction[];
+  savingsGoals: { id: string; name: string }[];
+  showClosed: boolean;
+  onToggleShowClosed: () => void;
+  onNew: () => void;
+  onOpen: (b: SpecialBudget) => void;
+  formatCurrency: (n: number) => string;
+  t: ReturnType<typeof useTranslation>["t"];
+}
+
+function SpecialBudgetsSection({
+  period,
+  specialBudgets,
+  transactions,
+  savingsGoals,
+  showClosed,
+  onToggleShowClosed,
+  onNew,
+  onOpen,
+  formatCurrency,
+  t,
+}: SpecialBudgetsSectionProps) {
+  // Per-budget spend within the active period: only expense tx tagged
+  // to this budget, with refunds subtracted. The detail view shows
+  // lifetime spend; this is the period card view.
+  const spendByBudget = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of transactions) {
+      if (!tx.special_budget_id) continue;
+      if (tx.type !== "expense" || tx.include_in_stats === false) continue;
+      const d = parseLocalDate(tx.transaction_date);
+      if (d < period.from || d > period.to) continue;
+      const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
+      map.set(tx.special_budget_id, (map.get(tx.special_budget_id) ?? 0) + net);
+    }
+    return map;
+  }, [transactions, period.from, period.to]);
+
+  const visible = useMemo(() => {
+    const active = specialBudgets.filter((b) => b.status !== "closed");
+    const closed = specialBudgets.filter((b) => b.status === "closed");
+    return showClosed ? [...active, ...closed] : active;
+  }, [specialBudgets, showClosed]);
+
+  const closedCount = useMemo(
+    () => specialBudgets.filter((b) => b.status === "closed").length,
+    [specialBudgets]
+  );
+
+  const goalNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    savingsGoals.forEach((g) => m.set(g.id, g.name));
+    return m;
+  }, [savingsGoals]);
+
+  return (
+    <section className="mt-6 sm:mt-8">
+      <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
+        <div>
+          <h2 className="text-sm font-semibold tracking-tight">
+            {t("specialBudgets.sectionTitle", { defaultValue: "Special budgets" })}
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {t("specialBudgets.sectionSubtitle", {
+              defaultValue:
+                "Event or trip envelopes — linked transactions stay out of regular category budgets.",
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {closedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs"
+              onClick={onToggleShowClosed}
+            >
+              {showClosed
+                ? t("specialBudgets.hideClosed", {
+                    defaultValue: "Hide closed",
+                  })
+                : t("specialBudgets.showClosed", {
+                    defaultValue: "Show closed ({{n}})",
+                    n: closedCount,
+                  })}
+            </Button>
+          )}
+          <Button size="sm" className="h-8 px-3 text-xs gap-1.5" onClick={onNew}>
+            <Plus className="h-3.5 w-3.5" />
+            {t("specialBudgets.add", { defaultValue: "New" })}
+          </Button>
+        </div>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="ft-card p-6 text-center text-xs text-muted-foreground">
+          {t("specialBudgets.empty", {
+            defaultValue:
+              "No special budgets yet. Create one for an upcoming trip or event.",
+          })}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {visible.map((b) => {
+            const spent = spendByBudget.get(b.id) ?? 0;
+            const total = b.total_budget || 0;
+            const pct = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
+            const over = total > 0 && spent > total;
+            const goalName = b.savings_goal_id ? goalNameById.get(b.savings_goal_id) : null;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => onOpen(b)}
+                className="ft-card p-4 text-left hover:border-line-strong transition flex flex-col gap-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div
+                      className="h-8 w-8 rounded-lg flex-shrink-0"
+                      style={{ background: b.color ?? "#3B82F6" }}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{b.name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {goalName
+                          ? t("specialBudgets.linkedToGoal", {
+                              defaultValue: "Goal: {{n}}",
+                              n: goalName,
+                            })
+                          : b.status === "closed"
+                            ? t("specialBudgets.statusClosed", { defaultValue: "Closed" })
+                            : b.status === "planned"
+                              ? t("specialBudgets.statusPlanned", { defaultValue: "Planned" })
+                              : t("specialBudgets.statusActive", { defaultValue: "Active" })}
+                      </div>
+                    </div>
+                  </div>
+                  {over && (
+                    <span className="ft-tag neg text-[10px]">
+                      {t("budget.over", { defaultValue: "Over" })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className={`font-mono text-base font-medium ${over ? "text-neg" : ""}`}>
+                    {formatCurrency(spent)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    / {formatCurrency(total)}
+                  </span>
+                </div>
+
+                <div className="h-1.5 rounded-full bg-bg-subtle overflow-hidden">
+                  <div
+                    className={`h-full ${over ? "bg-neg" : ""}`}
+                    style={{
+                      width: `${pct}%`,
+                      background: over ? undefined : (b.color ?? "#3B82F6"),
+                    }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}

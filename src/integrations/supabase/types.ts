@@ -313,6 +313,63 @@ export type Database = {
           },
         ]
       }
+      installment_payment_records: {
+        Row: {
+          actual_amount: number | null
+          created_at: string
+          id: string
+          installment_payment_id: string
+          is_paid: boolean
+          paid_date: string | null
+          scheduled_amount: number
+          scheduled_date: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_amount?: number | null
+          created_at?: string
+          id?: string
+          installment_payment_id: string
+          is_paid?: boolean
+          paid_date?: string | null
+          scheduled_amount: number
+          scheduled_date: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_amount?: number | null
+          created_at?: string
+          id?: string
+          installment_payment_id?: string
+          is_paid?: boolean
+          paid_date?: string | null
+          scheduled_amount?: number
+          scheduled_date?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_payment_records_installment_payment_id_fkey"
+            columns: ["installment_payment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_payment_records_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installment_payments: {
         Row: {
           account_id: string
@@ -691,6 +748,62 @@ export type Database = {
           },
         ]
       }
+      special_budgets: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          icon: string | null
+          id: string
+          name: string
+          savings_goal_id: string | null
+          start_date: string | null
+          status: string
+          total_budget: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          savings_goal_id?: string | null
+          start_date?: string | null
+          status?: string
+          total_budget: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          savings_goal_id?: string | null
+          start_date?: string | null
+          status?: string
+          total_budget?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_budgets_savings_goal_id_fkey"
+            columns: ["savings_goal_id"]
+            isOneToOne: false
+            referencedRelation: "savings_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_categories: {
         Row: {
           category_id: string
@@ -743,6 +856,7 @@ export type Database = {
           recurring_transaction_id: string | null
           refund_of_transaction_id: string | null
           refunded_amount: number | null
+          special_budget_id: string | null
           transaction_date: string
           transfer_fee: number | null
           transfer_to_account_id: string | null
@@ -763,6 +877,7 @@ export type Database = {
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
           refunded_amount?: number | null
+          special_budget_id?: string | null
           transaction_date?: string
           transfer_fee?: number | null
           transfer_to_account_id?: string | null
@@ -783,6 +898,7 @@ export type Database = {
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
           refunded_amount?: number | null
+          special_budget_id?: string | null
           transaction_date?: string
           transfer_fee?: number | null
           transfer_to_account_id?: string | null
@@ -825,6 +941,13 @@ export type Database = {
             columns: ["refund_of_transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_special_budget_id_fkey"
+            columns: ["special_budget_id"]
+            isOneToOne: false
+            referencedRelation: "special_budgets"
             referencedColumns: ["id"]
           },
           {

@@ -56,7 +56,9 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     const activeDateType = dateType || preferences.dateType;
 
     const realTxs = transactions
-      .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false)
+      // Special-budget transactions are counted under the special budget
+      // bracket, not under their category — exclude here.
+      .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false && !t.special_budget_id)
       .map(t => {
         const refundedAmount = (t as any).refunded_amount || 0;
         const grossAmount = Math.abs(t.amount);

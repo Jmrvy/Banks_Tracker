@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { PlusCircle, MinusCircle, ArrowRightLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { useSpecialBudgets } from '@/hooks/useSpecialBudgets';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
@@ -26,7 +27,9 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
   const { toast } = useToast();
   const { formatCurrency, preferences } = useUserPreferences();
   const { accounts, categories, createTransaction, createTransfer } = useFinancialData();
-  
+  const { specialBudgets } = useSpecialBudgets();
+  const activeSpecialBudgets = specialBudgets.filter((b) => b.status !== 'closed');
+
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -34,6 +37,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     account_id: '',
     to_account_id: '',
     category_id: '',
+    special_budget_id: '',
     transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0],
     value_date: new Date().toISOString().split('T')[0],
@@ -49,6 +53,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
       account_id: '',
       to_account_id: '',
       category_id: '',
+      special_budget_id: '',
       transfer_fee: '',
       transaction_date: new Date().toISOString().split('T')[0],
       value_date: new Date().toISOString().split('T')[0],
@@ -95,6 +100,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         type: formData.type as 'income' | 'expense',
         account_id: formData.account_id,
         category_id: formData.category_id || undefined,
+        special_budget_id: formData.special_budget_id || null,
         transaction_date: formData.transaction_date,
         value_date: formData.value_date,
         include_in_stats: formData.include_in_stats,
@@ -328,6 +334,51 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Special budget link (expenses only). Tagging a tx here moves
+              it out of the category budget bracket and into the special
+              budget's bracket. */}
+          {formData.type === 'expense' && activeSpecialBudgets.length > 0 && (
+            <div className="space-y-2">
+              <Label>
+                {t('specialBudgets.linkLabel', { defaultValue: 'Special budget' })}
+              </Label>
+              <Select
+                value={formData.special_budget_id || 'none'}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, special_budget_id: value === 'none' ? '' : value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('specialBudgets.noLink', { defaultValue: 'None' })} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    {t('specialBudgets.noLink', { defaultValue: 'None' })}
+                  </SelectItem>
+                  {activeSpecialBudgets.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: b.color ?? '#3B82F6' }}
+                        />
+                        {b.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.special_budget_id && (
+                <p className="text-[11px] text-muted-foreground">
+                  {t('specialBudgets.linkHint', {
+                    defaultValue:
+                      "This transaction will count toward the special budget instead of its category's monthly budget.",
+                  })}
+                </p>
+              )}
             </div>
           )}
 

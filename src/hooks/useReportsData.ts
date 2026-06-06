@@ -441,7 +441,9 @@ export const useReportsData = (
     const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
 
     const expensesByCategory = filteredTransactions
-      .filter(t => t.type === 'expense' && t.include_in_stats !== false)
+      // Special-budget tx live in their own bracket and don't count
+      // against the category budgets.
+      .filter(t => t.type === 'expense' && t.include_in_stats !== false && !t.special_budget_id)
       .reduce((acc, t) => {
         const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';
@@ -997,7 +999,7 @@ export const useReportsData = (
 
     const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
     const expensesByCategory = secondaryFilteredTransactions
-      .filter(t => t.type === 'expense' && t.include_in_stats !== false)
+      .filter(t => t.type === 'expense' && t.include_in_stats !== false && !t.special_budget_id)
       .reduce((acc, t) => {
         const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';

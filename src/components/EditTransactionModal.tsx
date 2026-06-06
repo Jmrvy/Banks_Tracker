@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
+import { useSpecialBudgets } from '@/hooks/useSpecialBudgets';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 import { parseLocalDate } from '@/lib/dateUtils';
@@ -25,6 +26,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   const { toast } = useToast();
   const navigate = useNavigate();
   const { accounts, categories, updateTransaction } = useFinancialData();
+  const { specialBudgets } = useSpecialBudgets();
+  const activeSpecialBudgets = specialBudgets.filter((b) => b.status !== 'closed');
 
   const [formData, setFormData] = useState({
     description: '',
@@ -32,6 +35,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     type: 'expense' as 'income' | 'expense' | 'transfer',
     account_id: '',
     category_id: '',
+    special_budget_id: '',
     transaction_date: '',
     value_date: '',
     transfer_to_account_id: '',
@@ -49,6 +53,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         type: transaction.type,
         account_id: transaction.account_id,
         category_id: transaction.category?.id || '',
+        special_budget_id: transaction.special_budget_id ?? '',
         transaction_date: transaction.transaction_date,
         value_date: transaction.value_date || transaction.transaction_date,
         transfer_to_account_id: transaction.transfer_to_account_id || '',
@@ -65,6 +70,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       type: 'expense',
       account_id: '',
       category_id: '',
+      special_budget_id: '',
       transaction_date: '',
       value_date: '',
       transfer_to_account_id: '',
@@ -105,6 +111,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       type: formData.type,
       account_id: formData.account_id,
       category_id: formData.category_id || undefined,
+      special_budget_id: formData.type === 'expense' ? (formData.special_budget_id || null) : null,
       transaction_date: formData.transaction_date,
       value_date: formData.value_date,
       include_in_stats: formData.include_in_stats,
@@ -272,6 +279,50 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Special budget link (expenses only). */}
+          {formData.type === 'expense' && activeSpecialBudgets.length > 0 && (
+            <div className="space-y-2">
+              <Label>{t('specialBudgets.linkLabel', { defaultValue: 'Special budget' })}</Label>
+              <Select
+                value={formData.special_budget_id || 'none'}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    special_budget_id: value === 'none' ? '' : value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('specialBudgets.noLink', { defaultValue: 'None' })} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    {t('specialBudgets.noLink', { defaultValue: 'None' })}
+                  </SelectItem>
+                  {activeSpecialBudgets.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: b.color ?? '#3B82F6' }}
+                        />
+                        {b.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.special_budget_id && (
+                <p className="text-[11px] text-muted-foreground">
+                  {t('specialBudgets.linkHint', {
+                    defaultValue:
+                      "This transaction will count toward the special budget instead of its category's monthly budget.",
+                  })}
+                </p>
+              )}
             </div>
           )}
 

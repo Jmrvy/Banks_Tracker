@@ -146,6 +146,23 @@ const TransactionRow = React.memo(
                 <span className="truncate">{transaction.category.name}</span>
               </span>
             )}
+            {transaction.special_budget_id && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <span className="ft-tag acc text-[10px]">
+                    {t('specialBudgets.tagShort', { defaultValue: 'Special' })}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {t('specialBudgets.tagTooltip', {
+                      defaultValue:
+                        "Linked to a special budget — counted there instead of the category budget.",
+                    })}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             <span className="text-[11.5px] text-fg-dim truncate min-w-0 flex-1">
               {transaction.account?.name}
               {transaction.type === 'transfer' && transaction.transfer_to_account && (

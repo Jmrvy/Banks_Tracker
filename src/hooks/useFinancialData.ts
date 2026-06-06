@@ -43,6 +43,11 @@ export interface Transaction {
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
   installment_payment_id?: string | null; // Lien vers le paiement échelonné source
   recurring_transaction_id?: string | null; // Lien vers la transaction récurrente source
+  /** When set, this transaction belongs to a special event budget (e.g.
+   *  a trip) and is excluded from its category's monthly/period budget
+   *  spend. It still contributes to global totals and to the special
+   *  budget's category breakdown. */
+  special_budget_id?: string | null;
   /** True when this row is a forecast/projection synthesised at report
    *  generation time (not persisted). Renderers branch on this for the
    *  subtle "· forecast" marker. */
@@ -266,7 +271,7 @@ function useFinancialDataInternal() {
     return { error: null };
   };
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null }) => {
+  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null; special_budget_id?: string | null }) => {
     if (!user) return;
 
     // Si value_date n'est pas fournie, utiliser transaction_date
@@ -560,6 +565,7 @@ function useFinancialDataInternal() {
     type?: 'income' | 'expense' | 'transfer';
     account_id?: string;
     category_id?: string;
+    special_budget_id?: string | null;
     transaction_date?: string;
     value_date?: string;
     transfer_to_account_id?: string;
