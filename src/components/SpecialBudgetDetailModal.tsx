@@ -7,7 +7,6 @@ import {
   Pencil,
   Link as LinkIcon,
   Unlink,
-  X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
@@ -181,8 +180,8 @@ export const SpecialBudgetDetailModal = ({
           side="right"
           className="w-full sm:max-w-[460px] p-0 flex flex-col gap-0 bg-card"
         >
-          {/* Header */}
-          <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-line flex-shrink-0">
+          {/* Header — pr-12 reserves room for SheetContent's built-in close X. */}
+          <div className="flex items-start gap-3 px-5 pt-5 pb-4 pr-12 border-b border-line flex-shrink-0">
             <div
               className="h-[46px] w-[46px] rounded-[13px] flex-shrink-0 grid place-items-center"
               style={{ background: palette.tint, color: palette.ink }}
@@ -208,14 +207,6 @@ export const SpecialBudgetDetailModal = ({
                 defaultValue: budget.status,
               })}
             </span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-8 w-8 rounded-md flex-shrink-0 grid place-items-center text-muted-foreground hover:bg-bg-subtle"
-              aria-label={t('common.close', { defaultValue: 'Close' })}
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
 
           {/* Body */}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -38,6 +39,7 @@ const toSpecialBudget = (row: Record<string, unknown>): SpecialBudget => ({
 
 export const useSpecialBudgets = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [specialBudgets, setSpecialBudgets] = useState<SpecialBudget[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -135,11 +137,17 @@ export const useSpecialBudgets = () => {
       return { error };
     }
     setSpecialBudgets((prev) => prev.filter((b) => b.id !== id));
+    // FK is ON DELETE SET NULL — linked transactions now have
+    // special_budget_id = NULL and should re-enter category aggregation.
+    await queryClient.invalidateQueries({ queryKey: ['transactions', user.id] });
     return { error: null };
   };
 
   /** Link or unlink transactions to a special budget in bulk. Pass
-   *  `specialBudgetId = null` to unlink. */
+   *  `specialBudgetId = null` to unlink. After a successful write we
+   *  invalidate the transactions query so every consumer (Budget
+   *  section, detail sheet, category cards) refetches and the new
+   *  bracket assignment is reflected immediately. */
   const linkTransactions = async (transactionIds: string[], specialBudgetId: string | null) => {
     if (!user) return { error: new Error('User not authenticated') };
     if (transactionIds.length === 0) return { error: null };
@@ -152,6 +160,7 @@ export const useSpecialBudgets = () => {
       console.error('Error linking transactions to special budget:', error);
       return { error };
     }
+    await queryClient.invalidateQueries({ queryKey: ['transactions', user.id] });
     return { error: null };
   };
 

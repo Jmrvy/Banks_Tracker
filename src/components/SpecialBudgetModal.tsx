@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Check, Minus, Plus, X } from 'lucide-react';
+import { Check, Minus, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
 import {
@@ -175,8 +175,8 @@ export const SpecialBudgetModal = ({
         className="w-full sm:max-w-[460px] p-0 flex flex-col gap-0 bg-card"
       >
         <form onSubmit={submit} className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-line flex-shrink-0">
+          {/* Header — pr-12 reserves room for SheetContent's built-in close X. */}
+          <div className="flex items-start gap-3 px-5 pt-5 pb-4 pr-12 border-b border-line flex-shrink-0">
             <div
               className="h-[46px] w-[46px] rounded-[13px] flex-shrink-0 grid place-items-center transition-colors"
               style={{ background: palette.tint, color: palette.ink }}
@@ -195,14 +195,6 @@ export const SpecialBudgetModal = ({
                 })}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-8 w-8 rounded-md flex-shrink-0 grid place-items-center text-muted-foreground hover:bg-bg-subtle"
-              aria-label={t('common.close', { defaultValue: 'Close' })}
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
 
           {/* Body */}
