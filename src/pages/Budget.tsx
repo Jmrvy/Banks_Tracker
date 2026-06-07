@@ -2584,7 +2584,11 @@ function SpecialBudgetCard({
   const Icon = getSpecialBudgetIcon(budget.icon);
   const muted = budget.status === "closed" || budget.status === "planned";
   const fillPct = Math.min(c.ratio, 1) * 100;
-  const overPct = c.over ? Math.min(c.ratio - 1, 1) * 26 : 0;
+  // When over, split the bar in two: solid portion = share of spend that
+  // stayed within budget; hatched portion = the overshoot share. Both sit
+  // inside the track so the visual reads cleanly (no floating stub past
+  // the right edge).
+  const withinPct = c.over && c.ratio > 0 ? (1 / c.ratio) * 100 : 0;
   const showTick = c.elapsedFrac != null && !c.over;
   const statusCls = SPECIAL_BUDGET_STATUS_META[budget.status].cls;
 
@@ -2699,30 +2703,36 @@ function SpecialBudgetCard({
       </div>
 
       {/* Pace bar with today tick + over hatch */}
-      <div className="relative h-[9px] rounded-full bg-bg-subtle">
-        <div
-          className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
-          style={{
-            width: `${fillPct}%`,
-            background: c.over ? "hsl(var(--neg))" : palette.color,
-            opacity: muted ? 0.55 : 1,
-          }}
-        />
-        {c.over && (
+      <div className="relative h-[9px] rounded-full bg-bg-subtle overflow-hidden">
+        {c.over ? (
+          <>
+            <div
+              className="absolute left-0 top-0 bottom-0"
+              style={{ width: `${withinPct}%`, background: "hsl(var(--neg))" }}
+            />
+            <div
+              className="absolute top-0 bottom-0 right-0"
+              style={{
+                left: `${withinPct}%`,
+                background:
+                  "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 4px, hsl(var(--neg) / 0.32) 4px 8px)",
+              }}
+              aria-hidden
+            />
+          </>
+        ) : (
           <div
-            className="absolute top-0 bottom-0 rounded-r-full"
+            className="absolute left-0 top-0 bottom-0 transition-all"
             style={{
-              left: "calc(100% + 3px)",
-              width: `${overPct}%`,
-              background:
-                "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 3px, hsl(var(--neg) / 0.34) 3px 6px)",
+              width: `${fillPct}%`,
+              background: palette.color,
+              opacity: muted ? 0.55 : 1,
             }}
-            aria-hidden
           />
         )}
         {showTick && (
           <div
-            className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-foreground/85 rounded-full"
+            className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-foreground/85"
             style={{ left: `${Math.min(c.elapsedFrac ?? 0, 1) * 100}%` }}
             title={t("budget.today", { defaultValue: "Today" })}
             aria-hidden
