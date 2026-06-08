@@ -415,9 +415,21 @@ export const SpecialBudgetDetailModal = ({
                           {tx.category && ` · ${tx.category.name}`}
                         </div>
                       </div>
-                      <span className="font-mono text-[13px] font-semibold flex-shrink-0">
-                        {formatCurrency(tx.amount)}
-                      </span>
+                      {(() => {
+                        const refunded = Number(tx.refunded_amount || 0);
+                        const net = tx.type === 'expense' ? Math.max(0, tx.amount - refunded) : tx.amount;
+                        const hasRefund = tx.type === 'expense' && refunded > 0;
+                        return (
+                          <span className="font-mono text-[13px] font-semibold flex-shrink-0 flex flex-col items-end leading-tight">
+                            <span>{formatCurrency(net)}</span>
+                            {hasRefund && (
+                              <span className="text-[10px] text-muted-foreground line-through font-normal">
+                                {formatCurrency(tx.amount)}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                       {budget.status !== 'closed' && (
                         <button
                           type="button"
