@@ -25,6 +25,7 @@ import {
   getSpecialBudgetIcon,
   paletteForColor,
   SPECIAL_BUDGET_STATUS_META,
+  specialBudgetTransactionAmount,
 } from '@/lib/specialBudgetUtils';
 
 interface SpecialBudgetDetailModalProps {
@@ -74,7 +75,7 @@ export const SpecialBudgetDetailModal = ({
       const name =
         tx.category?.name ?? t('common.uncategorized', { defaultValue: 'Uncategorized' });
       const color = tx.category?.color ?? '#6b7280';
-      const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
+      const net = specialBudgetTransactionAmount(tx);
       const cur = map.get(name) ?? { name, color, spent: 0 };
       cur.spent += net;
       map.set(name, cur);
@@ -417,7 +418,7 @@ export const SpecialBudgetDetailModal = ({
                       </div>
                       {(() => {
                         const refunded = Number(tx.refunded_amount || 0);
-                        const net = tx.type === 'expense' ? Math.max(0, tx.amount - refunded) : tx.amount;
+                        const net = specialBudgetTransactionAmount(tx);
                         const hasRefund = tx.type === 'expense' && refunded > 0;
                         return (
                           <span className="font-mono text-[13px] font-semibold flex-shrink-0 flex flex-col items-end leading-tight">
