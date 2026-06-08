@@ -86,13 +86,12 @@ export function computeSpecialBudget(
   transactions: Transaction[],
   today: Date = new Date()
 ): SpecialBudgetComputed {
+  // Special budgets are an envelope of real cash outflows for an event/trip,
+  // so they intentionally include transactions tagged "excluded from stats"
+  // (the envelope is the whole point of tracking them) and always net out
+  // any refunds.
   const spent = transactions
-    .filter(
-      (tx) =>
-        tx.special_budget_id === budget.id &&
-        tx.type === "expense" &&
-        tx.include_in_stats !== false
-    )
+    .filter((tx) => tx.special_budget_id === budget.id && tx.type === "expense")
     .reduce((s, tx) => s + Math.max(0, tx.amount - (tx.refunded_amount || 0)), 0);
 
   const total = budget.total_budget || 0;
