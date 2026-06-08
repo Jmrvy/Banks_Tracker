@@ -135,10 +135,11 @@ function netExpense(tx: Transaction): number {
 }
 
 /** Amount a transaction contributes to a special budget. Mirrors
- *  netExpense but for the special-budget bracket (no category filter). */
+ *  netExpense but for the special-budget bracket: includes
+ *  excluded-from-stats rows (special budgets are an envelope of real
+ *  outflows) and always nets refunds. */
 function specialBudgetSpend(tx: Transaction): number {
   if (tx.type !== "expense") return 0;
-  if (tx.include_in_stats === false) return 0;
   if (!tx.special_budget_id) return 0;
   const refunded = tx.refunded_amount || 0;
   return Math.max(0, tx.amount - refunded);
