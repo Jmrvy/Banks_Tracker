@@ -308,6 +308,36 @@ export function AdjustPlanForm({ plan }: Props) {
         </div>
       )}
 
+      {/* Reconcile from transactions — always available. Pairs each schedule
+          slot with the matching linked transaction (date order) and resets
+          orphaned slots so the plan, records, and recurring next-due all
+          agree. Useful after manual deletes/edits or when nothing else fits. */}
+      <div className="rounded-lg border border-line bg-bg-subtle/40 px-3 py-2.5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs sm:text-sm font-semibold flex items-center gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+            {t('installments.reconcileTitle', { defaultValue: 'Reconcile from transactions' })}
+          </div>
+          <p className="text-[10.5px] sm:text-xs text-muted-foreground mt-1">
+            {t('installments.reconcileHint', {
+              defaultValue:
+                'Rebuild the schedule against the linked transactions: paid slots, next-due date, and remaining amount.',
+            })}
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 text-[11px] sm:text-xs gap-1.5 flex-shrink-0"
+          disabled={submitting}
+          onClick={handleRecalculate}
+        >
+          <RefreshCw className="h-3 w-3" />
+          {t('installments.recalc', { defaultValue: 'Recalculate' })}
+        </Button>
+      </div>
+
       {/* Modify-field picker */}
       <div className="space-y-2">
         <Label className="text-xs sm:text-sm flex items-center gap-1.5">
