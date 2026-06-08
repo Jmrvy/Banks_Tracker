@@ -1868,16 +1868,18 @@ const Budget = () => {
   const aheadOfPace = paceDelta > 0;
   const showProjectedToggle = period.to >= today;
 
-  const filterChips: { id: StatusFilter; label: string; n: number }[] = [
-    { id: "all", label: t("budget.filterAll", { defaultValue: "All" }), n: stats.length },
-    { id: "over", label: t("budget.filterOver", { defaultValue: "Over" }), n: totals.overCount },
-    { id: "warn", label: t("budget.filterWarn", { defaultValue: "Close" }), n: totals.warnCount },
-    {
-      id: "noBudget",
-      label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
-      n: totals.noBudgetCount,
-    },
-  ].filter((c) => c.id === "all" || c.n > 0);
+  const filterChips: { id: StatusFilter; label: string; n: number }[] = (
+    [
+      { id: "all" as StatusFilter, label: t("budget.filterAll", { defaultValue: "All" }), n: stats.length },
+      { id: "over" as StatusFilter, label: t("budget.filterOver", { defaultValue: "Over" }), n: totals.overCount },
+      { id: "warn" as StatusFilter, label: t("budget.filterWarn", { defaultValue: "Close" }), n: totals.warnCount },
+      {
+        id: "noBudget" as StatusFilter,
+        label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
+        n: totals.noBudgetCount,
+      },
+    ]
+  ).filter((c) => c.id === "all" || c.n > 0);
 
   // ---------------------------------------------------------------------
   // Render
