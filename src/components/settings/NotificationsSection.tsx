@@ -94,7 +94,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           monthly_report_attach_pdf: notificationPrefs.attachPdf,
           monthly_report_top_n: notificationPrefs.topN,
           date_type: notificationPrefs.dateType,
-        } as never);
+        } as never, { onConflict: 'user_id' });
 
       if (error) throw error;
 
