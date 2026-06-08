@@ -70,7 +70,7 @@ export const SpecialBudgetDetailModal = ({
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; spent: number }>();
     for (const tx of linkedTxs) {
-      if (tx.type !== 'expense' || tx.include_in_stats === false) continue;
+      if (tx.type !== 'expense') continue;
       const name =
         tx.category?.name ?? t('common.uncategorized', { defaultValue: 'Uncategorized' });
       const color = tx.category?.color ?? '#6b7280';
