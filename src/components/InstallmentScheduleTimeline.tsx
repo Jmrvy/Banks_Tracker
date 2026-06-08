@@ -87,8 +87,31 @@ export function InstallmentScheduleTimeline({
   const totalSteps = useMemo(() => {
     if (hasCustomSchedule) return sortedRecords.length;
     if (plan.installment_amount <= 0) return 1;
+    // For uniform plans, ceil(total / installment_amount) is only right
+    // when every slot has the same amount. After an Adjust→Total / Count
+    // edit the paid slots keep their original amount while the per-
+    // installment changes — making the legacy formula over-count slots
+    // (Adjust 855→686 with 285€ already paid yields 4, not the correct 3).
+    // When we have the linked-tx feed, use `paid count + ceil(remaining /
+    // installment_amount)` which is correct in both pre-adjust and post-
+    // adjust states. Otherwise fall back to the legacy formula.
+    if (linkedTransactions) {
+      const paidCount = linkedTransactions.length;
+      const remainingCount =
+        plan.remaining_amount > 0
+          ? Math.ceil(plan.remaining_amount / plan.installment_amount)
+          : 0;
+      return Math.max(1, paidCount + remainingCount);
+    }
     return Math.max(1, Math.ceil(plan.total_amount / plan.installment_amount));
-  }, [hasCustomSchedule, sortedRecords.length, plan.total_amount, plan.installment_amount]);
+  }, [
+    hasCustomSchedule,
+    sortedRecords.length,
+    plan.total_amount,
+    plan.installment_amount,
+    plan.remaining_amount,
+    linkedTransactions,
+  ]);
 
   // Expected dates per step. For custom schedules each row supplies its own
   // date; otherwise generate them from start_date + frequency.
