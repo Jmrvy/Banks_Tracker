@@ -781,6 +781,63 @@ function useFinancialDataInternal() {
                 .update({ next_due_date: nextDate, is_active: true })
                 .eq('installment_payment_id', planId);
             }
+          } else {
+            // Uniform plan (no records) — the processor advances
+            // next_payment_date each time it materialises a slot. After a
+            // delete we recompute it from the surviving linked tx count and
+            // the recurring's start_date + frequency. Robust whether the
+            // user deleted the latest tx or an earlier one.
+            const { data: rec } = await supabase
+              .from('recurring_transactions')
+              .select('id, start_date, recurrence_type')
+              .eq('installment_payment_id', planId)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            const { data: remainingTxs } = await supabase
+              .from('transactions')
+              .select('id')
+              .eq('installment_payment_id', planId)
+              .eq('user_id', user.id);
+
+            if (rec && rec.start_date) {
+              const paidCount = (remainingTxs ?? []).length;
+              const [sy, sm, sd] = rec.start_date.split('-').map(Number);
+              const nextDateObj = new Date(sy, sm - 1, sd);
+              // Walk forward `paidCount` frequency steps to find the next
+              // unpaid slot. Matches the processor's advance step exactly.
+              for (let i = 0; i < paidCount; i++) {
+                switch (rec.recurrence_type) {
+                  case 'weekly':
+                    nextDateObj.setDate(nextDateObj.getDate() + 7);
+                    break;
+                  case 'quarterly': {
+                    const m = nextDateObj.getMonth() + 3;
+                    nextDateObj.setMonth(m);
+                    break;
+                  }
+                  case 'yearly':
+                    nextDateObj.setFullYear(nextDateObj.getFullYear() + 1);
+                    break;
+                  case 'monthly':
+                  default:
+                    nextDateObj.setMonth(nextDateObj.getMonth() + 1);
+                }
+              }
+              const yyyy = nextDateObj.getFullYear();
+              const mm = String(nextDateObj.getMonth() + 1).padStart(2, '0');
+              const dd = String(nextDateObj.getDate()).padStart(2, '0');
+              const nextDate = `${yyyy}-${mm}-${dd}`;
+
+              await supabase
+                .from('installment_payments')
+                .update({ next_payment_date: nextDate })
+                .eq('id', planId);
+              await supabase
+                .from('recurring_transactions')
+                .update({ next_due_date: nextDate, is_active: true })
+                .eq('id', rec.id);
+            }
           }
         }
       }
