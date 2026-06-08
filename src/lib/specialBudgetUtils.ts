@@ -76,6 +76,13 @@ export interface SpecialBudgetComputed {
   hot: boolean;
 }
 
+export function specialBudgetTransactionAmount(tx: Transaction): number {
+  if (tx.type !== "expense") return 0;
+  const amount = Number(tx.amount) || 0;
+  const refunded = Number(tx.refunded_amount || 0);
+  return Math.max(0, amount - refunded);
+}
+
 /** Compute the per-budget figures used by every card / sheet surface.
  *
  *  Spend is summed from the provided expense transactions that are
@@ -92,7 +99,7 @@ export function computeSpecialBudget(
   // any refunds.
   const spent = transactions
     .filter((tx) => tx.special_budget_id === budget.id && tx.type === "expense")
-    .reduce((s, tx) => s + Math.max(0, tx.amount - (tx.refunded_amount || 0)), 0);
+    .reduce((s, tx) => s + specialBudgetTransactionAmount(tx), 0);
 
   const total = budget.total_budget || 0;
   const remaining = total - spent;
