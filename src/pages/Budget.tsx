@@ -2349,7 +2349,7 @@ const Budget = () => {
       <NewCategoryModal
         open={newOpen}
         onOpenChange={setNewOpen}
-        onSaved={() => {
+        onCreated={() => {
           refetch();
           setNewOpen(false);
         }}
