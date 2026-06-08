@@ -535,8 +535,11 @@ export const useInstallmentPayments = () => {
   const recalculateInstallmentPayment = async (id: string) => {
     if (!user) return { error: new Error('User not authenticated') };
 
-    // Fetch fresh data from DB to avoid stale React state
-    const [ipResult, txResult, recurringResult] = await Promise.all([
+    // Fetch fresh data from DB to avoid stale React state.
+    // - linked transactions get transaction_date so we can pair them with
+    //   records in date order (custom-schedule reconciliation).
+    // - records are the initial schedule (ground truth for custom plans).
+    const [ipResult, txResult, recurringResult, recordsResult] = await Promise.all([
       supabase
         .from('installment_payments')
         .select('*')
@@ -545,7 +548,7 @@ export const useInstallmentPayments = () => {
         .single(),
       supabase
         .from('transactions')
-        .select('id, amount, type')
+        .select('id, amount, type, transaction_date')
         .eq('installment_payment_id', id)
         .eq('user_id', user.id),
       supabase
@@ -553,7 +556,13 @@ export const useInstallmentPayments = () => {
         .select('*')
         .eq('installment_payment_id', id)
         .eq('user_id', user.id)
-        .maybeSingle()
+        .maybeSingle(),
+      supabase
+        .from('installment_payment_records' as never)
+        .select('id, scheduled_date, scheduled_amount, is_paid, paid_date, actual_amount, transaction_id')
+        .eq('installment_payment_id', id)
+        .eq('user_id', user.id)
+        .order('scheduled_date', { ascending: true }),
     ]);
 
     if (ipResult.error || !ipResult.data) {
@@ -585,9 +594,98 @@ export const useInstallmentPayments = () => {
       newInstallmentAmount = 0;
     }
 
-    // Repair corrupted next_due_date if needed
+    const records = (recordsResult.data ?? []) as Array<{
+      id: string;
+      scheduled_date: string;
+      scheduled_amount: number;
+      is_paid: boolean;
+      paid_date: string | null;
+      actual_amount: number | null;
+      transaction_id: string | null;
+    }>;
+    const hasCustomSchedule = records.length > 0;
+
     let correctedNextDueDate: string | null = null;
-    if (linkedRecurring) {
+
+    // Custom-schedule plans drive their schedule from
+    // installment_payment_records. Reconcile by pairing records 1:1 with
+    // linked transactions in date order: the k-th paid record corresponds
+    // to the k-th linked tx. This is robust to early/late payments and to
+    // small amount drift, and it self-heals any orphaned "is_paid=true
+    // with transaction_id=null" rows left behind by past deletes.
+    if (hasCustomSchedule) {
+      const sortedTxs = (linkedTransactions ?? [])
+        .slice()
+        .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
+
+      const updates: Array<Promise<unknown>> = [];
+      records.forEach((rec, idx) => {
+        const tx = sortedTxs[idx];
+        if (tx) {
+          const nextActual = Number(tx.amount);
+          const matches =
+            rec.is_paid &&
+            rec.transaction_id === tx.id &&
+            Math.abs((rec.actual_amount ?? 0) - nextActual) < 0.005 &&
+            rec.paid_date === tx.transaction_date;
+          if (matches) return; // already consistent
+          updates.push(
+            supabase
+              .from('installment_payment_records' as never)
+              .update({
+                is_paid: true,
+                transaction_id: tx.id,
+                actual_amount: nextActual,
+                paid_date: tx.transaction_date,
+              })
+              .eq('id', rec.id)
+              .eq('user_id', user.id)
+          );
+        } else {
+          // No matching tx — record must be unpaid.
+          if (!rec.is_paid && rec.transaction_id == null && rec.actual_amount == null && rec.paid_date == null) {
+            return; // already clean
+          }
+          updates.push(
+            supabase
+              .from('installment_payment_records' as never)
+              .update({
+                is_paid: false,
+                transaction_id: null,
+                actual_amount: null,
+                paid_date: null,
+              })
+              .eq('id', rec.id)
+              .eq('user_id', user.id)
+          );
+        }
+      });
+
+      if (updates.length > 0) {
+        const results = await Promise.all(updates);
+        const failed = results.find((r) => (r as { error?: unknown })?.error);
+        if (failed) {
+          console.error('Error reconciling installment records:', (failed as { error: unknown }).error);
+        }
+      }
+
+      // Next slot = first record without a matching tx; '9999-12-31' when
+      // every slot is paid (mirrors the processor's sentinel).
+      const firstUnpaidIdx = sortedTxs.length;
+      correctedNextDueDate =
+        firstUnpaidIdx < records.length ? records[firstUnpaidIdx].scheduled_date : '9999-12-31';
+
+      if (linkedRecurring && correctedNextDueDate !== linkedRecurring.next_due_date) {
+        await supabase
+          .from('recurring_transactions')
+          .update({ next_due_date: correctedNextDueDate, updated_at: new Date().toISOString() })
+          .eq('id', linkedRecurring.id)
+          .eq('user_id', user.id);
+      }
+    }
+
+    // Repair corrupted next_due_date if needed (uniform-frequency plans).
+    if (!hasCustomSchedule && linkedRecurring) {
       const [sy, sm, sd] = linkedRecurring.start_date.split('-').map(Number);
       const startDate = new Date(sy, sm - 1, sd);
 

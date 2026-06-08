@@ -366,8 +366,12 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             if (!isSameMonth(displayDate, currentMonth)) return;
             const key = format(displayDate, 'yyyy-MM-dd');
             const isPast = isBefore(displayDate, today);
+            // A past, still-unpaid record means the user is late on this slot
+            // (e.g. the materialised tx was deleted, or the processor hasn't
+            // run yet). Match the debt-payment treatment: render in red.
+            const isOverdue = isPast && !rec.is_paid;
             const entries = map.get(key) || [];
-            entries.push({ transaction, isPast, isOverdue: false, displayAmount, occurrenceDate: key });
+            entries.push({ transaction, isPast, isOverdue, displayAmount, occurrenceDate: key });
             map.set(key, entries);
           });
           return;

@@ -699,10 +699,12 @@ function useFinancialDataInternal() {
 
       // If this transaction was linked to an installment payment, add the amount back to remaining_amount
       if (transactionToDelete?.installment_payment_id) {
+        const planId = transactionToDelete.installment_payment_id;
+
         const { data: installmentPayment, error: ipDelErr } = await supabase
           .from('installment_payments')
           .select('remaining_amount, is_active')
-          .eq('id', transactionToDelete.installment_payment_id)
+          .eq('id', planId)
           .single();
 
         if (ipDelErr) console.error('Error fetching installment payment for reversal:', ipDelErr);
@@ -716,13 +718,70 @@ function useFinancialDataInternal() {
               // Re-activate the installment if it was completed
               is_active: true
             })
-            .eq('id', transactionToDelete.installment_payment_id);
+            .eq('id', planId);
 
           // Also re-activate the linked recurring transaction
           await supabase
             .from('recurring_transactions')
             .update({ is_active: true })
-            .eq('installment_payment_id', transactionToDelete.installment_payment_id);
+            .eq('installment_payment_id', planId);
+
+          // Custom-schedule plans materialise via installment_payment_records.
+          // The FK trigger has already set transaction_id=NULL, but is_paid /
+          // paid_date / actual_amount stay stale, leaving the slot rendered as
+          // "paid with no transaction". Reset the slot so the schedule timeline
+          // and calendar reflect "redue / overdue" immediately. Best-effort —
+          // a failure here logs but doesn't block the rest of the flow.
+          const { data: resetRecords, error: recordResetErr } = await supabase
+            .from('installment_payment_records' as never)
+            .update({
+              is_paid: false,
+              paid_date: null,
+              actual_amount: null,
+              transaction_id: null,
+            })
+            .eq('installment_payment_id', planId)
+            .eq('user_id', user.id)
+            // Match either the now-orphaned row (transaction_id already nulled
+            // by the FK trigger) or a row that still carries the deleted id,
+            // and only those whose actual_amount matches the deleted tx (so we
+            // don't unwind unrelated slots in the same plan).
+            .or(`transaction_id.is.null,transaction_id.eq.${id}`)
+            .eq('is_paid', true)
+            .eq('actual_amount', transactionToDelete.amount)
+            .select('id, scheduled_date');
+
+          if (recordResetErr) {
+            console.error('Error resetting installment record after tx delete:', recordResetErr);
+          }
+
+          // Recompute the plan's next_payment_date from the earliest unpaid
+          // record after the reset above. Mirror it onto the linked recurring
+          // transaction so the calendar/processor agree on the next slot.
+          if (resetRecords && resetRecords.length > 0) {
+            const { data: nextRec } = await supabase
+              .from('installment_payment_records' as never)
+              .select('scheduled_date')
+              .eq('installment_payment_id', planId)
+              .eq('user_id', user.id)
+              .eq('is_paid', false)
+              .order('scheduled_date', { ascending: true })
+              .limit(1)
+              .maybeSingle();
+
+            const nextDate =
+              (nextRec as { scheduled_date?: string } | null)?.scheduled_date ?? null;
+            if (nextDate) {
+              await supabase
+                .from('installment_payments')
+                .update({ next_payment_date: nextDate })
+                .eq('id', planId);
+              await supabase
+                .from('recurring_transactions')
+                .update({ next_due_date: nextDate, is_active: true })
+                .eq('installment_payment_id', planId);
+            }
+          }
         }
       }
 
