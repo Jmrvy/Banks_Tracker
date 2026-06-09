@@ -112,6 +112,12 @@ const handler = async (req: Request): Promise<Response> => {
           // Get daily transactions for this category this month (for chart + total).
           // Pull `refunded_amount` so we can net it out — a fully-refunded
           // expense should not count toward the budget.
+          //
+          // `special_budget_id IS NULL`: transactions tagged to a special
+          // (event/trip) budget live in their own envelope and are
+          // deliberately excluded from category-budget aggregation
+          // everywhere in the app — so a trip's restaurant bills must not
+          // trip the monthly Restaurants alert. Mirror that here.
           const { data: transactions, error: transactionsError } = await supabaseAdmin
             .from('transactions')
             .select('amount, refunded_amount, transaction_date, value_date, description, recurring_transaction_id, installment_payment_id')
@@ -119,6 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('category_id', category.id)
             .eq('type', 'expense')
             .eq('include_in_stats', true)
+            .is('special_budget_id', null)
             .gte(dateColumn, monthStart.toISOString().split('T')[0])
             .lte(dateColumn, monthEnd.toISOString().split('T')[0])
             .order(dateColumn, { ascending: true });

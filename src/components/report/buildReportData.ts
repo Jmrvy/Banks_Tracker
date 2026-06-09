@@ -6,6 +6,8 @@ import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useRepor
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
 import type { Debt, ScheduledDebtPayment } from '@/hooks/useDebts';
 import type { InstallmentPayment } from '@/hooks/useInstallmentPayments';
+import type { SpecialBudget } from '@/hooks/useSpecialBudgets';
+import { specialBudgetsForPeriod } from '@/lib/specialBudgetUtils';
 import type {
   ReportData,
   ReportPageId,
@@ -26,6 +28,9 @@ interface BuildInputs {
   accounts: Account[];
   transactions: Transaction[];
   filteredTransactions: Transaction[];
+  /** Event/trip envelopes. Used to surface period-relevant special
+   *  budgets on the budgets page. */
+  specialBudgets?: SpecialBudget[];
   config: { dateType: 'accounting' | 'value'; periodType: 'month' | 'quarter' | 'year' | 'custom' };
   actualDates: { start: Date; end: Date };
   orderedEnabledPages: ReportPageId[];
@@ -245,6 +250,32 @@ export function buildReportData(input: BuildInputs): ReportData {
   const nearCats = budgetedCats.filter((c) => c.near);
   const totalBudget = budgetedCats.reduce((s, c) => s + c.budget, 0);
   const totalBudgetedSpent = budgetedCats.reduce((s, c) => s + c.spent, 0);
+
+  // ── Special (event/trip) budgets relevant to this period ─────────
+  // These envelopes deliberately sit outside the category-budget total:
+  // their tagged transactions are already excluded from categoryChartData
+  // (so they don't blow up a category's budget) and are surfaced here on
+  // their own. Spend is scoped to the period via filteredTransactions.
+  const specialBudgetSummaries = specialBudgetsForPeriod(
+    input.specialBudgets ?? [],
+    filteredTransactions,
+    start,
+    end,
+  );
+  const specialBudgets = specialBudgetSummaries.map((s) => ({
+    id: s.budget.id,
+    name: s.budget.name,
+    status: s.budget.status,
+    color: s.budget.color,
+    totalBudget: s.total,
+    spent: s.spent,
+    remaining: s.remaining,
+    ratio: s.ratio,
+    over: s.over,
+    count: s.count,
+  }));
+  const specialBudgetsTotal = specialBudgets.reduce((s, b) => s + b.totalBudget, 0);
+  const specialBudgetsSpent = specialBudgets.reduce((s, b) => s + b.spent, 0);
 
   // ── Account flows (opening / closing computed from real balance deltas) ──
   // closing(end) = today_balance − Δ(after end); opening = closing − Δ(period).
@@ -580,6 +611,9 @@ export function buildReportData(input: BuildInputs): ReportData {
     nearCats,
     totalBudget,
     totalBudgetedSpent,
+    specialBudgets,
+    specialBudgetsTotal,
+    specialBudgetsSpent,
     accountFlows,
     bankCount,
     totalBalance,

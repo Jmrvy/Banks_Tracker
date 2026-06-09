@@ -171,6 +171,74 @@ export function formatSpecialBudgetRange(
   return `${fmtDay(start, locale)} – ${fmtDay(end, locale)}${yE}`;
 }
 
+/** Per-period summary of a special budget, used by the report/export
+ *  surfaces. `spent` is scoped to the transactions handed in — so when
+ *  callers pass a period's transactions it reads "spend within the
+ *  period", keeping it consistent with every other period-scoped figure
+ *  on a report. `total` stays the lifetime envelope. */
+export interface SpecialBudgetPeriodSummary {
+  budget: SpecialBudget;
+  spent: number;
+  count: number;
+  total: number;
+  remaining: number;
+  ratio: number;
+  over: boolean;
+}
+
+const overlapsPeriod = (sb: SpecialBudget, periodStart: Date, periodEnd: Date): boolean => {
+  const s = sb.start_date ? parseLocalDate(sb.start_date) : null;
+  const e = sb.end_date ? parseLocalDate(sb.end_date) : null;
+  if (s && s > periodEnd) return false;
+  if (e && e < periodStart) return false;
+  // A dateless envelope is only "in" the period when it actually has
+  // tagged spend there — there's nothing else to anchor it to.
+  return s != null || e != null;
+};
+
+/** Build the period summaries for every special budget that is relevant
+ *  to the [periodStart, periodEnd] window: either it has at least one
+ *  tagged transaction inside the period, or its date range overlaps it.
+ *
+ *  `periodTransactions` should already be restricted to the period — the
+ *  spend is summed straight from the tagged expense rows it contains
+ *  (refunds netted out, excluded-from-stats rows kept, mirroring the
+ *  envelope semantics used everywhere else). */
+export function specialBudgetsForPeriod(
+  budgets: SpecialBudget[],
+  periodTransactions: Transaction[],
+  periodStart: Date,
+  periodEnd: Date
+): SpecialBudgetPeriodSummary[] {
+  const spendByBudget = new Map<string, { spent: number; count: number }>();
+  for (const t of periodTransactions) {
+    if (!t.special_budget_id) continue;
+    const amt = specialBudgetTransactionAmount(t);
+    const e = spendByBudget.get(t.special_budget_id) ?? { spent: 0, count: 0 };
+    e.spent += amt;
+    e.count += 1;
+    spendByBudget.set(t.special_budget_id, e);
+  }
+
+  return budgets
+    .filter((sb) => spendByBudget.has(sb.id) || overlapsPeriod(sb, periodStart, periodEnd))
+    .map((sb) => {
+      const ps = spendByBudget.get(sb.id) ?? { spent: 0, count: 0 };
+      const total = Number(sb.total_budget) || 0;
+      const spent = ps.spent;
+      return {
+        budget: sb,
+        spent,
+        count: ps.count,
+        total,
+        remaining: total - spent,
+        ratio: total > 0 ? spent / total : 0,
+        over: total > 0 && spent > total,
+      };
+    })
+    .sort((a, b) => b.spent - a.spent);
+}
+
 /** Status pill metadata. Keep the keys stable — the i18n layer fills
  *  the labels. */
 export const SPECIAL_BUDGET_STATUS_META: Record<

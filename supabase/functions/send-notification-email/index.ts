@@ -495,6 +495,46 @@ const handler = async (req: Request): Promise<Response> => {
           </td>
         </tr>` : '';
 
+      // Special (event/trip) budgets — their own envelope bracket, scoped
+      // to the period. Spend never counted against the category budgets,
+      // so it gets a distinct strip.
+      const specialBudgets: any[] = data.specialBudgets || [];
+      const specialRows = specialBudgets.map((sb: any) => {
+        const total = Number(sb.budget) || 0;
+        const spent = Number(sb.spent) || 0;
+        const pctUsed = total > 0 ? Math.round((spent / total) * 100) : 0;
+        const over = !!sb.over;
+        const isClosed = sb.status === 'closed';
+        const fig = total > 0
+          ? `${spent.toFixed(0)}&nbsp;€ / ${total.toFixed(0)}&nbsp;€ &middot; ${pctUsed}%`
+          : `${spent.toFixed(0)}&nbsp;€`;
+        const barColor = over ? '#c83a2a' : '#0c0d0c';
+        const barWidth = Math.min(100, pctUsed);
+        return `<tr>
+          <td style="padding:11px 0;border-bottom:1px solid #efece4;width:36%;font-family:${sansStack};font-size:13.5px;color:#0c0d0c;font-weight:500;">${escapeHtml(sb.name)}${isClosed ? ` <span style="display:inline-block;font-family:${monoStack};font-size:10px;color:#6e716c;margin-left:6px;letter-spacing:.05em;text-transform:uppercase;font-weight:500;">cl&ocirc;tur&eacute;</span>` : ''}</td>
+          <td style="padding:11px 0;border-bottom:1px solid #efece4;width:30%;font-family:${monoStack};font-size:12.5px;color:${over ? '#c83a2a' : '#6e716c'};text-align:right;white-space:nowrap;">${fig}</td>
+          <td style="padding:11px 0 11px 18px;border-bottom:1px solid #efece4;width:34%;">
+            <div style="height:6px;background:#efece4;border-radius:99px;overflow:hidden;">
+              <div style="height:100%;width:${barWidth}%;background:${barColor};border-radius:99px;"></div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+      const specialHtml = specialBudgets.length > 0 ? `
+        <tr>
+          <td class="content-pad" style="padding:36px 40px 0 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="font-family:${monoStack};font-size:10.5px;color:#6e716c;letter-spacing:.1em;text-transform:uppercase;padding-bottom:14px;">Budgets sp&eacute;ciaux</td>
+                <td style="font-family:${monoStack};font-size:10.5px;color:#1f211f;letter-spacing:.04em;padding-bottom:14px;text-align:right;font-weight:500;">${specialBudgets.length} enveloppe${specialBudgets.length > 1 ? 's' : ''}</td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              ${specialRows}
+            </table>
+          </td>
+        </tr>` : '';
+
       // Account rows
       const accountsList: any[] = data.accounts || [];
       const accountRows = accountsList.map((acc: any) => {
@@ -629,6 +669,8 @@ const handler = async (req: Request): Promise<Response> => {
               </table>
             </td>
           </tr>` : ''}
+
+          ${includes('budgets') ? specialHtml : ''}
 
           ${includes('accounts') && accountsList.length > 0 ? `
           <!-- Accounts -->

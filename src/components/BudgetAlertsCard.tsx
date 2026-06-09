@@ -69,7 +69,10 @@ export const BudgetAlertsCard = () => {
     if (!selectedCategory) return [];
     const dateType = preferences.dateType;
     return filteredTransactions
-      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory && t.include_in_stats !== false)
+      // Mirror the budget aggregation: special-budget (event/trip) rows
+      // live in their own envelope and don't count toward the category
+      // budget, so they're excluded from this drill-down too.
+      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory && t.include_in_stats !== false && !t.special_budget_id)
       .map(t => ({
         id: t.id,
         description: t.description,

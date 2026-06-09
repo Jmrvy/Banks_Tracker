@@ -11,7 +11,7 @@ export function renderBudgets(ctx: ReportCtx) {
   } = ctx;
   const {
     budgetedCats, breachedCats, nearCats, totalBudget, totalBudgetedSpent,
-    filteredTransactions, actualDates,
+    filteredTransactions, actualDates, specialBudgets,
   } = ctx.data;
 
   const remaining = totalBudget - totalBudgetedSpent;
@@ -182,6 +182,81 @@ export function renderBudgets(ctx: ReportCtx) {
     pdf.line(MARGIN_X + COL, barY - 0.8, MARGIN_X + COL, barY + barH + 0.8);
 
     y += rowH;
+  }
+
+  // ── Special budgets (event / trip envelopes) ────────────────────
+  // Separate bracket: their spend never counted against the category
+  // budgets above, so they get their own pace list. Spend is scoped to
+  // the report period; the bar compares it to the lifetime envelope.
+  if (specialBudgets.length > 0) {
+    const newBudgetsPage = (cont: boolean) => {
+      drawBottomChrome(state.pageIdx, totalPagesEstimate);
+      newPage();
+      drawTopChrome(state.pageIdx, totalPagesEstimate);
+      return drawPageTitle(
+        'Section 06 · Discipline',
+        cont ? 'Budgets vs actual (cont.)' : 'Budgets vs actual',
+        `${budgetedCats.length} active budgets`,
+        `${breachedCats.length} breached · ${nearCats.length} near`,
+        breachedCats.length > 0 ? neg : ctx.ink2,
+      );
+    };
+
+    // Keep the eyebrow with at least one row on whichever page it lands.
+    if (y + 6 + rowH > BODY_BOTTOM - RESERVE) {
+      y = newBudgetsPage(true);
+    }
+    y = drawSectionEyebrow('Special budgets', 'event & trip envelopes · spend in period', y);
+
+    for (let i = 0; i < specialBudgets.length; i++) {
+      const sb = specialBudgets[i];
+      if (y + rowH > BODY_BOTTOM - RESERVE) {
+        y = newBudgetsPage(true);
+        y = drawSectionEyebrow('Special budgets (cont.)', 'event & trip envelopes · spend in period', y);
+      }
+      const pct = sb.totalBudget > 0 ? sb.spent / sb.totalBudget : 0;
+      const pctRound = Math.round(pct * 100);
+      const over = sb.over;
+      const accent = over ? neg : ink;
+
+      // envelope name
+      sans(9, 'bold');
+      setText(ink);
+      pdf.text(sb.name, MARGIN_X, y);
+
+      // CLOSED pill — flags wrapped-up envelopes so a 100% bar reads as
+      // "done", not "breached".
+      if (sb.status === 'closed') {
+        const px = MARGIN_X + pdf.getTextWidth(sb.name) + 4;
+        setFill(line2Col);
+        pdf.roundedRect(px, y - 3, 14, 4, 0.6, 0.6, 'F');
+        mono(6, 'bold');
+        setText(mute);
+        pdf.text('CLOSED', px + 2, y);
+      }
+
+      // right-aligned figures — period spend over the envelope total
+      mono(8, 'bold');
+      setText(accent);
+      pdf.text(
+        sb.totalBudget > 0
+          ? `${fmt(sb.spent)} / ${fmt(sb.totalBudget)} · ${pctRound}%`
+          : fmt(sb.spent),
+        PW - MARGIN_X,
+        y,
+        { align: 'right' },
+      );
+
+      // progress bar + envelope tick
+      const barY = y + 2.5;
+      const barH = 2;
+      drawProgressBar(MARGIN_X, barY, COL, barH, pct, over, accent);
+      setDraw(ink);
+      pdf.setLineWidth(0.5);
+      pdf.line(MARGIN_X + COL, barY - 0.8, MARGIN_X + COL, barY + barH + 0.8);
+
+      y += rowH;
+    }
   }
 
 
