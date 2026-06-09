@@ -41,6 +41,8 @@ import { toast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useDebts } from "@/hooks/useDebts";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
+import { useSpecialBudgets } from "@/hooks/useSpecialBudgets";
+import { specialBudgetsForPeriod } from "@/lib/specialBudgetUtils";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -221,6 +223,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const { accounts, transactions } = useFinancialData();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { installmentPayments } = useInstallmentPayments();
+  const { specialBudgets } = useSpecialBudgets();
 
   // Chart refs for PDF export
   // Phase 2 renders every chart natively via jsPDF; the off-screen
@@ -349,6 +352,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       accounts,
       transactions,
       filteredTransactions,
+      specialBudgets,
       config: { dateType: config.dateType, periodType: config.periodType },
       actualDates: { start: actualDates.start, end: actualDates.end },
       pages,
@@ -444,8 +448,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     // Budgets sheet
     if (config.sections.includes('budgets')) {
       const budgetCats = categoryChartData.filter(c => c.budget > 0);
-      if (budgetCats.length > 0) {
-        const data = [
+      // Special (event/trip) budgets relevant to the period — spend scoped
+      // to the report range, compared to the lifetime envelope.
+      const specialSummaries = specialBudgetsForPeriod(
+        specialBudgets,
+        filteredTransactions,
+        actualDates.start,
+        actualDates.end,
+      );
+      if (budgetCats.length > 0 || specialSummaries.length > 0) {
+        const data: (string | number)[][] = [
           ['Suivi des budgets'],
           [],
           ['Categorie', 'Depense', 'Budget', 'Restant', '% Utilise', 'Statut'],
@@ -461,8 +473,25 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
             ];
           })
         ];
+        if (specialSummaries.length > 0) {
+          data.push([], ['Budgets speciaux'], ['Nom', 'Depense (periode)', 'Budget total', 'Restant', '% Utilise', 'Statut']);
+          for (const s of specialSummaries) {
+            const pct = s.total > 0 ? (s.spent / s.total * 100) : 0;
+            const statut = s.budget.status === 'closed'
+              ? 'Cloture'
+              : s.over ? 'Depasse' : pct >= 80 ? 'Attention' : 'OK';
+            data.push([
+              s.budget.name,
+              formatNum(s.spent),
+              formatNum(s.total),
+              formatNum(s.remaining),
+              Number(pct.toFixed(0)),
+              statut,
+            ]);
+          }
+        }
         const ws = XLSX.utils.aoa_to_sheet(data);
-        ws['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+        ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, ws, 'Budgets');
       }
     }

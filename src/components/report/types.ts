@@ -88,6 +88,26 @@ export interface MonthBar {
   value: number;
 }
 
+/** A special (event/trip) budget enriched for the report's budgets page.
+ *  `spent` is scoped to the report period; `totalBudget` is the lifetime
+ *  envelope set by the user. */
+export interface SpecialBudgetReport {
+  id: string;
+  name: string;
+  status: 'planned' | 'active' | 'closed';
+  color: string | null;
+  totalBudget: number;
+  /** Spend from tagged transactions inside the report period. */
+  spent: number;
+  /** totalBudget − spent. */
+  remaining: number;
+  /** spent / totalBudget (0 when no budget set). */
+  ratio: number;
+  over: boolean;
+  /** Count of tagged transactions inside the report period. */
+  count: number;
+}
+
 /** Everything a page renderer might need. Raw collections are included so
  *  individual pages can compute their own derivations without touching
  *  shared modules. */
@@ -119,6 +139,11 @@ export interface ReportData {
   nearCats: ReportCategory[];
   totalBudget: number;
   totalBudgetedSpent: number;
+
+  // special (event/trip) budgets relevant to the period
+  specialBudgets: SpecialBudgetReport[];
+  specialBudgetsTotal: number;
+  specialBudgetsSpent: number;
 
   // accounts
   accountFlows: AccountFlow[];

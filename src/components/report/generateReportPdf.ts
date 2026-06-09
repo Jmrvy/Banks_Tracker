@@ -5,6 +5,7 @@ import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useRepor
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
 import type { Debt, ScheduledDebtPayment } from '@/hooks/useDebts';
 import type { InstallmentPayment } from '@/hooks/useInstallmentPayments';
+import type { SpecialBudget } from '@/hooks/useSpecialBudgets';
 import type { PageEntry, PageId } from './pageMeta';
 import type { ReportPageId, PageRenderer } from './types';
 import { buildReportData } from './buildReportData';
@@ -29,6 +30,7 @@ export interface GenerateReportPdfInput {
   accounts: Account[];
   transactions: Transaction[];
   filteredTransactions: Transaction[];
+  specialBudgets?: SpecialBudget[];
   config: { dateType: 'accounting' | 'value'; periodType: 'month' | 'quarter' | 'year' | 'custom' };
   actualDates: { start: Date; end: Date };
   pages: PageEntry[];
@@ -102,6 +104,7 @@ export async function buildReportPdf(input: GenerateReportPdfInput) {
     accounts: input.accounts,
     transactions: input.transactions,
     filteredTransactions: input.filteredTransactions,
+    specialBudgets: input.specialBudgets,
     config: input.config,
     actualDates,
     orderedEnabledPages,

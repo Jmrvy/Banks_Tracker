@@ -95,7 +95,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
     page.drawText(pn, { x: rx(pn, 8, mono, M), y: 22, size: 8, font: mono, color: mute2 });
   }
 
-  const totalPages = 2 + (data.topCategories?.length > 0 ? 1 : 0) + (data.accounts?.length > 0 ? 1 : 0) + (data.budgetOverspent?.length > 0 ? 1 : 0);
+  const totalPages = 2 + (data.topCategories?.length > 0 ? 1 : 0) + (data.accounts?.length > 0 ? 1 : 0) + (data.budgetOverspent?.length > 0 ? 1 : 0) + (data.specialBudgets?.length > 0 ? 1 : 0);
   let pageNum = 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -379,6 +379,75 @@ async function generateSlidesPdf(data: any): Promise<string> {
     drawPageFoot(p5, pageNum, totalPages);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGE 6: BUDGETS SPECIAUX (conditional) — event/trip envelopes for the period
+  // ═══════════════════════════════════════════════════════════════════════════
+  const specialBudgets: any[] = data.specialBudgets || [];
+  if (specialBudgets.length > 0) {
+    const p6 = pdfDoc.addPage([W, H]);
+    pageNum++;
+    drawSectionHeader(p6, '05 · Enveloppes', 'Budgets speciaux');
+
+    const sM = 50;
+    let curY = H - 130;
+    const cardH = 64;
+
+    for (const sb of specialBudgets) {
+      if (curY - cardH < 60) break;
+      curY -= cardH + 12;
+
+      const total = Number(sb.budget) || 0;
+      const spent = Number(sb.spent) || 0;
+      const pctUsed = total > 0 ? Math.round((spent / total) * 100) : 0;
+      const over = !!sb.over;
+      const isClosed = sb.status === 'closed';
+      const accent = over ? neg : ink;
+
+      // Hairline-bordered card.
+      p6.drawRectangle({
+        x: sM, y: curY, width: W - 2 * sM, height: cardH,
+        borderColor: line, borderWidth: 0.75, color: paper,
+      });
+
+      // Name + optional CLOSED chip
+      p6.drawText(String(sb.name ?? ''), {
+        x: sM + 18, y: curY + cardH - 24, size: 14, font: sansBold, color: ink,
+      });
+      if (isClosed) {
+        const nameW = sansBold.widthOfTextAtSize(String(sb.name ?? ''), 14);
+        p6.drawText('CLOTURE', {
+          x: sM + 18 + nameW + 10, y: curY + cardH - 22, size: 8, font: mono, color: mute,
+        });
+      }
+
+      // Right figure — period spend over the envelope total
+      const fig = total > 0
+        ? `${spent.toFixed(0)} / ${total.toFixed(0)} EUR`
+        : `${spent.toFixed(0)} EUR`;
+      p6.drawText(fig, {
+        x: rx(fig, 15, monoBold, sM + 18),
+        y: curY + cardH - 25, size: 15, font: monoBold, color: accent,
+      });
+
+      // Sub line
+      const sub = total > 0
+        ? `${pctUsed}% utilise  ·  ${sb.count ?? 0} transaction${(sb.count ?? 0) === 1 ? '' : 's'} sur la periode`
+        : `${sb.count ?? 0} transaction${(sb.count ?? 0) === 1 ? '' : 's'} sur la periode`;
+      p6.drawText(sub, { x: sM + 18, y: curY + cardH - 44, size: 10, font: mono, color: mute });
+
+      // Pace bar (0..100% of the envelope) with a black tick at the total.
+      const barX = sM + 18;
+      const barW = W - 2 * sM - 36;
+      const barY = curY + 14;
+      const fillW = Math.min(pctUsed, 100) / 100 * barW;
+      p6.drawRectangle({ x: barX, y: barY, width: barW, height: 6, color: line2 });
+      p6.drawRectangle({ x: barX, y: barY, width: fillW, height: 6, color: accent });
+      p6.drawRectangle({ x: barX + barW - 0.5, y: barY - 2, width: 1, height: 10, color: ink });
+    }
+
+    drawPageFoot(p6, pageNum, totalPages);
+  }
+
   const pdfBytes = await pdfDoc.save();
   return uint8ToBase64(pdfBytes);
 }
@@ -550,7 +619,7 @@ const handler = async (req: Request): Promise<Response> => {
         // `transaction_date`, mirroring the in-app `dateOf` helper).
         const { data: transactions } = await supabaseAdmin
           .from('transactions')
-          .select('amount, type, category_id, account_id, description, transaction_date, value_date, include_in_stats, refunded_amount, refund_of_transaction_id, transfer_fee')
+          .select('amount, type, category_id, account_id, description, transaction_date, value_date, include_in_stats, refunded_amount, refund_of_transaction_id, transfer_fee, special_budget_id')
           .eq('user_id', userPref.user_id)
           .gte(dateColumn, monthStart.toISOString().split('T')[0])
           .lte(dateColumn, monthEnd.toISOString().split('T')[0]);
@@ -567,6 +636,13 @@ const handler = async (req: Request): Promise<Response> => {
         const { data: categories } = await supabaseAdmin
           .from('categories')
           .select('id, name, budget')
+          .eq('user_id', userPref.user_id);
+
+        // Fetch special (event/trip) budgets — surfaced on their own,
+        // scoped to the period window below.
+        const { data: specialBudgetsRaw } = await supabaseAdmin
+          .from('special_budgets')
+          .select('id, name, total_budget, start_date, end_date, status')
           .eq('user_id', userPref.user_id);
 
         // Drop transactions explicitly excluded from stats — same rule the
@@ -597,12 +673,15 @@ const handler = async (req: Request): Promise<Response> => {
           .filter((t: any) => t.type === 'expense')
           .reduce((s: number, t: any) => s + netExpense(t), 0);
 
-        // Category breakdown — net of refunds.
+        // Category breakdown — net of refunds. Transactions tagged to a
+        // special (event/trip) budget are excluded: they belong to their
+        // own envelope (surfaced separately below) and must not count
+        // against a category's budget, mirroring the in-app aggregation.
         const catMap = new Map<string, { name: string; spent: number; budget: number | null }>();
         for (const cat of catList) {
           catMap.set(cat.id, { name: cat.name, spent: 0, budget: (cat as any).budget || null });
         }
-        for (const tx of txList.filter((t: any) => t.type === 'expense' && t.category_id)) {
+        for (const tx of txList.filter((t: any) => t.type === 'expense' && t.category_id && !t.special_budget_id)) {
           const entry = catMap.get((tx as any).category_id);
           if (entry) entry.spent += netExpense(tx);
         }
@@ -617,6 +696,44 @@ const handler = async (req: Request): Promise<Response> => {
         // Strict over-budget: 100% exactly is on-target, only flag rows that
         // crossed the line (mirrors the in-app `BudgetAlertsCard` rule).
         const budgetOverspent = allCategories.filter(c => c.budget && c.spent > c.budget);
+
+        // Special (event/trip) budgets relevant to this period. Spend is
+        // scoped to the window and summed straight from the raw period
+        // rows (refunds netted, excluded-from-stats rows kept — envelope
+        // semantics). A budget shows up when it has tagged spend here or
+        // its date range overlaps the window.
+        const spbList = specialBudgetsRaw || [];
+        const spendBySpb = new Map<string, { spent: number; count: number }>();
+        for (const tx of (transactions || [])) {
+          if (tx.type !== 'expense' || !tx.special_budget_id) continue;
+          const amt = netExpense(tx);
+          const e = spendBySpb.get(tx.special_budget_id) || { spent: 0, count: 0 };
+          e.spent += amt;
+          e.count += 1;
+          spendBySpb.set(tx.special_budget_id, e);
+        }
+        const spbOverlaps = (sb: any): boolean => {
+          const s = sb.start_date ? new Date(sb.start_date) : null;
+          const e = sb.end_date ? new Date(sb.end_date) : null;
+          if (s && s > monthEnd) return false;
+          if (e && e < monthStart) return false;
+          return s != null || e != null;
+        };
+        const specialBudgets = spbList
+          .filter((sb: any) => spendBySpb.has(sb.id) || spbOverlaps(sb))
+          .map((sb: any) => {
+            const ps = spendBySpb.get(sb.id) || { spent: 0, count: 0 };
+            const total = Number(sb.total_budget) || 0;
+            return {
+              name: sb.name,
+              status: sb.status,
+              spent: ps.spent,
+              budget: total,
+              remaining: total - ps.spent,
+              over: total > 0 && ps.spent > total,
+            };
+          })
+          .sort((a: any, b: any) => b.spent - a.spent);
 
         // Per-account breakdown — same refund-aware totals.
         const accountSummaries = accList.map((acc: any) => {
@@ -654,6 +771,7 @@ const handler = async (req: Request): Promise<Response> => {
           accounts: accountSummaries,
           transactionCount: txList.length,
           budgetOverspent,
+          specialBudgets,
           prevMonthIncome: prevIncome.toFixed(2),
           prevMonthExpenses: prevExpenses.toFixed(2),
           incomeChange: prevIncome > 0 ? Math.round(((income - prevIncome) / prevIncome) * 100) : 0,
