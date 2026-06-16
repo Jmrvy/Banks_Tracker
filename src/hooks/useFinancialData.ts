@@ -733,7 +733,7 @@ function useFinancialDataInternal() {
           // and calendar reflect "redue / overdue" immediately. Best-effort —
           // a failure here logs but doesn't block the rest of the flow.
           const { data: resetRecords, error: recordResetErr } = await supabase
-            .from('installment_payment_records' as never)
+            .from('installment_payment_records')
             .update({
               is_paid: false,
               paid_date: null,
@@ -760,7 +760,7 @@ function useFinancialDataInternal() {
           // transaction so the calendar/processor agree on the next slot.
           if (resetRecords && resetRecords.length > 0) {
             const { data: nextRec } = await supabase
-              .from('installment_payment_records' as never)
+              .from('installment_payment_records')
               .select('scheduled_date')
               .eq('installment_payment_id', planId)
               .eq('user_id', user.id)

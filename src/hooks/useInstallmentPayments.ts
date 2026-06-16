@@ -102,7 +102,7 @@ export const useInstallmentPayments = () => {
   const fetchInstallmentRecords = async () => {
     if (!user) return;
     const { data, error } = await supabase
-      .from('installment_payment_records' as never)
+      .from('installment_payment_records')
       .select('id, installment_payment_id, scheduled_date, scheduled_amount, is_paid, paid_date, actual_amount, transaction_id')
       .eq('user_id', user.id)
       .order('scheduled_date', { ascending: true });
@@ -243,7 +243,7 @@ export const useInstallmentPayments = () => {
       }));
       const { error: recordsError } = await supabase
         // Cast to bypass the auto-generated types until the next pull.
-        .from('installment_payment_records' as never)
+        .from('installment_payment_records')
         .insert(recordRows as never);
       if (recordsError) {
         console.error('Error creating installment records:', recordsError);
@@ -558,7 +558,7 @@ export const useInstallmentPayments = () => {
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase
-        .from('installment_payment_records' as never)
+        .from('installment_payment_records')
         .select('id, scheduled_date, scheduled_amount, is_paid, paid_date, actual_amount, transaction_id')
         .eq('installment_payment_id', id)
         .eq('user_id', user.id)
@@ -631,7 +631,7 @@ export const useInstallmentPayments = () => {
           if (matches) return; // already consistent
           updates.push(
             supabase
-              .from('installment_payment_records' as never)
+              .from('installment_payment_records')
               .update({
                 is_paid: true,
                 transaction_id: tx.id,
@@ -648,7 +648,7 @@ export const useInstallmentPayments = () => {
           }
           updates.push(
             supabase
-              .from('installment_payment_records' as never)
+              .from('installment_payment_records')
               .update({
                 is_paid: false,
                 transaction_id: null,
