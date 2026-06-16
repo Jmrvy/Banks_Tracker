@@ -34,9 +34,6 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
   const { items, total } = useMemo(() => {
     const inRange = transactions.filter((t) => {
       if (t.type !== "expense" || t.include_in_stats === false) return false;
-      // Tagged to a special event/trip budget — shown there, not in the
-      // per-category distribution.
-      if (t.special_budget_id) return false;
       const d = dateOf(t);
       return d >= startDate && d <= endDate;
     });
