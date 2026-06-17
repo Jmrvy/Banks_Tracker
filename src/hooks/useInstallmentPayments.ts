@@ -618,7 +618,7 @@ export const useInstallmentPayments = () => {
         .slice()
         .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
 
-      const updates: Array<Promise<unknown>> = [];
+      const updates: Array<PromiseLike<unknown>> = [];
       records.forEach((rec, idx) => {
         const tx = sortedTxs[idx];
         if (tx) {
