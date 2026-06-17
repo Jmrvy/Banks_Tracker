@@ -92,7 +92,6 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     return { items: list, total: sum };
   }, [transactions, specialBudgets, startDate, endDate, preferences.dateType, t]);
 
-
   const top = items.slice(0, 5);
   const otherCount = items.length - top.length;
   const otherValue = items.slice(5).reduce((s, x) => s + x.value, 0);
