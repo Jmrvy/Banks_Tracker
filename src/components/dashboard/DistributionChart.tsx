@@ -11,6 +11,7 @@ import { getSpecialBudgetIcon } from "@/lib/specialBudgetUtils";
 import { CategoryIcon } from "@/components/CategoryIcon";
 
 
+
 interface DistributionChartProps {
   startDate: Date;
   endDate: Date;
