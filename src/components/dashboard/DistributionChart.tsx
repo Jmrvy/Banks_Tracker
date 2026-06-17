@@ -25,6 +25,7 @@ interface DistributionChartProps {
 export function DistributionChart({ startDate, endDate }: DistributionChartProps) {
   const { t } = useTranslation();
   const { transactions } = useFinancialData();
+  const { specialBudgets } = useSpecialBudgets();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
   const [activeName, setActiveName] = useState<string | null>(null);
@@ -35,35 +36,61 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       : parseLocalDate(txn.transaction_date);
 
   const { items, total } = useMemo(() => {
+    const budgetMap = new Map(specialBudgets.map((sb) => [sb.id, sb]));
+
     const inRange = transactions.filter((t) => {
-      if (t.type !== "expense" || t.include_in_stats === false) return false;
+      if (t.type !== "expense") return false;
       const d = dateOf(t);
-      return d >= startDate && d <= endDate;
+      if (d < startDate || d > endDate) return false;
+      // Expenses linked to a special budget are always shown in the donut
+      // under their own category, even when they are excluded from regular
+      // stats. Regular expenses still follow the stats toggle.
+      return t.include_in_stats !== false || t.special_budget_id;
     });
 
-    const totals = new Map<string, { amount: number; color: string; icon: string | null }>();
+    const totals = new Map<
+      string,
+      { amount: number; color: string; icon: string | null; specialBudgetIcon: ReturnType<typeof getSpecialBudgetIcon> | null }
+    >();
     for (const tx of inRange) {
       const refunded = tx.refunded_amount || 0;
       const net = Math.max(0, tx.amount - refunded);
       if (net <= 0) continue;
-      const name = tx.category?.name || t("common.uncategorized", { defaultValue: "Uncategorized" });
-      const color = tx.category?.color || CHART_COLORS[0];
-      const icon = tx.category?.icon ?? null;
+
+      const sb = tx.special_budget_id ? budgetMap.get(tx.special_budget_id) : null;
+      let name: string;
+      let color: string;
+      let icon: string | null;
+      let specialBudgetIcon: ReturnType<typeof getSpecialBudgetIcon> | null;
+      if (sb) {
+        name = sb.name;
+        color = sb.color || CHART_COLORS[0];
+        icon = null;
+        specialBudgetIcon = getSpecialBudgetIcon(sb.icon);
+      } else {
+        name = tx.category?.name || t("common.uncategorized", { defaultValue: "Uncategorized" });
+        color = tx.category?.color || CHART_COLORS[0];
+        icon = tx.category?.icon ?? null;
+        specialBudgetIcon = null;
+      }
+
       const existing = totals.get(name);
       totals.set(name, {
         amount: (existing?.amount || 0) + net,
         color: existing?.color || color,
         icon: existing?.icon ?? icon,
+        specialBudgetIcon: existing?.specialBudgetIcon ?? specialBudgetIcon,
       });
     }
 
     const sum = [...totals.values()].reduce((s, v) => s + v.amount, 0);
     const list = [...totals.entries()]
-      .map(([name, v]) => ({ name, value: v.amount, color: v.color, icon: v.icon }))
+      .map(([name, v]) => ({ name, value: v.amount, color: v.color, icon: v.icon, specialBudgetIcon: v.specialBudgetIcon }))
       .sort((a, b) => b.value - a.value);
 
     return { items: list, total: sum };
-  }, [transactions, startDate, endDate, preferences.dateType, t]);
+  }, [transactions, specialBudgets, startDate, endDate, preferences.dateType, t]);
+
 
   const top = items.slice(0, 5);
   const otherCount = items.length - top.length;
