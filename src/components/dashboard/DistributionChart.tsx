@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useSpecialBudgets } from "@/hooks/useSpecialBudgets";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { getSpecialBudgetIcon } from "@/lib/specialBudgetUtils";
 import { CategoryIcon } from "@/components/CategoryIcon";
+
 
 interface DistributionChartProps {
   startDate: Date;
