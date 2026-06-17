@@ -206,7 +206,17 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <CategoryIcon icon={item.icon} color={item.color} size={20} />
+                  {item.specialBudgetIcon ? (
+                    <span
+                      aria-hidden
+                      className="inline-flex items-center justify-center rounded-lg flex-shrink-0"
+                      style={{ width: 20, height: 20, background: `${item.color}1F`, color: item.color }}
+                    >
+                      <item.specialBudgetIcon style={{ width: 12, height: 12 }} strokeWidth={2} />
+                    </span>
+                  ) : (
+                    <CategoryIcon icon={item.icon} color={item.color} size={20} />
+                  )}
                   <span className="text-[13px] font-medium truncate">{item.name}</span>
                 </div>
                 <div className={`font-mono text-[13px] font-medium whitespace-nowrap ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
