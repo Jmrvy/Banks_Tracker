@@ -89,6 +89,32 @@ export const FlowsTab = ({
 }: FlowsTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
+  const { specialBudgets } = useSpecialBudgets();
+
+  // Per-special-budget spend within the period (net of refunds, excluded-from-stats
+  // rows kept — envelopes are about real cash outflow). Used both to surface a note
+  // and to inject them into the Money Out list so totals reconcile with stats.expenses.
+  const specialBudgetBreakdown = useMemo(() => {
+    if (specialBudgets.length === 0) return [];
+    const byId = new Map<string, { name: string; color: string; amount: number; count: number }>();
+    for (const tx of filteredTransactions) {
+      if (tx.type !== 'expense' || !tx.special_budget_id) continue;
+      const sb = specialBudgets.find(b => b.id === tx.special_budget_id);
+      if (!sb) continue;
+      const amt = specialBudgetTransactionAmount(tx);
+      if (amt <= 0) continue;
+      const e = byId.get(sb.id) ?? { name: sb.name, color: sb.color || 'hsl(var(--muted-foreground))', amount: 0, count: 0 };
+      e.amount += amt;
+      e.count += 1;
+      byId.set(sb.id, e);
+    }
+    return Array.from(byId.values()).sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions, specialBudgets]);
+
+  const specialBudgetTotal = useMemo(
+    () => specialBudgetBreakdown.reduce((s, b) => s + b.amount, 0),
+    [specialBudgetBreakdown]
+  );
 
   // Projected (future) recurring occurrences, grouped by category name + type.
   // For income, real categories come from string-matching (incomeAnalysis), so we
