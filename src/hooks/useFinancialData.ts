@@ -585,6 +585,33 @@ function useFinancialDataInternal() {
       .eq('user_id', user.id);
 
     if (!error) {
+      // If this transaction IS a refund and its amount changed, sync the
+      // original transaction's refunded_amount so the net (and any stats
+      // that depend on it) stay correct.
+      if (
+        originalTransaction?.refund_of_transaction_id &&
+        updates.amount !== undefined &&
+        updates.amount !== originalAmount
+      ) {
+        const { data: linkedOriginal, error: refFetchErr } = await supabase
+          .from('transactions')
+          .select('refunded_amount')
+          .eq('id', originalTransaction.refund_of_transaction_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (refFetchErr) console.error('Error fetching original tx for refund sync:', refFetchErr);
+        if (linkedOriginal) {
+          const currentRefunded = Number(linkedOriginal.refunded_amount || 0);
+          const delta = Number(updates.amount) - Number(originalAmount);
+          const newRefunded = Math.max(0, currentRefunded + delta);
+          await supabase
+            .from('transactions')
+            .update({ refunded_amount: newRefunded })
+            .eq('id', originalTransaction.refund_of_transaction_id)
+            .eq('user_id', user.id);
+        }
+      }
+
       // If this transaction is linked to an installment payment and amount changed, update remaining_amount
       if (originalTransaction?.installment_payment_id && updates.amount !== undefined && updates.amount !== originalAmount) {
         const amountDifference = updates.amount - originalAmount;

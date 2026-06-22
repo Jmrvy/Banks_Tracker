@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,8 @@ import type { ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import type { Transaction } from "@/hooks/useFinancialData";
 import type { CategoryData } from "@/hooks/useReportsData";
 import { IncomeCategory, extractKeywords } from "@/hooks/useIncomeAnalysis";
+import { useSpecialBudgets } from "@/hooks/useSpecialBudgets";
+import { specialBudgetTransactionAmount } from "@/lib/specialBudgetUtils";
 
 interface FlowsTabProps {
   stats: ReportsStats;
@@ -87,6 +89,32 @@ export const FlowsTab = ({
 }: FlowsTabProps) => {
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
+  const { specialBudgets } = useSpecialBudgets();
+
+  // Per-special-budget spend within the period (net of refunds, excluded-from-stats
+  // rows kept — envelopes are about real cash outflow). Used both to surface a note
+  // and to inject them into the Money Out list so totals reconcile with stats.expenses.
+  const specialBudgetBreakdown = useMemo(() => {
+    if (specialBudgets.length === 0) return [];
+    const byId = new Map<string, { name: string; color: string; amount: number; count: number }>();
+    for (const tx of filteredTransactions) {
+      if (tx.type !== 'expense' || !tx.special_budget_id) continue;
+      const sb = specialBudgets.find(b => b.id === tx.special_budget_id);
+      if (!sb) continue;
+      const amt = specialBudgetTransactionAmount(tx);
+      if (amt <= 0) continue;
+      const e = byId.get(sb.id) ?? { name: sb.name, color: sb.color || 'hsl(var(--muted-foreground))', amount: 0, count: 0 };
+      e.amount += amt;
+      e.count += 1;
+      byId.set(sb.id, e);
+    }
+    return Array.from(byId.values()).sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions, specialBudgets]);
+
+  const specialBudgetTotal = useMemo(
+    () => specialBudgetBreakdown.reduce((s, b) => s + b.amount, 0),
+    [specialBudgetBreakdown]
+  );
 
   // Projected (future) recurring occurrences, grouped by category name + type.
   // For income, real categories come from string-matching (incomeAnalysis), so we
@@ -177,9 +205,16 @@ export const FlowsTab = ({
   }, [incomeAnalysis, projectedByCategory]);
 
   const topExpenses = useMemo(() => {
-    const base = new Map<string, { name: string; color: string; amount: number; projected: number }>();
+    const base = new Map<string, { name: string; color: string; amount: number; projected: number; isSpecial?: boolean }>();
     for (const c of categoryChartData) {
       base.set(c.name, { name: c.name, color: c.color, amount: c.spent, projected: 0 });
+    }
+    // Special budgets are their own bracket in stats.expenses but excluded from
+    // categoryChartData — surface them here so the per-row list reconciles
+    // with the headline total.
+    for (const sb of specialBudgetBreakdown) {
+      const key = `__sb__${sb.name}`;
+      base.set(key, { name: sb.name, color: sb.color, amount: sb.amount, projected: 0, isSpecial: true });
     }
     for (const v of projectedByCategory.values()) {
       if (v.type !== 'expense') continue;
@@ -190,7 +225,7 @@ export const FlowsTab = ({
     return Array.from(base.values())
       .sort((a, b) => (b.amount + b.projected) - (a.amount + a.projected))
       .slice(0, 8);
-  }, [categoryChartData, projectedByCategory]);
+  }, [categoryChartData, projectedByCategory, specialBudgetBreakdown]);
 
   const totalIncome = stats.income;
   const totalExpenses = stats.expenses;
@@ -303,8 +338,19 @@ export const FlowsTab = ({
               return (
                 <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                    {c.isSpecial ? (
+                      <span aria-hidden className="grid h-3.5 w-3.5 place-items-center rounded-[4px] flex-shrink-0" style={{ backgroundColor: `${c.color}22`, color: c.color }}>
+                        <Wallet className="h-2.5 w-2.5" />
+                      </span>
+                    ) : (
+                      <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                    )}
                     <span className="truncate">{c.name}</span>
+                    {c.isSpecial && (
+                      <span className="text-[9px] uppercase tracking-[0.04em] text-fg-dim font-medium px-1 rounded bg-secondary">
+                        {t('reports.analysis.specialBudget', { defaultValue: 'Special budget' })}
+                      </span>
+                    )}
                     {c.projected > 0 && (
                       <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
                         +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
@@ -322,6 +368,19 @@ export const FlowsTab = ({
                 </div>
               );
             })}
+            {specialBudgetTotal > 0 && (
+              <div className="mt-2 pt-2 border-t border-line flex items-start gap-2 text-[10.5px] text-muted-foreground">
+                <Wallet className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <span>
+                  {t('reports.analysis.specialBudgetImpact', {
+                    defaultValue: 'Special budgets account for {{amount}} ({{pct}}%) of outflows this period across {{count}} envelope(s).',
+                    amount: formatCurrency(specialBudgetTotal),
+                    pct: totalExpenses > 0 ? ((specialBudgetTotal / totalExpenses) * 100).toFixed(1) : '0',
+                    count: specialBudgetBreakdown.length,
+                  })}
+                </span>
+              </div>
+            )}
           </CardContent>
 
         </Card>
