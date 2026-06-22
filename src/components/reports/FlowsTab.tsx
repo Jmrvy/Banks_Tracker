@@ -338,8 +338,19 @@ export const FlowsTab = ({
               return (
                 <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                    {c.isSpecial ? (
+                      <span aria-hidden className="grid h-3.5 w-3.5 place-items-center rounded-[4px] flex-shrink-0" style={{ backgroundColor: `${c.color}22`, color: c.color }}>
+                        <Wallet className="h-2.5 w-2.5" />
+                      </span>
+                    ) : (
+                      <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                    )}
                     <span className="truncate">{c.name}</span>
+                    {c.isSpecial && (
+                      <span className="text-[9px] uppercase tracking-[0.04em] text-fg-dim font-medium px-1 rounded bg-secondary">
+                        {t('reports.analysis.specialBudget', { defaultValue: 'Special budget' })}
+                      </span>
+                    )}
                     {c.projected > 0 && (
                       <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
                         +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
@@ -357,6 +368,19 @@ export const FlowsTab = ({
                 </div>
               );
             })}
+            {specialBudgetTotal > 0 && (
+              <div className="mt-2 pt-2 border-t border-line flex items-start gap-2 text-[10.5px] text-muted-foreground">
+                <Wallet className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <span>
+                  {t('reports.analysis.specialBudgetImpact', {
+                    defaultValue: 'Special budgets account for {{amount}} ({{pct}}%) of outflows this period across {{count}} envelope(s).',
+                    amount: formatCurrency(specialBudgetTotal),
+                    pct: totalExpenses > 0 ? ((specialBudgetTotal / totalExpenses) * 100).toFixed(1) : '0',
+                    count: specialBudgetBreakdown.length,
+                  })}
+                </span>
+              </div>
+            )}
           </CardContent>
 
         </Card>
