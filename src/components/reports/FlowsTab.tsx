@@ -205,9 +205,16 @@ export const FlowsTab = ({
   }, [incomeAnalysis, projectedByCategory]);
 
   const topExpenses = useMemo(() => {
-    const base = new Map<string, { name: string; color: string; amount: number; projected: number }>();
+    const base = new Map<string, { name: string; color: string; amount: number; projected: number; isSpecial?: boolean }>();
     for (const c of categoryChartData) {
       base.set(c.name, { name: c.name, color: c.color, amount: c.spent, projected: 0 });
+    }
+    // Special budgets are their own bracket in stats.expenses but excluded from
+    // categoryChartData — surface them here so the per-row list reconciles
+    // with the headline total.
+    for (const sb of specialBudgetBreakdown) {
+      const key = `__sb__${sb.name}`;
+      base.set(key, { name: sb.name, color: sb.color, amount: sb.amount, projected: 0, isSpecial: true });
     }
     for (const v of projectedByCategory.values()) {
       if (v.type !== 'expense') continue;
@@ -218,7 +225,7 @@ export const FlowsTab = ({
     return Array.from(base.values())
       .sort((a, b) => (b.amount + b.projected) - (a.amount + a.projected))
       .slice(0, 8);
-  }, [categoryChartData, projectedByCategory]);
+  }, [categoryChartData, projectedByCategory, specialBudgetBreakdown]);
 
   const totalIncome = stats.income;
   const totalExpenses = stats.expenses;
