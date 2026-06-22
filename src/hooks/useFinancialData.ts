@@ -585,31 +585,30 @@ function useFinancialDataInternal() {
       .eq('user_id', user.id);
 
     if (!error) {
-      // If this transaction IS a refund and its amount changed, sync the
-      // original transaction's refunded_amount so the net (and any stats
-      // that depend on it) stay correct.
+      // If this transaction IS a refund and its amount changed, recompute
+      // the original transaction's refunded_amount from the authoritative
+      // sum of all linked refunds in DB. This avoids any drift caused by
+      // stale local state or partial updates.
       if (
         originalTransaction?.refund_of_transaction_id &&
-        updates.amount !== undefined &&
-        updates.amount !== originalAmount
+        updates.amount !== undefined
       ) {
-        const { data: linkedOriginal, error: refFetchErr } = await supabase
+        const originalId = originalTransaction.refund_of_transaction_id;
+        const { data: allRefunds, error: refSumErr } = await supabase
           .from('transactions')
-          .select('refunded_amount')
-          .eq('id', originalTransaction.refund_of_transaction_id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (refFetchErr) console.error('Error fetching original tx for refund sync:', refFetchErr);
-        if (linkedOriginal) {
-          const currentRefunded = Number(linkedOriginal.refunded_amount || 0);
-          const delta = Number(updates.amount) - Number(originalAmount);
-          const newRefunded = Math.max(0, currentRefunded + delta);
-          await supabase
-            .from('transactions')
-            .update({ refunded_amount: newRefunded })
-            .eq('id', originalTransaction.refund_of_transaction_id)
-            .eq('user_id', user.id);
-        }
+          .select('amount')
+          .eq('refund_of_transaction_id', originalId)
+          .eq('user_id', user.id);
+        if (refSumErr) console.error('Error fetching refunds for sync:', refSumErr);
+        const newRefunded = (allRefunds || []).reduce(
+          (s, r) => s + Number(r.amount || 0),
+          0
+        );
+        await supabase
+          .from('transactions')
+          .update({ refunded_amount: Math.round(newRefunded * 100) / 100 })
+          .eq('id', originalId)
+          .eq('user_id', user.id);
       }
 
       // If this transaction is linked to an installment payment and amount changed, update remaining_amount
