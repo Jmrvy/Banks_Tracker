@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,8 @@ import type { ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import type { Transaction } from "@/hooks/useFinancialData";
 import type { CategoryData } from "@/hooks/useReportsData";
 import { IncomeCategory, extractKeywords } from "@/hooks/useIncomeAnalysis";
+import { useSpecialBudgets } from "@/hooks/useSpecialBudgets";
+import { specialBudgetTransactionAmount } from "@/lib/specialBudgetUtils";
 
 interface FlowsTabProps {
   stats: ReportsStats;
