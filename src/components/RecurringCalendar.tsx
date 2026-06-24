@@ -1522,6 +1522,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               </div>
             </div>
           )}
+          </>}
         </CardContent>
       </Card>
 
