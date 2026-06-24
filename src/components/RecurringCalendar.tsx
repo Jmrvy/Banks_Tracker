@@ -19,10 +19,11 @@ interface ScheduledDebtPayment {
   is_paid: boolean | null;
   paid_date: string | null;
 }
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears, differenceInDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, getDay, isBefore, isAfter, startOfDay, addWeeks, addQuarters, addYears, subYears, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
+import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -118,6 +119,7 @@ const getTxDate = (tx: Transaction, field: DateField): string => field === 'valu
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], installmentRecords = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
   const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const { formatCurrency, preferences } = useUserPreferences();
@@ -768,6 +770,89 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
+  const goToPreviousYear = () => setCurrentMonth(prev => subYears(prev, 1));
+  const goToNextYear = () => setCurrentMonth(prev => addYears(prev, 1));
+
+  // Year view: per-month totals for the active year.
+  // Uses the same per-occurrence amount resolution as the daily grid
+  // (installment_amount / scheduled debt payment / rt.amount) for consistency.
+  const yearMonths = useMemo(() => {
+    const advance = (d: Date, type: string) => {
+      switch (type) {
+        case 'daily': return addDays(d, 1);
+        case 'weekly': return addWeeks(d, 1);
+        case 'monthly': return addMonths(d, 1);
+        case 'quarterly': return addQuarters(d, 1);
+        case 'yearly': return addYears(d, 1);
+        default: return addMonths(d, 1);
+      }
+    };
+    const year = currentMonth.getFullYear();
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const monthDate = new Date(year, i, 1);
+      const monthEnd = endOfMonth(monthDate);
+      return { monthDate, monthStart: monthDate, monthEnd, income: 0, expense: 0, count: 0 };
+    });
+
+    for (const rt of transactions) {
+      if (!rt.is_active) continue;
+      const startDate = parseLocalDate(rt.start_date);
+      const endDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year, 11, 31);
+      if (endDate && isBefore(endDate, yearStart)) continue;
+      if (isAfter(startDate, yearEnd)) continue;
+      const effectiveType = getRecurringEffectiveType(rt, installmentPayments);
+
+      let d = startDate < yearStart ? startDate : startDate;
+      // Fast-forward roughly to year start to limit iterations.
+      if (isBefore(d, yearStart)) {
+        const rt_type = rt.recurrence_type as string;
+        let steps = 0;
+        switch (rt_type) {
+          case 'daily': steps = Math.floor((yearStart.getTime() - d.getTime()) / 86400000) - 1; break;
+          case 'weekly': steps = Math.floor((yearStart.getTime() - d.getTime()) / (7 * 86400000)) - 1; break;
+          case 'monthly': steps = (yearStart.getFullYear() - d.getFullYear()) * 12 + (yearStart.getMonth() - d.getMonth()) - 1; break;
+          case 'quarterly': steps = Math.floor(((yearStart.getFullYear() - d.getFullYear()) * 12 + (yearStart.getMonth() - d.getMonth())) / 3) - 1; break;
+          case 'yearly': steps = yearStart.getFullYear() - d.getFullYear() - 1; break;
+        }
+        if (steps > 0) {
+          switch (rt_type) {
+            case 'daily': d = addDays(d, steps); break;
+            case 'weekly': d = addWeeks(d, steps); break;
+            case 'monthly': d = addMonths(d, steps); break;
+            case 'quarterly': d = addQuarters(d, steps); break;
+            case 'yearly': d = addYears(d, steps); break;
+          }
+        }
+        let s = 0;
+        while (isBefore(d, yearStart) && s++ < 5000) d = advance(d, rt_type);
+      }
+
+      let safety = 0;
+      while (!isAfter(d, yearEnd) && safety++ < 1000) {
+        if (endDate && isAfter(d, endDate)) break;
+        if (d.getFullYear() === year) {
+          const iso = d.toISOString().substring(0, 10);
+          const amt = getRecurringDisplayAmount(rt, iso, installmentPayments, debts, scheduledDebtPayments);
+          const bucket = months[d.getMonth()];
+          if (effectiveType === 'income') bucket.income += amt;
+          else bucket.expense += amt;
+          bucket.count += 1;
+        }
+        d = advance(d, rt.recurrence_type as string);
+      }
+    }
+
+    return months;
+  }, [transactions, installmentPayments, debts, scheduledDebtPayments, currentMonth]);
+
+  const yearTotals = useMemo(() => {
+    const income = yearMonths.reduce((s, m) => s + m.income, 0);
+    const expense = yearMonths.reduce((s, m) => s + m.expense, 0);
+    return { income, expense, net: income - expense };
+  }, [yearMonths]);
+
 
   const getRecurrenceLabel = (type: string) => {
     switch (type) {
@@ -1199,54 +1284,176 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       {/* Calendar Card */}
       <Card className="bg-card border-line">
         <CardHeader className="p-3 sm:p-6">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8" aria-label="Mois précédent">
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={viewMode === 'month' ? goToPreviousMonth : goToPreviousYear}
+              className="h-8 w-8"
+              aria-label={viewMode === 'month' ? 'Mois précédent' : 'Année précédente'}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <CardTitle className="text-sm sm:text-lg font-semibold capitalize">
-              {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-            </CardTitle>
-            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8" aria-label="Mois suivant">
+            <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+              <CardTitle className="text-sm sm:text-lg font-semibold capitalize truncate">
+                {viewMode === 'month'
+                  ? format(currentMonth, 'MMMM yyyy', { locale: fr })
+                  : format(currentMonth, 'yyyy')}
+              </CardTitle>
+              <div
+                role="tablist"
+                aria-label="Vue calendrier"
+                className="inline-flex items-stretch rounded-md border border-border/60 p-0.5 bg-muted/40"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'month'}
+                  onClick={() => setViewMode('month')}
+                  className={`px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors ${
+                    viewMode === 'month' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Mois
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'year'}
+                  onClick={() => setViewMode('year')}
+                  className={`px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors ${
+                    viewMode === 'year' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Année
+                </button>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={viewMode === 'month' ? goToNextMonth : goToNextYear}
+              className="h-8 w-8"
+              aria-label={viewMode === 'month' ? 'Mois suivant' : 'Année suivante'}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-2 sm:p-6 pt-0">
-          {/* Days of week header */}
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
-            {daysOfWeek.map((day) => (
-              <div key={day} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2">
-                {day}
+          {viewMode === 'month' ? (
+            <>
+              {/* Days of week header */}
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
+                {daysOfWeek.map((day) => (
+                  <div key={day} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2">
+                    {day}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-            {calendarDays.map((day, index) => {
-              if (!day) {
-                return <div key={`empty-${index}`} className="aspect-square" />;
-              }
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+                {calendarDays.map((day, index) => {
+                  if (!day) {
+                    return <div key={`empty-${index}`} className="aspect-square" />;
+                  }
 
-              const dateKey = format(day, 'yyyy-MM-dd');
-              const dayTransactions = transactionsByDay.get(dateKey) || [];
-              const isToday = isSameDay(day, new Date());
+                  const dateKey = format(day, 'yyyy-MM-dd');
+                  const dayTransactions = transactionsByDay.get(dateKey) || [];
+                  const isToday = isSameDay(day, new Date());
 
-              return (
-                <CalendarDayCell
-                  key={dateKey}
-                  day={day}
-                  dateKey={dateKey}
-                  dayTransactions={dayTransactions}
-                  isToday={isToday}
-                  formatCurrency={formatCurrency}
-                  getEffectiveType={getEffectiveType}
-                  onDayClick={handleDayClick}
-                />
-              );
-            })}
-          </div>
+                  return (
+                    <CalendarDayCell
+                      key={dateKey}
+                      day={day}
+                      dateKey={dateKey}
+                      dayTransactions={dayTransactions}
+                      isToday={isToday}
+                      formatCurrency={formatCurrency}
+                      getEffectiveType={getEffectiveType}
+                      onDayClick={handleDayClick}
+                    />
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Year grid: 12 month tiles */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
+                {yearMonths.map((m) => {
+                  const net = m.income - m.expense;
+                  const max = Math.max(m.income, m.expense) || 1;
+                  const isCurrentMonthTile = isSameMonth(m.monthDate, new Date());
+                  return (
+                    <button
+                      key={m.monthDate.toISOString()}
+                      type="button"
+                      onClick={() => {
+                        setCurrentMonth(m.monthDate);
+                        setViewMode('month');
+                      }}
+                      className={`text-left rounded-lg border p-2.5 sm:p-3 transition-colors hover:bg-muted/40 ${
+                        isCurrentMonthTile ? 'border-primary bg-primary/5' : 'border-border/50 bg-card/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] sm:text-xs font-semibold capitalize">
+                          {format(m.monthDate, 'MMM', { locale: fr })}
+                        </span>
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground">{m.count}</span>
+                      </div>
+                      <div className="mt-1 flex h-1 rounded overflow-hidden bg-muted/40">
+                        <div className="bg-success/70" style={{ width: `${(m.income / max) * 100}%` }} />
+                        <div className="bg-destructive/70 ml-auto" style={{ width: `${(m.expense / max) * 100}%` }} />
+                      </div>
+                      <div className={`mt-1.5 text-[11px] sm:text-xs font-bold tabular-nums ${
+                        net >= 0 ? 'text-success' : 'text-destructive'
+                      }`}>
+                        {net >= 0 ? '+' : ''}{formatCurrency(net)}
+                      </div>
+                      <div className="text-[9px] sm:text-[10px] text-muted-foreground tabular-nums leading-tight">
+                        <span className="text-success">+{formatCurrency(m.income)}</span>
+                        {' · '}
+                        <span className="text-destructive">-{formatCurrency(m.expense)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
 
+              {/* Year totals */}
+              <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-3 gap-2 sm:gap-3 text-center">
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">Total {format(currentMonth, 'yyyy')}</div>
+                  <div className="text-success text-[10px] sm:text-xs font-medium mt-1">+{formatCurrency(yearTotals.income)}</div>
+                  <div className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(yearTotals.expense)}</div>
+                  <div className={`text-xs sm:text-sm font-bold ${yearTotals.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    {yearTotals.net >= 0 ? '+' : ''}{formatCurrency(yearTotals.net)}
+                  </div>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">Moyenne / mois</div>
+                  <div className="text-success text-[10px] sm:text-xs font-medium mt-1">+{formatCurrency(yearTotals.income / 12)}</div>
+                  <div className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(yearTotals.expense / 12)}</div>
+                  <div className={`text-xs sm:text-sm font-bold ${yearTotals.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    {yearTotals.net >= 0 ? '+' : ''}{formatCurrency(yearTotals.net / 12)}
+                  </div>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">Occurrences</div>
+                  <div className="text-sm sm:text-base font-bold mt-1">
+                    {yearMonths.reduce((s, m) => s + m.count, 0)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">prévues sur l'année</div>
+                </div>
+              </div>
+            </>
+          )}
+
+
+          {viewMode === 'month' && <>
           {/* Legend */}
           <div className="flex items-center justify-center gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 border-t border-border/50 flex-wrap">
             <div className="flex items-center gap-1.5">
@@ -1315,6 +1522,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               </div>
             </div>
           )}
+          </>}
         </CardContent>
       </Card>
 
