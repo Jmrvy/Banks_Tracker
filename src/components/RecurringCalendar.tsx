@@ -19,10 +19,11 @@ interface ScheduledDebtPayment {
   is_paid: boolean | null;
   paid_date: string | null;
 }
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay, addWeeks, addQuarters, addYears, differenceInDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, getDay, isBefore, isAfter, startOfDay, addWeeks, addQuarters, addYears, subYears, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
+import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
