@@ -1453,6 +1453,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           )}
 
 
+          {viewMode === 'month' && <>
           {/* Legend */}
           <div className="flex items-center justify-center gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 border-t border-border/50 flex-wrap">
             <div className="flex items-center gap-1.5">
