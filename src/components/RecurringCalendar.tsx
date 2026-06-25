@@ -775,6 +775,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     };
   }, [transactionsByDay, installmentPaymentsById]);
 
+  useEffect(() => {
+    setRecurringActualTotals(monthlySummary.totalExpense, monthlySummary.totalIncome);
+  }, [monthlySummary.totalExpense, monthlySummary.totalIncome]);
+
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
   const goToPreviousYear = () => setCurrentMonth(prev => subYears(prev, 1));
