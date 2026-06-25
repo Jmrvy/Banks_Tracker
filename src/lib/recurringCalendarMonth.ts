@@ -1,19 +1,34 @@
 import { useSyncExternalStore } from "react";
 
-// Shared "current month" between RecurringCalendar (writer) and
-// RecurringMonthlySummary (reader) so the KPI tile in "Réel" mode
-// reconciles with the calendar's footer totals.
-let currentMonth: Date = new Date();
+// Shared state between RecurringCalendar (writer) and consumers like
+// RecurringMonthlySummary so KPI tiles reconcile with the calendar.
+export interface RecurringCalendarSnapshot {
+  month: Date;
+  actualOutflow: number;
+  actualInflow: number;
+}
+
+let snapshot: RecurringCalendarSnapshot = {
+  month: new Date(),
+  actualOutflow: 0,
+  actualInflow: 0,
+};
 const listeners = new Set<() => void>();
 
 export function setRecurringCurrentMonth(d: Date) {
   if (
-    d.getFullYear() === currentMonth.getFullYear() &&
-    d.getMonth() === currentMonth.getMonth()
+    d.getFullYear() === snapshot.month.getFullYear() &&
+    d.getMonth() === snapshot.month.getMonth()
   ) {
     return;
   }
-  currentMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  snapshot = { ...snapshot, month: new Date(d.getFullYear(), d.getMonth(), 1) };
+  listeners.forEach((l) => l());
+}
+
+export function setRecurringActualTotals(outflow: number, inflow: number) {
+  if (snapshot.actualOutflow === outflow && snapshot.actualInflow === inflow) return;
+  snapshot = { ...snapshot, actualOutflow: outflow, actualInflow: inflow };
   listeners.forEach((l) => l());
 }
 
@@ -23,9 +38,9 @@ function subscribe(l: () => void) {
 }
 
 function getSnapshot() {
-  return currentMonth;
+  return snapshot;
 }
 
-export function useRecurringCurrentMonth(): Date {
+export function useRecurringCalendarSnapshot(): RecurringCalendarSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
