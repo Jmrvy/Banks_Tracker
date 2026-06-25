@@ -148,24 +148,46 @@ export function RecurringMonthlySummary() {
       count: 0,
     };
     const map = new Map<string, CategoryAgg>();
-    for (const r of rows) {
-      if (r.type !== "expense") continue;
-      const catId = r.rt.category_id;
-      const cat = catId ? categories.find((c) => c.id === catId) : null;
-      const key = cat ? cat.id : "_none";
-      const existing = map.get(key);
-      if (existing) {
-        existing.amt += r.amount;
-        existing.count += 1;
-      } else {
-        map.set(key, {
-          name: cat?.name ?? fallback.name,
-          color: cat?.color ?? fallback.color,
-          amt: r.amount,
-          count: 1,
-        });
+    if (mode === "actual") {
+      // Trust the calendar's authoritative breakdown so the by-category list
+      // reflects the same caps/skips/linked-tx logic as the calendar.
+      for (const entry of calendarSnapshot.actualBreakdown) {
+        const cat = entry.categoryId ? categories.find((c) => c.id === entry.categoryId) : null;
+        const key = entry.categoryId ?? "_none";
+        const existing = map.get(key);
+        if (existing) {
+          existing.amt += entry.amount;
+          existing.count += entry.count;
+        } else {
+          map.set(key, {
+            name: cat?.name ?? fallback.name,
+            color: cat?.color ?? fallback.color,
+            amt: entry.amount,
+            count: entry.count,
+          });
+        }
+      }
+    } else {
+      for (const r of rows) {
+        if (r.type !== "expense") continue;
+        const catId = r.rt.category_id;
+        const cat = catId ? categories.find((c) => c.id === catId) : null;
+        const key = cat ? cat.id : "_none";
+        const existing = map.get(key);
+        if (existing) {
+          existing.amt += r.amount;
+          existing.count += 1;
+        } else {
+          map.set(key, {
+            name: cat?.name ?? fallback.name,
+            color: cat?.color ?? fallback.color,
+            amt: r.amount,
+            count: 1,
+          });
+        }
       }
     }
+
     const breakdown = [...map.values()].sort((a, b) => b.amt - a.amt);
 
     const modeNote =

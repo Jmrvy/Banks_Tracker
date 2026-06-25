@@ -24,7 +24,7 @@ import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
-import { setRecurringCurrentMonth, setRecurringActualTotals } from "@/lib/recurringCalendarMonth";
+import { setRecurringCurrentMonth, setRecurringActualTotals, setRecurringActualBreakdown, type RecurringBreakdownEntry } from "@/lib/recurringCalendarMonth";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -778,6 +778,32 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   useEffect(() => {
     setRecurringActualTotals(monthlySummary.totalExpense, monthlySummary.totalIncome);
   }, [monthlySummary.totalExpense, monthlySummary.totalIncome]);
+
+  // Broadcast category breakdown (expenses only) so KPI tiles match the calendar.
+  const actualBreakdown = useMemo<RecurringBreakdownEntry[]>(() => {
+    const agg = new Map<string, { amount: number; count: number }>();
+    transactionsByDay.forEach((entries) => {
+      entries.forEach(({ transaction, displayAmount }) => {
+        if (getEffectiveType(transaction) !== 'expense') return;
+        const key = transaction.category_id ?? '_none';
+        const amount = displayAmount ?? transaction.amount;
+        const cur = agg.get(key) || { amount: 0, count: 0 };
+        cur.amount += amount;
+        cur.count += 1;
+        agg.set(key, cur);
+      });
+    });
+    return [...agg.entries()].map(([k, v]) => ({
+      categoryId: k === '_none' ? null : k,
+      amount: v.amount,
+      count: v.count,
+    }));
+  }, [transactionsByDay, getEffectiveType]);
+
+  useEffect(() => {
+    setRecurringActualBreakdown(actualBreakdown);
+  }, [actualBreakdown]);
+
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
