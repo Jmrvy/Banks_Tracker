@@ -95,9 +95,11 @@ export function RecurringMonthlySummary() {
     };
 
     // Build per-rt amount + effective type for the active mode.
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    // Use the calendar's currently displayed month so the tile reconciles
+    // with the calendar's footer totals regardless of "today".
+    const monthRef = calendarSnapshot.month;
+    const monthStart = startOfMonth(monthRef);
+    const monthEnd = endOfMonth(monthRef);
 
     type Row = { rt: RecurringTransaction; amount: number; type: "income" | "expense" };
     const rows: Row[] = [];
