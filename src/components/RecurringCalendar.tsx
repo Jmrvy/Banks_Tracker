@@ -779,6 +779,32 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     setRecurringActualTotals(monthlySummary.totalExpense, monthlySummary.totalIncome);
   }, [monthlySummary.totalExpense, monthlySummary.totalIncome]);
 
+  // Broadcast category breakdown (expenses only) so KPI tiles match the calendar.
+  const actualBreakdown = useMemo<RecurringBreakdownEntry[]>(() => {
+    const agg = new Map<string, { amount: number; count: number }>();
+    transactionsByDay.forEach((entries) => {
+      entries.forEach(({ transaction, displayAmount }) => {
+        if (getEffectiveType(transaction) !== 'expense') return;
+        const key = transaction.category_id ?? '_none';
+        const amount = displayAmount ?? transaction.amount;
+        const cur = agg.get(key) || { amount: 0, count: 0 };
+        cur.amount += amount;
+        cur.count += 1;
+        agg.set(key, cur);
+      });
+    });
+    return [...agg.entries()].map(([k, v]) => ({
+      categoryId: k === '_none' ? null : k,
+      amount: v.amount,
+      count: v.count,
+    }));
+  }, [transactionsByDay, getEffectiveType]);
+
+  useEffect(() => {
+    setRecurringActualBreakdown(actualBreakdown);
+  }, [actualBreakdown]);
+
+
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
   const goToPreviousYear = () => setCurrentMonth(prev => subYears(prev, 1));
