@@ -779,78 +779,25 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const goToNextYear = () => setCurrentMonth(prev => addYears(prev, 1));
 
   // Year view: per-month totals for the active year.
-  // Uses the same per-occurrence amount resolution as the daily grid
-  // (installment_amount / scheduled debt payment / rt.amount) for consistency.
+  // Reuses computeMonthMap so figures match the monthly view exactly.
   const yearMonths = useMemo(() => {
-    const advance = (d: Date, type: string) => {
-      switch (type) {
-        case 'daily': return addDays(d, 1);
-        case 'weekly': return addWeeks(d, 1);
-        case 'monthly': return addMonths(d, 1);
-        case 'quarterly': return addQuarters(d, 1);
-        case 'yearly': return addYears(d, 1);
-        default: return addMonths(d, 1);
-      }
-    };
     const year = currentMonth.getFullYear();
-    const months = Array.from({ length: 12 }, (_, i) => {
+    return Array.from({ length: 12 }, (_, i) => {
       const monthDate = new Date(year, i, 1);
-      const monthEnd = endOfMonth(monthDate);
-      return { monthDate, monthStart: monthDate, monthEnd, income: 0, expense: 0, count: 0 };
+      const map = computeMonthMap(monthDate);
+      let income = 0, expense = 0, count = 0;
+      map.forEach((entries) => {
+        entries.forEach(({ transaction, displayAmount }) => {
+          const amount = displayAmount ?? transaction.amount;
+          const effectiveType = getRecurringEffectiveType(transaction, installmentPayments);
+          if (effectiveType === 'income') income += amount;
+          else expense += amount;
+          count += 1;
+        });
+      });
+      return { monthDate, monthStart: monthDate, monthEnd: endOfMonth(monthDate), income, expense, count };
     });
-
-    for (const rt of transactions) {
-      if (!rt.is_active) continue;
-      const startDate = parseLocalDate(rt.start_date);
-      const endDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
-      const yearStart = new Date(year, 0, 1);
-      const yearEnd = new Date(year, 11, 31);
-      if (endDate && isBefore(endDate, yearStart)) continue;
-      if (isAfter(startDate, yearEnd)) continue;
-      const effectiveType = getRecurringEffectiveType(rt, installmentPayments);
-
-      let d = startDate < yearStart ? startDate : startDate;
-      // Fast-forward roughly to year start to limit iterations.
-      if (isBefore(d, yearStart)) {
-        const rt_type = rt.recurrence_type as string;
-        let steps = 0;
-        switch (rt_type) {
-          case 'daily': steps = Math.floor((yearStart.getTime() - d.getTime()) / 86400000) - 1; break;
-          case 'weekly': steps = Math.floor((yearStart.getTime() - d.getTime()) / (7 * 86400000)) - 1; break;
-          case 'monthly': steps = (yearStart.getFullYear() - d.getFullYear()) * 12 + (yearStart.getMonth() - d.getMonth()) - 1; break;
-          case 'quarterly': steps = Math.floor(((yearStart.getFullYear() - d.getFullYear()) * 12 + (yearStart.getMonth() - d.getMonth())) / 3) - 1; break;
-          case 'yearly': steps = yearStart.getFullYear() - d.getFullYear() - 1; break;
-        }
-        if (steps > 0) {
-          switch (rt_type) {
-            case 'daily': d = addDays(d, steps); break;
-            case 'weekly': d = addWeeks(d, steps); break;
-            case 'monthly': d = addMonths(d, steps); break;
-            case 'quarterly': d = addQuarters(d, steps); break;
-            case 'yearly': d = addYears(d, steps); break;
-          }
-        }
-        let s = 0;
-        while (isBefore(d, yearStart) && s++ < 5000) d = advance(d, rt_type);
-      }
-
-      let safety = 0;
-      while (!isAfter(d, yearEnd) && safety++ < 1000) {
-        if (endDate && isAfter(d, endDate)) break;
-        if (d.getFullYear() === year) {
-          const iso = d.toISOString().substring(0, 10);
-          const amt = getRecurringDisplayAmount(rt, iso, installmentPayments, debts, scheduledDebtPayments);
-          const bucket = months[d.getMonth()];
-          if (effectiveType === 'income') bucket.income += amt;
-          else bucket.expense += amt;
-          bucket.count += 1;
-        }
-        d = advance(d, rt.recurrence_type as string);
-      }
-    }
-
-    return months;
-  }, [transactions, installmentPayments, debts, scheduledDebtPayments, currentMonth]);
+  }, [computeMonthMap, currentMonth, installmentPayments]);
 
   const yearTotals = useMemo(() => {
     const income = yearMonths.reduce((s, m) => s + m.income, 0);
