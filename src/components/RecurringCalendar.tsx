@@ -326,8 +326,11 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     };
   }, [debtsById, debts]);
 
-  // Map transactions to their due dates within the current month
-  const transactionsByDay = useMemo(() => {
+  // Map transactions to their due dates within a given target month.
+  // Extracted as a callback so the year view can call it 12 times and
+  // aggregate results that are identical to the monthly view.
+  const computeMonthMap = useCallback((targetMonth: Date) => {
+    const currentMonth = targetMonth;
     const map = new Map<string, CalendarOccurrence[]>();
     const today = startOfDay(new Date());
     const monthStart = startOfMonth(currentMonth);
