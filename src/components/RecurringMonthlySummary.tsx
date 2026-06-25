@@ -184,7 +184,7 @@ export function RecurringMonthlySummary() {
       breakdown,
       modeNote,
     };
-  }, [recurringTransactions, categories, installmentPayments, debts, scheduledPayments, mode, t]);
+  }, [recurringTransactions, categories, installmentPayments, debts, scheduledPayments, mode, t, calendarSnapshot]);
 
   if (count === 0) return null;
 
