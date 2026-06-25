@@ -712,7 +712,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     });
 
     return map;
-  }, [transactions, currentMonth, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, recordsByPlanId, actualTransactions, resolveDebt, debtActualAmounts, debtActualByDay, scheduledDebtPaymentsByDebtMonth, debts, dateField]);
+  }, [transactions, installmentActualAmounts, installmentActualByDay, recurringActualByMonth, recurringActualByDay, installmentPaymentsById, recordsByPlanId, actualTransactions, resolveDebt, debtActualAmounts, debtActualByDay, scheduledDebtPaymentsByDebtMonth, debts]);
+
+  const transactionsByDay = useMemo(() => computeMonthMap(currentMonth), [computeMonthMap, currentMonth]);
 
   // Build the list of occurrences for the Klarna-style list below calendar
   const { upcomingOccurrences, pastOccurrences } = useMemo(() => {
