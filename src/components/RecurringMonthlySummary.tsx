@@ -78,6 +78,7 @@ export function RecurringMonthlySummary() {
   const { formatCurrency } = useUserPreferences();
 
   const [mode, setMode] = useState<Mode>("actual");
+  const calendarSnapshot = useRecurringCalendarSnapshot();
 
   const { totalOut, totalIn, count, breakdown, modeNote } = useMemo(() => {
     const active = recurringTransactions.filter((rt) => rt.is_active);
