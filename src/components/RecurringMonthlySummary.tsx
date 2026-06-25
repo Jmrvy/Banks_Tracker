@@ -7,6 +7,7 @@ import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { useRecurringCalendarSnapshot } from "@/lib/recurringCalendarMonth";
 import { cn } from "@/lib/utils";
 
 interface CategoryAgg {
