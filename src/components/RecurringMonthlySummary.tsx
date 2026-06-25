@@ -132,8 +132,14 @@ export function RecurringMonthlySummary() {
       }
     }
 
-    const totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0);
-    const totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0);
+    let totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0);
+    let totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0);
+    // In "actual" mode, trust the calendar's authoritative totals (which apply
+    // installment caps, debt caps, linked-tx skips, etc.) to avoid drift.
+    if (mode === "actual") {
+      totalOut = calendarSnapshot.actualOutflow;
+      totalIn = calendarSnapshot.actualInflow;
+    }
 
     const fallback: CategoryAgg = {
       name: t("common.uncategorized", { defaultValue: "Uncategorized" }),
