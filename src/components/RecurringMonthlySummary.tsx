@@ -7,6 +7,7 @@ import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { useRecurringCalendarSnapshot } from "@/lib/recurringCalendarMonth";
 import { cn } from "@/lib/utils";
 
 interface CategoryAgg {
@@ -77,6 +78,7 @@ export function RecurringMonthlySummary() {
   const { formatCurrency } = useUserPreferences();
 
   const [mode, setMode] = useState<Mode>("actual");
+  const calendarSnapshot = useRecurringCalendarSnapshot();
 
   const { totalOut, totalIn, count, breakdown, modeNote } = useMemo(() => {
     const active = recurringTransactions.filter((rt) => rt.is_active);
@@ -93,9 +95,11 @@ export function RecurringMonthlySummary() {
     };
 
     // Build per-rt amount + effective type for the active mode.
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    // Use the calendar's currently displayed month so the tile reconciles
+    // with the calendar's footer totals regardless of "today".
+    const monthRef = calendarSnapshot.month;
+    const monthStart = startOfMonth(monthRef);
+    const monthEnd = endOfMonth(monthRef);
 
     type Row = { rt: RecurringTransaction; amount: number; type: "income" | "expense" };
     const rows: Row[] = [];
@@ -128,8 +132,14 @@ export function RecurringMonthlySummary() {
       }
     }
 
-    const totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0);
-    const totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0);
+    let totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0);
+    let totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0);
+    // In "actual" mode, trust the calendar's authoritative totals (which apply
+    // installment caps, debt caps, linked-tx skips, etc.) to avoid drift.
+    if (mode === "actual") {
+      totalOut = calendarSnapshot.actualOutflow;
+      totalIn = calendarSnapshot.actualInflow;
+    }
 
     const fallback: CategoryAgg = {
       name: t("common.uncategorized", { defaultValue: "Uncategorized" }),
@@ -174,7 +184,7 @@ export function RecurringMonthlySummary() {
       breakdown,
       modeNote,
     };
-  }, [recurringTransactions, categories, installmentPayments, debts, scheduledPayments, mode, t]);
+  }, [recurringTransactions, categories, installmentPayments, debts, scheduledPayments, mode, t, calendarSnapshot]);
 
   if (count === 0) return null;
 

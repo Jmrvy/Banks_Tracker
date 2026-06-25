@@ -24,6 +24,7 @@ import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
+import { setRecurringCurrentMonth, setRecurringActualTotals } from "@/lib/recurringCalendarMonth";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -119,6 +120,7 @@ const getTxDate = (tx: Transaction, field: DateField): string => field === 'valu
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], installmentRecords = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
   const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  useEffect(() => { setRecurringCurrentMonth(currentMonth); }, [currentMonth]);
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -772,6 +774,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       upcomingNet: (totalIncome - pastIncome) - (totalExpense - pastExpense),
     };
   }, [transactionsByDay, installmentPaymentsById]);
+
+  useEffect(() => {
+    setRecurringActualTotals(monthlySummary.totalExpense, monthlySummary.totalIncome);
+  }, [monthlySummary.totalExpense, monthlySummary.totalIncome]);
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
