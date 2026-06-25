@@ -120,6 +120,7 @@ const getTxDate = (tx: Transaction, field: DateField): string => field === 'valu
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], installmentRecords = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
   const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  useEffect(() => { setRecurringCurrentMonth(currentMonth); }, [currentMonth]);
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
   const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
