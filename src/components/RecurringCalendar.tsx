@@ -24,6 +24,7 @@ import { fr } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
+import { setRecurringCurrentMonth } from "@/lib/recurringCalendarMonth";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
