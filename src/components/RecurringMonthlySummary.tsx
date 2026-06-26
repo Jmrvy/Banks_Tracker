@@ -83,57 +83,62 @@ export function RecurringMonthlySummary() {
   const { totalOut, totalIn, count, breakdown, modeNote } = useMemo(() => {
     const active = recurringTransactions.filter((rt) => rt.is_active);
 
-    const monthEquivAvg = (rt: RecurringTransaction): number => {
-      switch (rt.recurrence_type as string) {
-        case "daily": return rt.amount * 30;
-        case "weekly": return (rt.amount * 52) / 12;
-        case "monthly": return rt.amount;
-        case "quarterly": return rt.amount / 3;
-        case "yearly": return rt.amount / 12;
-        default: return rt.amount;
-      }
-    };
-
-    // Build per-rt amount + effective type for the active mode.
-    // Use the calendar's currently displayed month so the tile reconciles
-    // with the calendar's footer totals regardless of "today".
+    // Use the calendar's currently displayed month as reference.
     const monthRef = calendarSnapshot.month;
     const monthStart = startOfMonth(monthRef);
     const monthEnd = endOfMonth(monthRef);
 
-    type Row = { rt: RecurringTransaction; amount: number; type: "income" | "expense" };
-    const rows: Row[] = [];
-
-    for (const rt of active) {
-      const effectiveType = getRecurringEffectiveType(rt, installmentPayments ?? []);
-      if (mode === "average") {
-        rows.push({ rt, amount: monthEquivAvg(rt), type: effectiveType });
-        continue;
-      }
-      // Real-mode: walk occurrences inside [monthStart, monthEnd].
-      const startDate = parseLocalDate(rt.start_date);
-      const endDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
-      if (endDate && isBefore(endDate, monthStart)) continue;
-      let d = jumpTo(startDate, rt.recurrence_type as string, monthStart);
-      let safety = 0;
-      while (!isAfter(d, monthEnd) && safety++ < 200) {
-        if (!isBefore(d, monthStart) && (!endDate || !isAfter(d, endDate))) {
-          const iso = d.toISOString().substring(0, 10);
-          const amt = getRecurringDisplayAmount(
-            rt,
-            iso,
-            installmentPayments ?? [],
-            debts ?? [],
-            scheduledPayments ?? [],
-          );
-          rows.push({ rt, amount: amt, type: effectiveType });
+    // Walks actual occurrences of every active rule inside [winStart, winEnd]
+    // and returns per-(category, type) totals + per-type grand totals.
+    // Same engine as the calendar (real amounts via getRecurringDisplayAmount,
+    // respects start_date / end_date), so Réel and Moyenne are computed from
+    // the exact same data — Moyenne is just averaged over a 12-month window.
+    const walk = (winStart: Date, winEnd: Date) => {
+      type Row = {
+        rt: RecurringTransaction;
+        amount: number;
+        type: "income" | "expense";
+      };
+      const rows: Row[] = [];
+      for (const rt of active) {
+        const effectiveType = getRecurringEffectiveType(rt, installmentPayments ?? []);
+        const startDate = parseLocalDate(rt.start_date);
+        const endDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
+        if (endDate && isBefore(endDate, winStart)) continue;
+        let d = jumpTo(startDate, rt.recurrence_type as string, winStart);
+        let safety = 0;
+        while (!isAfter(d, winEnd) && safety++ < 5000) {
+          if (!isBefore(d, winStart) && (!endDate || !isAfter(d, endDate))) {
+            const iso = d.toISOString().substring(0, 10);
+            const amt = getRecurringDisplayAmount(
+              rt,
+              iso,
+              installmentPayments ?? [],
+              debts ?? [],
+              scheduledPayments ?? [],
+            );
+            rows.push({ rt, amount: amt, type: effectiveType });
+          }
+          d = advance(d, rt.recurrence_type as string);
         }
-        d = advance(d, rt.recurrence_type as string);
       }
+      return rows;
+    };
+
+    let rows: { rt: RecurringTransaction; amount: number; type: "income" | "expense" }[];
+    let divisor = 1;
+    if (mode === "average") {
+      // 12-month window centered on the displayed year.
+      const yearStart = new Date(monthRef.getFullYear(), 0, 1);
+      const yearEnd = new Date(monthRef.getFullYear(), 11, 31, 23, 59, 59, 999);
+      rows = walk(yearStart, yearEnd);
+      divisor = 12;
+    } else {
+      rows = walk(monthStart, monthEnd);
     }
 
-    let totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0);
-    let totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0);
+    let totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0) / divisor;
+    let totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0) / divisor;
     // In "actual" mode, trust the calendar's authoritative totals (which apply
     // installment caps, debt caps, linked-tx skips, etc.) to avoid drift.
     if (mode === "actual") {
@@ -186,6 +191,11 @@ export function RecurringMonthlySummary() {
           });
         }
       }
+      // Average per month over the 12-month window.
+      for (const entry of map.values()) {
+        entry.amt = entry.amt / divisor;
+        entry.count = entry.count / divisor;
+      }
     }
 
     const breakdown = [...map.values()].sort((a, b) => b.amt - a.amt);
@@ -196,7 +206,8 @@ export function RecurringMonthlySummary() {
             defaultValue: "Sum of occurrences this calendar month — matches the calendar.",
           })
         : t("recurring.modeAverageNote", {
-            defaultValue: "Smoothed monthly equivalent (yearly/12, quarterly/3, …).",
+            defaultValue: "Mean monthly amount over the {{year}} calendar — same engine as Réel, averaged over 12 months.",
+            year: monthRef.getFullYear(),
           });
 
     return {
