@@ -295,13 +295,13 @@ export function RecurringMonthlySummary() {
           </p>
         </div>
         <div>
-          {breakdown.slice(0, 6).map((c, i) => {
+          {breakdown.map((c, i) => {
             const pct = c.amt / totalBar;
             return (
               <div
                 key={i}
                 className={`px-5 py-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 ${
-                  i < Math.min(5, breakdown.length - 1) ? "border-b border-line" : ""
+                  i < breakdown.length - 1 ? "border-b border-line" : ""
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
