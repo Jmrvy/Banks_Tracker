@@ -66,6 +66,22 @@ export function setRecurringActualBreakdown(breakdown: RecurringBreakdownEntry[]
   listeners.forEach((l) => l());
 }
 
+export function setRecurringYearAggregates(
+  outflow: number,
+  inflow: number,
+  breakdown: RecurringBreakdownEntry[],
+  monthsCount: number,
+) {
+  if (
+    snapshot.yearOutflow === outflow &&
+    snapshot.yearInflow === inflow &&
+    snapshot.yearMonthsCount === monthsCount &&
+    breakdownEqual(snapshot.yearBreakdown, breakdown)
+  ) return;
+  snapshot = { ...snapshot, yearOutflow: outflow, yearInflow: inflow, yearBreakdown: breakdown, yearMonthsCount: monthsCount };
+  listeners.forEach((l) => l());
+}
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);
