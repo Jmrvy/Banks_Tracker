@@ -837,6 +837,37 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return { income, expense, net: income - expense };
   }, [yearMonths]);
 
+  // Per-category breakdown over the full displayed year, using the same
+  // computeMonthMap engine — consumed by RecurringMonthlySummary's "Moyenne"
+  // mode so the average matches the calendar's authoritative figures.
+  const yearBreakdown = useMemo<RecurringBreakdownEntry[]>(() => {
+    const year = currentMonth.getFullYear();
+    const agg = new Map<string, { amount: number; count: number }>();
+    for (let i = 0; i < 12; i++) {
+      const map = computeMonthMap(new Date(year, i, 1));
+      map.forEach((entries) => {
+        entries.forEach(({ transaction, displayAmount }) => {
+          if (getEffectiveType(transaction) !== 'expense') return;
+          const key = transaction.category_id ?? '_none';
+          const amount = displayAmount ?? transaction.amount;
+          const cur = agg.get(key) || { amount: 0, count: 0 };
+          cur.amount += amount;
+          cur.count += 1;
+          agg.set(key, cur);
+        });
+      });
+    }
+    return [...agg.entries()].map(([k, v]) => ({
+      categoryId: k === '_none' ? null : k,
+      amount: v.amount,
+      count: v.count,
+    }));
+  }, [computeMonthMap, currentMonth, getEffectiveType]);
+
+  useEffect(() => {
+    setRecurringYearAggregates(yearTotals.expense, yearTotals.income, yearBreakdown, 12);
+  }, [yearTotals.expense, yearTotals.income, yearBreakdown]);
+
 
   const getRecurrenceLabel = (type: string) => {
     switch (type) {
