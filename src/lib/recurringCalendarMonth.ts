@@ -13,6 +13,10 @@ export interface RecurringCalendarSnapshot {
   actualOutflow: number;
   actualInflow: number;
   actualBreakdown: RecurringBreakdownEntry[];
+  yearOutflow: number;
+  yearInflow: number;
+  yearBreakdown: RecurringBreakdownEntry[];
+  yearMonthsCount: number;
 }
 
 let snapshot: RecurringCalendarSnapshot = {
@@ -20,6 +24,10 @@ let snapshot: RecurringCalendarSnapshot = {
   actualOutflow: 0,
   actualInflow: 0,
   actualBreakdown: [],
+  yearOutflow: 0,
+  yearInflow: 0,
+  yearBreakdown: [],
+  yearMonthsCount: 12,
 };
 const listeners = new Set<() => void>();
 
