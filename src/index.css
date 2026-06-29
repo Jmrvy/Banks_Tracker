@@ -324,6 +324,9 @@
     color: hsl(var(--muted-foreground));
     font-size: 0.55em;
     font-weight: 400;
+    letter-spacing: 0;
+    margin-left: -0.08em;
+    vertical-align: baseline;
   }
 
   /* =========================================================================
