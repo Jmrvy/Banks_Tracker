@@ -1,12 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addDays, addMonths, addQuarters, addWeeks, addYears, endOfMonth, isAfter, isBefore, startOfMonth } from "date-fns";
-import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
+import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
-import { useDebts } from "@/hooks/useDebts";
-import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
-import { parseLocalDate } from "@/lib/dateUtils";
 import { useRecurringCalendarSnapshot } from "@/lib/recurringCalendarMonth";
 import { cn } from "@/lib/utils";
 
@@ -19,132 +14,29 @@ interface CategoryAgg {
 
 type Mode = "actual" | "average";
 
-function advance(d: Date, type: string): Date {
-  switch (type) {
-    case "daily": return addDays(d, 1);
-    case "weekly": return addWeeks(d, 1);
-    case "monthly": return addMonths(d, 1);
-    case "quarterly": return addQuarters(d, 1);
-    case "yearly": return addYears(d, 1);
-    default: return addMonths(d, 1);
-  }
-}
-
-/** Fast-forward to first occurrence on or after `target` without iterating one step at a time. */
-function jumpTo(startDate: Date, type: string, target: Date): Date {
-  if (!isBefore(startDate, target)) return startDate;
-  let d = startDate;
-  let steps = 0;
-  const ms = target.getTime() - startDate.getTime();
-  const dayMs = 86400000;
-  switch (type) {
-    case "daily": steps = Math.floor(ms / dayMs) - 1; break;
-    case "weekly": steps = Math.floor(ms / (7 * dayMs)) - 1; break;
-    case "monthly":
-      steps = (target.getFullYear() - startDate.getFullYear()) * 12 + (target.getMonth() - startDate.getMonth()) - 1;
-      break;
-    case "quarterly":
-      steps = Math.floor(((target.getFullYear() - startDate.getFullYear()) * 12 + (target.getMonth() - startDate.getMonth())) / 3) - 1;
-      break;
-    case "yearly":
-      steps = target.getFullYear() - startDate.getFullYear() - 1;
-      break;
-  }
-  if (steps > 0) {
-    switch (type) {
-      case "daily": d = addDays(d, steps); break;
-      case "weekly": d = addWeeks(d, steps); break;
-      case "monthly": d = addMonths(d, steps); break;
-      case "quarterly": d = addQuarters(d, steps); break;
-      case "yearly": d = addYears(d, steps); break;
-    }
-  }
-  let safety = 0;
-  while (isBefore(d, target) && safety++ < 5000) d = advance(d, type);
-  return d;
-}
-
 /**
  * Recurring monthly summary — KPI tile + stacked-segment bar + category breakdown list.
- * Toggle between "Réel ce mois-ci" (sum of occurrences actually falling in the current
- * calendar month — reconciles with the calendar's footer total) and "Moyenne mensuelle"
- * (smoothed monthly-equivalent: yearly/12, quarterly/3, weekly*52/12 …).
+ * Both modes consume the calendar's authoritative aggregates:
+ *  - "Réel": sum of occurrences in the currently displayed calendar month.
+ *  - "Moyenne": sum of occurrences across the 12 months of the displayed year, divided by 12.
+ * Same engine, same caps/skips, so the two modes diverge iff per-month amounts vary
+ * across the year for that category.
  */
 export function RecurringMonthlySummary() {
   const { t } = useTranslation();
   const { recurringTransactions, categories } = useFinancialData();
-  const { installmentPayments } = useInstallmentPayments();
-  const { debts, scheduledPayments } = useDebts();
   const { formatCurrency } = useUserPreferences();
 
   const [mode, setMode] = useState<Mode>("actual");
-  const calendarSnapshot = useRecurringCalendarSnapshot();
+  const snap = useRecurringCalendarSnapshot();
 
   const { totalOut, totalIn, count, breakdown, modeNote } = useMemo(() => {
     const active = recurringTransactions.filter((rt) => rt.is_active);
 
-    // Use the calendar's currently displayed month as reference.
-    const monthRef = calendarSnapshot.month;
-    const monthStart = startOfMonth(monthRef);
-    const monthEnd = endOfMonth(monthRef);
-
-    // Walks actual occurrences of every active rule inside [winStart, winEnd]
-    // and returns per-(category, type) totals + per-type grand totals.
-    // Same engine as the calendar (real amounts via getRecurringDisplayAmount,
-    // respects start_date / end_date), so Réel and Moyenne are computed from
-    // the exact same data — Moyenne is just averaged over a 12-month window.
-    const walk = (winStart: Date, winEnd: Date) => {
-      type Row = {
-        rt: RecurringTransaction;
-        amount: number;
-        type: "income" | "expense";
-      };
-      const rows: Row[] = [];
-      for (const rt of active) {
-        const effectiveType = getRecurringEffectiveType(rt, installmentPayments ?? []);
-        const startDate = parseLocalDate(rt.start_date);
-        const endDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
-        if (endDate && isBefore(endDate, winStart)) continue;
-        let d = jumpTo(startDate, rt.recurrence_type as string, winStart);
-        let safety = 0;
-        while (!isAfter(d, winEnd) && safety++ < 5000) {
-          if (!isBefore(d, winStart) && (!endDate || !isAfter(d, endDate))) {
-            const iso = d.toISOString().substring(0, 10);
-            const amt = getRecurringDisplayAmount(
-              rt,
-              iso,
-              installmentPayments ?? [],
-              debts ?? [],
-              scheduledPayments ?? [],
-            );
-            rows.push({ rt, amount: amt, type: effectiveType });
-          }
-          d = advance(d, rt.recurrence_type as string);
-        }
-      }
-      return rows;
-    };
-
-    let rows: { rt: RecurringTransaction; amount: number; type: "income" | "expense" }[];
-    let divisor = 1;
-    if (mode === "average") {
-      // 12-month window centered on the displayed year.
-      const yearStart = new Date(monthRef.getFullYear(), 0, 1);
-      const yearEnd = new Date(monthRef.getFullYear(), 11, 31, 23, 59, 59, 999);
-      rows = walk(yearStart, yearEnd);
-      divisor = 12;
-    } else {
-      rows = walk(monthStart, monthEnd);
-    }
-
-    let totalOut = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0) / divisor;
-    let totalIn = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0) / divisor;
-    // In "actual" mode, trust the calendar's authoritative totals (which apply
-    // installment caps, debt caps, linked-tx skips, etc.) to avoid drift.
-    if (mode === "actual") {
-      totalOut = calendarSnapshot.actualOutflow;
-      totalIn = calendarSnapshot.actualInflow;
-    }
+    const divisor = mode === "average" ? Math.max(1, snap.yearMonthsCount) : 1;
+    const sourceBreakdown = mode === "actual" ? snap.actualBreakdown : snap.yearBreakdown;
+    const totalOut = (mode === "actual" ? snap.actualOutflow : snap.yearOutflow) / divisor;
+    const totalIn = (mode === "actual" ? snap.actualInflow : snap.yearInflow) / divisor;
 
     const fallback: CategoryAgg = {
       name: t("common.uncategorized", { defaultValue: "Uncategorized" }),
@@ -153,48 +45,20 @@ export function RecurringMonthlySummary() {
       count: 0,
     };
     const map = new Map<string, CategoryAgg>();
-    if (mode === "actual") {
-      // Trust the calendar's authoritative breakdown so the by-category list
-      // reflects the same caps/skips/linked-tx logic as the calendar.
-      for (const entry of calendarSnapshot.actualBreakdown) {
-        const cat = entry.categoryId ? categories.find((c) => c.id === entry.categoryId) : null;
-        const key = entry.categoryId ?? "_none";
-        const existing = map.get(key);
-        if (existing) {
-          existing.amt += entry.amount;
-          existing.count += entry.count;
-        } else {
-          map.set(key, {
-            name: cat?.name ?? fallback.name,
-            color: cat?.color ?? fallback.color,
-            amt: entry.amount,
-            count: entry.count,
-          });
-        }
-      }
-    } else {
-      for (const r of rows) {
-        if (r.type !== "expense") continue;
-        const catId = r.rt.category_id;
-        const cat = catId ? categories.find((c) => c.id === catId) : null;
-        const key = cat ? cat.id : "_none";
-        const existing = map.get(key);
-        if (existing) {
-          existing.amt += r.amount;
-          existing.count += 1;
-        } else {
-          map.set(key, {
-            name: cat?.name ?? fallback.name,
-            color: cat?.color ?? fallback.color,
-            amt: r.amount,
-            count: 1,
-          });
-        }
-      }
-      // Average per month over the 12-month window.
-      for (const entry of map.values()) {
-        entry.amt = entry.amt / divisor;
-        entry.count = entry.count / divisor;
+    for (const entry of sourceBreakdown) {
+      const cat = entry.categoryId ? categories.find((c) => c.id === entry.categoryId) : null;
+      const key = entry.categoryId ?? "_none";
+      const existing = map.get(key);
+      if (existing) {
+        existing.amt += entry.amount / divisor;
+        existing.count += entry.count / divisor;
+      } else {
+        map.set(key, {
+          name: cat?.name ?? fallback.name,
+          color: cat?.color ?? fallback.color,
+          amt: entry.amount / divisor,
+          count: entry.count / divisor,
+        });
       }
     }
 
@@ -206,8 +70,8 @@ export function RecurringMonthlySummary() {
             defaultValue: "Sum of occurrences this calendar month — matches the calendar.",
           })
         : t("recurring.modeAverageNote", {
-            defaultValue: "Mean monthly amount over the {{year}} calendar — same engine as Réel, averaged over 12 months.",
-            year: monthRef.getFullYear(),
+            defaultValue: "Mean monthly amount across {{year}} — sum of all occurrences in the year divided by 12.",
+            year: snap.month.getFullYear(),
           });
 
     return {
@@ -217,7 +81,8 @@ export function RecurringMonthlySummary() {
       breakdown,
       modeNote,
     };
-  }, [recurringTransactions, categories, installmentPayments, debts, scheduledPayments, mode, t, calendarSnapshot]);
+  }, [recurringTransactions, categories, mode, t, snap]);
+
 
   if (count === 0) return null;
 
