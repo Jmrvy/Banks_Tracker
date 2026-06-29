@@ -100,9 +100,11 @@ export function HeroNetWorth() {
 
   const up = delta30d >= 0;
 
-  // Format the integer/cents split
-  const intPart = Math.floor(Math.max(0, total)).toLocaleString("en-US");
-  const cents = (Math.abs(total) % 1).toFixed(2).slice(2);
+  // Format the integer/cents split — preserve sign for negative net worth.
+  const isNegative = total < 0;
+  const absTotal = Math.abs(total);
+  const intPart = Math.floor(absTotal).toLocaleString("en-US");
+  const cents = (absTotal % 1).toFixed(2).slice(2);
 
   // Area chart geometry
   const height = 180;
@@ -135,8 +137,8 @@ export function HeroNetWorth() {
               <span className="live" />
               {t("dashboard.totalNetWorth", { defaultValue: "Total net worth" })}
             </div>
-            <div className={`ft-hero-value mt-3 break-words ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-              €{intPart}
+            <div className={`ft-hero-value mt-3 break-words ${isNegative ? "text-destructive" : ""} ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+              {isNegative ? "−" : ""}€{intPart}
               <span className="cents">.{cents}</span>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-[12.5px] text-muted-foreground">
