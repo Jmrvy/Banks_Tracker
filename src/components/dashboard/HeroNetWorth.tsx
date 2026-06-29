@@ -137,7 +137,7 @@ export function HeroNetWorth() {
               <span className="live" />
               {t("dashboard.totalNetWorth", { defaultValue: "Total net worth" })}
             </div>
-            <div className={`ft-hero-value mt-3 break-words ${isNegative ? "text-destructive" : ""} ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+            <div className={`ft-hero-value mt-3 break-words ${isNegative ? "is-negative text-destructive" : ""} ${isPrivacyMode ? "blur-md select-none" : ""}`}>
               {isNegative ? "−" : ""}€{intPart}
               <span className="cents">.{cents}</span>
             </div>
