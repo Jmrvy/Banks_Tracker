@@ -817,24 +817,31 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     return Array.from({ length: 12 }, (_, i) => {
       const monthDate = new Date(year, i, 1);
       const map = computeMonthMap(monthDate);
-      let income = 0, expense = 0, count = 0;
+      let income = 0, expense = 0, incomeCount = 0, expenseCount = 0, count = 0;
       map.forEach((entries) => {
         entries.forEach(({ transaction, displayAmount }) => {
           const amount = displayAmount ?? transaction.amount;
           const effectiveType = getRecurringEffectiveType(transaction, installmentPayments);
-          if (effectiveType === 'income') income += amount;
-          else expense += amount;
+          if (effectiveType === 'income') {
+            income += amount;
+            incomeCount += 1;
+          } else {
+            expense += amount;
+            expenseCount += 1;
+          }
           count += 1;
         });
       });
-      return { monthDate, monthStart: monthDate, monthEnd: endOfMonth(monthDate), income, expense, count };
+      return { monthDate, monthStart: monthDate, monthEnd: endOfMonth(monthDate), income, expense, incomeCount, expenseCount, count };
     });
   }, [computeMonthMap, currentMonth, installmentPayments]);
 
   const yearTotals = useMemo(() => {
     const income = yearMonths.reduce((s, m) => s + m.income, 0);
     const expense = yearMonths.reduce((s, m) => s + m.expense, 0);
-    return { income, expense, net: income - expense };
+    const incomeCount = yearMonths.reduce((s, m) => s + m.incomeCount, 0);
+    const expenseCount = yearMonths.reduce((s, m) => s + m.expenseCount, 0);
+    return { income, expense, net: income - expense, incomeCount, expenseCount };
   }, [yearMonths]);
 
   // Per-category breakdown over the full displayed year, using the same
@@ -865,8 +872,15 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   }, [computeMonthMap, currentMonth, getEffectiveType]);
 
   useEffect(() => {
-    setRecurringYearAggregates(yearTotals.expense, yearTotals.income, yearBreakdown, 12);
-  }, [yearTotals.expense, yearTotals.income, yearBreakdown]);
+    setRecurringYearAggregates(
+      yearTotals.expense,
+      yearTotals.income,
+      yearBreakdown,
+      12,
+      yearTotals.expenseCount,
+      yearTotals.incomeCount,
+    );
+  }, [yearTotals.expense, yearTotals.income, yearTotals.expenseCount, yearTotals.incomeCount, yearBreakdown]);
 
 
   const getRecurrenceLabel = (type: string) => {

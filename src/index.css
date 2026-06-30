@@ -329,8 +329,8 @@
     vertical-align: baseline;
   }
   .ft-hero-value.is-negative .cents {
-    color: hsl(var(--destructive));
-    opacity: 0.75;
+    color: inherit;
+    opacity: 1;
   }
 
   /* =========================================================================

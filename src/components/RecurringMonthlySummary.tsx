@@ -18,7 +18,7 @@ type Mode = "actual" | "average";
  * Recurring monthly summary — KPI tile + stacked-segment bar + category breakdown list.
  * Both modes consume the calendar's authoritative aggregates:
  *  - "Réel": sum of occurrences in the currently displayed calendar month.
- *  - "Moyenne": sum of occurrences across the 12 months of the displayed year, divided by 12.
+ *  - "Moyenne": sum of occurrences across the displayed year, divided by occurrence count.
  * Same engine, same caps/skips, so the two modes diverge iff per-month amounts vary
  * across the year for that category.
  */
@@ -33,10 +33,11 @@ export function RecurringMonthlySummary() {
   const { totalOut, totalIn, count, breakdown, modeNote } = useMemo(() => {
     const active = recurringTransactions.filter((rt) => rt.is_active);
 
-    const divisor = mode === "average" ? Math.max(1, snap.yearMonthsCount) : 1;
     const sourceBreakdown = mode === "actual" ? snap.actualBreakdown : snap.yearBreakdown;
-    const totalOut = (mode === "actual" ? snap.actualOutflow : snap.yearOutflow) / divisor;
-    const totalIn = (mode === "actual" ? snap.actualInflow : snap.yearInflow) / divisor;
+    const totalIn =
+      mode === "actual"
+        ? snap.actualInflow
+        : snap.yearInflow / Math.max(1, snap.yearInflowCount);
 
     const fallback: CategoryAgg = {
       name: t("common.uncategorized", { defaultValue: "Uncategorized" }),
@@ -48,21 +49,26 @@ export function RecurringMonthlySummary() {
     for (const entry of sourceBreakdown) {
       const cat = entry.categoryId ? categories.find((c) => c.id === entry.categoryId) : null;
       const key = entry.categoryId ?? "_none";
+      const amount = mode === "average" ? entry.amount / Math.max(1, entry.count) : entry.amount;
       const existing = map.get(key);
       if (existing) {
-        existing.amt += entry.amount / divisor;
-        existing.count += entry.count / divisor;
+        existing.amt += amount;
+        existing.count += entry.count;
       } else {
         map.set(key, {
           name: cat?.name ?? fallback.name,
           color: cat?.color ?? fallback.color,
-          amt: entry.amount / divisor,
-          count: entry.count / divisor,
+          amt: amount,
+          count: entry.count,
         });
       }
     }
 
     const breakdown = [...map.values()].sort((a, b) => b.amt - a.amt);
+    const totalOut =
+      mode === "actual"
+        ? snap.actualOutflow
+        : breakdown.reduce((sum, c) => sum + c.amt, 0);
 
     const modeNote =
       mode === "actual"
@@ -70,7 +76,7 @@ export function RecurringMonthlySummary() {
             defaultValue: "Sum of occurrences this calendar month — matches the calendar.",
           })
         : t("recurring.modeAverageNote", {
-            defaultValue: "Mean monthly amount across {{year}} — sum of all occurrences in the year divided by 12.",
+            defaultValue: "Mean occurrence amount across {{year}} — sum of occurrences divided by occurrence count.",
             year: snap.month.getFullYear(),
           });
 
