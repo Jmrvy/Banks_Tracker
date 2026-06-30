@@ -34,10 +34,6 @@ export function RecurringMonthlySummary() {
     const active = recurringTransactions.filter((rt) => rt.is_active);
 
     const sourceBreakdown = mode === "actual" ? snap.actualBreakdown : snap.yearBreakdown;
-    const totalOut =
-      mode === "actual"
-        ? snap.actualOutflow
-        : snap.yearOutflow / Math.max(1, snap.yearOutflowCount);
     const totalIn =
       mode === "actual"
         ? snap.actualInflow
@@ -69,6 +65,10 @@ export function RecurringMonthlySummary() {
     }
 
     const breakdown = [...map.values()].sort((a, b) => b.amt - a.amt);
+    const totalOut =
+      mode === "actual"
+        ? snap.actualOutflow
+        : breakdown.reduce((sum, c) => sum + c.amt, 0);
 
     const modeNote =
       mode === "actual"
