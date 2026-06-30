@@ -15,6 +15,8 @@ export interface RecurringCalendarSnapshot {
   actualBreakdown: RecurringBreakdownEntry[];
   yearOutflow: number;
   yearInflow: number;
+  yearOutflowCount: number;
+  yearInflowCount: number;
   yearBreakdown: RecurringBreakdownEntry[];
   yearMonthsCount: number;
 }
@@ -26,6 +28,8 @@ let snapshot: RecurringCalendarSnapshot = {
   actualBreakdown: [],
   yearOutflow: 0,
   yearInflow: 0,
+  yearOutflowCount: 0,
+  yearInflowCount: 0,
   yearBreakdown: [],
   yearMonthsCount: 12,
 };
@@ -71,14 +75,26 @@ export function setRecurringYearAggregates(
   inflow: number,
   breakdown: RecurringBreakdownEntry[],
   monthsCount: number,
+  outflowCount = 0,
+  inflowCount = 0,
 ) {
   if (
     snapshot.yearOutflow === outflow &&
     snapshot.yearInflow === inflow &&
+    snapshot.yearOutflowCount === outflowCount &&
+    snapshot.yearInflowCount === inflowCount &&
     snapshot.yearMonthsCount === monthsCount &&
     breakdownEqual(snapshot.yearBreakdown, breakdown)
   ) return;
-  snapshot = { ...snapshot, yearOutflow: outflow, yearInflow: inflow, yearBreakdown: breakdown, yearMonthsCount: monthsCount };
+  snapshot = {
+    ...snapshot,
+    yearOutflow: outflow,
+    yearInflow: inflow,
+    yearOutflowCount: outflowCount,
+    yearInflowCount: inflowCount,
+    yearBreakdown: breakdown,
+    yearMonthsCount: monthsCount,
+  };
   listeners.forEach((l) => l());
 }
 
