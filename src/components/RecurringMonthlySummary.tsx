@@ -49,18 +49,23 @@ export function RecurringMonthlySummary() {
     for (const entry of sourceBreakdown) {
       const cat = entry.categoryId ? categories.find((c) => c.id === entry.categoryId) : null;
       const key = entry.categoryId ?? "_none";
-      const amount = mode === "average" ? entry.amount / Math.max(1, entry.count) : entry.amount;
       const existing = map.get(key);
       if (existing) {
-        existing.amt += amount;
+        existing.amt += entry.amount;
         existing.count += entry.count;
       } else {
         map.set(key, {
           name: cat?.name ?? fallback.name,
           color: cat?.color ?? fallback.color,
-          amt: amount,
+          amt: entry.amount,
           count: entry.count,
         });
+      }
+    }
+
+    if (mode === "average") {
+      for (const agg of map.values()) {
+        agg.amt = agg.amt / Math.max(1, agg.count);
       }
     }
 
