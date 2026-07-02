@@ -100,38 +100,8 @@ const Transactions = () => {
 
   // CSV export of the currently-filtered set
   const handleExportCSV = () => {
-    const filtered = transactions.filter((tx) => {
-      if (filters.searchText) {
-        const q = filters.searchText.toLowerCase();
-        if (
-          !tx.description.toLowerCase().includes(q) &&
-          !tx.category?.name.toLowerCase().includes(q) &&
-          !tx.account?.name.toLowerCase().includes(q)
-        )
-          return false;
-      }
-      if (filters.type !== "all" && tx.type !== filters.type) return false;
-      if (filters.categoryId !== "all" && tx.category?.id !== filters.categoryId) return false;
-      if (
-        filters.accountId !== "all" &&
-        tx.account_id !== filters.accountId &&
-        tx.transfer_to_account_id !== filters.accountId
-      )
-        return false;
-      // Date range uses the active date type — `filters.dateType` pins it
-      // when the navigation specifies one (e.g. Budget → "view
-      // transactions"); otherwise fall back to the global preference so
-      // the export matches what the user sees on screen.
-      const activeDateType = filters.dateType ?? preferences.dateType;
-      const txDate = activeDateType === "value"
-        ? (tx.value_date || tx.transaction_date)
-        : tx.transaction_date;
-      if (filters.dateFrom && txDate < filters.dateFrom) return false;
-      if (filters.dateTo && txDate > filters.dateTo) return false;
-      if (filters.amountMin && Math.abs(tx.amount) < parseFloat(filters.amountMin)) return false;
-      if (filters.amountMax && Math.abs(tx.amount) > parseFloat(filters.amountMax)) return false;
-      return true;
-    });
+    const filtered = transactions.filter(matchesFilters);
+
 
     if (filtered.length === 0) {
       toast({
