@@ -53,21 +53,9 @@ const Transactions = () => {
     return count;
   }, [filters]);
 
-  // Lifetime totals for the page-head sub
-  const totals = useMemo(() => {
-    const stats = transactions.filter((tx) => tx.include_in_stats !== false);
-    const income = stats
-      .filter((tx) => tx.type === "income" && !tx.refund_of_transaction_id)
-      .reduce((s, tx) => s + tx.amount, 0);
-    const expenses = stats
-      .filter((tx) => tx.type === "expense")
-      .reduce((s, tx) => s + Math.max(0, tx.amount - (tx.refunded_amount || 0)), 0);
-    return { count: transactions.length, income, expenses };
-  }, [transactions]);
-
-  // CSV export of the currently-filtered set
-  const handleExportCSV = () => {
-    const filtered = transactions.filter((tx) => {
+  // Filter predicate — shared by totals in the page head and CSV export
+  const matchesFilters = useMemo(() => {
+    return (tx: typeof transactions[number]) => {
       if (filters.searchText) {
         const q = filters.searchText.toLowerCase();
         if (
@@ -85,10 +73,6 @@ const Transactions = () => {
         tx.transfer_to_account_id !== filters.accountId
       )
         return false;
-      // Date range uses the active date type — `filters.dateType` pins it
-      // when the navigation specifies one (e.g. Budget → "view
-      // transactions"); otherwise fall back to the global preference so
-      // the export matches what the user sees on screen.
       const activeDateType = filters.dateType ?? preferences.dateType;
       const txDate = activeDateType === "value"
         ? (tx.value_date || tx.transaction_date)
@@ -98,7 +82,26 @@ const Transactions = () => {
       if (filters.amountMin && Math.abs(tx.amount) < parseFloat(filters.amountMin)) return false;
       if (filters.amountMax && Math.abs(tx.amount) > parseFloat(filters.amountMax)) return false;
       return true;
-    });
+    };
+  }, [filters, preferences.dateType]);
+
+  // Totals reflect the active filters so the header stays in sync
+  const totals = useMemo(() => {
+    const filtered = transactions.filter(matchesFilters);
+    const stats = filtered.filter((tx) => tx.include_in_stats !== false);
+    const income = stats
+      .filter((tx) => tx.type === "income" && !tx.refund_of_transaction_id)
+      .reduce((s, tx) => s + tx.amount, 0);
+    const expenses = stats
+      .filter((tx) => tx.type === "expense")
+      .reduce((s, tx) => s + Math.max(0, tx.amount - (tx.refunded_amount || 0)), 0);
+    return { count: filtered.length, income, expenses };
+  }, [transactions, matchesFilters]);
+
+  // CSV export of the currently-filtered set
+  const handleExportCSV = () => {
+    const filtered = transactions.filter(matchesFilters);
+
 
     if (filtered.length === 0) {
       toast({
