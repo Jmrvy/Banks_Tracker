@@ -53,17 +53,50 @@ const Transactions = () => {
     return count;
   }, [filters]);
 
-  // Lifetime totals for the page-head sub
+  // Filter predicate — shared by totals in the page head and CSV export
+  const matchesFilters = useMemo(() => {
+    return (tx: typeof transactions[number]) => {
+      if (filters.searchText) {
+        const q = filters.searchText.toLowerCase();
+        if (
+          !tx.description.toLowerCase().includes(q) &&
+          !tx.category?.name.toLowerCase().includes(q) &&
+          !tx.account?.name.toLowerCase().includes(q)
+        )
+          return false;
+      }
+      if (filters.type !== "all" && tx.type !== filters.type) return false;
+      if (filters.categoryId !== "all" && tx.category?.id !== filters.categoryId) return false;
+      if (
+        filters.accountId !== "all" &&
+        tx.account_id !== filters.accountId &&
+        tx.transfer_to_account_id !== filters.accountId
+      )
+        return false;
+      const activeDateType = filters.dateType ?? preferences.dateType;
+      const txDate = activeDateType === "value"
+        ? (tx.value_date || tx.transaction_date)
+        : tx.transaction_date;
+      if (filters.dateFrom && txDate < filters.dateFrom) return false;
+      if (filters.dateTo && txDate > filters.dateTo) return false;
+      if (filters.amountMin && Math.abs(tx.amount) < parseFloat(filters.amountMin)) return false;
+      if (filters.amountMax && Math.abs(tx.amount) > parseFloat(filters.amountMax)) return false;
+      return true;
+    };
+  }, [filters, preferences.dateType]);
+
+  // Totals reflect the active filters so the header stays in sync
   const totals = useMemo(() => {
-    const stats = transactions.filter((tx) => tx.include_in_stats !== false);
+    const filtered = transactions.filter(matchesFilters);
+    const stats = filtered.filter((tx) => tx.include_in_stats !== false);
     const income = stats
       .filter((tx) => tx.type === "income" && !tx.refund_of_transaction_id)
       .reduce((s, tx) => s + tx.amount, 0);
     const expenses = stats
       .filter((tx) => tx.type === "expense")
       .reduce((s, tx) => s + Math.max(0, tx.amount - (tx.refunded_amount || 0)), 0);
-    return { count: transactions.length, income, expenses };
-  }, [transactions]);
+    return { count: filtered.length, income, expenses };
+  }, [transactions, matchesFilters]);
 
   // CSV export of the currently-filtered set
   const handleExportCSV = () => {
