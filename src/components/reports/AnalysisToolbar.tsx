@@ -1,5 +1,6 @@
-import { Clock, Calendar, CalendarCheck } from "lucide-react";
+import { Clock, Calendar, CalendarCheck, Info } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +63,26 @@ export const AnalysisToolbar = ({
       </div>
 
       <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-muted-foreground">{t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}</span>
+        <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1">
+          {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('reports.analysis.dateConventionHintLabel', { defaultValue: 'About date conventions' })}
+                className="text-fg-dim hover:text-foreground transition-colors"
+              >
+                <Info className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">
+              {t('reports.analysis.dateConventionHint', {
+                defaultValue:
+                  'Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions.',
+              })}
+            </TooltipContent>
+          </Tooltip>
+        </span>
         <Segmented
           value={dateType}
           onChange={setDateType}

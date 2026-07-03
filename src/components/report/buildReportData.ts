@@ -1,6 +1,8 @@
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import type { Locale } from 'date-fns';
-import { parseLocalDate } from '@/lib/dateUtils';
+import { parseLocalDate, getTxDate } from '@/lib/dateUtils';
+import { statsForRange, signedGlobalAmount, computeAccountDelta } from '@/lib/reportsEngine';
+import { priorPeriodRange } from '@/lib/periodUtils';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
@@ -49,8 +51,7 @@ interface BuildInputs {
 }
 
 const inStats = (t: Transaction) => t.include_in_stats !== false;
-const txDateOf = (t: Transaction, dateType: 'accounting' | 'value') =>
-  dateType === 'value' ? parseLocalDate(t.value_date || t.transaction_date) : parseLocalDate(t.transaction_date);
+const txDateOf = getTxDate;
 
 const SUBS_RE = /subscription|abonnement|streaming|spotify|netflix|apple|disney|prime/i;
 const BILLS_RE = /utilit|electric|water|internet|insurance|facture|énergie|energie|gas|phone|mobile|telecom|edf|veolia|bouygues|orange|free/i;
@@ -183,20 +184,15 @@ export function buildReportData(input: BuildInputs): ReportData {
   const balanceEnd = stats.finalBalance;
   const periodDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
 
-  // ── Prior equal-length period (month-over-month) ─────────────────
-  const spanMs = end.getTime() - start.getTime();
-  const prevEnd = new Date(start.getTime() - 1);
-  const prevStart = new Date(prevEnd.getTime() - spanMs);
-  let prevIncome = 0;
-  let prevExpenses = 0;
-  for (const t of transactions) {
-    if (!inStats(t)) continue;
-    const d = txDateOf(t, config.dateType);
-    if (d < prevStart || d > prevEnd) continue;
-    if (t.type === 'income' && !t.refund_of_transaction_id) prevIncome += Number(t.amount);
-    else if (t.type === 'expense') prevExpenses += Number(t.amount);
-  }
-  const prevNet = prevIncome - prevExpenses;
+  // ── Prior period (calendar-aware, same rules as the current stats) ──
+  // Shared with useReportsData.priorPeriod via periodUtils so the PDF's
+  // MoM figures match the on-screen comparison, and computed with the
+  // same engine rules (refund netting, include_in_stats, transfer fees).
+  const { from: prevStart, to: prevEnd } = priorPeriodRange(config.periodType, { from: start, to: end });
+  const prevPeriodStats = statsForRange(transactions, prevStart, prevEnd, config.dateType);
+  const prevIncome = prevPeriodStats.income;
+  const prevExpenses = prevPeriodStats.expenses;
+  const prevNet = prevPeriodStats.net;
   const pct = (cur: number, prev: number): number | null =>
     prev > 0 ? ((cur - prev) / prev) * 100 : null;
   const incomeMoM = pct(totalIncome, prevIncome);
@@ -284,22 +280,8 @@ export function buildReportData(input: BuildInputs): ReportData {
   // not an inference from income/expense alone (which excluded transfers).
   const periodStart = actualDates.start;
   const periodEnd = actualDates.end;
-  const accountDelta = (accId: string, from: Date | null, to: Date | null) => {
-    let d = 0;
-    for (const t of transactions) {
-      const td = txDateOf(t, config.dateType);
-      if (from && td < from) continue;
-      if (to && td > to) continue;
-      const amt = Number(t.amount);
-      if (t.account_id === accId) {
-        if (t.type === 'income') d += amt;
-        else if (t.type === 'expense') d -= amt;
-        else if (t.type === 'transfer') d -= amt + Number(t.transfer_fee || 0);
-      }
-      if (t.transfer_to_account_id === accId && t.type === 'transfer') d += amt;
-    }
-    return d;
-  };
+  const accountDelta = (accId: string, from: Date | null, to: Date | null) =>
+    computeAccountDelta(accId, transactions, from, to, config.dateType);
   const accountFlows: AccountFlow[] = accounts.map((acc) => {
     // Pure income/expense for INCOME / EXPENSES columns; transfers
     // (with fees) reported separately so they don't inflate income.
@@ -398,13 +380,10 @@ export function buildReportData(input: BuildInputs): ReportData {
   for (let i = 11; i >= 0; i--) {
     const mStart = startOfMonth(subMonths(end, i));
     const mEnd = endOfMonth(mStart);
-    let v = 0;
-    for (const t of transactions) {
-      if (t.type !== 'income' || t.refund_of_transaction_id || !inStats(t)) continue;
-      const d = txDateOf(t, config.dateType);
-      if (d >= mStart && d <= mEnd) v += Number(t.amount);
-    }
-    monthlyIncomeSeries.push({ label: format(mStart, 'MMM', { locale }), value: v });
+    monthlyIncomeSeries.push({
+      label: format(mStart, 'MMM', { locale }),
+      value: statsForRange(transactions, mStart, mEnd, config.dateType).income,
+    });
   }
   const incomeTrendStable = monthlyIncomeSeries.every((m) => m.value > 0);
 
@@ -480,8 +459,7 @@ export function buildReportData(input: BuildInputs): ReportData {
     .sort((a, b) => txDateOf(a, config.dateType).getTime() - txDateOf(b, config.dateType).getTime());
   let running = stats.initialBalance;
   const ascRows = ascending.map((tx) => {
-    const signed = tx.type === 'income' ? Number(tx.amount) : tx.type === 'expense' ? -Number(tx.amount) : 0;
-    running += signed;
+    running += signedGlobalAmount(tx);
     return { tx, date: txDateOf(tx, config.dateType), balance: running };
   });
   let augmentedLedgerRows: { tx: Transaction; date: Date; balance: number; isProjection?: boolean }[]
@@ -567,8 +545,7 @@ export function buildReportData(input: BuildInputs): ReportData {
         );
         let r = stats.initialBalance;
         const ascRowsProj = ascProj.map((tx) => {
-          const signed = tx.type === 'income' ? Number(tx.amount) : tx.type === 'expense' ? -Number(tx.amount) : 0;
-          r += signed;
+          r += signedGlobalAmount(tx);
           return { tx, date: txDateOf(tx, config.dateType), balance: r, isProjection: !!tx.isProjection };
         });
         augmentedLedgerRows = ascRowsProj.slice().reverse();

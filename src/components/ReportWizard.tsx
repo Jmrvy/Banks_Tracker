@@ -33,7 +33,7 @@ import {
   Target,
   ArrowLeftRight
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, startOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 // Heavy export libs (jspdf, jspdf-autotable, xlsx) are loaded
 // dynamically inside the export handlers to keep them out of the initial bundle.
@@ -47,7 +47,9 @@ import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { getTxDate } from "@/lib/dateUtils";
+import { resolvePeriodRange } from "@/lib/periodUtils";
+import { filterByPeriod, signedGlobalAmount } from "@/lib/reportsEngine";
 import {
   type ReportSection,
   type PageId,
@@ -130,12 +132,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const totalSteps = 3;
 
+  const { formatCurrency, preferences } = useUserPreferences();
+
   const [config, setConfig] = useState<ReportConfig>({
     format: 'pdf',
     periodType: 'month',
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date()),
-    dateType: 'accounting',
+    // Seed from the user's preference so the export shows the same
+    // numbers as the Reports page by default.
+    dateType: preferences.dateType,
     sections: DEFAULT_SECTIONS,
     includeCharts: true,
     groupByAccount: false,
@@ -219,7 +225,6 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   }, []);
   const resetDefaultPages = useCallback(() => applyPreset('standard'), [applyPreset]);
 
-  const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { installmentPayments } = useInstallmentPayments();
@@ -229,21 +234,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   // Phase 2 renders every chart natively via jsPDF; the off-screen
   // Recharts capture pipeline has been removed.
 
-  // Calculate actual date range based on period type
+  // Calculate actual date range based on period type. Bounds come from
+  // the shared periodUtils (custom periods normalized to whole days there,
+  // so noon-anchored picker dates can't exclude first-day transactions).
   const actualDates = useMemo(() => {
-    const now = new Date();
-    switch (config.periodType) {
-      case 'month':
-        return { start: startOfMonth(config.startDate), end: endOfMonth(config.startDate) };
-      case 'quarter':
-        return { start: startOfQuarter(config.startDate), end: endOfQuarter(config.startDate) };
-      case 'year':
-        return { start: startOfYear(config.startDate), end: endOfYear(config.startDate) };
-      case 'custom':
-        return { start: config.startDate, end: config.endDate };
-      default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-    }
+    const range = resolvePeriodRange(
+      config.periodType,
+      config.startDate,
+      { from: config.startDate, to: config.endDate },
+    );
+    return { start: range.from, end: range.to };
   }, [config.periodType, config.startDate, config.endDate]);
 
   const { stats, categoryChartData, balanceEvolutionData, incomeAnalysis, recurringData } = useReportsData(
@@ -256,20 +256,8 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
 
   // Filter transactions for the period
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
-      const date = config.dateType === 'value'
-        ? parseLocalDate(t.value_date || t.transaction_date)
-        : parseLocalDate(t.transaction_date);
-      return date >= actualDates.start && date <= actualDates.end;
-    }).sort((a, b) => {
-      const dateA = config.dateType === 'value'
-        ? parseLocalDate(a.value_date || a.transaction_date)
-        : parseLocalDate(a.transaction_date);
-      const dateB = config.dateType === 'value'
-        ? parseLocalDate(b.value_date || b.transaction_date)
-        : parseLocalDate(b.transaction_date);
-      return dateA.getTime() - dateB.getTime();
-    });
+    return filterByPeriod(transactions, actualDates.start, actualDates.end, config.dateType)
+      .sort((a, b) => getTxDate(a, config.dateType).getTime() - getTxDate(b, config.dateType).getTime());
   }, [transactions, actualDates, config.dateType]);
 
   // Calculate evolution data for charts
@@ -278,12 +266,9 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     let runningBalance = stats.initialBalance;
 
     return days.map(day => {
-      const dayTransactions = filteredTransactions.filter(t => {
-        const date = config.dateType === 'value'
-          ? parseLocalDate(t.value_date || t.transaction_date)
-          : parseLocalDate(t.transaction_date);
-        return isSameDay(date, day);
-      });
+      const dayTransactions = filteredTransactions.filter(t =>
+        isSameDay(getTxDate(t, config.dateType), day)
+      );
 
       const dayIncome = dayTransactions
         .filter(t => t.type === 'income')
@@ -374,45 +359,48 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     const wb = XLSX.utils.book_new();
 
     const formatNum = (n: number) => Number(n.toFixed(2));
+    // All user-visible workbook strings go through i18n (keys under
+    // reports.excel.*) so English users no longer get a French document.
+    const L = (key: string, defaultValue: string) => t(`reports.excel.${key}`, { defaultValue });
 
     // Summary sheet
     if (config.sections.includes('summary')) {
       const summaryData = [
-        ['Rapport Financier'],
-        [`Periode: ${format(actualDates.start, 'dd/MM/yyyy')} - ${format(actualDates.end, 'dd/MM/yyyy')}`],
-        [`Genere le: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`],
+        [L('title', 'Financial report')],
+        [`${L('periodLabel', 'Period')}: ${format(actualDates.start, 'dd/MM/yyyy')} - ${format(actualDates.end, 'dd/MM/yyyy')}`],
+        [`${L('generatedLabel', 'Generated on')}: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`],
         [],
-        ['Synthese'],
-        ['Revenus', formatNum(stats.income)],
-        ['Depenses', formatNum(stats.expenses)],
-        ['Solde net', formatNum(stats.netPeriodBalance)],
-        ['Solde initial', formatNum(stats.initialBalance)],
-        ['Solde final', formatNum(stats.finalBalance)],
+        [L('summaryTitle', 'Summary')],
+        [L('income', 'Income'), formatNum(stats.income)],
+        [L('expenses', 'Expenses'), formatNum(stats.expenses)],
+        [L('netBalance', 'Net balance'), formatNum(stats.netPeriodBalance)],
+        [L('initialBalance', 'Opening balance'), formatNum(stats.initialBalance)],
+        [L('finalBalance', 'Closing balance'), formatNum(stats.finalBalance)],
       ];
       const ws = XLSX.utils.aoa_to_sheet(summaryData);
       ws['!cols'] = [{ wch: 20 }, { wch: 15 }];
-      XLSX.utils.book_append_sheet(wb, ws, 'Synthese');
+      XLSX.utils.book_append_sheet(wb, ws, L('summarySheet', 'Summary'));
     }
 
     // Accounts sheet
     if (config.sections.includes('accounts')) {
       const data = [
-        ['Soldes des comptes'],
+        [L('accountsTitle', 'Account balances')],
         [],
-        ['Compte', 'Banque', 'Type', 'Solde'],
+        [L('account', 'Account'), L('bank', 'Bank'), L('type', 'Type'), L('balance', 'Balance')],
         ...accounts.map(a => [a.name, a.bank, a.account_type, formatNum(Number(a.balance))])
       ];
       const ws = XLSX.utils.aoa_to_sheet(data);
       ws['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
-      XLSX.utils.book_append_sheet(wb, ws, 'Comptes');
+      XLSX.utils.book_append_sheet(wb, ws, L('accountsSheet', 'Accounts'));
     }
 
     // Categories sheet
     if (config.sections.includes('categories')) {
       const data = [
-        ['Depenses par categorie'],
+        [L('categoriesTitle', 'Expenses by category')],
         [],
-        ['Categorie', 'Montant', 'Part (%)'],
+        [L('category', 'Category'), L('amount', 'Amount'), L('share', 'Share (%)')],
         ...categoryChartData
           .filter(c => c.spent > 0)
           .sort((a, b) => b.spent - a.spent)
@@ -424,15 +412,15 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       ];
       const ws = XLSX.utils.aoa_to_sheet(data);
       ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 12 }];
-      XLSX.utils.book_append_sheet(wb, ws, 'Categories');
+      XLSX.utils.book_append_sheet(wb, ws, L('categoriesSheet', 'Categories'));
     }
 
     // Income sheet
     if (config.sections.includes('income') && incomeAnalysis.length > 0) {
       const data = [
-        ['Revenus par categorie'],
+        [L('incomeTitle', 'Income by category')],
         [],
-        ['Source', 'Montant', 'Part (%)', 'Nombre'],
+        [L('source', 'Source'), L('amount', 'Amount'), L('share', 'Share (%)'), L('count', 'Count')],
         ...incomeAnalysis.map(i => [
           i.category,
           formatNum(i.totalAmount),
@@ -442,7 +430,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       ];
       const ws = XLSX.utils.aoa_to_sheet(data);
       ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
-      XLSX.utils.book_append_sheet(wb, ws, 'Revenus');
+      XLSX.utils.book_append_sheet(wb, ws, L('incomeSheet', 'Income'));
     }
 
     // Budgets sheet
@@ -456,11 +444,14 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         actualDates.start,
         actualDates.end,
       );
+      const statusOver = L('statusOver', 'Over budget');
+      const statusWarn = L('statusWarn', 'Warning');
+      const statusOk = L('statusOk', 'OK');
       if (budgetCats.length > 0 || specialSummaries.length > 0) {
         const data: (string | number)[][] = [
-          ['Suivi des budgets'],
+          [L('budgetsTitle', 'Budget tracking')],
           [],
-          ['Categorie', 'Depense', 'Budget', 'Restant', '% Utilise', 'Statut'],
+          [L('category', 'Category'), L('spent', 'Spent'), L('budget', 'Budget'), L('remaining', 'Remaining'), L('usedPct', '% Used'), L('status', 'Status')],
           ...budgetCats.map(c => {
             const pct = c.budget > 0 ? (c.spent / c.budget * 100) : 0;
             return [
@@ -469,17 +460,17 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
               formatNum(c.budget),
               formatNum(c.budget - c.spent),
               Number(pct.toFixed(0)),
-              pct >= 100 ? 'Depasse' : pct >= 80 ? 'Attention' : 'OK'
+              pct >= 100 ? statusOver : pct >= 80 ? statusWarn : statusOk
             ];
           })
         ];
         if (specialSummaries.length > 0) {
-          data.push([], ['Budgets speciaux'], ['Nom', 'Depense (periode)', 'Budget total', 'Restant', '% Utilise', 'Statut']);
+          data.push([], [L('specialBudgetsTitle', 'Special budgets')], [L('name', 'Name'), L('spentPeriod', 'Spent (period)'), L('totalBudget', 'Total budget'), L('remaining', 'Remaining'), L('usedPct', '% Used'), L('status', 'Status')]);
           for (const s of specialSummaries) {
             const pct = s.total > 0 ? (s.spent / s.total * 100) : 0;
             const statut = s.budget.status === 'closed'
-              ? 'Cloture'
-              : s.over ? 'Depasse' : pct >= 80 ? 'Attention' : 'OK';
+              ? L('statusClosed', 'Closed')
+              : s.over ? statusOver : pct >= 80 ? statusWarn : statusOk;
             data.push([
               s.budget.name,
               formatNum(s.spent),
@@ -492,7 +483,7 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         }
         const ws = XLSX.utils.aoa_to_sheet(data);
         ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, ws, 'Budgets');
+        XLSX.utils.book_append_sheet(wb, ws, L('budgetsSheet', 'Budgets'));
       }
     }
 
@@ -500,37 +491,35 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     if (config.sections.includes('transactions')) {
       let runningBalance = stats.initialBalance;
       const txRows = filteredTransactions.map(tx => {
-        const amount = Number(tx.amount);
-        if (tx.type === 'income') runningBalance += amount;
-        else if (tx.type === 'expense') runningBalance -= amount;
-
-        const displayDate = config.dateType === 'value'
-          ? parseLocalDate(tx.value_date || tx.transaction_date)
-          : parseLocalDate(tx.transaction_date);
+        // Transfers between own accounts are globally balance-neutral
+        // except for their fee; using the fee as the signed amount keeps
+        // the Amount column reconciling with the running Balance column.
+        const signed = signedGlobalAmount(tx);
+        runningBalance += signed;
 
         return [
-          format(displayDate, 'dd/MM/yyyy'),
+          format(getTxDate(tx, config.dateType), 'dd/MM/yyyy'),
           accounts.find(a => a.id === tx.account_id)?.name || '',
           tx.description,
           tx.category?.name || '',
           tx.type === 'income' ? t('transactions.income') : tx.type === 'expense' ? t('transactions.expense') : t('transactions.transfer'),
-          tx.type === 'expense' ? -amount : amount,
+          signed,
           formatNum(runningBalance)
         ];
       });
 
       const data = [
-        ['Transactions'],
+        [L('transactionsTitle', 'Transactions')],
         [],
-        ['Date', 'Compte', 'Description', 'Categorie', 'Type', 'Montant', 'Solde'],
+        [L('date', 'Date'), L('account', 'Account'), L('description', 'Description'), L('category', 'Category'), L('type', 'Type'), L('amount', 'Amount'), L('balance', 'Balance')],
         ...txRows
       ];
       const ws = XLSX.utils.aoa_to_sheet(data);
       ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
-      XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+      XLSX.utils.book_append_sheet(wb, ws, L('transactionsSheet', 'Transactions'));
     }
 
-    XLSX.writeFile(wb, `rapport-${format(actualDates.start, 'yyyy-MM')}.xlsx`);
+    XLSX.writeFile(wb, `${L('fileprefix', 'report')}-${format(actualDates.start, 'yyyy-MM')}.xlsx`);
   };
 
   const handleGenerate = async () => {
