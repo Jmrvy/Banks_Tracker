@@ -10,10 +10,24 @@
 > systemic root cause: the "which date do I use?" logic is re-implemented in at
 > least 8 places and they have drifted apart.
 >
-> **Status (2026-07-03):** Phase 1 is implemented on this branch — BUG-1 through
-> BUG-5 and C-1/C-2 are fixed, the shared `getTxDate`/`normalizePeriod` utilities
-> replace all duplicated date-resolution sites, and `src/lib/dateUtils.test.ts`
-> adds regression coverage (incl. the noon-boundary case). Phases 2–3 remain open.
+> **Status (2026-07-03):** Phases 1 and 2 are implemented on this branch.
+> - Phase 1: BUG-1 through BUG-5 and C-1/C-2 fixed; shared `getTxDate`/
+>   `normalizePeriod` utilities replace all duplicated date-resolution sites;
+>   `src/lib/dateUtils.test.ts` adds regression coverage (incl. noon boundary).
+> - Phase 2: pure engine extracted to `src/lib/reportsEngine.ts`
+>   (`filterByPeriod`, `computePeriodStats`, `statsForRange`,
+>   `computeInitialBalance`, `signedGlobalAmount`, `realNetChange`,
+>   `netExpenseAmount`) and consumed by `useReportsData`, `buildReportData`
+>   and the Excel generator — one implementation of every money/date rule.
+>   `src/lib/reportsEngine.test.ts` covers stats rules, date-type divergence,
+>   transfer legs/fees and the ledger↔summary reconciliation invariant.
+> - Phase 3 (partial): `ReportsStats` now also exposes `realNetChange`/
+>   `realFinalBalance` alongside the stats-rule figures (C-3); the Excel
+>   export is fully i18n'd (fr/en); `scheduledDebtPaymentInfos` typed; stale
+>   memo deps dropped (C-6).
+> - Remaining: consolidate period-selection state across
+>   PeriodContext/PeriodSelector/wizard (step 10), surface value-date
+>   semantics in the UI (step 11), per-account value-dated balances.
 
 ---
 

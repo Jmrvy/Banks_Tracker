@@ -1,6 +1,7 @@
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subQuarters, subYears, addDays, differenceInDays } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { parseLocalDate, getTxDate } from '@/lib/dateUtils';
+import { statsForRange, signedGlobalAmount } from '@/lib/reportsEngine';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
@@ -207,19 +208,12 @@ export function buildReportData(input: BuildInputs): ReportData {
       }
     }
   })();
-  let prevIncome = 0;
-  let prevExpenses = 0;
-  let prevTransferFees = 0;
-  for (const t of transactions) {
-    if (!inStats(t)) continue;
-    const d = txDateOf(t, config.dateType);
-    if (d < prevStart || d > prevEnd) continue;
-    if (t.type === 'income' && !t.refund_of_transaction_id) prevIncome += Number(t.amount);
-    // Net of refunds, like the current period's stats.expenses.
-    else if (t.type === 'expense') prevExpenses += Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
-    else if (t.type === 'transfer') prevTransferFees += Number(t.transfer_fee || 0);
-  }
-  const prevNet = prevIncome - prevExpenses - prevTransferFees;
+  // Same engine rules as the current period's stats (refund netting,
+  // include_in_stats, transfer fees) so MoM compares like with like.
+  const prevPeriodStats = statsForRange(transactions, prevStart, prevEnd, config.dateType);
+  const prevIncome = prevPeriodStats.income;
+  const prevExpenses = prevPeriodStats.expenses;
+  const prevNet = prevPeriodStats.net;
   const pct = (cur: number, prev: number): number | null =>
     prev > 0 ? ((cur - prev) / prev) * 100 : null;
   const incomeMoM = pct(totalIncome, prevIncome);
@@ -421,13 +415,10 @@ export function buildReportData(input: BuildInputs): ReportData {
   for (let i = 11; i >= 0; i--) {
     const mStart = startOfMonth(subMonths(end, i));
     const mEnd = endOfMonth(mStart);
-    let v = 0;
-    for (const t of transactions) {
-      if (t.type !== 'income' || t.refund_of_transaction_id || !inStats(t)) continue;
-      const d = txDateOf(t, config.dateType);
-      if (d >= mStart && d <= mEnd) v += Number(t.amount);
-    }
-    monthlyIncomeSeries.push({ label: format(mStart, 'MMM', { locale }), value: v });
+    monthlyIncomeSeries.push({
+      label: format(mStart, 'MMM', { locale }),
+      value: statsForRange(transactions, mStart, mEnd, config.dateType).income,
+    });
   }
   const incomeTrendStable = monthlyIncomeSeries.every((m) => m.value > 0);
 
@@ -501,16 +492,9 @@ export function buildReportData(input: BuildInputs): ReportData {
   const ascending = filteredTransactions
     .slice()
     .sort((a, b) => txDateOf(a, config.dateType).getTime() - txDateOf(b, config.dateType).getTime());
-  // Transfers between own accounts are balance-neutral globally except for
-  // their fee — omitting it made the ledger's closing row drift from the
-  // summary's final balance.
-  const signedAmount = (tx: Transaction) =>
-    tx.type === 'income' ? Number(tx.amount)
-      : tx.type === 'expense' ? -Number(tx.amount)
-      : -Number(tx.transfer_fee || 0);
   let running = stats.initialBalance;
   const ascRows = ascending.map((tx) => {
-    running += signedAmount(tx);
+    running += signedGlobalAmount(tx);
     return { tx, date: txDateOf(tx, config.dateType), balance: running };
   });
   let augmentedLedgerRows: { tx: Transaction; date: Date; balance: number; isProjection?: boolean }[]
@@ -596,7 +580,7 @@ export function buildReportData(input: BuildInputs): ReportData {
         );
         let r = stats.initialBalance;
         const ascRowsProj = ascProj.map((tx) => {
-          r += signedAmount(tx);
+          r += signedGlobalAmount(tx);
           return { tx, date: txDateOf(tx, config.dateType), balance: r, isProjection: !!tx.isProjection };
         });
         augmentedLedgerRows = ascRowsProj.slice().reverse();

@@ -2,9 +2,10 @@ import { useMemo } from "react";
 import { useFinancialData, type Transaction, type RecurringTransaction } from "@/hooks/useFinancialData";
 import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays, subMonths, subYears, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, differenceInDays, subMonths, subYears, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { parseLocalDate, getTxDate, normalizePeriod } from "@/lib/dateUtils";
+import { filterByPeriod, computePeriodStats, statsForRange, computeInitialBalance, signedGlobalAmount, realNetChange, netExpenseAmount } from "@/lib/reportsEngine";
 
 export interface ReportsPeriod {
   from: Date;
@@ -18,6 +19,13 @@ export interface ReportsStats {
   netPeriodBalance: number;
   initialBalance: number;
   finalBalance: number;
+  /** Net change of the global balance counting EVERY transaction in the
+   *  period (no include_in_stats exclusion, no refund netting) — what the
+   *  bank actually moved. Present on the main period stats only. */
+  realNetChange?: number;
+  /** initialBalance + realNetChange: the actual projected balance at the
+   *  period's end, as opposed to finalBalance which applies stats rules. */
+  realFinalBalance?: number;
 }
 
 export interface SparklinePoint {
@@ -180,103 +188,39 @@ export const useReportsData = (
 
   // Filtrage des transactions pour la période
   // Utiliser la préférence de date (comptable ou valeur)
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(transaction =>
-      isWithinInterval(getTxDate(transaction, activeDateType), { start: period.from, end: period.to })
-    );
-  }, [transactions, period, activeDateType]);
+  const filteredTransactions = useMemo(
+    () => filterByPeriod(transactions, period.from, period.to, activeDateType),
+    [transactions, period, activeDateType]
+  );
 
-  // Shared initial balance calculation (used by stats and balance evolution)
-  // O(n) approach: single pass through transactions, accumulate per-account net changes
-  const initialBalance = useMemo(() => {
-    const accountIds = new Set(accounts.map(a => a.id));
+  // Shared initial balance calculation (used by stats and balance evolution):
+  // today's account balances with everything on/after period.from reversed out.
+  const initialBalance = useMemo(
+    () => computeInitialBalance(accounts, transactions, period.from, activeDateType),
+    [accounts, transactions, period, activeDateType]
+  );
 
-    const netChangeByAccount = new Map<string, number>();
-    for (const t of transactions) {
-      if (getTxDate(t, activeDateType) < period.from) continue;
-
-      const srcId = t.account_id;
-      const dstId = t.transfer_to_account_id;
-
-      if (srcId && accountIds.has(srcId)) {
-        const prev = netChangeByAccount.get(srcId) || 0;
-        switch (t.type) {
-          case 'income':
-            netChangeByAccount.set(srcId, prev - Number(t.amount));
-            break;
-          case 'expense':
-            netChangeByAccount.set(srcId, prev + Number(t.amount));
-            break;
-          case 'transfer':
-            netChangeByAccount.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0));
-            break;
-        }
-      }
-      if (dstId && accountIds.has(dstId)) {
-        const prev = netChangeByAccount.get(dstId) || 0;
-        netChangeByAccount.set(dstId, prev - Number(t.amount));
-      }
-    }
-
-    return accounts.reduce((sum, account) => {
-      const netChange = netChangeByAccount.get(account.id) || 0;
-      return sum + Number(account.balance) + netChange;
-    }, 0);
-  }, [accounts, transactions, period, activeDateType]);
-
-  // Calculs des statistiques avec soldes initiaux
+  // Calculs des statistiques avec soldes initiaux.
+  // Stats rules (include_in_stats, refund netting) live in the shared engine;
+  // realNetChange/realFinalBalance track what the bank actually moved.
   const stats = useMemo<ReportsStats>(() => {
-    // Filtrer uniquement les transactions qui doivent être incluses dans les stats
-    const statsTransactions = filteredTransactions.filter(t => t.include_in_stats !== false);
-
-    // Income: exclude refund transactions (they're handled via net amount on expenses)
-    const income = statsTransactions
-      .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    // Expenses: use NET amount (original - refunded) so only unreimbursed portion counts
-    // If fully refunded (refunded >= amount), net is 0 (excess becomes separate income)
-    const expenses = statsTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => {
-        const refundedAmount = t.refunded_amount || 0;
-        const netAmount = Math.max(0, Number(t.amount) - refundedAmount);
-        return sum + netAmount;
-      }, 0);
-
-    const transferFees = statsTransactions
-      .filter(t => t.type === 'transfer')
-      .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
-
-    const netPeriodBalance = income - expenses - transferFees;
-    const finalBalance = initialBalance + netPeriodBalance;
-
+    const r = computePeriodStats(filteredTransactions);
+    const real = realNetChange(filteredTransactions);
     return {
-      income,
-      expenses,
-      netPeriodBalance,
+      income: r.income,
+      expenses: r.expenses,
+      netPeriodBalance: r.net,
       initialBalance,
-      finalBalance
+      finalBalance: initialBalance + r.net,
+      realNetChange: real,
+      realFinalBalance: initialBalance + real,
     };
   }, [filteredTransactions, initialBalance]);
 
   // Compute stats (income, expenses, net) for an arbitrary date range using same rules as `stats`.
   const computeStatsForRange = useMemo(() => {
-    return (start: Date, end: Date, dateType: 'accounting' | 'value' = activeDateType) => {
-      let income = 0, expenses = 0, transferFees = 0;
-      for (const t of transactions) {
-        if (!isWithinInterval(getTxDate(t, dateType), { start, end })) continue;
-        if (t.include_in_stats === false) continue;
-        if (t.type === 'income' && !t.refund_of_transaction_id) {
-          income += Number(t.amount);
-        } else if (t.type === 'expense') {
-          expenses += Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
-        } else if (t.type === 'transfer') {
-          transferFees += Number(t.transfer_fee || 0);
-        }
-      }
-      return { income, expenses, transferFees, net: income - expenses - transferFees };
-    };
+    return (start: Date, end: Date, dateType: 'accounting' | 'value' = activeDateType) =>
+      statsForRange(transactions, start, end, dateType);
   }, [transactions, activeDateType]);
 
   // Prior period: previous slot of equivalent length (month→prev month, year→prev year, custom→same span shifted back).
@@ -397,11 +341,8 @@ export const useReportsData = (
       const dateObj = parseLocalDate(dateStr);
       const dayTransactions = transactionsByDate.get(dateStr);
       
-      const dayBalance = dayTransactions.reduce((sum: number, t: Transaction) => {
-        if (t.type === 'income') return sum + Number(t.amount);
-        if (t.type === 'expense') return sum - Number(t.amount);
-        return sum - Number(t.transfer_fee || 0);
-      }, 0);
+      const dayBalance = dayTransactions.reduce(
+        (sum: number, t: Transaction) => sum + signedGlobalAmount(t), 0);
       
       runningBalance += dayBalance;
       
@@ -445,9 +386,8 @@ export const useReportsData = (
         const categoryColor = t.category?.color || '#6b7280';
         
         // Calculer le montant net (après remboursement)
-        const refundedAmount = t.refunded_amount || 0;
-        const netAmount = Math.max(0, Number(t.amount) - refundedAmount);
-        
+        const netAmount = netExpenseAmount(t);
+
         if (!acc[categoryId]) {
           acc[categoryId] = {
             name: categoryName,
@@ -837,7 +777,7 @@ export const useReportsData = (
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
       gapBalance,
     };
-  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos, debtPaymentInfos, transactions, activeDateType]);
+  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
 
   // Augment balance evolution with projections from recurringData.periodItems
   // For future periods, adjust starting balance with gapBalance (projected recurring between today and period start)
@@ -928,54 +868,23 @@ export const useReportsData = (
 
   const secondaryFilteredTransactions = useMemo(() => {
     if (!useSecondary) return filteredTransactions;
-    return transactions.filter(transaction =>
-      isWithinInterval(getTxDate(transaction, secondaryDateType), { start: period.from, end: period.to })
-    );
+    return filterByPeriod(transactions, period.from, period.to, secondaryDateType);
   }, [useSecondary, filteredTransactions, transactions, period, secondaryDateType]);
 
   const secondaryInitialBalance = useMemo(() => {
     if (!useSecondary) return initialBalance;
-    const accountIds = new Set(accounts.map(a => a.id));
-    const netChangeByAccount = new Map<string, number>();
-    for (const t of transactions) {
-      if (getTxDate(t, secondaryDateType) < period.from) continue;
-      const srcId = t.account_id;
-      const dstId = t.transfer_to_account_id;
-      if (srcId && accountIds.has(srcId)) {
-        const prev = netChangeByAccount.get(srcId) || 0;
-        switch (t.type) {
-          case 'income': netChangeByAccount.set(srcId, prev - Number(t.amount)); break;
-          case 'expense': netChangeByAccount.set(srcId, prev + Number(t.amount)); break;
-          case 'transfer': netChangeByAccount.set(srcId, prev + Number(t.amount) + Number(t.transfer_fee || 0)); break;
-        }
-      }
-      if (dstId && accountIds.has(dstId)) {
-        const prev = netChangeByAccount.get(dstId) || 0;
-        netChangeByAccount.set(dstId, prev - Number(t.amount));
-      }
-    }
-    return accounts.reduce((sum, account) => sum + Number(account.balance) + (netChangeByAccount.get(account.id) || 0), 0);
+    return computeInitialBalance(accounts, transactions, period.from, secondaryDateType);
   }, [useSecondary, initialBalance, accounts, transactions, period, secondaryDateType]);
 
   const secondaryStats = useMemo<ReportsStats>(() => {
     if (!useSecondary) return stats;
-    const statsTransactions = secondaryFilteredTransactions.filter(t => t.include_in_stats !== false);
-    const income = statsTransactions
-      .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const expenses = statsTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Math.max(0, Number(t.amount) - (t.refunded_amount || 0)), 0);
-    const transferFees = statsTransactions
-      .filter(t => t.type === 'transfer')
-      .reduce((sum, t) => sum + Number(t.transfer_fee || 0), 0);
-    const netPeriodBalance = income - expenses - transferFees;
+    const r = computePeriodStats(secondaryFilteredTransactions);
     return {
-      income,
-      expenses,
-      netPeriodBalance,
+      income: r.income,
+      expenses: r.expenses,
+      netPeriodBalance: r.net,
       initialBalance: secondaryInitialBalance,
-      finalBalance: secondaryInitialBalance + netPeriodBalance,
+      finalBalance: secondaryInitialBalance + r.net,
     };
   }, [useSecondary, stats, secondaryFilteredTransactions, secondaryInitialBalance]);
 
@@ -993,7 +902,7 @@ export const useReportsData = (
         const categoryName = t.category?.name || 'Non catégorisé';
         const categoryBudget = categoryBudgetMap.get(categoryId) || 0;
         const categoryColor = t.category?.color || '#6b7280';
-        const netAmount = Math.max(0, Number(t.amount) - (t.refunded_amount || 0));
+        const netAmount = netExpenseAmount(t);
         if (!acc[categoryId]) {
           acc[categoryId] = { name: categoryName, spent: 0, budget: Number(categoryBudget) * budgetMultiplier, color: categoryColor };
         }

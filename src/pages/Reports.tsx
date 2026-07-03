@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { Activity, ArrowLeftRight, Clock, Download } from "lucide-react";
-import { useReportsData } from "@/hooks/useReportsData";
+import { useReportsData, type ScheduledDebtPaymentInfo } from "@/hooks/useReportsData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,7 +63,7 @@ const Reports = () => {
   const debtPaymentInfos = useMemo(() =>
     debtPayments.map(dp => ({ debt_id: dp.debt_id, payment_date: dp.payment_date, amount: dp.amount })),
     [debtPayments]);
-  const [scheduledDebtPaymentInfos, setScheduledDebtPaymentInfos] = useState<any[]>([]);
+  const [scheduledDebtPaymentInfos, setScheduledDebtPaymentInfos] = useState<ScheduledDebtPaymentInfo[]>([]);
   useEffect(() => {
     const fetch = async () => {
       if (!user) return;
