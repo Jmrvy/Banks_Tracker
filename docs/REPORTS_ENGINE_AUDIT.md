@@ -25,9 +25,18 @@
 >   `realFinalBalance` alongside the stats-rule figures (C-3); the Excel
 >   export is fully i18n'd (fr/en); `scheduledDebtPaymentInfos` typed; stale
 >   memo deps dropped (C-6).
-> - Remaining: consolidate period-selection state across
->   PeriodContext/PeriodSelector/wizard (step 10), surface value-date
->   semantics in the UI (step 11), per-account value-dated balances.
+> - Step 10: period construction consolidated into `src/lib/periodUtils.ts`
+>   (`resolvePeriodRange`, `priorPeriodRange`), shared by `useReportsData`,
+>   the wizard's `actualDates` and the PDF builder's prior-period window;
+>   per-account deltas moved into the engine (`computeAccountDelta`). Both
+>   are unit-tested.
+> - Step 11: the Reports toolbar's "Date convention" control now carries an
+>   info tooltip (fr/en) explaining accounting vs value semantics and why
+>   totals near a period boundary can differ between the two.
+> - Remaining (deliberate non-goals for now): merging the dashboard's
+>   PeriodContext presets (1m/3m/ytd/1y) into periodUtils, and true
+>   per-account value-dated balances (the DB balance is accounting-dated
+>   by construction; the tooltip documents the approximation).
 
 ---
 

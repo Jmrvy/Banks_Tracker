@@ -2,10 +2,11 @@ import { useMemo } from "react";
 import { useFinancialData, type Transaction, type RecurringTransaction } from "@/hooks/useFinancialData";
 import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, differenceInDays, subMonths, subYears, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, differenceInDays, subMonths, subYears } from "date-fns";
 import { fr } from "date-fns/locale";
-import { parseLocalDate, getTxDate, normalizePeriod } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
 import { filterByPeriod, computePeriodStats, statsForRange, computeInitialBalance, signedGlobalAmount, realNetChange, netExpenseAmount } from "@/lib/reportsEngine";
+import { resolvePeriodRange, priorPeriodRange } from "@/lib/periodUtils";
 
 export interface ReportsPeriod {
   from: Date;
@@ -160,29 +161,18 @@ export const useReportsData = (
   // Use override dateType if provided, otherwise use preference
   const activeDateType = overrideDateType ?? preferences.dateType;
 
-  // Calcul de la période sélectionnée
+  // Calcul de la période sélectionnée (bounds shared via periodUtils;
+  // custom periods are normalized to whole days there, so noon-anchored
+  // picker dates can't drop first-day transactions).
   const period = useMemo<ReportsPeriod>(() => {
+    const range = resolvePeriodRange(periodType, selectedDate, dateRange);
     switch (periodType) {
       case "month":
-        return {
-          from: startOfMonth(selectedDate),
-          to: endOfMonth(selectedDate),
-          label: format(selectedDate, "MMMM yyyy", { locale: fr })
-        };
+        return { ...range, label: format(selectedDate, "MMMM yyyy", { locale: fr }) };
       case "year":
-        return {
-          from: startOfYear(selectedDate),
-          to: endOfYear(selectedDate),
-          label: format(selectedDate, "yyyy", { locale: fr })
-        };
+        return { ...range, label: format(selectedDate, "yyyy", { locale: fr }) };
       case "custom":
-        // Pickers anchor days at noon; normalize to whole days so
-        // first-day transactions (parsed at midnight) aren't dropped.
-        return normalizePeriod({
-          from: dateRange.from,
-          to: dateRange.to,
-          label: `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
-        });
+        return { ...range, label: `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}` };
     }
   }, [periodType, selectedDate, dateRange]);
 
@@ -223,25 +213,20 @@ export const useReportsData = (
       statsForRange(transactions, start, end, dateType);
   }, [transactions, activeDateType]);
 
-  // Prior period: previous slot of equivalent length (month→prev month, year→prev year, custom→same span shifted back).
+  // Prior period: previous slot of equivalent length (month→prev month,
+  // year→prev year, custom→same span shifted back). Shared via periodUtils
+  // so the PDF builder computes the exact same comparison window.
   const priorPeriod = useMemo<{ from: Date; to: Date; label: string }>(() => {
+    const range = priorPeriodRange(periodType, { from: period.from, to: period.to });
     switch (periodType) {
-      case 'month': {
-        const prev = subMonths(selectedDate, 1);
-        return { from: startOfMonth(prev), to: endOfMonth(prev), label: format(prev, 'MMMM yyyy', { locale: fr }) };
-      }
-      case 'year': {
-        const prev = subYears(selectedDate, 1);
-        return { from: startOfYear(prev), to: endOfYear(prev), label: format(prev, 'yyyy', { locale: fr }) };
-      }
-      case 'custom': {
-        const days = differenceInDays(period.to, period.from) + 1;
-        const to = addDays(period.from, -1);
-        const from = addDays(to, -(days - 1));
-        return { from, to, label: `${format(from, 'dd/MM/yy')} – ${format(to, 'dd/MM/yy')}` };
-      }
+      case 'month':
+        return { ...range, label: format(range.from, 'MMMM yyyy', { locale: fr }) };
+      case 'year':
+        return { ...range, label: format(range.from, 'yyyy', { locale: fr }) };
+      case 'custom':
+        return { ...range, label: `${format(range.from, 'dd/MM/yy')} – ${format(range.to, 'dd/MM/yy')}` };
     }
-  }, [periodType, selectedDate, period]);
+  }, [periodType, period]);
 
   const priorStats = useMemo<ReportsStats>(() => {
     const r = computeStatsForRange(priorPeriod.from, priorPeriod.to);

@@ -490,7 +490,9 @@
       "upcomingByDay": "À venir, par jour",
       "items": "éléments",
       "priorOverlay": "Afficher période précédente",
-      "priorOverlayHide": "Masquer période précédente"
+      "priorOverlayHide": "Masquer période précédente",
+      "dateConventionHintLabel": "À propos des conventions de date",
+      "dateConventionHint": "Comptable : date d'enregistrement de la transaction. Valeur : date de règlement par la banque (repli sur la date comptable si absente). Les soldes des comptes sont toujours en date comptable ; la vue en date de valeur redistribue les flux autour des bornes de période — les totaux proches d'une borne peuvent différer entre les deux conventions."
     },
     "title": "Rapports",
     "generate": "Générer",

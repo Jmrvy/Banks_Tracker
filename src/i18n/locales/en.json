@@ -490,7 +490,9 @@
       "upcomingByDay": "Coming up, by day",
       "items": "items",
       "priorOverlay": "Show prior period",
-      "priorOverlayHide": "Hide prior period"
+      "priorOverlayHide": "Hide prior period",
+      "dateConventionHintLabel": "About date conventions",
+      "dateConventionHint": "Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions."
     },
     "title": "Reports",
     "generate": "Generate",

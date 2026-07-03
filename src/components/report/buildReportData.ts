@@ -1,7 +1,8 @@
-import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subQuarters, subYears, addDays, differenceInDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { parseLocalDate, getTxDate } from '@/lib/dateUtils';
-import { statsForRange, signedGlobalAmount } from '@/lib/reportsEngine';
+import { statsForRange, signedGlobalAmount, computeAccountDelta } from '@/lib/reportsEngine';
+import { priorPeriodRange } from '@/lib/periodUtils';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
@@ -184,32 +185,10 @@ export function buildReportData(input: BuildInputs): ReportData {
   const periodDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
 
   // ── Prior period (calendar-aware, same rules as the current stats) ──
-  // Month/quarter/year step back one calendar unit; custom shifts back by
-  // the same day span. Mirrors useReportsData.priorPeriod so the PDF's MoM
-  // figures match the on-screen comparison.
-  const { prevStart, prevEnd } = (() => {
-    switch (config.periodType) {
-      case 'month': {
-        const ref = subMonths(start, 1);
-        return { prevStart: startOfMonth(ref), prevEnd: endOfMonth(ref) };
-      }
-      case 'quarter': {
-        const ref = subQuarters(start, 1);
-        return { prevStart: startOfQuarter(ref), prevEnd: endOfQuarter(ref) };
-      }
-      case 'year': {
-        const ref = subYears(start, 1);
-        return { prevStart: startOfYear(ref), prevEnd: endOfYear(ref) };
-      }
-      default: {
-        const days = differenceInDays(end, start) + 1;
-        const pEnd = addDays(start, -1);
-        return { prevStart: addDays(pEnd, -(days - 1)), prevEnd: pEnd };
-      }
-    }
-  })();
-  // Same engine rules as the current period's stats (refund netting,
-  // include_in_stats, transfer fees) so MoM compares like with like.
+  // Shared with useReportsData.priorPeriod via periodUtils so the PDF's
+  // MoM figures match the on-screen comparison, and computed with the
+  // same engine rules (refund netting, include_in_stats, transfer fees).
+  const { from: prevStart, to: prevEnd } = priorPeriodRange(config.periodType, { from: start, to: end });
   const prevPeriodStats = statsForRange(transactions, prevStart, prevEnd, config.dateType);
   const prevIncome = prevPeriodStats.income;
   const prevExpenses = prevPeriodStats.expenses;
@@ -301,22 +280,8 @@ export function buildReportData(input: BuildInputs): ReportData {
   // not an inference from income/expense alone (which excluded transfers).
   const periodStart = actualDates.start;
   const periodEnd = actualDates.end;
-  const accountDelta = (accId: string, from: Date | null, to: Date | null) => {
-    let d = 0;
-    for (const t of transactions) {
-      const td = txDateOf(t, config.dateType);
-      if (from && td < from) continue;
-      if (to && td > to) continue;
-      const amt = Number(t.amount);
-      if (t.account_id === accId) {
-        if (t.type === 'income') d += amt;
-        else if (t.type === 'expense') d -= amt;
-        else if (t.type === 'transfer') d -= amt + Number(t.transfer_fee || 0);
-      }
-      if (t.transfer_to_account_id === accId && t.type === 'transfer') d += amt;
-    }
-    return d;
-  };
+  const accountDelta = (accId: string, from: Date | null, to: Date | null) =>
+    computeAccountDelta(accId, transactions, from, to, config.dateType);
   const accountFlows: AccountFlow[] = accounts.map((acc) => {
     // Pure income/expense for INCOME / EXPENSES columns; transfers
     // (with fees) reported separately so they don't inflate income.

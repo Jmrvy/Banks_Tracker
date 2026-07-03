@@ -4,6 +4,7 @@ import {
   computePeriodStats,
   statsForRange,
   computeInitialBalance,
+  computeAccountDelta,
   signedGlobalAmount,
   realNetChange,
   netExpenseAmount,
@@ -124,6 +125,37 @@ describe('computeInitialBalance', () => {
     // Accounting: before period → not reversed. Value: inside → reversed.
     expect(computeInitialBalance(accounts, txs, PERIOD.from, 'accounting')).toBe(1500);
     expect(computeInitialBalance(accounts, txs, PERIOD.from, 'value')).toBe(1300);
+  });
+});
+
+describe('computeAccountDelta', () => {
+  const txs = [
+    tx({ amount: 100, type: 'income', transaction_date: '2026-06-05', account_id: 'A' }),
+    tx({ amount: 40, type: 'expense', transaction_date: '2026-06-10', account_id: 'A' }),
+    tx({ amount: 200, type: 'transfer', transaction_date: '2026-06-15', account_id: 'A', transfer_to_account_id: 'B', transfer_fee: 3 }),
+    tx({ amount: 70, type: 'income', transaction_date: '2026-07-01', account_id: 'A' }), // outside window
+  ];
+
+  it('sums income/expense and the outgoing transfer leg with fee', () => {
+    expect(computeAccountDelta('A', txs, PERIOD.from, PERIOD.to, 'accounting')).toBe(100 - 40 - 203);
+  });
+
+  it('credits the incoming transfer leg without the fee', () => {
+    expect(computeAccountDelta('B', txs, PERIOD.from, PERIOD.to, 'accounting')).toBe(200);
+  });
+
+  it('null bounds mean unbounded', () => {
+    expect(computeAccountDelta('A', txs, null, null, 'accounting')).toBe(100 - 40 - 203 + 70);
+    expect(computeAccountDelta('A', txs, PERIOD.from, null, 'accounting')).toBe(100 - 40 - 203 + 70);
+  });
+
+  it('agrees with computeInitialBalance: balance − Δ(from, ∞) per account', () => {
+    const accounts = [{ id: 'A', balance: 1000 }, { id: 'B', balance: 500 }];
+    const viaDelta = accounts.reduce(
+      (sum, a) => sum + Number(a.balance) - computeAccountDelta(a.id, txs, PERIOD.from, null, 'accounting'),
+      0,
+    );
+    expect(viaDelta).toBeCloseTo(computeInitialBalance(accounts, txs, PERIOD.from, 'accounting'), 10);
   });
 });
 

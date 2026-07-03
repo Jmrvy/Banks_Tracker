@@ -93,6 +93,32 @@ export const statsForRange = (
 export const realNetChange = (txs: EngineTx[]): number =>
   txs.reduce((sum, t) => sum + signedGlobalAmount(t), 0);
 
+/** Net balance change of ONE account over [from, to] (null = unbounded),
+ *  counting both transfer legs and fees the same way the DB's
+ *  update_account_balance trigger does. */
+export const computeAccountDelta = (
+  accountId: string,
+  txs: EngineTx[],
+  from: Date | null,
+  to: Date | null,
+  dateType: TxDateType,
+): number => {
+  let delta = 0;
+  for (const t of txs) {
+    const td = getTxDate(t, dateType);
+    if (from && td < from) continue;
+    if (to && td > to) continue;
+    const amt = Number(t.amount);
+    if (t.account_id === accountId) {
+      if (t.type === 'income') delta += amt;
+      else if (t.type === 'expense') delta -= amt;
+      else if (t.type === 'transfer') delta -= amt + Number(t.transfer_fee || 0);
+    }
+    if (t.transfer_to_account_id === accountId && t.type === 'transfer') delta += amt;
+  }
+  return delta;
+};
+
 /** Global balance at the START of the period: today's account balances
  *  with every transaction dated on/after periodFrom reversed out.
  *  Uses ALL transactions (account balances don't know about

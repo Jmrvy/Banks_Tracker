@@ -33,7 +33,7 @@ import {
   Target,
   ArrowLeftRight
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay, startOfDay, endOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, startOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 // Heavy export libs (jspdf, jspdf-autotable, xlsx) are loaded
 // dynamically inside the export handlers to keep them out of the initial bundle.
@@ -48,6 +48,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { getTxDate } from "@/lib/dateUtils";
+import { resolvePeriodRange } from "@/lib/periodUtils";
 import { filterByPeriod, signedGlobalAmount } from "@/lib/reportsEngine";
 import {
   type ReportSection,
@@ -233,23 +234,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   // Phase 2 renders every chart natively via jsPDF; the off-screen
   // Recharts capture pipeline has been removed.
 
-  // Calculate actual date range based on period type
+  // Calculate actual date range based on period type. Bounds come from
+  // the shared periodUtils (custom periods normalized to whole days there,
+  // so noon-anchored picker dates can't exclude first-day transactions).
   const actualDates = useMemo(() => {
-    const now = new Date();
-    switch (config.periodType) {
-      case 'month':
-        return { start: startOfMonth(config.startDate), end: endOfMonth(config.startDate) };
-      case 'quarter':
-        return { start: startOfQuarter(config.startDate), end: endOfQuarter(config.startDate) };
-      case 'year':
-        return { start: startOfYear(config.startDate), end: endOfYear(config.startDate) };
-      case 'custom':
-        // Pickers anchor picked days at noon; normalize to whole days so
-        // first-day transactions (parsed at midnight) aren't excluded.
-        return { start: startOfDay(config.startDate), end: endOfDay(config.endDate) };
-      default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-    }
+    const range = resolvePeriodRange(
+      config.periodType,
+      config.startDate,
+      { from: config.startDate, to: config.endDate },
+    );
+    return { start: range.from, end: range.to };
   }, [config.periodType, config.startDate, config.endDate]);
 
   const { stats, categoryChartData, balanceEvolutionData, incomeAnalysis, recurringData } = useReportsData(
