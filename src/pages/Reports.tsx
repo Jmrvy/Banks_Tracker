@@ -19,7 +19,8 @@ import { ReportWizard } from "@/components/ReportWizard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { Transaction } from "@/hooks/useFinancialData";
 
 const Reports = () => {
@@ -38,16 +39,8 @@ const Reports = () => {
 
   // Page-level toolbar state (hoisted out of tabs)
   const [includeUpcoming, setIncludeUpcoming] = useState(false);
-  const [dateType, setDateType] = useState<'accounting' | 'value'>(() => {
-    try {
-      const saved = localStorage.getItem('userPreferences');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.dateType === 'value') return 'value';
-      }
-    } catch { /* ignore */ }
-    return 'accounting';
-  });
+  const { preferences } = useUserPreferences();
+  const [dateType, setDateType] = useState<'accounting' | 'value'>(preferences.dateType);
   const [compareTo, setCompareTo] = useState<'prior' | '3mo' | 'yearAgo'>('prior');
 
   const { installmentPayments } = useInstallmentPayments();
@@ -226,11 +219,7 @@ const Reports = () => {
       ? [...realTransactions, ...projectedTransactions.filter(tx => tx.type === 'income')]
       : realTransactions;
 
-    return [...combined].sort((a, b) => {
-      const dateA = dateType === 'value' ? (a.value_date || a.transaction_date) : a.transaction_date;
-      const dateB = dateType === 'value' ? (b.value_date || b.transaction_date) : b.transaction_date;
-      return parseLocalDate(dateB).getTime() - parseLocalDate(dateA).getTime();
-    });
+    return [...combined].sort((a, b) => getTxDate(b, dateType).getTime() - getTxDate(a, dateType).getTime());
   }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
 
   const expenseModalTransactions = useMemo(() => {
@@ -239,11 +228,7 @@ const Reports = () => {
       ? [...realTransactions, ...projectedTransactions.filter(tx => tx.type === 'expense')]
       : realTransactions;
 
-    return [...combined].sort((a, b) => {
-      const dateA = dateType === 'value' ? (a.value_date || a.transaction_date) : a.transaction_date;
-      const dateB = dateType === 'value' ? (b.value_date || b.transaction_date) : b.transaction_date;
-      return parseLocalDate(dateB).getTime() - parseLocalDate(dateA).getTime();
-    });
+    return [...combined].sort((a, b) => getTxDate(b, dateType).getTime() - getTxDate(a, dateType).getTime());
   }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
 
 

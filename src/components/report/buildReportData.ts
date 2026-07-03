@@ -1,6 +1,6 @@
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subQuarters, subYears, addDays, differenceInDays } from 'date-fns';
 import type { Locale } from 'date-fns';
-import { parseLocalDate } from '@/lib/dateUtils';
+import { parseLocalDate, getTxDate } from '@/lib/dateUtils';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
 import type { IncomeCategory } from '@/hooks/useIncomeAnalysis';
@@ -49,8 +49,7 @@ interface BuildInputs {
 }
 
 const inStats = (t: Transaction) => t.include_in_stats !== false;
-const txDateOf = (t: Transaction, dateType: 'accounting' | 'value') =>
-  dateType === 'value' ? parseLocalDate(t.value_date || t.transaction_date) : parseLocalDate(t.transaction_date);
+const txDateOf = getTxDate;
 
 const SUBS_RE = /subscription|abonnement|streaming|spotify|netflix|apple|disney|prime/i;
 const BILLS_RE = /utilit|electric|water|internet|insurance|facture|énergie|energie|gas|phone|mobile|telecom|edf|veolia|bouygues|orange|free/i;
@@ -183,20 +182,44 @@ export function buildReportData(input: BuildInputs): ReportData {
   const balanceEnd = stats.finalBalance;
   const periodDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
 
-  // ── Prior equal-length period (month-over-month) ─────────────────
-  const spanMs = end.getTime() - start.getTime();
-  const prevEnd = new Date(start.getTime() - 1);
-  const prevStart = new Date(prevEnd.getTime() - spanMs);
+  // ── Prior period (calendar-aware, same rules as the current stats) ──
+  // Month/quarter/year step back one calendar unit; custom shifts back by
+  // the same day span. Mirrors useReportsData.priorPeriod so the PDF's MoM
+  // figures match the on-screen comparison.
+  const { prevStart, prevEnd } = (() => {
+    switch (config.periodType) {
+      case 'month': {
+        const ref = subMonths(start, 1);
+        return { prevStart: startOfMonth(ref), prevEnd: endOfMonth(ref) };
+      }
+      case 'quarter': {
+        const ref = subQuarters(start, 1);
+        return { prevStart: startOfQuarter(ref), prevEnd: endOfQuarter(ref) };
+      }
+      case 'year': {
+        const ref = subYears(start, 1);
+        return { prevStart: startOfYear(ref), prevEnd: endOfYear(ref) };
+      }
+      default: {
+        const days = differenceInDays(end, start) + 1;
+        const pEnd = addDays(start, -1);
+        return { prevStart: addDays(pEnd, -(days - 1)), prevEnd: pEnd };
+      }
+    }
+  })();
   let prevIncome = 0;
   let prevExpenses = 0;
+  let prevTransferFees = 0;
   for (const t of transactions) {
     if (!inStats(t)) continue;
     const d = txDateOf(t, config.dateType);
     if (d < prevStart || d > prevEnd) continue;
     if (t.type === 'income' && !t.refund_of_transaction_id) prevIncome += Number(t.amount);
-    else if (t.type === 'expense') prevExpenses += Number(t.amount);
+    // Net of refunds, like the current period's stats.expenses.
+    else if (t.type === 'expense') prevExpenses += Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
+    else if (t.type === 'transfer') prevTransferFees += Number(t.transfer_fee || 0);
   }
-  const prevNet = prevIncome - prevExpenses;
+  const prevNet = prevIncome - prevExpenses - prevTransferFees;
   const pct = (cur: number, prev: number): number | null =>
     prev > 0 ? ((cur - prev) / prev) * 100 : null;
   const incomeMoM = pct(totalIncome, prevIncome);
@@ -478,10 +501,16 @@ export function buildReportData(input: BuildInputs): ReportData {
   const ascending = filteredTransactions
     .slice()
     .sort((a, b) => txDateOf(a, config.dateType).getTime() - txDateOf(b, config.dateType).getTime());
+  // Transfers between own accounts are balance-neutral globally except for
+  // their fee — omitting it made the ledger's closing row drift from the
+  // summary's final balance.
+  const signedAmount = (tx: Transaction) =>
+    tx.type === 'income' ? Number(tx.amount)
+      : tx.type === 'expense' ? -Number(tx.amount)
+      : -Number(tx.transfer_fee || 0);
   let running = stats.initialBalance;
   const ascRows = ascending.map((tx) => {
-    const signed = tx.type === 'income' ? Number(tx.amount) : tx.type === 'expense' ? -Number(tx.amount) : 0;
-    running += signed;
+    running += signedAmount(tx);
     return { tx, date: txDateOf(tx, config.dateType), balance: running };
   });
   let augmentedLedgerRows: { tx: Transaction; date: Date; balance: number; isProjection?: boolean }[]
@@ -567,8 +596,7 @@ export function buildReportData(input: BuildInputs): ReportData {
         );
         let r = stats.initialBalance;
         const ascRowsProj = ascProj.map((tx) => {
-          const signed = tx.type === 'income' ? Number(tx.amount) : tx.type === 'expense' ? -Number(tx.amount) : 0;
-          r += signed;
+          r += signedAmount(tx);
           return { tx, date: txDateOf(tx, config.dateType), balance: r, isProjection: !!tx.isProjection };
         });
         augmentedLedgerRows = ascRowsProj.slice().reverse();

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 export interface UserPreferences {
   currency: string;
@@ -107,12 +108,20 @@ export const useUserPreferences = () => {
 
   const formatDate = useCallback(
     (date: Date | string) => {
-      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      // Parse date strings as LOCAL dates and format from local components.
+      // new Date('YYYY-MM-DD') parses as UTC (previous day in UTC-negative
+      // timezones) and toISOString() shifts local-midnight dates back a day
+      // in UTC-positive timezones (i.e. for French users).
+      const dateObj = typeof date === 'string' ? parseLocalDate(date) : date;
       switch (preferences.dateFormat) {
         case 'MM/DD/YYYY':
           return dateObj.toLocaleDateString('en-US');
-        case 'YYYY-MM-DD':
-          return dateObj.toISOString().split('T')[0];
+        case 'YYYY-MM-DD': {
+          const y = dateObj.getFullYear();
+          const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const d = String(dateObj.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
         default:
           return dateObj.toLocaleDateString('fr-FR');
       }

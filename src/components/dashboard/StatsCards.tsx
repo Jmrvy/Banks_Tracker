@@ -5,7 +5,7 @@ import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { ValueDateDifferenceModal } from "@/components/ValueDateDifferenceModal";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
 
 interface StatsCardsProps {
   startDate: Date;
@@ -87,10 +87,7 @@ export function StatsCards({
     });
   }, [transactions, startDate, endDate, activeDateType]);
 
-  const dateOf = (txn: Transaction) =>
-    activeDateType === "value"
-      ? parseLocalDate(txn.value_date || txn.transaction_date)
-      : parseLocalDate(txn.transaction_date);
+  const dateOf = (txn: Transaction) => getTxDate(txn, activeDateType);
 
   const periodMs = endDate.getTime() - startDate.getTime();
   const priorEnd = new Date(startDate.getTime() - 1);

@@ -4,7 +4,7 @@ import { useIncomeAnalysis, IncomeCategory } from "@/hooks/useIncomeAnalysis";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, differenceInDays, subMonths, subYears, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate, normalizePeriod } from "@/lib/dateUtils";
 
 export interface ReportsPeriod {
   from: Date;
@@ -168,23 +168,22 @@ export const useReportsData = (
           label: format(selectedDate, "yyyy", { locale: fr })
         };
       case "custom":
-        return {
+        // Pickers anchor days at noon; normalize to whole days so
+        // first-day transactions (parsed at midnight) aren't dropped.
+        return normalizePeriod({
           from: dateRange.from,
           to: dateRange.to,
           label: `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
-        };
+        });
     }
   }, [periodType, selectedDate, dateRange]);
 
   // Filtrage des transactions pour la période
   // Utiliser la préférence de date (comptable ou valeur)
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(transaction => {
-      const dateToUse = activeDateType === 'value'
-        ? parseLocalDate(transaction.value_date || transaction.transaction_date)
-        : parseLocalDate(transaction.transaction_date);
-      return isWithinInterval(dateToUse, { start: period.from, end: period.to });
-    });
+    return transactions.filter(transaction =>
+      isWithinInterval(getTxDate(transaction, activeDateType), { start: period.from, end: period.to })
+    );
   }, [transactions, period, activeDateType]);
 
   // Shared initial balance calculation (used by stats and balance evolution)
@@ -194,10 +193,7 @@ export const useReportsData = (
 
     const netChangeByAccount = new Map<string, number>();
     for (const t of transactions) {
-      const transactionDate = activeDateType === 'value'
-        ? parseLocalDate(t.value_date || t.transaction_date)
-        : parseLocalDate(t.transaction_date);
-      if (transactionDate < period.from) continue;
+      if (getTxDate(t, activeDateType) < period.from) continue;
 
       const srcId = t.account_id;
       const dstId = t.transfer_to_account_id;
@@ -269,10 +265,7 @@ export const useReportsData = (
     return (start: Date, end: Date, dateType: 'accounting' | 'value' = activeDateType) => {
       let income = 0, expenses = 0, transferFees = 0;
       for (const t of transactions) {
-        const dateToUse = dateType === 'value'
-          ? parseLocalDate(t.value_date || t.transaction_date)
-          : parseLocalDate(t.transaction_date);
-        if (!isWithinInterval(dateToUse, { start, end })) continue;
+        if (!isWithinInterval(getTxDate(t, dateType), { start, end })) continue;
         if (t.include_in_stats === false) continue;
         if (t.type === 'income' && !t.refund_of_transaction_id) {
           income += Number(t.amount);
@@ -363,16 +356,17 @@ export const useReportsData = (
 
 
   // Données pour l'évolution des soldes avec projection
-  // Always uses transaction_date (accounting date) for chart positioning, regardless of date type setting
+  // Positions transactions on the SAME date type used for filtering and for
+  // the initial balance. Mixing timelines (filter by value date, plot by
+  // accounting date) produced points outside the period and out-of-order
+  // x values whenever the two dates straddled a period boundary.
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     if (skipHeavy) return [];
-    // Always use transaction_date (accounting date) for the evolution chart
-    const getAccountingDate = (t: Transaction) => parseLocalDate(t.transaction_date);
-    
+    const getChartDate = (t: Transaction) => getTxDate(t, activeDateType);
+
     // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
-    // Puis trier par date comptable pour l'affichage
     const sortedTransactions = [...filteredTransactions]
-      .sort((a, b) => getAccountingDate(a).getTime() - getAccountingDate(b).getTime());
+      .sort((a, b) => getChartDate(a).getTime() - getChartDate(b).getTime());
     
     const dailyData: BalanceDataPoint[] = [];
 
@@ -387,10 +381,10 @@ export const useReportsData = (
       dateObj: startDate
     });
 
-    // Grouper les transactions par date comptable (transaction_date)
+    // Grouper les transactions par date (selon le type de date actif)
     const transactionsByDate = new Map();
     sortedTransactions.forEach(t => {
-      const date = format(getAccountingDate(t), "yyyy-MM-dd");
+      const date = format(getChartDate(t), "yyyy-MM-dd");
       if (!transactionsByDate.has(date)) {
         transactionsByDate.set(date, []);
       }
@@ -420,7 +414,7 @@ export const useReportsData = (
     });
 
     return dailyData;
-  }, [filteredTransactions, period, initialBalance, skipHeavy]);
+  }, [filteredTransactions, period, initialBalance, skipHeavy, activeDateType]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
@@ -934,12 +928,9 @@ export const useReportsData = (
 
   const secondaryFilteredTransactions = useMemo(() => {
     if (!useSecondary) return filteredTransactions;
-    return transactions.filter(transaction => {
-      const dateToUse = secondaryDateType === 'value'
-        ? parseLocalDate(transaction.value_date || transaction.transaction_date)
-        : parseLocalDate(transaction.transaction_date);
-      return isWithinInterval(dateToUse, { start: period.from, end: period.to });
-    });
+    return transactions.filter(transaction =>
+      isWithinInterval(getTxDate(transaction, secondaryDateType), { start: period.from, end: period.to })
+    );
   }, [useSecondary, filteredTransactions, transactions, period, secondaryDateType]);
 
   const secondaryInitialBalance = useMemo(() => {
@@ -947,10 +938,7 @@ export const useReportsData = (
     const accountIds = new Set(accounts.map(a => a.id));
     const netChangeByAccount = new Map<string, number>();
     for (const t of transactions) {
-      const transactionDate = secondaryDateType === 'value'
-        ? parseLocalDate(t.value_date || t.transaction_date)
-        : parseLocalDate(t.transaction_date);
-      if (transactionDate < period.from) continue;
+      if (getTxDate(t, secondaryDateType) < period.from) continue;
       const srcId = t.account_id;
       const dstId = t.transfer_to_account_id;
       if (srcId && accountIds.has(srcId)) {

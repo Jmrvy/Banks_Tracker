@@ -6,7 +6,7 @@ import { useSpecialBudgets } from "@/hooks/useSpecialBudgets";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { getTxDate } from "@/lib/dateUtils";
 import { getSpecialBudgetIcon } from "@/lib/specialBudgetUtils";
 import { CategoryIcon } from "@/components/CategoryIcon";
 
@@ -29,10 +29,7 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
   const { isPrivacyMode } = usePrivacy();
   const [activeName, setActiveName] = useState<string | null>(null);
 
-  const dateOf = (txn: any) =>
-    preferences.dateType === "value"
-      ? parseLocalDate(txn.value_date || txn.transaction_date)
-      : parseLocalDate(txn.transaction_date);
+  const dateOf = (txn: any) => getTxDate(txn, preferences.dateType);
 
   const { items, total } = useMemo(() => {
     const budgetMap = new Map(specialBudgets.map((sb) => [sb.id, sb]));

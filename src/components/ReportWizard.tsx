@@ -33,7 +33,7 @@ import {
   Target,
   ArrowLeftRight
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, eachDayOfInterval, isSameDay, startOfDay, endOfDay } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 // Heavy export libs (jspdf, jspdf-autotable, xlsx) are loaded
 // dynamically inside the export handlers to keep them out of the initial bundle.
@@ -47,7 +47,7 @@ import { useReportsData } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { getTxDate } from "@/lib/dateUtils";
 import {
   type ReportSection,
   type PageId,
@@ -130,12 +130,16 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const totalSteps = 3;
 
+  const { formatCurrency, preferences } = useUserPreferences();
+
   const [config, setConfig] = useState<ReportConfig>({
     format: 'pdf',
     periodType: 'month',
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date()),
-    dateType: 'accounting',
+    // Seed from the user's preference so the export shows the same
+    // numbers as the Reports page by default.
+    dateType: preferences.dateType,
     sections: DEFAULT_SECTIONS,
     includeCharts: true,
     groupByAccount: false,
@@ -219,7 +223,6 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   }, []);
   const resetDefaultPages = useCallback(() => applyPreset('standard'), [applyPreset]);
 
-  const { formatCurrency } = useUserPreferences();
   const { accounts, transactions } = useFinancialData();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { installmentPayments } = useInstallmentPayments();
@@ -240,7 +243,9 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       case 'year':
         return { start: startOfYear(config.startDate), end: endOfYear(config.startDate) };
       case 'custom':
-        return { start: config.startDate, end: config.endDate };
+        // Pickers anchor picked days at noon; normalize to whole days so
+        // first-day transactions (parsed at midnight) aren't excluded.
+        return { start: startOfDay(config.startDate), end: endOfDay(config.endDate) };
       default:
         return { start: startOfMonth(now), end: endOfMonth(now) };
     }
@@ -257,19 +262,9 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
   // Filter transactions for the period
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const date = config.dateType === 'value'
-        ? parseLocalDate(t.value_date || t.transaction_date)
-        : parseLocalDate(t.transaction_date);
+      const date = getTxDate(t, config.dateType);
       return date >= actualDates.start && date <= actualDates.end;
-    }).sort((a, b) => {
-      const dateA = config.dateType === 'value'
-        ? parseLocalDate(a.value_date || a.transaction_date)
-        : parseLocalDate(a.transaction_date);
-      const dateB = config.dateType === 'value'
-        ? parseLocalDate(b.value_date || b.transaction_date)
-        : parseLocalDate(b.transaction_date);
-      return dateA.getTime() - dateB.getTime();
-    });
+    }).sort((a, b) => getTxDate(a, config.dateType).getTime() - getTxDate(b, config.dateType).getTime());
   }, [transactions, actualDates, config.dateType]);
 
   // Calculate evolution data for charts
@@ -278,12 +273,9 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
     let runningBalance = stats.initialBalance;
 
     return days.map(day => {
-      const dayTransactions = filteredTransactions.filter(t => {
-        const date = config.dateType === 'value'
-          ? parseLocalDate(t.value_date || t.transaction_date)
-          : parseLocalDate(t.transaction_date);
-        return isSameDay(date, day);
-      });
+      const dayTransactions = filteredTransactions.filter(t =>
+        isSameDay(getTxDate(t, config.dateType), day)
+      );
 
       const dayIncome = dayTransactions
         .filter(t => t.type === 'income')
@@ -501,20 +493,21 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       let runningBalance = stats.initialBalance;
       const txRows = filteredTransactions.map(tx => {
         const amount = Number(tx.amount);
-        if (tx.type === 'income') runningBalance += amount;
-        else if (tx.type === 'expense') runningBalance -= amount;
-
-        const displayDate = config.dateType === 'value'
-          ? parseLocalDate(tx.value_date || tx.transaction_date)
-          : parseLocalDate(tx.transaction_date);
+        // Transfers between own accounts are globally balance-neutral
+        // except for their fee; using the fee as the signed amount keeps
+        // the Montant column reconciling with the running Solde column.
+        const signed = tx.type === 'income' ? amount
+          : tx.type === 'expense' ? -amount
+          : -Number(tx.transfer_fee || 0);
+        runningBalance += signed;
 
         return [
-          format(displayDate, 'dd/MM/yyyy'),
+          format(getTxDate(tx, config.dateType), 'dd/MM/yyyy'),
           accounts.find(a => a.id === tx.account_id)?.name || '',
           tx.description,
           tx.category?.name || '',
           tx.type === 'income' ? t('transactions.income') : tx.type === 'expense' ? t('transactions.expense') : t('transactions.transfer'),
-          tx.type === 'expense' ? -amount : amount,
+          signed,
           formatNum(runningBalance)
         ];
       });

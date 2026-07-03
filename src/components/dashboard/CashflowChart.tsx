@@ -22,7 +22,7 @@ import {
 } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, formatAxisValue } from "@/lib/chartConfig";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { getTxDate } from "@/lib/dateUtils";
 
 interface CashflowChartProps {
   /** Period range — kept for API compatibility, but the chart always shows the trailing 6 months. */
@@ -61,10 +61,7 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
     }
     for (const tx of transactions) {
       if (tx.include_in_stats === false) continue;
-      const d =
-        preferences.dateType === "value"
-          ? parseLocalDate(tx.value_date || tx.transaction_date)
-          : parseLocalDate(tx.transaction_date);
+      const d = getTxDate(tx, preferences.dateType);
       const m = months.find((x) => isWithinInterval(d, { start: x.from, end: x.to }));
       if (!m) continue;
       if (tx.type === "income" && !tx.refund_of_transaction_id) {

@@ -43,7 +43,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { parseLocalDate } from '@/lib/dateUtils';
+import { parseLocalDate, getTxDate } from '@/lib/dateUtils';
 import { parseQuery, normalise, type ParsedQuery, type PeriodKind } from '@/lib/searchQuery';
 import { aggregateTransactions } from '@/lib/transactionMath';
 import { getRecurringDisplayAmount, getRecurringEffectiveType, resolveDebtForRecurring } from '@/lib/recurringAmount';
@@ -273,10 +273,7 @@ export const CommandPalette = () => {
           if (!desc.includes(tok)) return false;
         }
       }
-      const d =
-        preferences.dateType === 'value'
-          ? parseLocalDate(tx.value_date || tx.transaction_date)
-          : parseLocalDate(tx.transaction_date);
+      const d = getTxDate(tx, preferences.dateType);
       if (d < q.dateRange.start || d > q.dateRange.end) return false;
       return true;
     },
@@ -1128,13 +1125,7 @@ export const CommandPalette = () => {
                   <div className="flex-1 min-w-0">
                     <span className="truncate block">{tx.description}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {format(
-                        preferences.dateType === 'value'
-                          ? parseLocalDate(tx.value_date || tx.transaction_date)
-                          : parseLocalDate(tx.transaction_date),
-                        'd MMM',
-                        { locale: dateLocale }
-                      )}
+                      {format(getTxDate(tx, preferences.dateType), 'd MMM', { locale: dateLocale })}
                       {tx.account && ` · ${tx.account.name}`}
                     </span>
                   </div>

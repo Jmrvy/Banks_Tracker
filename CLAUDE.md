@@ -256,6 +256,7 @@ src/
 
 | Date | Changes |
 |------|---------|
+| 2026-07-03 | Reports engine date fixes: shared getTxDate/normalizePeriod utils, custom-period noon-boundary fix (first-day transactions no longer dropped), balance evolution chart uses one date-type timeline, transfer fees in ledger/Excel running balances, calendar-aware PDF prior-period comparison, timezone-safe formatDate (see docs/REPORTS_ENGINE_AUDIT.md) |
 | 2026-03-11 | Full UX polish: liquid glass morphism, consistent rounded-xl/2xl borders, entrance animations across all components |
 | 2026-03-11 | Improved mobile stat cards: larger text (text-base), visible icons on all screens, better touch targets (44px min) |
 | 2026-03-11 | Enhanced UI primitives: buttons, dialogs, alerts, tabs, badges, inputs, selects with glass effects |

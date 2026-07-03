@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, ReactNode } from "react";
-import { subMonths, startOfMonth, endOfMonth, subYears, format } from "date-fns";
+import { subMonths, startOfMonth, endOfMonth, subYears, format, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 
 type PeriodType = "1m" | "3m" | "ytd" | "1y" | "custom";
@@ -60,8 +60,11 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
         label = "Dernière année";
         break;
       case "custom":
-        start = customDateRange.from;
-        end = customDateRange.to;
+        // Pickers anchor picked days at noon (timezone guard); normalize to
+        // whole days so first-day transactions (parsed at local midnight)
+        // aren't excluded by `d >= start` checks downstream.
+        start = startOfDay(customDateRange.from);
+        end = endOfDay(customDateRange.to);
         label = `${format(start, "dd/MM/yy", { locale: fr })} - ${format(end, "dd/MM/yy", { locale: fr })}`;
         break;
       default:

@@ -9,6 +9,11 @@
 > types consistently. Five confirmed correctness bugs (2 high severity), plus a
 > systemic root cause: the "which date do I use?" logic is re-implemented in at
 > least 8 places and they have drifted apart.
+>
+> **Status (2026-07-03):** Phase 1 is implemented on this branch — BUG-1 through
+> BUG-5 and C-1/C-2 are fixed, the shared `getTxDate`/`normalizePeriod` utilities
+> replace all duplicated date-resolution sites, and `src/lib/dateUtils.test.ts`
+> adds regression coverage (incl. the noon-boundary case). Phases 2–3 remain open.
 
 ---
 
