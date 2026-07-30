@@ -804,6 +804,42 @@ export type Database = {
           },
         ]
       }
+      trace_activity: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          payload: Json
+          title: string
+          undo_payload: Json
+          undone_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: string
+          payload?: Json
+          title: string
+          undo_payload?: Json
+          undone_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          payload?: Json
+          title?: string
+          undo_payload?: Json
+          undone_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_categories: {
         Row: {
           category_id: string
