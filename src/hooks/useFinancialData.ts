@@ -1505,8 +1505,12 @@ function useFinancialDataInternal() {
       }, ms));
     };
 
+    // Unique per hook instance — see the note in useDebts. A fixed topic
+    // makes `supabase.channel()` hand back the channel an earlier mount
+    // already joined, and this hook has fifty-two consumers.
+    const channelId = `financial_data_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel('financial-data-changes')
+      .channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` },
