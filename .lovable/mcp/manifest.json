@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "sdk_version": "0.25.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://cuanladihtpvkmjhvrln.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "spendingtrackerjmrvy",
+      "version": "0.1.0",
+      "title": "spendingtrackerjmrvy"
+    },
+    "tools": [
+      {
+        "name": "list_accounts",
+        "title": "List accounts",
+        "description": "List the signed-in user's bank accounts with their type, bank and current balance.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_categories",
+        "title": "List categories",
+        "description": "List the signed-in user's spending categories and their optional monthly budget.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_transactions",
+        "title": "List transactions",
+        "description": "List the signed-in user's transactions, optionally filtered by date range, type, account, category or description text.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "Inclusive start date, YYYY-MM-DD."
+            },
+            "to": {
+              "type": "string",
+              "description": "Inclusive end date, YYYY-MM-DD."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense",
+                "transfer"
+              ]
+            },
+            "account_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "category_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "search": {
+              "type": "string",
+              "description": "Case-insensitive match on the description."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Default 50."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_savings_goals",
+        "title": "List savings goals",
+        "description": "List the signed-in user's savings goals with target amount, current amount and target date.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_upcoming",
+        "title": "List upcoming commitments",
+        "description": "List the signed-in user's active recurring transactions and open debts, so an assistant can see what is scheduled ahead.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "string",
+              "description": "Only recurring items due on or before this date, YYYY-MM-DD."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "spending_summary",
+        "title": "Spending summary",
+        "description": "Summarize income, expenses and net flow over a date range, broken down by category. Amounts are net of refunds.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "Inclusive start date, YYYY-MM-DD."
+            },
+            "to": {
+              "type": "string",
+              "description": "Inclusive end date, YYYY-MM-DD."
+            },
+            "include_excluded": {
+              "type": "boolean",
+              "description": "Include transactions flagged as excluded from statistics. Default false."
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_transaction",
+        "title": "Create transaction",
+        "description": "Record a new income or expense transaction on one of the signed-in user's accounts.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "account_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target account, from list_accounts."
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Positive amount in the account currency."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense"
+              ]
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "transaction_date": {
+              "type": "string",
+              "description": "Accounting date, YYYY-MM-DD."
+            },
+            "value_date": {
+              "type": "string",
+              "description": "Value date, YYYY-MM-DD. Defaults to the accounting date."
+            },
+            "category_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Category, from list_categories."
+            }
+          },
+          "required": [
+            "account_id",
+            "amount",
+            "type",
+            "description",
+            "transaction_date"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
