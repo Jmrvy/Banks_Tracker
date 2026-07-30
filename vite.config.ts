@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -12,6 +13,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(), 
+    mcpPlugin(),
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -44,6 +46,8 @@ export default defineConfig(({ mode }) => ({
         screenshots: []
       },
       workbox: {
+        // The OAuth consent screen must hit the network, not the SW shell.
+        navigateFallbackDenylist: [/^\/\.lovable\//],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         // Exclude the heavy export bundle (jspdf+xlsx+html2canvas, ~900 KB) from
         // precache. It's only used when users explicitly export a report, so we

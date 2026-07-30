@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { safeNext } from "@/lib/nextParam";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
@@ -34,6 +35,7 @@ const Scheduled = lazy(() => import("@/pages/Scheduled"));
 const InstallmentPaymentDetail = lazy(() => import("@/pages/InstallmentPaymentDetail"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const Trace = lazy(() => import("@/pages/Trace"));
+const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -92,9 +94,11 @@ function AppRoutes() {
       <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pb-20 min-h-screen" : "min-h-screen"}>
         <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><InlineSpinner /></div>}>
         <Routes>
+          {/* OAuth 2.1 consent screen for MCP clients connecting to this app. */}
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route 
             path="/auth" 
-            element={user ? <Navigate to="/" replace /> : <Auth />} 
+            element={user ? <Navigate to={safeNext(location.search) ?? "/"} replace /> : <Auth />} 
           />
           <Route 
             path="/" 

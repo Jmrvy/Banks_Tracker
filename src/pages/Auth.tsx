@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { safeNext } from '@/lib/nextParam';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,9 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  // A pending OAuth consent (or any deep link) is preserved through sign-in.
+  const next = safeNext(location.search);
   const { toast } = useToast();
 
   const signInSchema = z.object({
@@ -38,7 +42,9 @@ export default function Auth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         const needsOnboarding = localStorage.getItem('budget-app-needs-onboarding');
-        if (needsOnboarding) {
+        if (next) {
+          navigate(next, { replace: true });
+        } else if (needsOnboarding) {
           navigate('/onboarding');
         } else {
           navigate('/');
@@ -47,7 +53,7 @@ export default function Auth() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, next]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +116,7 @@ export default function Auth() {
         email: validation.data.email,
         password: validation.data.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}${next ?? '/'}`,
           data: {
             full_name: validation.data.fullName,
           },
