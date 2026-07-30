@@ -11,10 +11,14 @@
  * Auth: the caller's JWT identifies the user; every query below is scoped
  * to that user id. The service-role client is used only so we can run the
  * aggregate queries efficiently — never to reach another user's rows.
+ *
+ * Inference goes through OpenRouter, so the model is a deployment choice
+ * rather than something baked into this file: set TRACE_MODEL to any
+ * tool-calling slug from the OpenRouter catalogue.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import Anthropic from "npm:@anthropic-ai/sdk@0.68.0";
+import OpenAI from "npm:openai@4.104.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,12 +26,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const MODEL = "claude-opus-5";
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+/**
+ * Overridable so the model can be changed without a redeploy of the
+ * client. Must be a tool-calling model — Trace answers by *calling* the
+ * `answer` tool, and a model without tool support returns prose this
+ * function can only degrade into a single text block.
+ */
+const MODEL = Deno.env.get("TRACE_MODEL") ?? "anthropic/claude-opus-4.5";
+
+/** OpenRouter's unified reasoning control, ignored by models without it. */
+const REASONING_EFFORT = Deno.env.get("TRACE_REASONING_EFFORT") ?? "medium";
+
+/** Upstream ceiling, below the platform's own wall clock, so a wedged
+ *  request surfaces as a clean error instead of a killed invocation. */
+const REQUEST_TIMEOUT_MS = 110_000;
 
 // ─── block schema ──────────────────────────────────────────────────────
-// Structured outputs need every property listed in `required` with
-// `additionalProperties: false`, so optional fields are expressed as
-// explicit nullable unions rather than omitted keys.
+// The answer travels as the argument object of an `answer` tool call
+// rather than through `response_format: json_schema`, because json_schema
+// support on OpenRouter varies by model while tool calling is available
+// on every model worth pointing Trace at. Optional fields are explicit
+// nullable unions so every property can stay in `required`.
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });
 const str = { type: "string" };
 const strArr = { type: "array", items: str };
@@ -147,13 +168,19 @@ const ANSWER_SCHEMA = obj({
 });
 
 // ─── tools ─────────────────────────────────────────────────────────────
-const TOOLS = [
+/** Wraps a tool in OpenRouter's (OpenAI-shaped) function envelope. */
+const fn = (name: string, description: string, parameters: Record<string, unknown>) => ({
+  type: "function" as const,
+  function: { name, description, parameters },
+});
+
+const READ_TOOLS = [
   {
     name: "search_transactions",
     description:
       "Aggregate and sample the ledger. Returns the matched count, the net total, and the " +
       "biggest rows with their ids. Use this before quoting any figure.",
-    input_schema: obj({
+    parameters: obj({
       start: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
       end: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
       category_id: nullable(str),
@@ -168,27 +195,44 @@ const TOOLS = [
     description:
       "Net expense per category over a period, with each category's monthly budget and id. " +
       "The basis for any budget answer or budget proposal.",
-    input_schema: obj({ start: str, end: str }),
+    parameters: obj({ start: str, end: str }),
   },
   {
     name: "list_uncategorized",
     description: "Transactions with no category, newest first. Returns ids so they can be proposed for categorization.",
-    input_schema: obj({ limit: nullable({ type: "number" }) }),
+    parameters: obj({ limit: nullable({ type: "number" }) }),
   },
   {
     name: "merchant_history",
     description:
       "How the user has categorized transactions whose description resembles the given text. " +
       "Use it to justify a categorize proposal — never guess a category the user has never used for that merchant.",
-    input_schema: obj({ text: str }),
+    parameters: obj({ text: str }),
   },
   {
     name: "scheduled_charges",
     description:
       "Recurring transactions, installment plan instalments and scheduled debt payments falling " +
       "due between two dates. Use for cash-flow and affordability questions.",
-    input_schema: obj({ start: str, end: str }),
+    parameters: obj({ start: str, end: str }),
   },
+];
+
+/**
+ * Trace finishes by calling this. Making the answer a tool call means the
+ * block vocabulary is enforced by the same mechanism as the read tools,
+ * on every provider OpenRouter fronts.
+ */
+const ANSWER_TOOL = fn(
+  "answer",
+  "Deliver the finished answer. Call this exactly once, when you have everything you need. " +
+    "Do not call it in the same turn as a read tool.",
+  ANSWER_SCHEMA,
+);
+
+const TOOLS = [
+  ...READ_TOOLS.map((t) => fn(t.name, t.description, t.parameters)),
+  ANSWER_TOOL,
 ];
 
 // ─── tool implementations ──────────────────────────────────────────────
@@ -386,6 +430,7 @@ function systemPrompt(ctx: Record<string, unknown>, lang: string, agency: string
 Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbol (${ctx.currency}) and their locale's number formatting in every figure you render.
 
 # How to answer
+- Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — prose is dropped.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
 - Include a \`method\` block whenever you quote an aggregate, so the user can audit the period, filters and row count behind it.
@@ -417,10 +462,10 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "Trace is not configured: ANTHROPIC_API_KEY is unset." }),
+        JSON.stringify({ error: "Trace is not configured: OPENROUTER_API_KEY is unset." }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -491,78 +536,88 @@ const handler = async (req: Request): Promise<Response> => {
       current_page: pageContext || null,
     };
 
-    const anthropic = new Anthropic({ apiKey });
+    const openai = new OpenAI({
+      apiKey,
+      baseURL: OPENROUTER_BASE_URL,
+      timeout: REQUEST_TIMEOUT_MS,
+      // OpenRouter attribution — shows the app on its dashboards and lets
+      // per-app rate limits apply to the right thing.
+      defaultHeaders: {
+        "HTTP-Referer": Deno.env.get("APP_URL") ?? "https://banks-tracker.app",
+        "X-Title": "Banks Tracker — Trace",
+      },
+    });
+
     const messages: any[] = [
+      { role: "system", content: systemPrompt(ctx, lang, agency) },
       ...history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: question },
     ];
 
     // Manual loop: run the model, execute whatever it asks for, feed the
-    // results back. Streaming is used purely for timeout protection — the
-    // client wants the finished block list, not tokens.
+    // results back, and stop when it calls `answer`.
     let answer: { steps: string[]; blocks: unknown[] } | null = null;
     for (let turn = 0; turn < 8; turn++) {
-      const stream = anthropic.messages.stream({
+      const completion = await openai.chat.completions.create({
         model: MODEL,
-        max_tokens: 16000,
-        system: systemPrompt(ctx, lang, agency),
-        output_config: {
-          effort: "medium",
-          format: { type: "json_schema", schema: ANSWER_SCHEMA },
-        },
-        tools: TOOLS as any,
         messages,
-      });
-      const response = await stream.finalMessage();
+        tools: TOOLS,
+        tool_choice: "auto",
+        max_tokens: 16000,
+        // OpenRouter's unified reasoning control. Silently ignored by
+        // models that don't reason, so it needs no per-model branching.
+        reasoning: { effort: REASONING_EFFORT },
+      } as any);
 
-      if (response.stop_reason === "refusal") {
-        return new Response(
-          JSON.stringify({ error: "refusal" }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
+      const choice = completion.choices?.[0];
+      const message = choice?.message;
+      if (!message) break;
 
-      const toolUses = response.content.filter((b: any) => b.type === "tool_use");
-      if (toolUses.length === 0) {
-        const text = response.content.find((b: any) => b.type === "text") as any;
-        answer = text ? JSON.parse(text.text) : null;
+      const toolCalls = message.tool_calls ?? [];
+      if (toolCalls.length === 0) {
+        // No tool call at all: the model answered in prose. Degrade to a
+        // single text block rather than dropping the answer on the floor.
+        const text = typeof message.content === "string" ? message.content.trim() : "";
+        if (text) answer = { steps: [], blocks: [{ t: "text", v: text }] };
         break;
       }
 
-      messages.push({ role: "assistant", content: response.content });
-      const results = await Promise.all(
-        toolUses.map(async (t: any) => {
-          try {
-            const out = await runTool(db, userId, dateColumn, t.name, t.input ?? {});
-            return {
-              type: "tool_result" as const,
-              tool_use_id: t.id,
-              content: JSON.stringify(out),
-            };
-          } catch (err) {
-            return {
-              type: "tool_result" as const,
-              tool_use_id: t.id,
-              content: `Query failed: ${(err as Error).message}`,
-              is_error: true,
-            };
-          }
-        }),
-      );
-      messages.push({ role: "user", content: results });
+      // The `answer` call ends the loop; any read calls in the same turn
+      // are ignored, since the model already had what it needed.
+      const answerCall = toolCalls.find((c: any) => c.function?.name === "answer");
+      if (answerCall) {
+        try {
+          answer = JSON.parse(answerCall.function.arguments || "{}");
+        } catch {
+          console.error("trace-copilot: unparseable answer arguments");
+        }
+        break;
+      }
+
+      messages.push(message);
+      for (const call of toolCalls) {
+        let content: string;
+        try {
+          const input = JSON.parse(call.function.arguments || "{}");
+          content = JSON.stringify(await runTool(db, userId, dateColumn, call.function.name, input));
+        } catch (err) {
+          content = `Query failed: ${(err as Error).message}`;
+        }
+        messages.push({ role: "tool", tool_call_id: call.id, content });
+      }
     }
 
-    if (!answer) {
+    if (!answer || !Array.isArray(answer.blocks) || answer.blocks.length === 0) {
       return new Response(
         JSON.stringify({ error: "Trace could not finish that one. Try narrowing the question." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    return new Response(JSON.stringify(answer), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ steps: Array.isArray(answer.steps) ? answer.steps : [], blocks: answer.blocks }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (error: any) {
     console.error("trace-copilot failed:", error);
     return new Response(JSON.stringify({ error: error.message }), {
