@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { safeNext } from "@/lib/nextParam";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PeriodProvider } from "./contexts/PeriodContext";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
@@ -68,13 +69,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   
   return <>{children}</>;
-}
-
-/** Reads a `next` query param, accepting only same-origin relative paths. */
-export function safeNext(search: string): string | null {
-  const next = new URLSearchParams(search).get("next");
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
-  return next;
 }
 
 function AppRoutes() {
