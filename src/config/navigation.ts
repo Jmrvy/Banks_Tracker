@@ -1,5 +1,6 @@
 import {
   Home,
+  Sparkles,
   BarChart3,
   Wallet,
   CalendarClock,
@@ -22,9 +23,13 @@ export interface NavigationGroup {
   items: NavigationItem[];
 }
 
-// Main navigation (always visible)
+// Main navigation (always visible).
+// Trace sits alongside Home rather than in a group: it is a destination
+// in its own right, and burying the copilot under "Tools" would make it
+// the least discoverable thing in the app.
 export const mainNavigation: NavigationItem[] = [
   { nameKey: "navigation.home", path: "/", icon: Home },
+  { nameKey: "navigation.trace", path: "/trace", icon: Sparkles },
 ];
 
 // Comptes group — Account-related pages.

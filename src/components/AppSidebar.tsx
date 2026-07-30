@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { SidebarResumePill } from "@/components/tour/SidebarResumePill";
+import { TraceMark } from "@/components/trace/TraceMark";
+import { useTrace } from "@/contexts/TraceContext";
 import {
   mainNavigation,
   accountsGroup,
@@ -19,6 +21,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { togglePalette } = useCommandPalette();
+  const { openDock } = useTrace();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -72,6 +75,17 @@ export function AppSidebar() {
           <kbd className="text-[10px] font-mono bg-bg-elev border border-line-strong text-fg-dim px-1 py-px rounded">
             ⌘K
           </kbd>
+        </button>
+
+        {/* Ask Trace about the page currently open. Distinct from the
+            palette: the palette is deterministic search, this is the
+            copilot scoped to what the user is looking at. */}
+        <button
+          onClick={openDock}
+          className="mt-1.5 flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
+        >
+          <TraceMark size="sm" plain />
+          <span className="flex-1">{t("trace.askAboutPage", { defaultValue: "Ask Trace about this page" })}</span>
         </button>
       </div>
 

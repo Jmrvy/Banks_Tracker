@@ -17,6 +17,8 @@ import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useDateFnsLocale } from '@/hooks/useDateFnsLocale';
+import { useTrace } from '@/contexts/TraceContext';
+import { TraceMark } from '@/components/trace/TraceMark';
 import {
   Home,
   Wallet,
@@ -65,6 +67,7 @@ const recentIcon = (type: 'income' | 'expense' | 'transfer') => {
 export const CommandPalette = () => {
   const { t, i18n } = useTranslation();
   const dateLocale = useDateFnsLocale();
+  const { openModal: openTrace } = useTrace();
   const uiLocale: 'fr' | 'en' = i18n.language === 'fr' ? 'fr' : 'en';
 
   // Pages map to i18n keys + bilingual keyword strings so the palette
@@ -820,11 +823,38 @@ export const CommandPalette = () => {
 
       <CommandList>
         <CommandEmpty>
-          <div className="py-8 text-center">
+          <div className="py-6 px-4 text-center">
             <p className="text-sm text-muted-foreground">{t('common.noResults', { defaultValue: 'No results found' })}</p>
             <p className="text-xs text-muted-foreground/60 mt-1">{t('common.tryAnotherSearchTerm', { defaultValue: 'Try a different search term' })}</p>
+            {input.trim().length > 2 && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); openTrace(input.trim()); }}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2 text-xs hover:bg-bg-hover hover:border-line-strong transition-colors"
+              >
+                <TraceMark size="sm" plain />
+                {t('palette.askTrace', { defaultValue: 'Ask Trace instead' })}
+              </button>
+            )}
           </div>
         </CommandEmpty>
+
+        {/* Escalation to the copilot. The palette stays deterministic:
+            when a query needs a comparison or a judgement the parser
+            can't build, this row hands it to Trace rather than guessing. */}
+        {input.trim().length > 2 && (
+          <CommandGroup heading={t('palette.copilot', { defaultValue: 'Copilot' })}>
+            <CommandItem
+              value={input + ' __ask_trace__'}
+              onSelect={() => { setOpen(false); openTrace(input.trim()); }}
+            >
+              <TraceMark size="sm" plain className="mr-2" />
+              <span className="text-sm truncate">
+                {t('palette.askTraceAbout', { defaultValue: 'Ask Trace' })}: <span className="text-muted-foreground">{input.trim()}</span>
+              </span>
+            </CommandItem>
+          </CommandGroup>
+        )}
 
         {/* Empty-state: recents (user's own past queries) + suggestions
             (parser grammar examples). Both surfaces are hidden as soon
