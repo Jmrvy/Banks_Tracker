@@ -52,6 +52,15 @@ async function verifyKey(apiKey: string): Promise<{ ok: true; label: string } | 
   return { ok: true, label: String(body?.data?.label ?? "") };
 }
 
+/** The slice of OpenRouter's /models entry the picker actually reads. */
+type OpenRouterModel = {
+  id: string;
+  name?: string;
+  context_length?: number;
+  pricing?: { prompt?: string; completion?: string };
+  supported_parameters?: string[];
+};
+
 /**
  * Tool-capable models only. Trace answers by *calling* an `answer` tool, so
  * a model without tool support can't produce a renderable answer — offering
@@ -63,10 +72,10 @@ async function listModels(apiKey: string) {
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`OpenRouter returned ${res.status}`);
-  const body = await res.json();
+  const body = (await res.json()) as { data?: OpenRouterModel[] };
   return (body?.data ?? [])
-    .filter((m: any) => Array.isArray(m.supported_parameters) && m.supported_parameters.includes("tools"))
-    .map((m: any) => ({
+    .filter((m) => Array.isArray(m.supported_parameters) && m.supported_parameters.includes("tools"))
+    .map((m) => ({
       id: String(m.id),
       name: String(m.name ?? m.id),
       context_length: Number(m.context_length ?? 0),
@@ -75,7 +84,7 @@ async function listModels(apiKey: string) {
       prompt_price: Number(m.pricing?.prompt ?? 0),
       completion_price: Number(m.pricing?.completion ?? 0),
     }))
-    .sort((a: any, b: any) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -206,8 +215,8 @@ const handler = async (req: Request): Promise<Response> => {
       default:
         return json({ error: "unknown_action" }, 400);
     }
-  } catch (error: any) {
-    console.error("trace-settings failed:", error?.message ?? error);
+  } catch (error) {
+    console.error("trace-settings failed:", error instanceof Error ? error.message : error);
     return json({ error: "internal" }, 500);
   }
 };
