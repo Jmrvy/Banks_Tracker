@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ export const TraceSection = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { agency, setAgency } = useTrace();
-  const { status, models, loading, saving, loadModels, save, remove } = useTraceSettings();
+  const { status, models, loading, saving, available, loadModels, save, remove } = useTraceSettings();
 
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -91,7 +91,11 @@ export const TraceSection = () => {
             })
           : res.reason === "no_key"
             ? t("settings.traceNoKey", { defaultValue: "Add an API key first." })
-            : t("errors.updateError", { defaultValue: "Could not save" });
+            : res.reason === "unavailable"
+              ? t("settings.traceUnavailableShort", {
+                  defaultValue: "Trace's backend isn't deployed on this project yet.",
+                })
+              : t("errors.updateError", { defaultValue: "Could not save" });
     toast({ title: t("common.error", { defaultValue: "Error" }), description: reason, variant: "destructive" });
   };
 
@@ -122,6 +126,23 @@ export const TraceSection = () => {
       </div>
 
       <div className="mt-4 flex flex-col gap-4">
+        {/* The form is useless until the function behind it exists. Say so
+            up front rather than letting Save be the thing that finds out. */}
+        {!available && !loading && (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3"
+          >
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+            <p className="text-xs text-foreground/90">
+              {t("settings.traceUnavailable", {
+                defaultValue:
+                  "Trace's settings service isn't deployed on this Supabase project yet, so nothing here can be saved. It ships with the rest of the Trace copilot.",
+              })}
+            </p>
+          </div>
+        )}
+
         {/* API key */}
         <div className="space-y-1.5">
           <Label htmlFor="trace-key" className="text-sm flex items-center gap-1.5">
@@ -309,7 +330,7 @@ export const TraceSection = () => {
             </SelectContent>
           </Select>
           {agency === "auto" && (
-            <p className="text-xs text-warn mt-1">
+            <p className="text-xs text-warning mt-1">
               {t("settings.traceAgencyAutoWarning", {
                 defaultValue:
                   "Changes are written as soon as Trace proposes them. Every one is logged and reversible from Trace → Activity.",
@@ -319,7 +340,12 @@ export const TraceSection = () => {
         </div>
 
         <div className="flex justify-end pt-1">
-          <Button onClick={onSave} disabled={saving || loading} size="sm" className="h-9 font-semibold">
+          <Button
+            onClick={onSave}
+            disabled={saving || loading || !available}
+            size="sm"
+            className="h-9 font-semibold"
+          >
             {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             {t("common.save", { defaultValue: "Save" })}
           </Button>

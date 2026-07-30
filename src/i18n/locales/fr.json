@@ -814,6 +814,8 @@
     "traceKeyUnreachable": "Impossible de joindre OpenRouter pour vérifier la clé.",
     "traceKeyRemoved": "Clé API supprimée",
     "traceNoKey": "Ajoutez d'abord une clé API.",
+    "traceUnavailable": "Le service de réglages de Trace n'est pas encore déployé sur ce projet Supabase : rien ne peut être enregistré ici pour l'instant. Il est livré avec le reste du copilote Trace.",
+    "traceUnavailableShort": "Le service de réglages de Trace n'est pas encore déployé sur ce projet.",
     "traceSaved": "Trace configuré",
     "traceSavedDesc": "Vos changements sont actifs.",
     "traceSavedKey": "Clé vérifiée : {{label}}",

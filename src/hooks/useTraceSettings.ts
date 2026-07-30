@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TraceModel {
@@ -21,6 +22,19 @@ export interface TraceSettingsStatus {
 }
 
 /**
+ * The function isn't there at all. Worth separating from every other
+ * failure: a deployment that hasn't shipped `trace-settings` yet looks
+ * exactly like a working form until you press Save, and "could not
+ * update" sends the user hunting for a mistake they didn't make.
+ *
+ * It surfaces as a fetch error rather than a 404, because the CORS
+ * preflight is what gets refused — the browser never sends the POST.
+ */
+const isUnreachable = (e: unknown) =>
+  e instanceof FunctionsFetchError ||
+  (e instanceof FunctionsHttpError && e.context?.status === 404);
+
+/**
  * Talks to the `trace-settings` edge function, which is the only path to
  * the user's OpenRouter credentials — the table behind it is unreachable
  * from any client session by design. Nothing here ever holds the key
@@ -31,10 +45,13 @@ export function useTraceSettings() {
   const [models, setModels] = useState<TraceModel[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** False once we know the backend isn't deployed on this project. */
+  const [available, setAvailable] = useState(true);
 
   const call = useCallback(async (payload: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("trace-settings", { body: payload });
     if (error) throw error;
+    setAvailable(true);
     return data;
   }, []);
 
@@ -42,7 +59,8 @@ export function useTraceSettings() {
     setLoading(true);
     try {
       setStatus(await call({ action: "status" }));
-    } catch {
+    } catch (error) {
+      if (isUnreachable(error)) setAvailable(false);
       setStatus({ configured: false, source: "none", hint: null, model: "", reasoning_effort: "medium" });
     } finally {
       setLoading(false);
@@ -78,7 +96,11 @@ export function useTraceSettings() {
         // A new key can reach a different catalogue, so drop the cached one.
         if (input.apiKey) setModels(null);
         return { ok: true as const, label: data?.label as string | undefined };
-      } catch {
+      } catch (error) {
+        if (isUnreachable(error)) {
+          setAvailable(false);
+          return { ok: false as const, reason: "unavailable" };
+        }
         return { ok: false as const, reason: "internal" };
       } finally {
         setSaving(false);
@@ -94,12 +116,13 @@ export function useTraceSettings() {
       setStatus(data);
       setModels(null);
       return true;
-    } catch {
+    } catch (error) {
+      if (isUnreachable(error)) setAvailable(false);
       return false;
     } finally {
       setSaving(false);
     }
   }, [call]);
 
-  return { status, models, loading, saving, refresh, loadModels, save, remove };
+  return { status, models, loading, saving, available, refresh, loadModels, save, remove };
 }
