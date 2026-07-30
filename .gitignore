@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase edge function secrets (supabase secrets set --env-file supabase/.env)
+supabase/.env

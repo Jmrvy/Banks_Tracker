@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { AlertTriangle, SendHorizonal } from "lucide-react";
 import { TraceBlockView, TraceWorking } from "@/components/trace/TraceBlocks";
 import { TraceMark } from "@/components/trace/TraceMark";
 import { useTrace, type TraceTurn } from "@/contexts/TraceContext";
 import { cn } from "@/lib/utils";
 
+/** Server error codes the user can actually act on. */
+const ERROR_COPY: Record<string, { title: string; body: string }> = {
+  not_configured: {
+    title: "trace.errNotConfiguredTitle",
+    body: "trace.errNotConfiguredBody",
+  },
+};
+
 export function TraceTurnView({ turn }: { turn: TraceTurn }) {
   const { t } = useTranslation();
+  const known = turn.error ? ERROR_COPY[turn.error] : undefined;
   return (
     <div className="space-y-3">
       {turn.question && (
@@ -27,9 +37,26 @@ export function TraceTurnView({ turn }: { turn: TraceTurn }) {
               <AlertTriangle className="h-3.5 w-3.5 mt-px flex-shrink-0 text-neg" />
               <div>
                 <div className="font-medium">
-                  {t("trace.failed", { defaultValue: "Trace could not answer that" })}
+                  {known
+                    ? t(known.title, { defaultValue: "Trace isn't set up yet" })
+                    : t("trace.failed", { defaultValue: "Trace could not answer that" })}
                 </div>
-                <div className="text-muted-foreground mt-0.5">{turn.error}</div>
+                <div className="text-muted-foreground mt-0.5">
+                  {known
+                    ? t(known.body, {
+                        defaultValue:
+                          "Add an OpenRouter API key in Settings → Trace copilot and Trace can start reading your ledger.",
+                      })
+                    : turn.error}
+                </div>
+                {known && (
+                  <Link
+                    to="/settings#trace"
+                    className="inline-block mt-1.5 underline underline-offset-2 hover:text-foreground"
+                  >
+                    {t("trace.openSettings", { defaultValue: "Open Trace settings" })}
+                  </Link>
+                )}
               </div>
             </div>
           ) : (

@@ -799,7 +799,36 @@
     "traceAgencyRead": "Read-only — never applies anything",
     "traceAgencyConfirm": "Proposes — you confirm each change",
     "traceAgencyAuto": "Standing rules — applies on arrival",
-    "traceAgencyAutoWarning": "Changes are written as soon as Trace proposes them. Every one is logged and reversible from Trace → Activity."
+    "traceAgencyAutoWarning": "Changes are written as soon as Trace proposes them. Every one is logged and reversible from Trace → Activity.",
+    "traceSection": "Trace copilot",
+    "traceSubtitle": "Trace runs on your own OpenRouter account, so you choose the model and you see the bill.",
+    "traceApiKey": "OpenRouter API key",
+    "traceApiKeyHint": "Stored server-side, never sent back to your browser and unreadable by any client session — only the last characters are shown.",
+    "traceGetKey": "Get a key",
+    "traceKeyFromDeployment": "A key is configured for this deployment. Add your own below to use it instead.",
+    "traceReplaceKey": "Paste a new key to replace it",
+    "traceRemoveKey": "Remove",
+    "traceShowKey": "Show key",
+    "traceHideKey": "Hide key",
+    "traceKeyRejected": "OpenRouter rejected that key.",
+    "traceKeyUnreachable": "Could not reach OpenRouter to verify the key.",
+    "traceKeyRemoved": "API key removed",
+    "traceNoKey": "Add an API key first.",
+    "traceSaved": "Trace configured",
+    "traceSavedDesc": "Your changes are live.",
+    "traceSavedKey": "Key verified: {{label}}",
+    "traceModel": "Model",
+    "traceModelDesc": "Only models that support tool calling are listed — Trace answers by calling tools, so the rest can't work.",
+    "traceModelPick": "Pick a model",
+    "traceModelNone": "not set",
+    "traceLoadModels": "Browse models",
+    "traceModelsFailed": "Could not load models",
+    "traceModelsFailedDesc": "Check the API key, then try again.",
+    "traceEffort": "Reasoning effort",
+    "traceEffortDesc": "Higher thinks longer and costs more. Ignored by models that don't reason.",
+    "traceEffortLow": "Low — fastest",
+    "traceEffortMedium": "Medium — balanced",
+    "traceEffortHigh": "High — most thorough"
   },
   "validation": {
     "required": "This field is required",
@@ -1539,6 +1568,9 @@
     "radarNoBudget": "{{count}} categories have no budget",
     "radarNoBudgetBody": "Spending in these never triggers an alert, however far it drifts.",
     "radarSuggest": "Suggest limits",
-    "radarNoBudgetQ": "Suggest a monthly budget for each of my categories that doesn't have one yet."
+    "radarNoBudgetQ": "Suggest a monthly budget for each of my categories that doesn't have one yet.",
+    "errNotConfiguredTitle": "Trace isn't set up yet",
+    "errNotConfiguredBody": "Add an OpenRouter API key in Settings → Trace copilot and Trace can start reading your ledger.",
+    "openSettings": "Open Trace settings"
   }
 }

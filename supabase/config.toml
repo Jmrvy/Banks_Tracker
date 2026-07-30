@@ -32,3 +32,15 @@ verify_jwt = false
 
 [functions.mcp]
 verify_jwt = false
+
+# Trace is the one function that runs *as the user*: the platform verifies
+# the caller's JWT, and every ledger query inside is scoped to that user's
+# id. Listed explicitly — `verify_jwt = true` is the default, but every
+# sibling above opts out, so leaving this one absent reads like an omission.
+[functions.trace-copilot]
+verify_jwt = true
+
+# Same reasoning as trace-copilot: authenticated, and acts only on the
+# calling user's credentials row.
+[functions.trace-settings]
+verify_jwt = true

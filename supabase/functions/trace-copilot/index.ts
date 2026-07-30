@@ -29,15 +29,15 @@ const corsHeaders = {
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 /**
- * Overridable so the model can be changed without a redeploy of the
- * client. Must be a tool-calling model — Trace answers by *calling* the
- * `answer` tool, and a model without tool support returns prose this
- * function can only degrade into a single text block.
+ * Fallback model when the user hasn't picked one in Settings. Must be a
+ * tool-calling model — Trace answers by *calling* the `answer` tool, and a
+ * model without tool support returns prose this function can only degrade
+ * into a single text block.
  */
-const MODEL = Deno.env.get("TRACE_MODEL") ?? "anthropic/claude-opus-4.5";
+const DEFAULT_MODEL = Deno.env.get("TRACE_MODEL") ?? "anthropic/claude-opus-4.5";
 
 /** OpenRouter's unified reasoning control, ignored by models without it. */
-const REASONING_EFFORT = Deno.env.get("TRACE_REASONING_EFFORT") ?? "medium";
+const DEFAULT_REASONING_EFFORT = Deno.env.get("TRACE_REASONING_EFFORT") ?? "medium";
 
 /** Upstream ceiling, below the platform's own wall clock, so a wedged
  *  request surfaces as a clean error instead of a killed invocation. */
@@ -462,14 +462,6 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: "Trace is not configured: OPENROUTER_API_KEY is unset." }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const authHeader = req.headers.get("Authorization") ?? "";
     const db = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -485,6 +477,27 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
     const userId = authData.user.id;
+
+    // Credentials are per user, set from the app's own Settings. A
+    // project-wide OPENROUTER_API_KEY still works as a fallback, which is
+    // the right shape for a self-hosted deployment configured once by its
+    // operator. Reading this row is why the function runs as service role
+    // — `trace_credentials` is unreachable from any client session.
+    const { data: cred } = await db
+      .from("trace_credentials")
+      .select("api_key, model, reasoning_effort")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const apiKey = cred?.api_key ?? Deno.env.get("OPENROUTER_API_KEY");
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: "not_configured" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const model = cred?.model || DEFAULT_MODEL;
+    const reasoningEffort = cred?.reasoning_effort || DEFAULT_REASONING_EFFORT;
 
     const body = await req.json();
     const question: string = String(body.question ?? "").slice(0, 2000);
@@ -559,14 +572,14 @@ const handler = async (req: Request): Promise<Response> => {
     let answer: { steps: string[]; blocks: unknown[] } | null = null;
     for (let turn = 0; turn < 8; turn++) {
       const completion = await openai.chat.completions.create({
-        model: MODEL,
+        model,
         messages,
         tools: TOOLS,
         tool_choice: "auto",
         max_tokens: 16000,
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
-        reasoning: { effort: REASONING_EFFORT },
+        reasoning: { effort: reasoningEffort },
       } as any);
 
       const choice = completion.choices?.[0];
