@@ -319,6 +319,11 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
         const max = parseFloat(filters.amountMax);
         filtered = filtered.filter((t) => Math.abs(t.amount) <= max);
       }
+      if (filters.refund === 'refunded') {
+        filtered = filtered.filter((t) => (t.refunded_amount || 0) > 0);
+      } else if (filters.refund === 'is_refund') {
+        filtered = filtered.filter((t) => !!t.refund_of_transaction_id);
+      }
     }
 
     return filtered.sort((a, b) => dateOf(b).getTime() - dateOf(a).getTime());

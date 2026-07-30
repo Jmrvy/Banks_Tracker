@@ -37,6 +37,7 @@ const Transactions = () => {
     dateTo: navState.dateTo ?? "",
     amountMin: "",
     amountMax: "",
+    refund: "all",
     dateType: navState.dateType,
   }));
 
@@ -50,6 +51,7 @@ const Transactions = () => {
     if (filters.dateTo) count++;
     if (filters.amountMin) count++;
     if (filters.amountMax) count++;
+    if (filters.refund && filters.refund !== "all") count++;
     return count;
   }, [filters]);
 
@@ -81,6 +83,8 @@ const Transactions = () => {
       if (filters.dateTo && txDate > filters.dateTo) return false;
       if (filters.amountMin && Math.abs(tx.amount) < parseFloat(filters.amountMin)) return false;
       if (filters.amountMax && Math.abs(tx.amount) > parseFloat(filters.amountMax)) return false;
+      if (filters.refund === "refunded" && !((tx.refunded_amount || 0) > 0)) return false;
+      if (filters.refund === "is_refund" && !tx.refund_of_transaction_id) return false;
       return true;
     };
   }, [filters, preferences.dateType]);

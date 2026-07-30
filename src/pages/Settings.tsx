@@ -22,6 +22,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { useTrace, type TraceAgency } from "@/contexts/TraceContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useOffline } from "@/hooks/useOffline";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import { ProfileSection } from "@/components/settings/ProfileSection";
@@ -46,6 +48,7 @@ const Settings = () => {
   const { accounts, refetch } = useFinancialData();
   const { preferences, updatePreferences, formatCurrency } = useUserPreferences();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
+  const { agency: traceAgency, setAgency: setTraceAgency } = useTrace();
   const { isOnline } = useOffline();
   const { queueLength, isProcessing } = useOfflineQueue();
   const navigate = useNavigate();
@@ -351,6 +354,45 @@ const Settings = () => {
                       </p>
                     </div>
                     <Switch checked={isPrivacyMode} onCheckedChange={togglePrivacyMode} />
+                  </div>
+                  <div className="border-t border-line" />
+                  {/* What Trace is allowed to do. It reads the ledger in
+                      every mode; this only governs whether a proposal can
+                      turn into a write. */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">
+                      {t("settings.traceAgency", { defaultValue: "What Trace may do" })}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t("settings.traceAgencyDesc", {
+                        defaultValue:
+                          "Trace always reads your ledger to answer questions. This controls what happens to the changes it proposes.",
+                      })}
+                    </p>
+                    <Select value={traceAgency} onValueChange={(v: TraceAgency) => setTraceAgency(v)}>
+                      <SelectTrigger className="h-9 text-sm w-full sm:w-[320px] mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="read">
+                          {t("settings.traceAgencyRead", { defaultValue: "Read-only — never applies anything" })}
+                        </SelectItem>
+                        <SelectItem value="confirm">
+                          {t("settings.traceAgencyConfirm", { defaultValue: "Proposes — you confirm each change" })}
+                        </SelectItem>
+                        <SelectItem value="auto">
+                          {t("settings.traceAgencyAuto", { defaultValue: "Standing rules — applies on arrival" })}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {traceAgency === "auto" && (
+                      <p className="text-xs text-warn mt-1">
+                        {t("settings.traceAgencyAutoWarning", {
+                          defaultValue:
+                            "Changes are written as soon as Trace proposes them. Every one is logged and reversible from Trace → Activity.",
+                        })}
+                      </p>
+                    )}
                   </div>
                   <div className="border-t border-line" />
                   <div className="flex items-center justify-between gap-4 flex-wrap">

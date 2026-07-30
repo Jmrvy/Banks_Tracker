@@ -1,7 +1,7 @@
 # Banks Tracker - Project Reference
 
 > Personal finance management PWA built with React + Supabase.
-> **Last updated:** 2026-03-11
+> **Last updated:** 2026-07-30
 
 ---
 
@@ -195,6 +195,7 @@ src/
 | `/debts` | Debt tracking | Yes |
 | `/savings` | Savings goals | Yes |
 | `/reports` | Reports & analytics | Yes |
+| `/trace` | Trace copilot | Yes |
 | `/settings` | User settings | Yes |
 | `/install` | PWA install prompt | Yes |
 
@@ -256,6 +257,8 @@ src/
 
 | Date | Changes |
 |------|---------|
+| 2026-07-30 | Trace copilot: read-only ledger Q&A (`trace-copilot` edge function, OpenRouter + tool calling) answering in a fixed block vocabulary; dock / ⌘K-modal / `/trace` page surfaces; proposals apply client-side under the user's session with an undo log (`trace_activity`); agency setting in Settings |
+| 2026-07-30 | Transactional email localized (fr/en) via `_shared/emailI18n.ts` + `notification_preferences.email_language`; CTAs deep-link off `APP_URL`; pace bar renders budget line + today tick; legacy `.glass-*` CSS removed; "Has refund" filter in Transactions |
 | 2026-07-03 | Reports engine overhaul: date-type fixes (noon-boundary, one-timeline evolution chart, transfer fees in running balances, calendar-aware PDF comparison, timezone-safe formatDate) + pure engine extracted to src/lib/reportsEngine.ts shared by hook/PDF/Excel, unit-tested; Excel export i18n (fr/en); ReportsStats gains realNetChange/realFinalBalance (see docs/REPORTS_ENGINE_AUDIT.md) |
 | 2026-03-11 | Full UX polish: liquid glass morphism, consistent rounded-xl/2xl borders, entrance animations across all components |
 | 2026-03-11 | Improved mobile stat cards: larger text (text-base), visible icons on all screens, better touch targets (44px min) |
@@ -283,4 +286,6 @@ src/
 - **TypeScript strict mode:** Off (lenient)
 - **Path alias:** `@` → `./src`
 - **Vite port:** 8080
+- **Trace copilot:** `trace-copilot` edge function talks to OpenRouter — needs `OPENROUTER_API_KEY`; `TRACE_MODEL` (default `anthropic/claude-opus-4.5`) and `TRACE_REASONING_EFFORT` (default `medium`) select the model without a redeploy. Must be a tool-calling model — Trace answers by calling an `answer` tool
+- **App URL:** `APP_URL` powers the email deep links and OpenRouter's `HTTP-Referer` attribution
 - **Modal pattern:** All modals use `w-[95vw] sm:max-w-{size} max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0` with inner padding on header/body sections

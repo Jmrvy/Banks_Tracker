@@ -495,6 +495,7 @@ export type Database = {
           budget_alerts: boolean
           created_at: string
           date_type: string
+          email_language: string
           id: string
           monthly_report_attach_pdf: boolean
           monthly_report_cadence: string
@@ -508,6 +509,7 @@ export type Database = {
           budget_alerts?: boolean
           created_at?: string
           date_type?: string
+          email_language?: string
           id?: string
           monthly_report_attach_pdf?: boolean
           monthly_report_cadence?: string
@@ -521,6 +523,7 @@ export type Database = {
           budget_alerts?: boolean
           created_at?: string
           date_type?: string
+          email_language?: string
           id?: string
           monthly_report_attach_pdf?: boolean
           monthly_report_cadence?: string
@@ -803,6 +806,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trace_activity: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          payload: Json
+          title: string
+          undo_payload: Json
+          undone_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: string
+          payload?: Json
+          title: string
+          undo_payload?: Json
+          undone_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          payload?: Json
+          title?: string
+          undo_payload?: Json
+          undone_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       transaction_categories: {
         Row: {

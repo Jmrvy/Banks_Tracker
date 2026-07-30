@@ -33,6 +33,7 @@ const Budget = lazy(() => import("@/pages/Budget"));
 const Scheduled = lazy(() => import("@/pages/Scheduled"));
 const InstallmentPaymentDetail = lazy(() => import("@/pages/InstallmentPaymentDetail"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const Trace = lazy(() => import("@/pages/Trace"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -41,6 +42,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { InlineSpinner } from "@/components/LoadingSpinner";
 import { TourProvider } from "@/contexts/TourContext";
 import { TourEngine } from "@/components/tour/TourEngine";
+import { TraceProvider } from "@/contexts/TraceContext";
+import { TraceSurfaces } from "@/components/trace/TraceSurfaces";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -186,6 +189,14 @@ function AppRoutes() {
             }
           />
           <Route
+            path="/trace"
+            element={
+              <ProtectedRoute>
+                <Trace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/onboarding"
             element={
               <ProtectedRoute>
@@ -199,6 +210,7 @@ function AppRoutes() {
       </div>
       {user && !isOnboardingPage && isMobile && <MobileNavigation />}
       {user && <CommandPalette />}
+      {user && <TraceSurfaces />}
     </>
   );
 }
@@ -222,11 +234,13 @@ const App = () => (
                 <PeriodProvider>
                   <PrivacyProvider>
                     <CommandPaletteProvider>
-                      <TourProvider>
-                        <AppRoutes />
-                        <OfflineIndicator />
-                        <TourEngine />
-                      </TourProvider>
+                      <TraceProvider>
+                        <TourProvider>
+                          <AppRoutes />
+                          <OfflineIndicator />
+                          <TourEngine />
+                        </TourProvider>
+                      </TraceProvider>
                     </CommandPaletteProvider>
                   </PrivacyProvider>
                 </PeriodProvider>

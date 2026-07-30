@@ -122,30 +122,10 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "glass-fade-in": {
-          from: { opacity: "0", backdropFilter: "blur(0px)" },
-          to: { opacity: "1", backdropFilter: "blur(var(--glass-blur, 20px))" },
-        },
-        "glass-scale-in": {
-          from: { opacity: "0", transform: "scale(0.96)" },
-          to: { opacity: "1", transform: "scale(1)" },
-        },
-        "glass-slide-up": {
-          from: { opacity: "0", transform: "translateY(8px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        "glass-shimmer": {
-          from: { backgroundPosition: "-200% 0" },
-          to: { backgroundPosition: "200% 0" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "glass-fade-in": "glass-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
-        "glass-scale-in": "glass-scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-        "glass-slide-up": "glass-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
-        "glass-shimmer": "glass-shimmer 3s ease-in-out infinite",
       },
     },
   },
