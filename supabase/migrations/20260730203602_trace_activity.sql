@@ -8,6 +8,12 @@
 -- Trace itself never writes to this table: the client applies a proposal
 -- under the user's own session and records the result, so RLS covers both
 -- the edit and its audit row.
+--
+-- Renumbered past 20260730112731, which is a hand-written copy of this file
+-- that was applied ahead of it. Every statement below is guarded, so
+-- re-running it against a database that already has the table is a no-op;
+-- the point of the renumber is that the CLI will no longer refuse the whole
+-- batch for containing migrations older than the last applied one.
 
 CREATE TABLE IF NOT EXISTS public.trace_activity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
