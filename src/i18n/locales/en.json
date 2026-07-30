@@ -814,6 +814,8 @@
     "traceKeyUnreachable": "Could not reach OpenRouter to verify the key.",
     "traceKeyRemoved": "API key removed",
     "traceNoKey": "Add an API key first.",
+    "traceUnavailable": "Trace's settings service isn't deployed on this Supabase project yet, so nothing here can be saved. It ships with the rest of the Trace copilot.",
+    "traceUnavailableShort": "Trace's settings service isn't deployed on this project yet.",
     "traceSaved": "Trace configured",
     "traceSavedDesc": "Your changes are live.",
     "traceSavedKey": "Key verified: {{label}}",

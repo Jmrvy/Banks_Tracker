@@ -125,7 +125,7 @@ function Notes({ b }: { b: Extract<TraceBlock, { t: "list" }> }) {
                 "h-3.5 w-3.5 mt-0.5 flex-shrink-0",
                 item.tone === "pos" && "text-pos",
                 item.tone === "neg" && "text-neg",
-                item.tone === "warn" && "text-warn",
+                item.tone === "warn" && "text-warning",
                 item.tone === "info" && "text-muted-foreground",
               )}
             />
