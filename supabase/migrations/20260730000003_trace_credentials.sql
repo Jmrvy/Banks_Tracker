@@ -39,6 +39,14 @@ ALTER TABLE public.trace_credentials ENABLE ROW LEVEL SECURITY;
 
 -- No policies by design. See the note above: the service role bypasses RLS,
 -- and nothing else is permitted to touch this table.
+--
+-- Belt and braces on top of that. RLS-with-no-policies already denies every
+-- client query, but Supabase grants table privileges to `anon` and
+-- `authenticated` on new public tables by default, so the lockout would rest
+-- entirely on nobody ever adding a policy here by accident. Revoking the
+-- grants means a stray policy still wouldn't be enough to read the key.
+REVOKE ALL ON public.trace_credentials FROM anon, authenticated;
+GRANT ALL ON public.trace_credentials TO service_role;
 
 COMMENT ON TABLE public.trace_credentials IS
   'Per-user OpenRouter credentials for the Trace copilot. Service-role access only — the client goes through the trace-settings edge function.';
