@@ -16,6 +16,7 @@ import type { User } from "@supabase/supabase-js";
  *  (cover / contents / cashflow / full transactions ledger). */
 type EmailSection = 'summary' | 'categories' | 'budgets' | 'accounts' | 'income' | 'recurring';
 type Cadence = 'off' | 'weekly' | 'monthly' | 'quarterly';
+type EmailLanguage = 'fr' | 'en';
 
 const ALL_SECTIONS: EmailSection[] = ['summary', 'categories', 'budgets', 'accounts', 'income', 'recurring'];
 
@@ -24,7 +25,7 @@ interface NotificationsSectionProps {
 }
 
 export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
 
   const [notificationPrefs, setNotificationPrefs] = useState({
@@ -34,6 +35,10 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
     attachPdf: true,
     topN: 6,
     dateType: 'accounting' as 'accounting' | 'value',
+    // Language used for the emails themselves. Edge functions can't read
+    // the browser's i18n state, so it's persisted alongside the other
+    // notification settings. Seeded from the current UI language.
+    emailLanguage: (i18n.language?.startsWith('en') ? 'en' : 'fr') as EmailLanguage,
   });
   const [notifLoading, setNotifLoading] = useState(false);
   const [testBudgetLoading, setTestBudgetLoading] = useState(false);
@@ -69,12 +74,19 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           attachPdf: row.monthly_report_attach_pdf !== false,
           topN: Math.max(1, Math.min(20, Number(row.monthly_report_top_n) || 6)),
           dateType: dateTypeRaw,
+          emailLanguage: String(row.email_language ?? '').startsWith('en')
+            ? 'en'
+            // No stored preference yet (pre-migration row): fall back to the
+            // language the user is reading the app in rather than to 'fr'.
+            : row.email_language === 'fr'
+              ? 'fr'
+              : (i18n.language?.startsWith('en') ? 'en' : 'fr'),
         });
       }
     };
 
     loadNotificationPrefs();
-  }, [user]);
+  }, [user, i18n.language]);
 
   const saveNotificationPreferences = async () => {
     if (!user) return;
@@ -94,6 +106,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           monthly_report_attach_pdf: notificationPrefs.attachPdf,
           monthly_report_top_n: notificationPrefs.topN,
           date_type: notificationPrefs.dateType,
+          email_language: notificationPrefs.emailLanguage,
         } as never, { onConflict: 'user_id' });
 
       if (error) throw error;
@@ -191,6 +204,34 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           />
           <p className="text-xs text-muted-foreground">
             {t('settings.notificationEmailHint')}
+          </p>
+        </div>
+
+        {/* Email language — separate from the UI language because the
+            emails are rendered server-side and can't see the browser's
+            i18n state. Defaults to whatever the app is currently set to. */}
+        <div className="space-y-1.5">
+          <Label className="text-xs">
+            {t('settings.emailLanguage', { defaultValue: 'Email language' })}
+          </Label>
+          <Select
+            value={notificationPrefs.emailLanguage}
+            onValueChange={(v: EmailLanguage) =>
+              setNotificationPrefs((p) => ({ ...p, emailLanguage: v }))
+            }
+          >
+            <SelectTrigger className="h-9 text-sm w-full sm:w-[240px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fr">Français</SelectItem>
+              <SelectItem value="en">English</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.emailLanguageHint', {
+              defaultValue: 'Applies to budget alerts, periodic reports and the attached PDF.',
+            })}
           </p>
         </div>
 

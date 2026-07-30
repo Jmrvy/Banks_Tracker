@@ -184,7 +184,11 @@ const handler = async (req: Request): Promise<Response> => {
                     // Pace context for the new "day X of Y" treatment.
                     dayOfMonth: now.getDate(),
                     daysInMonth: monthEnd.getDate(),
-                    monthLabel: now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+                    // Locale-neutral: the email function formats the month
+                    // in the recipient's language. (It used to arrive here
+                    // pre-formatted as French, which leaked into English
+                    // emails.)
+                    monthIso: currentMonth,
                     transactionCount: (transactions || []).length,
                     dailyData,
                     // Top drivers — sort by *net* amount descending, take 5.
@@ -201,7 +205,9 @@ const handler = async (req: Request): Promise<Response> => {
                         // drivers without opening each one. Set only when
                         // the transaction is linked to a recurring schedule
                         // or an installment plan (both behave as repeats).
-                        tag: ((t as any).recurring_transaction_id || (t as any).installment_payment_id) ? 'Récurrent' : undefined,
+                        // A stable key, not display copy: the email function
+                        // translates it.
+                        tag: ((t as any).recurring_transaction_id || (t as any).installment_payment_id) ? 'recurring' : undefined,
                       }))
                   }
                 })

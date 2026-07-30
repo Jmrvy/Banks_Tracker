@@ -217,6 +217,9 @@
     "incomingTransfer": "Virement entrant",
     "outgoingTransfer": "Virement sortant",
     "refund": "Remboursement",
+    "hasRefund": "Avec remboursement",
+    "isRefund": "Est un remboursement",
+    "anyRefundState": "Indifférent",
     "showMore": "Afficher plus (25)"
   },
   "categories": {
@@ -727,6 +730,8 @@
     "configureAlerts": "Configurez vos alertes et rapports",
     "notificationEmail": "Email pour les notifications",
     "notificationEmailHint": "Les notifications seront envoyées à votre adresse email de connexion",
+    "emailLanguage": "Langue des emails",
+    "emailLanguageHint": "S'applique aux alertes budget, aux rapports périodiques et au PDF joint.",
     "budgetAlerts": "Alertes de budget",
     "budgetAlertsDesc": "Recevoir un email quand un budget est dépassé",
     "monthlyReports": "Rapports périodiques",

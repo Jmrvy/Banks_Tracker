@@ -5,7 +5,8 @@ import {
   startOfWeek, endOfWeek, subWeeks,
   startOfQuarter, endOfQuarter, subQuarters,
 } from "https://esm.sh/date-fns@3.6.0";
-import { fr } from "https://esm.sh/date-fns@3.6.0/locale";
+import { enGB, fr } from "https://esm.sh/date-fns@3.6.0/locale";
+import { type EmailLang, normalizeLang, tr } from "../_shared/emailI18n.ts";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
@@ -26,7 +27,9 @@ function uint8ToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function generateSlidesPdf(data: any): Promise<string> {
+async function generateSlidesPdf(data: any, lang: EmailLang): Promise<string> {
+  /** Shorthand for a PDF string in the recipient's language. */
+  const s = (key: string, params: Record<string, string | number> = {}) => tr(lang, key, params);
   const pdfDoc = await PDFDocument.create();
   // Type system mirrors the redesign — Geist (sans) → Helvetica, Geist Mono
   // → Courier, Fraunces (serif headlines) → Times. pdf-lib only ships the
@@ -70,7 +73,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   const txCount = data.transactionCount ?? 0;
   const incomeChange = data.incomeChange ?? 0;
   const expenseChange = data.expenseChange ?? 0;
-  const generatedOn = format(new Date(), "d MMMM yyyy", { locale: fr });
+  const generatedOn = format(new Date(), "d MMMM yyyy", { locale: lang === 'en' ? enGB : fr });
 
   /** Hairline horizontal rule. */
   function rule(page: any, x: number, y: number, w: number, color = line) {
@@ -90,7 +93,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   function drawPageFoot(page: any, num: number, total: number) {
     const M = 50;
     rule(page, M, 38, W - 2 * M, line);
-    page.drawText('SPENDING TRACKER · RAPPORT MENSUEL', { x: M, y: 22, size: 8, font: mono, color: mute2 });
+    page.drawText(s('pdf.brandTag'), { x: M, y: 22, size: 8, font: mono, color: mute2 });
     const pn = `${String(num).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
     page.drawText(pn, { x: rx(pn, 8, mono, M), y: 22, size: 8, font: mono, color: mute2 });
   }
@@ -114,8 +117,8 @@ async function generateSlidesPdf(data: any): Promise<string> {
   p1.drawText('Spending Tracker', {
     x: COV_M + 32, y: H - COV_M - 16, size: 13, font: sansBold, color: ink2,
   });
-  p1.drawText('RAPPORT MENSUEL', {
-    x: rx('RAPPORT MENSUEL', 10, mono, COV_M),
+  p1.drawText(s('pdf.docType'), {
+    x: rx(s('pdf.docType'), 10, mono, COV_M),
     y: H - COV_M - 16, size: 10, font: mono, color: mute,
   });
 
@@ -123,7 +126,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   rule(p1, COV_M, H * 0.52, W - 2 * COV_M, line);
 
   // Eyebrow above the headline
-  p1.drawText('Bilan financier', {
+  p1.drawText(s('pdf.cover'), {
     x: COV_M, y: H * 0.55 + 14, size: 11, font: mono, color: mute,
   });
 
@@ -135,21 +138,21 @@ async function generateSlidesPdf(data: any): Promise<string> {
 
   // Subline — verdict-first, italic accent on the sign of the net.
   const verdict = net >= 0
-    ? `Vous avez mis de cote ${Math.abs(net).toFixed(0)} EUR.`
-    : `Vous avez depense ${Math.abs(net).toFixed(0)} EUR de plus que vos revenus.`;
+    ? s('pdf.verdict.saved', { amount: Math.abs(net).toFixed(0) })
+    : s('pdf.verdict.overspent', { amount: Math.abs(net).toFixed(0) });
   p1.drawText(verdict, {
     x: COV_M, y: H * 0.42 - 26, size: 14, font: serifItalic, color: mute,
   });
 
   // Bottom meta row — generated date + tx count + savings rate, mono.
   rule(p1, COV_M, 96, W - 2 * COV_M, line);
-  p1.drawText('GENERE', { x: COV_M, y: 76, size: 8, font: mono, color: mute2 });
+  p1.drawText(s('pdf.generated'), { x: COV_M, y: 76, size: 8, font: mono, color: mute2 });
   p1.drawText(generatedOn, { x: COV_M, y: 60, size: 11, font: sans, color: ink2 });
 
-  p1.drawText('TRANSACTIONS', { x: COV_M + 220, y: 76, size: 8, font: mono, color: mute2 });
+  p1.drawText(s('pdf.transactions'), { x: COV_M + 220, y: 76, size: 8, font: mono, color: mute2 });
   p1.drawText(String(txCount), { x: COV_M + 220, y: 60, size: 11, font: monoBold, color: ink2 });
 
-  p1.drawText('TAUX D\'EPARGNE', { x: COV_M + 360, y: 76, size: 8, font: mono, color: mute2 });
+  p1.drawText(s('pdf.savingsRate'), { x: COV_M + 360, y: 76, size: 8, font: mono, color: mute2 });
   p1.drawText(`${savingsRate}%`, {
     x: COV_M + 360, y: 60, size: 11, font: monoBold, color: savingsRate >= 0 ? pos : neg,
   });
@@ -163,7 +166,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   // ═══════════════════════════════════════════════════════════════════════════
   const p2 = pdfDoc.addPage([W, H]);
   pageNum++;
-  drawSectionHeader(p2, '01 · Vue d\'ensemble', 'Bilan du mois');
+  drawSectionHeader(p2, s('pdf.s1'), s('pdf.s1sub'));
 
   const M = 50;
   const cellW = (W - 2 * M) / 3;
@@ -185,19 +188,19 @@ async function generateSlidesPdf(data: any): Promise<string> {
     if (deltaPct !== undefined && deltaPct !== 0) {
       const arrow = deltaPct >= 0 ? '↑' : '↓';
       const tone = deltaGood ? pos : neg;
-      const txt = `${arrow} ${Math.abs(deltaPct)}% vs mois precedent`;
+      const txt = `${arrow} ${Math.abs(deltaPct)}% ${s('pdf.vsPrev')}`;
       p2.drawText(txt, { x: x + 18, y: cellBotY + 14, size: 9.5, font: mono, color: tone });
     }
   }
 
-  drawCell(M, 'Revenus', `${income} EUR`, pos, incomeChange, incomeChange >= 0);
-  drawCell(M + cellW, 'Depenses', `${expenses} EUR`, neg, expenseChange, expenseChange <= 0);
-  drawCell(M + 2 * cellW, 'Net du mois', `${netStr} EUR`, net >= 0 ? pos : neg);
+  drawCell(M, s('pdf.income'), `${income} EUR`, pos, incomeChange, incomeChange >= 0);
+  drawCell(M + cellW, s('pdf.expenses'), `${expenses} EUR`, neg, expenseChange, expenseChange <= 0);
+  drawCell(M + 2 * cellW, s('pdf.net'), `${netStr} EUR`, net >= 0 ? pos : neg);
 
   // Total bar — set off by a 1px black rule above (matches the redesign).
   const totBarY = cellBotY - 60;
   p2.drawRectangle({ x: M, y: totBarY + 32, width: W - 2 * M, height: 1, color: ink });
-  p2.drawText('SOLDE TOTAL', { x: M, y: totBarY + 12, size: 11, font: mono, color: ink2 });
+  p2.drawText(s('pdf.totalBalance'), { x: M, y: totBarY + 12, size: 11, font: mono, color: ink2 });
   const balTxt = `${balance} EUR`;
   p2.drawText(balTxt, {
     x: rx(balTxt, 22, monoBold, M),
@@ -205,7 +208,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   });
 
   // Savings rate caption (small, mono, no card)
-  const srLine = `Taux d'epargne ${savingsRate}%  ·  ${txCount} transactions  ·  ${period}`;
+  const srLine = `${s('pdf.savingsRate')} ${savingsRate}%  -  ${txCount} ${s('pdf.transactions').toLowerCase()}  -  ${period}`;
   p2.drawText(srLine, { x: M, y: totBarY - 30, size: 10, font: mono, color: mute });
 
   drawPageFoot(p2, pageNum, totalPages);
@@ -217,17 +220,17 @@ async function generateSlidesPdf(data: any): Promise<string> {
   if (topCats.length > 0) {
     const p3 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawSectionHeader(p3, '02 · Repartition', 'Categories');
+    drawSectionHeader(p3, s('pdf.s2'), s('pdf.s2sub'));
 
     const tM = 50;
     const tW = W - 2 * tM;
     let curY = H - 120;
 
     // Column headers (mono uppercase, no fill)
-    p3.drawText('CATEGORIE', { x: tM, y: curY, size: 9, font: mono, color: mute });
-    p3.drawText('MONTANT', { x: tM + tW * 0.42, y: curY, size: 9, font: mono, color: mute });
+    p3.drawText(s('pdf.colCategory'), { x: tM, y: curY, size: 9, font: mono, color: mute });
+    p3.drawText(s('pdf.colAmount'), { x: tM + tW * 0.42, y: curY, size: 9, font: mono, color: mute });
     p3.drawText('%', { x: tM + tW * 0.58, y: curY, size: 9, font: mono, color: mute });
-    p3.drawText('REPARTITION', { x: tM + tW * 0.66, y: curY, size: 9, font: mono, color: mute });
+    p3.drawText(s('pdf.colShare'), { x: tM + tW * 0.66, y: curY, size: 9, font: mono, color: mute });
     curY -= 8;
     rule(p3, tM, curY, tW, ink2);
     curY -= 8;
@@ -241,7 +244,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
       const catName = String(cat.name ?? '').substring(0, 36);
       p3.drawText(catName, { x: tM, y: curY + 8, size: 11, font: sansBold, color: ink });
       if (isOver) {
-        p3.drawText('AU-DESSUS', {
+        p3.drawText(s('pdf.overTag'), {
           x: tM + sansBold.widthOfTextAtSize(catName, 11) + 10,
           y: curY + 8, size: 8, font: mono, color: neg,
         });
@@ -273,16 +276,16 @@ async function generateSlidesPdf(data: any): Promise<string> {
   if (accounts.length > 0) {
     const p4 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawSectionHeader(p4, '03 · Comptes', 'Soldes par compte');
+    drawSectionHeader(p4, s('pdf.s3'), s('pdf.s3sub'));
 
     const tM = 50;
     const tW = W - 2 * tM;
     let curY = H - 120;
 
-    p4.drawText('COMPTE', { x: tM, y: curY, size: 9, font: mono, color: mute });
-    p4.drawText('REVENUS', { x: tM + tW * 0.45, y: curY, size: 9, font: mono, color: mute });
-    p4.drawText('DEPENSES', { x: tM + tW * 0.62, y: curY, size: 9, font: mono, color: mute });
-    p4.drawText('SOLDE', { x: rx('SOLDE', 9, mono, tM), y: curY, size: 9, font: mono, color: mute });
+    p4.drawText(s('pdf.colAccount'), { x: tM, y: curY, size: 9, font: mono, color: mute });
+    p4.drawText(s('pdf.colIncome'), { x: tM + tW * 0.45, y: curY, size: 9, font: mono, color: mute });
+    p4.drawText(s('pdf.colExpenses'), { x: tM + tW * 0.62, y: curY, size: 9, font: mono, color: mute });
+    p4.drawText(s('pdf.colBalance'), { x: rx(s('pdf.colBalance'), 9, mono, tM), y: curY, size: 9, font: mono, color: mute });
     curY -= 8;
     rule(p4, tM, curY, tW, ink2);
     curY -= 8;
@@ -314,7 +317,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
     // Total — black hairline above + label/value row.
     const totalY = curY - 30;
     p4.drawRectangle({ x: tM, y: totalY + 22, width: tW, height: 1, color: ink });
-    p4.drawText('SOLDE TOTAL', { x: tM, y: totalY + 4, size: 11, font: mono, color: ink2 });
+    p4.drawText(s('pdf.totalBalance'), { x: tM, y: totalY + 4, size: 11, font: mono, color: ink2 });
     const balTotal = `${balance} EUR`;
     p4.drawText(balTotal, {
       x: rx(balTotal, 18, monoBold, tM),
@@ -331,7 +334,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   if (budgetOverspent.length > 0) {
     const p5 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawSectionHeader(p5, '04 · Alertes', 'Budgets depasses');
+    drawSectionHeader(p5, s('pdf.s4'), s('pdf.s4sub'));
 
     const aM = 50;
     let curY = H - 130;
@@ -361,7 +364,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
       });
 
       // Sub line (used / budget · pct)
-      const sub = `${Number(cat.spent).toFixed(2)} EUR / ${Number(cat.budget).toFixed(2)} EUR  ·  ${pctUsed}% utilise`;
+      const sub = `${Number(cat.spent).toFixed(2)} EUR / ${Number(cat.budget).toFixed(2)} EUR  -  ${pctUsed}%`;
       p5.drawText(sub, { x: aM + 18, y: curY + cardH - 44, size: 10, font: mono, color: mute });
 
       // Pace bar — 0..150% range so we can show overrun + budget tick at 100%.
@@ -386,7 +389,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
   if (specialBudgets.length > 0) {
     const p6 = pdfDoc.addPage([W, H]);
     pageNum++;
-    drawSectionHeader(p6, '05 · Enveloppes', 'Budgets speciaux');
+    drawSectionHeader(p6, s('pdf.s5'), s('pdf.s5sub'));
 
     const sM = 50;
     let curY = H - 130;
@@ -415,7 +418,7 @@ async function generateSlidesPdf(data: any): Promise<string> {
       });
       if (isClosed) {
         const nameW = sansBold.widthOfTextAtSize(String(sb.name ?? ''), 14);
-        p6.drawText('CLOTURE', {
+        p6.drawText(s('pdf.closedTag'), {
           x: sM + 18 + nameW + 10, y: curY + cardH - 22, size: 8, font: mono, color: mute,
         });
       }
@@ -517,7 +520,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let query = supabaseAdmin
       .from('notification_preferences')
-      .select('user_id, date_type, monthly_report_cadence, monthly_report_sections, monthly_report_attach_pdf, monthly_report_top_n, monthly_reports');
+      .select('user_id, date_type, monthly_report_cadence, monthly_report_sections, monthly_report_attach_pdf, monthly_report_top_n, monthly_reports, email_language');
     if (isCron) {
       query = query.in('monthly_report_cadence', todayCadences);
     } else {
@@ -549,6 +552,7 @@ const handler = async (req: Request): Promise<Response> => {
           sections,
           attachPdf,
           topN,
+          lang: pref.email_language,
         };
       })
     );
@@ -559,7 +563,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Found ${validUsers.length} users to process${isCron ? ` (cadences: ${todayCadences.join(', ')})` : ' (test)'}`);
 
     // Period helpers — choose the right window per user's cadence.
-    const periodForCadence = (cadence: 'weekly' | 'monthly' | 'quarterly') => {
+    const periodForCadence = (cadence: 'weekly' | 'monthly' | 'quarterly', lang: EmailLang) => {
+      // Period labels are user-facing copy, so they follow the recipient's
+      // email language rather than a hardcoded French locale.
+      const dfLocale = lang === 'en' ? enGB : fr;
       if (cadence === 'weekly') {
         const lastWeek = subWeeks(now, 1);
         return {
@@ -567,7 +574,9 @@ const handler = async (req: Request): Promise<Response> => {
           end: endOfWeek(lastWeek, { weekStartsOn: 1 }),
           prevStart: startOfWeek(subWeeks(lastWeek, 1), { weekStartsOn: 1 }),
           prevEnd: endOfWeek(subWeeks(lastWeek, 1), { weekStartsOn: 1 }),
-          label: `Semaine du ${format(startOfWeek(lastWeek, { weekStartsOn: 1 }), 'd MMM yyyy', { locale: fr })}`,
+          label: tr(lang, 'report.periodLabel.weekly', {
+            date: format(startOfWeek(lastWeek, { weekStartsOn: 1 }), 'd MMM yyyy', { locale: dfLocale }),
+          }),
         };
       }
       if (cadence === 'quarterly') {
@@ -577,7 +586,7 @@ const handler = async (req: Request): Promise<Response> => {
           end: endOfQuarter(lastQuarter),
           prevStart: startOfQuarter(subQuarters(lastQuarter, 1)),
           prevEnd: endOfQuarter(subQuarters(lastQuarter, 1)),
-          label: `T${Math.floor(lastQuarter.getMonth() / 3) + 1} ${lastQuarter.getFullYear()}`,
+          label: `${lang === 'en' ? 'Q' : 'T'}${Math.floor(lastQuarter.getMonth() / 3) + 1} ${lastQuarter.getFullYear()}`,
         };
       }
       // monthly
@@ -587,14 +596,15 @@ const handler = async (req: Request): Promise<Response> => {
         end: endOfMonth(lastMonth),
         prevStart: startOfMonth(subMonths(lastMonth, 1)),
         prevEnd: endOfMonth(subMonths(lastMonth, 1)),
-        label: format(lastMonth, 'MMMM yyyy', { locale: fr }),
+        label: format(lastMonth, 'MMMM yyyy', { locale: dfLocale }),
       };
     };
 
     for (const userPref of validUsers) {
       try {
         // Resolve the period window for this user's cadence.
-        const period = periodForCadence(userPref.cadence as 'weekly' | 'monthly' | 'quarterly');
+        const lang = normalizeLang((userPref as any).lang);
+        const period = periodForCadence(userPref.cadence as 'weekly' | 'monthly' | 'quarterly', lang);
         const monthStart = period.start;
         const monthEnd = period.end;
         const prevMonthStart = period.prevStart;
@@ -757,6 +767,10 @@ const handler = async (req: Request): Promise<Response> => {
 
         const reportData = {
           period: periodLabel,
+          // Recipient's email language — the template also reads it from
+          // notification_preferences, but passing it keeps the PDF and the
+          // HTML body guaranteed in sync for a single send.
+          lang,
           // Cadence — the email template uses this to switch the subject
           // line and footer copy ("monthly" vs "weekly" vs "quarterly").
           cadence: userPref.cadence,
@@ -783,7 +797,7 @@ const handler = async (req: Request): Promise<Response> => {
         let pdfBase64: string | null = null;
         if (userPref.attachPdf) {
           try {
-            pdfBase64 = await generateSlidesPdf(reportData);
+            pdfBase64 = await generateSlidesPdf(reportData, lang);
             console.log(`PDF generated for user ${userPref.user_id} (${Math.round((pdfBase64?.length || 0) * 0.75 / 1024)} KB)`);
           } catch (pdfErr) {
             console.error(`PDF generation failed for user ${userPref.user_id}:`, pdfErr);

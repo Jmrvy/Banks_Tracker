@@ -16,6 +16,7 @@ import {
   Tag,
   DollarSign,
   History,
+  Undo2,
 } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,6 +30,16 @@ export interface TransactionFilters {
   dateTo: string;
   amountMin: string;
   amountMax: string;
+  /**
+   * Refund-link filter. Refunds are a two-sided relation, so this is a
+   * tri-state rather than a boolean:
+   *   'all'       — no filtering
+   *   'refunded'  — the transaction has been refunded (refunded_amount > 0)
+   *   'is_refund' — the transaction *is* a refund of another one
+   * Optional so callers that build filters literally (Budget → Transactions)
+   * don't have to know about it.
+   */
+  refund?: 'all' | 'refunded' | 'is_refund';
   /**
    * Optional override for which date column the dateFrom/dateTo range
    * applies to. When set, takes precedence over the user's global
@@ -70,8 +81,11 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
       dateTo: '',
       amountMin: '',
       amountMax: '',
+      refund: 'all',
     });
   };
+
+  const refundFilter = filters.refund ?? 'all';
 
   // Type segmented control matching the deck's "All / Income / Expenses / Transfers"
   const typeSegments = [
@@ -89,7 +103,14 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
     filters.dateTo,
     filters.amountMin,
     filters.amountMax,
+    refundFilter !== 'all',
   ].filter(Boolean).length;
+
+  const refundFilterLabel = refundFilter === 'refunded'
+    ? t('transactions.hasRefund', { defaultValue: 'Has refund' })
+    : refundFilter === 'is_refund'
+      ? t('transactions.isRefund', { defaultValue: 'Is a refund' })
+      : null;
 
   const categoryFilterLabel = filters.categoryId !== 'all'
     ? categories.find((c) => c.id === filters.categoryId)?.name
@@ -147,6 +168,26 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               ))}
             </div>
           </div>
+
+          {/* Quick "Has refund" chip — refund linking is a power feature that
+              was otherwise only reachable from the detail modal. One click
+              narrows the list to transactions carrying a refund; the full
+              tri-state (incl. "is a refund") lives in advanced filters. */}
+          <button
+            type="button"
+            onClick={() =>
+              updateFilter('refund', refundFilter === 'refunded' ? 'all' : 'refunded')
+            }
+            aria-pressed={refundFilter === 'refunded'}
+            className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border text-xs font-medium transition-colors flex-shrink-0 ${
+              refundFilter === 'refunded'
+                ? 'border-primary text-primary bg-primary/5'
+                : 'border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover'
+            }`}
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            {t('transactions.hasRefund', { defaultValue: 'Has refund' })}
+          </button>
 
           {/* Single Advanced filter toggle */}
           <div className="flex items-center gap-1.5">
@@ -213,6 +254,19 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 <button
                   type="button"
                   onClick={() => onFiltersChange({ ...filters, dateFrom: "", dateTo: "" })}
+                  className="p-0.5 rounded hover:bg-foreground/10"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            )}
+            {refundFilterLabel && (
+              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+                <Undo2 className="h-3 w-3" />
+                <span className="truncate max-w-[140px]">{refundFilterLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => updateFilter("refund", "all")}
                   className="p-0.5 rounded hover:bg-foreground/10"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -312,6 +366,30 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                   placeholder={t('common.until', { defaultValue: 'Until' })}
                 />
               </div>
+            </div>
+
+            {/* Refund link */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Undo2 className="h-3.5 w-3.5" />
+                {t('transactions.refund', { defaultValue: 'Refund' })}
+              </label>
+              <Select value={refundFilter} onValueChange={(value) => updateFilter('refund', value)}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {t('transactions.anyRefundState', { defaultValue: 'Any' })}
+                  </SelectItem>
+                  <SelectItem value="refunded">
+                    {t('transactions.hasRefund', { defaultValue: 'Has refund' })}
+                  </SelectItem>
+                  <SelectItem value="is_refund">
+                    {t('transactions.isRefund', { defaultValue: 'Is a refund' })}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Amount range */}

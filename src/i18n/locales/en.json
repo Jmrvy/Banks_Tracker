@@ -217,6 +217,9 @@
     "incomingTransfer": "Incoming transfer",
     "outgoingTransfer": "Outgoing transfer",
     "refund": "Refund",
+    "hasRefund": "Has refund",
+    "isRefund": "Is a refund",
+    "anyRefundState": "Any",
     "showMore": "Show more (25)"
   },
   "categories": {
@@ -727,6 +730,8 @@
     "configureAlerts": "Configure your alerts and reports",
     "notificationEmail": "Notification email",
     "notificationEmailHint": "Notifications will be sent to your login email address",
+    "emailLanguage": "Email language",
+    "emailLanguageHint": "Applies to budget alerts, periodic reports and the attached PDF.",
     "budgetAlerts": "Budget alerts",
     "budgetAlertsDesc": "Receive an email when a budget is exceeded",
     "monthlyReports": "Periodic reports",
