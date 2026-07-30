@@ -304,7 +304,7 @@ const Trace = () => {
               </div>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => navigate("/settings#privacy")}>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => navigate("/settings#trace")}>
             {t("trace.settings", { defaultValue: "Trace settings" })}
           </Button>
         </div>

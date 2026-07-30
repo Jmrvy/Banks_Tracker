@@ -799,7 +799,36 @@
     "traceAgencyRead": "Lecture seule — n'applique jamais rien",
     "traceAgencyConfirm": "Propose — vous validez chaque changement",
     "traceAgencyAuto": "Règles permanentes — applique dès la proposition",
-    "traceAgencyAutoWarning": "Les changements sont écrits dès que Trace les propose. Chacun est enregistré et réversible depuis Trace → Activité."
+    "traceAgencyAutoWarning": "Les changements sont écrits dès que Trace les propose. Chacun est enregistré et réversible depuis Trace → Activité.",
+    "traceSection": "Copilote Trace",
+    "traceSubtitle": "Trace fonctionne sur votre propre compte OpenRouter : vous choisissez le modèle et vous voyez la facture.",
+    "traceApiKey": "Clé API OpenRouter",
+    "traceApiKeyHint": "Stockée côté serveur, jamais renvoyée à votre navigateur et illisible depuis toute session client — seuls les derniers caractères sont affichés.",
+    "traceGetKey": "Obtenir une clé",
+    "traceKeyFromDeployment": "Une clé est configurée pour ce déploiement. Ajoutez la vôtre ci-dessous pour l'utiliser à la place.",
+    "traceReplaceKey": "Collez une nouvelle clé pour la remplacer",
+    "traceRemoveKey": "Supprimer",
+    "traceShowKey": "Afficher la clé",
+    "traceHideKey": "Masquer la clé",
+    "traceKeyRejected": "OpenRouter a rejeté cette clé.",
+    "traceKeyUnreachable": "Impossible de joindre OpenRouter pour vérifier la clé.",
+    "traceKeyRemoved": "Clé API supprimée",
+    "traceNoKey": "Ajoutez d'abord une clé API.",
+    "traceSaved": "Trace configuré",
+    "traceSavedDesc": "Vos changements sont actifs.",
+    "traceSavedKey": "Clé vérifiée : {{label}}",
+    "traceModel": "Modèle",
+    "traceModelDesc": "Seuls les modèles compatibles avec l'appel d'outils sont listés — Trace répond en appelant des outils, les autres ne peuvent pas fonctionner.",
+    "traceModelPick": "Choisir un modèle",
+    "traceModelNone": "non défini",
+    "traceLoadModels": "Parcourir les modèles",
+    "traceModelsFailed": "Impossible de charger les modèles",
+    "traceModelsFailedDesc": "Vérifiez la clé API, puis réessayez.",
+    "traceEffort": "Effort de raisonnement",
+    "traceEffortDesc": "Plus élevé = réflexion plus longue et plus coûteuse. Ignoré par les modèles sans raisonnement.",
+    "traceEffortLow": "Faible — le plus rapide",
+    "traceEffortMedium": "Moyen — équilibré",
+    "traceEffortHigh": "Élevé — le plus approfondi"
   },
   "validation": {
     "required": "Ce champ est requis",
@@ -1535,6 +1564,9 @@
     "radarNoBudget": "{{count}} catégories sans budget",
     "radarNoBudgetBody": "Les dépenses de ces catégories ne déclenchent jamais d'alerte, quelle que soit leur dérive.",
     "radarSuggest": "Proposer des limites",
-    "radarNoBudgetQ": "Propose un budget mensuel pour chacune de mes catégories qui n'en a pas encore."
+    "radarNoBudgetQ": "Propose un budget mensuel pour chacune de mes catégories qui n'en a pas encore.",
+    "errNotConfiguredTitle": "Trace n'est pas encore configuré",
+    "errNotConfiguredBody": "Ajoutez une clé API OpenRouter dans Paramètres → Copilote Trace et Trace pourra lire votre historique.",
+    "openSettings": "Ouvrir les réglages de Trace"
   }
 }

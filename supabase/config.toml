@@ -39,3 +39,8 @@ verify_jwt = false
 # sibling above opts out, so leaving this one absent reads like an omission.
 [functions.trace-copilot]
 verify_jwt = true
+
+# Same reasoning as trace-copilot: authenticated, and acts only on the
+# calling user's credentials row.
+[functions.trace-settings]
+verify_jwt = true
