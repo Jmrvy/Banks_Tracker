@@ -34,6 +34,7 @@ const Scheduled = lazy(() => import("@/pages/Scheduled"));
 const InstallmentPaymentDetail = lazy(() => import("@/pages/InstallmentPaymentDetail"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const Trace = lazy(() => import("@/pages/Trace"));
+const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -69,6 +70,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Reads a `next` query param, accepting only same-origin relative paths. */
+export function safeNext(search: string): string | null {
+  const next = new URLSearchParams(search).get("next");
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
 function AppRoutes() {
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
@@ -92,9 +100,11 @@ function AppRoutes() {
       <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pb-20 min-h-screen" : "min-h-screen"}>
         <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><InlineSpinner /></div>}>
         <Routes>
+          {/* OAuth 2.1 consent screen for MCP clients connecting to this app. */}
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route 
             path="/auth" 
-            element={user ? <Navigate to="/" replace /> : <Auth />} 
+            element={user ? <Navigate to={safeNext(location.search) ?? "/"} replace /> : <Auth />} 
           />
           <Route 
             path="/" 
