@@ -146,8 +146,17 @@ export const useDebts = () => {
   useEffect(() => {
     if (!user) return;
 
+    // Unique per hook instance. `supabase.channel(topic)` returns the
+    // *existing* channel when one already has that topic, and seventeen
+    // components call useDebts(). With a fixed name the second mount gets
+    // the first mount's already-joined channel, adds bindings to it, and
+    // the server rejects the join with "cannot add postgres_changes
+    // callbacks … after subscribe()" — subscribe() only sends bindings
+    // while the channel is still closed. Sharing one object also means the
+    // first unmount removed the channel out from under everyone else.
+    const channelId = `debt_data_changes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel('debt-data-changes')
+      .channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'debts', filter: `user_id=eq.${user.id}` },
