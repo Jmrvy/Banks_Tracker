@@ -2336,8 +2336,6 @@ const Budget = () => {
           formatCurrency={formatCurrency}
           t={t}
         />
-      </div>
-
 
         {/* Income categories — no budget, so no budget table. */}
         <div className="ft-card p-4 flex flex-col gap-3">
@@ -2402,6 +2400,7 @@ const Budget = () => {
             </div>
           )}
         </div>
+      </div>
 
       {/* Modals + sheets */}
       <SpecialBudgetModal
