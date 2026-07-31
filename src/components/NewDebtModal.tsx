@@ -18,6 +18,7 @@ import { debtSchema, validateForm } from '@/lib/validations';
 import { CsvLoanImport } from '@/components/CsvLoanImport';
 import { supabase } from '@/integrations/supabase/client';
 import { useTranslation } from 'react-i18next';
+import { categoriesForType } from '@/lib/categoryKind';
 
 interface NewDebtModalProps {
   open: boolean;
@@ -279,7 +280,8 @@ export const NewDebtModal = ({ open, onOpenChange }: NewDebtModalProps) => {
                     <SelectValue placeholder="Optionnel" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {/* Repayments run opposite to the loan — see createRecurringTransaction. */}
+                    {categoriesForType(categories, formData.type === 'loan_given' ? 'income' : 'expense', formData.category_id).map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         <div className="flex items-center gap-2">
                           <div

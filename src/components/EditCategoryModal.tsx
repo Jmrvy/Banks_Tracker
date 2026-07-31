@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import type { Category } from "@/hooks/useFinancialData";
+import { kindOf, type CategoryKind } from "@/lib/categoryKind";
 
 interface EditCategoryModalProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
   const [name, setName] = useState("");
   const [color, setColor] = useState("#3B82F6");
   const [budget, setBudget] = useState("");
+  const [kind, setKind] = useState<CategoryKind>("expense");
   const [icon, setIcon] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -39,6 +41,7 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
       setName(category.name);
       setColor(category.color || "#3B82F6");
       setBudget(category.budget != null ? String(category.budget) : "");
+      setKind(kindOf(category));
       setIcon(category.icon ?? null);
     }
   }, [category]);
@@ -54,8 +57,12 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
         .update({
           name: name.trim(),
           color,
-          budget: budget ? Number(budget) : null,
+          // Switching a category to income drops its budget: the two cannot
+          // coexist, and the DB check would reject the row rather than the
+          // form telling the user why.
+          budget: kind === "expense" && budget ? Number(budget) : null,
           icon: icon ?? null,
+          kind,
         })
         .eq("id", category.id);
       if (error) throw error;
@@ -116,14 +123,44 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">{t("categories.budget", { defaultValue: "Budget" })}</Label>
-            <AmountInput
-              value={budget}
-              onChange={setBudget}
-              placeholder="0.00"
-              className="h-9 text-sm"
-            />
+            <Label className="text-xs">{t("categories.kind", { defaultValue: "Applies to" })}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["expense", "income"] as const).map((k) => (
+                <Button
+                  key={k}
+                  type="button"
+                  variant={kind === k ? "default" : "outline"}
+                  className="h-9 text-sm"
+                  onClick={() => setKind(k)}
+                >
+                  {k === "expense"
+                    ? t("categories.kindExpense", { defaultValue: "Spending" })
+                    : t("categories.kindIncome", { defaultValue: "Income" })}
+                </Button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {kind === "expense"
+                ? t("categories.kindExpenseHint", {
+                    defaultValue: "Offered on expenses and transfers, and can carry a monthly budget.",
+                  })
+                : t("categories.kindIncomeHint", {
+                    defaultValue: "Offered on income only. Budgets cap what you spend, so income categories have none.",
+                  })}
+            </p>
           </div>
+
+          {kind === "expense" && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">{t("categories.budget", { defaultValue: "Budget" })}</Label>
+              <AmountInput
+                value={budget}
+                onChange={setBudget}
+                placeholder="0.00"
+                className="h-9 text-sm"
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <Label className="text-xs">{t("categoryIcons.pickIcon", { defaultValue: "Icon" })}</Label>

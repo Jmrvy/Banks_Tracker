@@ -14,6 +14,7 @@ import { Loader2, RotateCcw, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { categoriesForType } from '@/lib/categoryKind';
 
 interface CreateRefundModalProps {
   open: boolean;
@@ -276,7 +277,8 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="same-as-original">Même que l'original</SelectItem>
-                  {categories.map((cat) => (
+                  {/* A refund sits on the same side of the ledger as what it refunds. */}
+                  {categoriesForType(categories, transaction?.type, formData.category_id).map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       <div className="flex items-center gap-2">
                         <div 

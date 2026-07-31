@@ -14,6 +14,7 @@ import { useSpecialBudgets } from '@/hooks/useSpecialBudgets';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { categoriesForType } from '@/lib/categoryKind';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -266,7 +267,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   <SelectValue placeholder={t('common.selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categoriesForType(categories, formData.type, formData.category_id).map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
                         <div

@@ -12,6 +12,7 @@ import { useFinancialData } from '@/hooks/useFinancialData';
 import { useNavigate } from 'react-router-dom';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
+import { categoriesForType } from '@/lib/categoryKind';
 
 const NewTransaction = () => {
   const { t } = useTranslation();
@@ -337,7 +338,7 @@ const NewTransaction = () => {
                       <SelectValue placeholder={t('common.selectCategoryOptional')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
+                      {categoriesForType(categories, formData.type, formData.category_id).map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           <div className="flex items-center gap-2">
                             <div 

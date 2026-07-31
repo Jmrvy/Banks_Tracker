@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { CategoryKind } from '@/lib/categoryKind';
 import { useAuth } from '@/contexts/AuthContext';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
@@ -60,8 +61,10 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  /** Expense categories only — a ceiling on outgoings has no income analogue. */
   budget: number | null;
   icon: string | null;
+  kind: CategoryKind;
 }
 
 export interface RecurringTransaction {
