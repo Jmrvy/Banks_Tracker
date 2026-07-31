@@ -1691,10 +1691,11 @@ const Budget = () => {
       toast({
         title: t("categories.budgetUpdated", { defaultValue: "Budget updated" }),
       });
-    } catch {
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       toast({
         title: t("common.error"),
-        description: t("errors.updateError"),
+        description: detail || t("errors.updateError"),
         variant: "destructive",
       });
     }

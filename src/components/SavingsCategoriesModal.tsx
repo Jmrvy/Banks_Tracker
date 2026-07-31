@@ -70,12 +70,13 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
     );
     setSaving(false);
 
-    if (results.some((r) => r.error)) {
+    const failed = results.find((r) => r.error);
+    if (failed) {
       toast({
         title: t("common.error", { defaultValue: "Error" }),
-        description: t("savings.categoriesSaveFailed", {
-          defaultValue: "Could not update the categories.",
-        }),
+        description:
+          failed.error?.message ??
+          t("savings.categoriesSaveFailed", { defaultValue: "Could not update the categories." }),
         variant: "destructive",
       });
       return;
