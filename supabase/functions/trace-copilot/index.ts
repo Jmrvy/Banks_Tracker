@@ -44,11 +44,16 @@ const DEFAULT_REASONING_EFFORT = Deno.env.get("TRACE_REASONING_EFFORT") ?? "medi
  * individually bounds nothing: the platform's own wall clock arrives first
  * and kills the worker, and a killed worker returns a non-2xx this
  * function never gets to shape. Every call draws from this one budget.
+ *
+ * The platform's limit is 150s, observed rather than assumed: a 504 logged
+ * at 150,087ms. This sits below it with room to write a reply. It is not a
+ * target — a real multi-round answer has been seen to take 119s, so
+ * trimming this to feel safer just converts slow successes into failures.
  */
-const INVOCATION_BUDGET_MS = 100_000;
+const INVOCATION_BUDGET_MS = 135_000;
 
-/** Never let a single upstream call eat the entire budget. */
-const MAX_CALL_MS = 60_000;
+/** Held back from the last call so a timeout can still be reported. */
+const RESPONSE_RESERVE_MS = 3_000;
 
 /** Below this, there is no point starting another round. */
 const MIN_ROUND_MS = 15_000;
@@ -283,7 +288,18 @@ async function chatCompletion(
     throw new Error(`Could not reach OpenRouter: ${reason}`);
   }
 
-  const body = await res.text();
+  let body: string;
+  try {
+    body = await res.text();
+  } catch (err) {
+    // The abort signal covers the body stream, not just the handshake, and
+    // a completion streams for as long as the model generates — so a slow
+    // answer times out HERE, not in the fetch above. Left uncaught it
+    // reached the user as a bare "Signal timed out." with nothing naming
+    // the culprit.
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(`OpenRouter stopped sending mid-response: ${reason}`);
+  }
   if (!res.ok) {
     // OpenRouter states the refusal in the body — unknown model slug,
     // exhausted credit, a tool schema the provider would not accept.
@@ -639,7 +655,7 @@ const handler = async (req: Request): Promise<Response> => {
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
         reasoning: { effort: reasoningEffort },
-      }, Math.min(MAX_CALL_MS, left));
+      }, Math.max(1_000, left - RESPONSE_RESERVE_MS));
 
       const choice = completion.choices?.[0];
       const message = choice?.message;
