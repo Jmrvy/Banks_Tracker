@@ -258,7 +258,10 @@ async function chatCompletion(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": Deno.env.get("APP_URL") ?? "https://banks-tracker.app",
-        "X-Title": "Banks Tracker — Trace",
+        // ASCII hyphen, not the em dash used everywhere else in this file:
+        // header values are ByteString, so a non-ASCII character here makes
+        // `Request` throw at construction and no call is ever made.
+        "X-Title": "Banks Tracker - Trace",
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
