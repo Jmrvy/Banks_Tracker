@@ -646,15 +646,22 @@ const handler = async (req: Request): Promise<Response> => {
         ranOutOfTime = true;
         break;
       }
+      // Reasoning is what actually costs the time on a slow model: those
+      // tokens are generated before any tool call, so every round pays for
+      // them. A question needing several rounds cannot afford the full
+      // configured effort on all of them and still land inside the
+      // platform's window. Past the halfway mark, buy speed with depth —
+      // a shallower answer beats the worker being killed with none.
+      const pressed = left < INVOCATION_BUDGET_MS / 2;
       const completion = await chatCompletion(apiKey, {
         model,
         messages,
         tools: TOOLS,
         tool_choice: "auto",
-        max_tokens: 16000,
+        max_tokens: pressed ? 4_000 : 16_000,
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
-        reasoning: { effort: reasoningEffort },
+        reasoning: { effort: pressed ? "low" : reasoningEffort },
       }, Math.max(1_000, left - RESPONSE_RESERVE_MS));
 
       const choice = completion.choices?.[0];
@@ -713,7 +720,9 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({
           error: ranOutOfTime
-            ? "Trace ran out of time gathering that. Narrow it — one period, or one kind of spending — and it will get there."
+            ? `Trace ran out of time on that one. ${model} needed more than the ` +
+              "two minutes a request gets. Narrow the question — one period, or one " +
+              "kind of spending — or pick a faster model in Settings › Trace copilot."
             : "Trace could not finish that one. Try narrowing the question.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
