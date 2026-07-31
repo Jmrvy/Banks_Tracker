@@ -113,7 +113,7 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
                 checked={selected.has(category.id)}
                 onCheckedChange={() => toggle(category.id)}
               />
-              <CategoryIcon icon={category.icon} color={category.color} className="h-4 w-4" />
+              <CategoryIcon icon={category.icon} color={category.color} size={20} />
               <span className="text-sm">{category.name}</span>
             </label>
           ))}

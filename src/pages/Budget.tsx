@@ -66,7 +66,7 @@ import { Plane as PlaneEmptyIcon, Wallet as WalletIcon } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
-import { kindOf } from "@/lib/categoryKind";
+import { kindOf, type CategoryKind } from "@/lib/categoryKind";
 import {
   addDays,
   addMonths,
@@ -1165,6 +1165,13 @@ const Budget = () => {
     () => allCategories.filter((c) => kindOf(c) === "expense"),
     [allCategories],
   );
+  // Managed on this page as well: this is the only place categories are
+  // created, edited or deleted, so filtering them out of the budget table
+  // without giving them a list of their own would strand them.
+  const incomeCategories = useMemo(
+    () => allCategories.filter((c) => kindOf(c) === "income"),
+    [allCategories],
+  );
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { specialBudgets } = useSpecialBudgets();
@@ -1180,6 +1187,7 @@ const Budget = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [newCategoryKind, setNewCategoryKind] = useState<CategoryKind>("expense");
   const [newSpecialOpen, setNewSpecialOpen] = useState(false);
   const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
   const [showClosedSpecial, setShowClosedSpecial] = useState(false);
@@ -2330,6 +2338,71 @@ const Budget = () => {
         />
       </div>
 
+
+        {/* Income categories — no budget, so no budget table. */}
+        <div className="ft-card p-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">
+                {t("categories.incomeSection", { defaultValue: "Income categories" })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("categories.incomeSectionHint", {
+                  defaultValue:
+                    "Offered on income. They carry no budget — a ceiling applies to what you spend.",
+                })}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 gap-1.5 shrink-0"
+              onClick={() => {
+                setNewCategoryKind("income");
+                setNewOpen(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {t("categories.newIncomeCategory", { defaultValue: "New" })}
+              </span>
+            </Button>
+          </div>
+
+          {incomeCategories.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">
+              {t("categories.noIncomeCategories", {
+                defaultValue: "None yet. Add one to group where your money comes from.",
+              })}
+            </p>
+          ) : (
+            <div className="flex flex-col divide-y">
+              {incomeCategories.map((category) => (
+                <div key={category.id} className="flex items-center gap-2.5 py-2">
+                  <CategoryIcon icon={category.icon} color={category.color} size={20} />
+                  <span className="text-sm flex-1 truncate">{category.name}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2"
+                    onClick={() => startEditingCategory(category)}
+                  >
+                    {t("common.edit", { defaultValue: "Edit" })}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-destructive"
+                    onClick={() => handleDelete(category.id)}
+                  >
+                    {t("common.delete", { defaultValue: "Delete" })}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       {/* Modals + sheets */}
       <SpecialBudgetModal
         isOpen={newSpecialOpen}
@@ -2358,7 +2431,11 @@ const Budget = () => {
       />
       <NewCategoryModal
         open={newOpen}
-        onOpenChange={setNewOpen}
+        onOpenChange={(o) => {
+          setNewOpen(o);
+          if (!o) setNewCategoryKind("expense");
+        }}
+        defaultKind={newCategoryKind}
         onCreated={() => {
           refetch();
           setNewOpen(false);

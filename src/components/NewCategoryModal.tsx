@@ -36,9 +36,12 @@ interface NewCategoryModalProps {
   onOpenChange: (open: boolean) => void;
   /** Optional callback after a successful create. */
   onCreated?: () => void;
+  /** Which side the toggle starts on, so a section can open the modal
+   *  already pointed at the list the user is looking at. */
+  defaultKind?: CategoryKind;
 }
 
-export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryModalProps) {
+export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = "expense" }: NewCategoryModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { createCategory } = useFinancialData();
@@ -46,7 +49,7 @@ export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryM
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [budget, setBudget] = useState("");
-  const [kind, setKind] = useState<CategoryKind>("expense");
+  const [kind, setKind] = useState<CategoryKind>(defaultKind);
   const [icon, setIcon] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -56,11 +59,11 @@ export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryM
       setName("");
       setColor(PRESET_COLORS[0]);
       setBudget("");
-      setKind("expense");
+      setKind(defaultKind);
       setIcon(null);
       setSaving(false);
     }
-  }, [open]);
+  }, [open, defaultKind]);
 
   const handleSave = async () => {
     if (!name.trim()) {
