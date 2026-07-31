@@ -193,8 +193,10 @@ const READ_TOOLS = [
   {
     name: "search_transactions",
     description:
-      "Aggregate and sample the ledger. Returns the matched count, the net total, and the " +
-      "biggest rows with their ids. Use this before quoting any figure.",
+      "Aggregate and sample the ledger. Returns the matched count, income and expense " +
+      "separately, their net, and the biggest rows with their ids. Use this before quoting " +
+      "any figure. For a merchant that pays out as well as charges — gambling, " +
+      "reimbursements, resale — `net` is the real cost; `expense` alone overstates it.",
     parameters: obj({
       start: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
       end: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
@@ -208,8 +210,11 @@ const READ_TOOLS = [
   {
     name: "spending_by_category",
     description:
-      "Net expense per category over a period, with each category's monthly budget and id. " +
-      "The basis for any budget answer or budget proposal.",
+      "Expense per category over a period, with each category's monthly budget and id. " +
+      "The basis for any budget answer or budget proposal. Counts expense rows ONLY: " +
+      "income never offsets a category here, so a category fed by a merchant that also " +
+      "pays out will look more expensive than it was. Check such merchants with " +
+      "search_transactions before describing a category's rise.",
     parameters: obj({ start: str, end: str }),
   },
   {
@@ -338,13 +343,24 @@ async function runTool(
       if (input.account_id) q = q.eq("account_id", input.account_id);
       if (input.type) q = q.eq("type", input.type);
       if (input.text) q = q.ilike("description", `%${input.text}%`);
-      const { data, error } = await q.limit(2000);
+      const ROW_CAP = 2000;
+      const { data, error } = await q.limit(ROW_CAP);
       if (error) throw error;
       const rows = data ?? [];
-      const total = rows.reduce(
-        (s: number, t: any) => s + (t.type === "expense" ? netExpense(t) : Number(t.amount)),
-        0,
-      );
+      // `amount` is stored positive whatever the direction — the sign lives in
+      // `type`. Summing the column therefore adds income to expense instead of
+      // netting it, which for a merchant that both charges and pays out
+      // (gambling, reimbursements, resale) returns the sum of the absolute
+      // values: neither the spend nor the net, and wrong in a way that reads
+      // plausible. Keep the two directions apart and let the model choose.
+      let income = 0;
+      let expense = 0;
+      let transfers = 0;
+      for (const t of rows as any[]) {
+        if (t.type === "expense") expense += netExpense(t);
+        else if (t.type === "income") income += Number(t.amount);
+        else transfers += Number(t.amount);
+      }
       const limit = Math.min(Math.max(Number(input.limit ?? 10), 1), 50);
       const sample = [...rows]
         .sort((a: any, b: any) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount)))
@@ -358,7 +374,18 @@ async function runTool(
           category: t.categories?.name ?? null,
           account: t.accounts?.name ?? null,
         }));
-      return { count: rows.length, total: Number(total.toFixed(2)), sample };
+      const round = (n: number) => Number(n.toFixed(2));
+      return {
+        count: rows.length,
+        // A silent cut would have the model quote a total for "everything"
+        // that is really a total for the first 2000 rows.
+        truncated: rows.length === ROW_CAP,
+        income: round(income),
+        expense: round(expense),
+        net: round(income - expense),
+        transfers_excluded: round(transfers),
+        sample,
+      };
     }
 
     case "spending_by_category": {
@@ -472,6 +499,13 @@ async function runTool(
           .gte("scheduled_date", input.start)
           .lte("scheduled_date", input.end),
       ]);
+      // Each of these carries its error in the result rather than throwing, so
+      // an unchecked failure degrades to `?? []` and the model reports "nothing
+      // due" — a false all-clear on exactly the question people ask before
+      // spending money.
+      for (const r of [recurring, installments, debtPayments]) {
+        if (r.error) throw r.error;
+      }
       return {
         recurring: (recurring.data ?? []).map((r: any) => ({
           description: r.description,
@@ -507,6 +541,7 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 
 # How to answer
 - Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
+- A merchant that both charges and pays out (gambling, reimbursements, resale, cashback) must be reported NET. Its payouts are often uncategorized, so a category total counts the losses and misses the winnings; quoting the gross there states a cost the user did not bear. When a merchant drives a category's move, check it with \`search_transactions\` and use \`net\`.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
 - Include a \`method\` block whenever you quote an aggregate, so the user can audit the period, filters and row count behind it.
