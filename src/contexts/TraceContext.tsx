@@ -9,8 +9,26 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+
+/**
+ * Recovers the reason from a failed `functions.invoke`. FunctionsHttpError
+ * carries the raw Response in `context`; its own message says only that the
+ * status was non-2xx, which tells the user nothing they can act on.
+ */
+async function describeInvokeError(error: unknown): Promise<string> {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return String(body.error);
+    } catch {
+      // Body already consumed or not JSON — fall through to the message.
+    }
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 /**
  * The block vocabulary the copilot answers in. Mirrors the schema the
@@ -170,7 +188,11 @@ export function TraceProvider({ children }: { children: ReactNode }) {
             dateType: preferences.dateType,
           },
         });
-        if (error) throw error;
+        // `invoke` reports a non-2xx as FunctionsHttpError, whose message is
+        // always "Edge Function returned a non-2xx status code" — the useful
+        // part sits unread in `context`, the raw Response. Dig it out so the
+        // user sees the real reason rather than the wrapper.
+        if (error) throw new Error(await describeInvokeError(error));
         if (data?.error) throw new Error(data.error);
 
         setTurns((prev) =>

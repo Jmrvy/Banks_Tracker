@@ -631,12 +631,21 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ steps: Array.isArray(answer.steps) ? answer.steps : [], blocks: answer.blocks }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error: any) {
-    console.error("trace-copilot failed:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    // Deliberately 200. `supabase.functions.invoke` turns any non-2xx into
+    // a FunctionsHttpError whose message is the generic "Edge Function
+    // returned a non-2xx status code" and leaves the body in `context`,
+    // so a 500 here reaches the user as noise with the actual reason —
+    // the model slug, the missing credit, the rejected schema — thrown
+    // away. Reporting the failure in a 200 body is the only way the
+    // client can show what OpenRouter actually said.
+    const detail = error instanceof Error ? error.message : String(error);
+    const status = (error as { status?: number })?.status;
+    console.error("trace-copilot failed:", status ?? "", detail);
+    return new Response(
+      JSON.stringify({ error: status ? `OpenRouter ${status}: ${detail}` : detail }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 };
 
