@@ -38,9 +38,20 @@ const DEFAULT_MODEL = Deno.env.get("TRACE_MODEL") ?? "anthropic/claude-opus-4.5"
 /** OpenRouter's unified reasoning control, ignored by models without it. */
 const DEFAULT_REASONING_EFFORT = Deno.env.get("TRACE_REASONING_EFFORT") ?? "medium";
 
-/** Upstream ceiling, below the platform's own wall clock, so a wedged
- *  request surfaces as a clean error instead of a killed invocation. */
-const REQUEST_TIMEOUT_MS = 110_000;
+/**
+ * Ceiling for the WHOLE invocation, not one upstream call. A question that
+ * needs several tool rounds makes several calls, so bounding each one
+ * individually bounds nothing: the platform's own wall clock arrives first
+ * and kills the worker, and a killed worker returns a non-2xx this
+ * function never gets to shape. Every call draws from this one budget.
+ */
+const INVOCATION_BUDGET_MS = 100_000;
+
+/** Never let a single upstream call eat the entire budget. */
+const MAX_CALL_MS = 60_000;
+
+/** Below this, there is no point starting another round. */
+const MIN_ROUND_MS = 15_000;
 
 // ─── block schema ──────────────────────────────────────────────────────
 // The answer travels as the argument object of an `answer` tool call
@@ -249,6 +260,7 @@ const TOOLS = [
 async function chatCompletion(
   apiKey: string,
   payload: Record<string, unknown>,
+  timeoutMs: number,
 ): Promise<any> {
   let res: Response;
   try {
@@ -264,7 +276,7 @@ async function chatCompletion(
         "X-Title": "Banks Tracker - Trace",
       },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
@@ -483,7 +495,8 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
 - Include a \`method\` block whenever you quote an aggregate, so the user can audit the period, filters and row count behind it.
 - Be specific about what is driving a number. "Restaurants is up" is not an answer; "two thirds of the rise is weekday lunches, 61 of them against 34 last year" is.
-- Keep it short. Three to six blocks. Prose blocks are one or two sentences.
+- Keep it short. Three to six blocks.
+- You are on a time budget. Ask for every tool call a step needs in the SAME turn \u2014 they run together \u2014 rather than one per turn. A question spanning several periods or keywords should issue those searches at once. Prose blocks are one or two sentences.
 
 # Proposals
 When the user asks for a change you can express as ledger edits, emit a \`proposal\` block. ${
@@ -607,7 +620,16 @@ const handler = async (req: Request): Promise<Response> => {
     // results back, and stop when it calls `answer`.
     let answer: { steps: string[]; blocks: unknown[] } | null = null;
     let nudged = false;
+    let ranOutOfTime = false;
+    const deadline = Date.now() + INVOCATION_BUDGET_MS;
+
     for (let turn = 0; turn < 8; turn++) {
+      const left = deadline - Date.now();
+      if (left < MIN_ROUND_MS) {
+        // Stop on our own terms while a response can still be written.
+        ranOutOfTime = true;
+        break;
+      }
       const completion = await chatCompletion(apiKey, {
         model,
         messages,
@@ -617,7 +639,7 @@ const handler = async (req: Request): Promise<Response> => {
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
         reasoning: { effort: reasoningEffort },
-      });
+      }, Math.min(MAX_CALL_MS, left));
 
       const choice = completion.choices?.[0];
       const message = choice?.message;
@@ -673,7 +695,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!answer || !Array.isArray(answer.blocks) || answer.blocks.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Trace could not finish that one. Try narrowing the question." }),
+        JSON.stringify({
+          error: ranOutOfTime
+            ? "Trace ran out of time gathering that. Narrow it \u2014 one period, or one kind of spending \u2014 and it will get there."
+            : "Trace could not finish that one. Try narrowing the question.",
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
