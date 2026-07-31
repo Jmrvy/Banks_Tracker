@@ -239,7 +239,11 @@
     "kindExpense": "Spending",
     "kindIncome": "Income",
     "kindExpenseHint": "Offered on expenses and transfers, and can carry a monthly budget.",
-    "kindIncomeHint": "Offered on income only. Budgets cap what you spend, so income categories have none."
+    "kindIncomeHint": "Offered on income only. Budgets cap what you spend, so income categories have none.",
+    "incomeSection": "Income categories",
+    "incomeSectionHint": "Offered on income. They carry no budget — a ceiling applies to what you spend.",
+    "newIncomeCategory": "New",
+    "noIncomeCategories": "None yet. Add one to group where your money comes from."
   },
   "savings": {
     "title": "Savings Goals",

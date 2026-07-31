@@ -239,7 +239,11 @@
     "kindExpense": "Dépenses",
     "kindIncome": "Revenus",
     "kindExpenseHint": "Proposée sur les dépenses et les virements, et peut porter un budget mensuel.",
-    "kindIncomeHint": "Proposée sur les revenus uniquement. Un budget plafonne ce que vous dépensez : les catégories de revenus n'en ont pas."
+    "kindIncomeHint": "Proposée sur les revenus uniquement. Un budget plafonne ce que vous dépensez : les catégories de revenus n'en ont pas.",
+    "incomeSection": "Catégories de revenus",
+    "incomeSectionHint": "Proposées sur les revenus. Elles ne portent pas de budget — un plafond s'applique à ce que vous dépensez.",
+    "newIncomeCategory": "Nouvelle",
+    "noIncomeCategories": "Aucune pour l'instant. Ajoutez-en une pour regrouper l'origine de vos revenus."
   },
   "savings": {
     "title": "Objectifs d'Épargne",
