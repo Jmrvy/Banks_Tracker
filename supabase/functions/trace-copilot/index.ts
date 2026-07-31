@@ -301,7 +301,7 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, type, transaction_date, value_date, category_id, account_id, categories(name), accounts(name)")
+        .select("id, description, amount, refunded_amount, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
         .gte(dateColumn, input.start)
@@ -370,7 +370,7 @@ async function runTool(
       const limit = Math.min(Math.max(Number(input.limit ?? 50), 1), 200);
       const { data, error } = await db
         .from("transactions")
-        .select("id, description, amount, transaction_date, type, accounts(name)")
+        .select("id, description, amount, transaction_date, type, accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .is("category_id", null)
         .neq("type", "transfer")
@@ -478,7 +478,7 @@ function systemPrompt(ctx: Record<string, unknown>, lang: string, agency: string
 Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbol (${ctx.currency}) and their locale's number formatting in every figure you render.
 
 # How to answer
-- Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — prose is dropped.
+- Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
 - Include a \`method\` block whenever you quote an aggregate, so the user can audit the period, filters and row count behind it.
@@ -606,6 +606,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Manual loop: run the model, execute whatever it asks for, feed the
     // results back, and stop when it calls `answer`.
     let answer: { steps: string[]; blocks: unknown[] } | null = null;
+    let nudged = false;
     for (let turn = 0; turn < 8; turn++) {
       const completion = await chatCompletion(apiKey, {
         model,
@@ -624,9 +625,23 @@ const handler = async (req: Request): Promise<Response> => {
 
       const toolCalls = message.tool_calls ?? [];
       if (toolCalls.length === 0) {
-        // No tool call at all: the model answered in prose. Degrade to a
-        // single text block rather than dropping the answer on the floor.
+        // No tool call at all: the model answered in prose. Degrading that
+        // to one text block keeps the words but loses the shape — a model
+        // writing prose writes markdown tables, and the renderer shows
+        // those as literal pipes. Ask once for the same answer in the
+        // block vocabulary, and only settle for the prose if it declines.
         const text = typeof message.content === "string" ? message.content.trim() : "";
+        if (text && !nudged) {
+          nudged = true;
+          messages.push(message);
+          messages.push({
+            role: "user",
+            content:
+              "Deliver that same answer by calling the `answer` tool. Put figures in " +
+              "`figure` blocks and any tabular data in a `table` block — never markdown.",
+          });
+          continue;
+        }
         if (text) answer = { steps: [], blocks: [{ t: "text", v: text }] };
         break;
       }
