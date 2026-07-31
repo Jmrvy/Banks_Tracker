@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard } from "lucide-react";
+import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard, SlidersHorizontal } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
+import { SavingsCategoriesModal } from "@/components/SavingsCategoriesModal";
 import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { useSpecialBudgets, type SpecialBudget } from "@/hooks/useSpecialBudgets";
 import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal";
@@ -32,7 +33,7 @@ import {
 } from "recharts";
 
 const Savings = () => {
-  const { transactions, categories, loading } = useFinancialData();
+  const { transactions, categories, loading, refetch } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { goals, isLoading: goalsLoading } = useSavingsGoals();
   const { specialBudgets } = useSpecialBudgets();
@@ -48,6 +49,7 @@ const Savings = () => {
   const { t } = useTranslation();
 
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [selectedReimbursement, setSelectedReimbursement] = useState<InstallmentPayment | null>(null);
   const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
@@ -76,20 +78,13 @@ const Savings = () => {
     return { total, count: reimbursementTransactions.length };
   }, [reimbursementTransactions]);
 
-  // Find the investment categories — plural.
-  //
-  // Investing runs both ways: money put in is an expense, money taken back
-  // out is income, and this page nets the two. Now that categories carry a
-  // direction, expressing that means one "Investissement" on each side, so
-  // matching a single category by name would silently drop whichever half
-  // it did not happen to land on.
-  const investmentCategoryIds = useMemo(() => {
-    const matches = categories.filter(cat =>
-      cat.name.toLowerCase().includes('investissement') ||
-      cat.name.toLowerCase().includes('investment')
-    );
-    return new Set(matches.map(cat => cat.id));
-  }, [categories]);
+  // The categories this page counts, chosen in the selector rather than
+  // guessed from their names. Both sides belong here: money put away is an
+  // expense, money taken back out is income, and the stats below net them.
+  const investmentCategoryIds = useMemo(
+    () => new Set(categories.filter(cat => cat.counts_as_savings).map(cat => cat.id)),
+    [categories],
+  );
 
   const isInvestment = useCallback(
     (tx: { category?: { id: string } | null }) => !!tx.category && investmentCategoryIds.has(tx.category.id),
@@ -261,14 +256,27 @@ const Savings = () => {
               </Badge>
             </div>
           </div>
-          <Button
-            onClick={() => setShowNewGoalModal(true)}
-            size="sm"
-            className="h-8 px-3 gap-1.5 font-semibold"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('savings.newGoal')}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowCategoriesModal(true)}
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 gap-1.5"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {t('savings.categoriesAction', { defaultValue: 'Categories' })}
+              </span>
+            </Button>
+            <Button
+              onClick={() => setShowNewGoalModal(true)}
+              size="sm"
+              className="h-8 px-3 gap-1.5 font-semibold"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t('savings.newGoal')}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Investment Statistics for Period */}
@@ -556,6 +564,13 @@ const Savings = () => {
       <NewSavingsGoalModal
         isOpen={showNewGoalModal}
         onClose={() => setShowNewGoalModal(false)}
+      />
+
+      <SavingsCategoriesModal
+        open={showCategoriesModal}
+        onOpenChange={setShowCategoriesModal}
+        categories={categories}
+        onSaved={refetch}
       />
 
       {selectedGoal && (

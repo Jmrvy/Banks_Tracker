@@ -65,6 +65,8 @@ export interface Category {
   budget: number | null;
   icon: string | null;
   kind: CategoryKind;
+  /** Feeds the savings page, on either side of the ledger. */
+  counts_as_savings: boolean;
 }
 
 export interface RecurringTransaction {
@@ -331,7 +333,11 @@ function useFinancialDataInternal() {
     return { error };
   };
 
-  const createCategory = async (category: Omit<Category, 'id'>) => {
+  // counts_as_savings is opt-in from the savings page rather than something
+  // every creation site has to think about; the column defaults to false.
+  const createCategory = async (
+    category: Omit<Category, 'id' | 'counts_as_savings'> & { counts_as_savings?: boolean },
+  ) => {
     if (!user) return;
     const { error } = await supabase
       .from('categories')

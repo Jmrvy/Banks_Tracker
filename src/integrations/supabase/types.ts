@@ -103,6 +103,7 @@ export type Database = {
         Row: {
           budget: number | null
           color: string | null
+          counts_as_savings: boolean
           created_at: string | null
           icon: string | null
           id: string
@@ -113,6 +114,7 @@ export type Database = {
         Insert: {
           budget?: number | null
           color?: string | null
+          counts_as_savings?: boolean
           created_at?: string | null
           icon?: string | null
           id?: string
@@ -123,6 +125,7 @@ export type Database = {
         Update: {
           budget?: number | null
           color?: string | null
+          counts_as_savings?: boolean
           created_at?: string | null
           icon?: string | null
           id?: string

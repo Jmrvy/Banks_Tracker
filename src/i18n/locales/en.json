@@ -328,7 +328,16 @@
     "deadlineOn": "Deadline: {{date}}",
     "monthlyRequiredLabel": "Monthly savings required: {{amount}}",
     "dailyRequired": "i.e. {{amount}} per day",
-    "of": "of {{amount}}"
+    "of": "of {{amount}}",
+    "categoriesAction": "Categories",
+    "categoriesTitle": "Categories counted here",
+    "categoriesDesc": "Money set aside is an expense and money taken back out is income. Pick both sides so the page can net them.",
+    "categoriesExpenseHint": "What you put away.",
+    "categoriesIncomeHint": "What you take back out, and what it earns.",
+    "noCategoriesOfKind": "None yet.",
+    "categoriesSaved": "Savings categories updated",
+    "categoriesSavedDesc": "{{count}} categories now feed this page.",
+    "categoriesSaveFailed": "Could not update the categories."
   },
   "debts": {
     "title": "Debts",
