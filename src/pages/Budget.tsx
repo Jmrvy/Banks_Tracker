@@ -66,6 +66,7 @@ import { Plane as PlaneEmptyIcon, Wallet as WalletIcon } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
+import { kindOf } from "@/lib/categoryKind";
 import {
   addDays,
   addMonths,
@@ -1156,7 +1157,14 @@ const Budget = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { categories, transactions, recurringTransactions, refetch } = useFinancialData();
+  const { categories: allCategories, transactions, recurringTransactions, refetch } = useFinancialData();
+  // A budget is a ceiling on what leaves, so income categories have none.
+  // Left unfiltered they would sit here forever as unbudgeted rows, and the
+  // bulk-apply would try to give them a limit the DB refuses.
+  const categories = useMemo(
+    () => allCategories.filter((c) => kindOf(c) === "expense"),
+    [allCategories],
+  );
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { specialBudgets } = useSpecialBudgets();

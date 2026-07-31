@@ -234,7 +234,12 @@
     "noBudget": "No budget",
     "confirmDelete": "Are you sure you want to delete this category? This action is irreversible.",
     "categoryUpdated": "Category updated",
-    "categoryDeleted": "Category deleted"
+    "categoryDeleted": "Category deleted",
+    "kind": "Applies to",
+    "kindExpense": "Spending",
+    "kindIncome": "Income",
+    "kindExpenseHint": "Offered on expenses and transfers, and can carry a monthly budget.",
+    "kindIncomeHint": "Offered on income only. Budgets cap what you spend, so income categories have none."
   },
   "savings": {
     "title": "Savings Goals",

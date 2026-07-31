@@ -234,7 +234,12 @@
     "noBudget": "Pas de budget",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette catégorie ? Cette action est irréversible.",
     "categoryUpdated": "Catégorie mise à jour",
-    "categoryDeleted": "Catégorie supprimée"
+    "categoryDeleted": "Catégorie supprimée",
+    "kind": "S'applique aux",
+    "kindExpense": "Dépenses",
+    "kindIncome": "Revenus",
+    "kindExpenseHint": "Proposée sur les dépenses et les virements, et peut porter un budget mensuel.",
+    "kindIncomeHint": "Proposée sur les revenus uniquement. Un budget plafonne ce que vous dépensez : les catégories de revenus n'en ont pas."
   },
   "savings": {
     "title": "Objectifs d'Épargne",

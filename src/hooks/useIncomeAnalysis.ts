@@ -12,6 +12,7 @@ interface Transaction {
   };
   include_in_stats?: boolean;
   refund_of_transaction_id?: string | null;
+  category?: { id: string; name: string } | null;
 }
 
 export interface IncomeCategory {
@@ -19,6 +20,9 @@ export interface IncomeCategory {
   transactions: Transaction[];
   totalAmount: number;
   count: number;
+  /** True when the grouping came from an assigned category rather than
+   *  from guessing at the descriptions. */
+  assigned?: boolean;
 }
 
 // Mots à ignorer (stop words) — constant, allocated once
@@ -127,16 +131,32 @@ export const useIncomeAnalysis = (transactions: Transaction[]): IncomeCategory[]
 
     if (incomeTransactions.length === 0) return [];
 
+    // Income categories exist now, so anything the user has filed is
+    // grouped by their answer rather than by our guess at the wording.
+    // The clustering below still earns its keep on everything unfiled —
+    // it is what surfaces a recurring source before it has been named.
+    const assignedGroups = new Map<string, { name: string; transactions: Transaction[] }>();
+    const unassigned: Transaction[] = [];
+    for (const t of incomeTransactions) {
+      if (t.category) {
+        const group = assignedGroups.get(t.category.id) ?? { name: t.category.name, transactions: [] };
+        group.transactions.push(t);
+        assignedGroups.set(t.category.id, group);
+      } else {
+        unassigned.push(t);
+      }
+    }
+
     // Pre-extract keywords for all transactions (done once, not per comparison)
     const keywordsMap = new Map<string, string[]>();
-    for (const t of incomeTransactions) {
+    for (const t of unassigned) {
       keywordsMap.set(t.id, extractKeywords(t.description));
     }
 
     // Grouper les transactions par similarité
     const categories = new Map<string, { transactions: Transaction[]; keywordsCache: string[][] }>();
 
-    for (const transaction of incomeTransactions) {
+    for (const transaction of unassigned) {
       const keywords = keywordsMap.get(transaction.id)!;
       const bestCategory = findBestCategory(keywords, categories);
 
@@ -152,18 +172,25 @@ export const useIncomeAnalysis = (transactions: Transaction[]): IncomeCategory[]
       }
     }
 
-    // Convertir en tableau et générer les noms de catégories
-    const result: IncomeCategory[] = Array.from(categories.values()).map(({ transactions }) => {
-      const categoryName = generateCategoryName(transactions);
-      const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+    const sum = (rows: Transaction[]) => rows.reduce((s, t) => s + Number(t.amount), 0);
 
-      return {
-        category: categoryName,
+    // Convertir en tableau et générer les noms de catégories
+    const result: IncomeCategory[] = [
+      ...Array.from(assignedGroups.values()).map(({ name, transactions }) => ({
+        category: name,
         transactions,
-        totalAmount,
-        count: transactions.length
-      };
-    });
+        totalAmount: sum(transactions),
+        count: transactions.length,
+        assigned: true,
+      })),
+      ...Array.from(categories.values()).map(({ transactions }) => ({
+        category: generateCategoryName(transactions),
+        transactions,
+        totalAmount: sum(transactions),
+        count: transactions.length,
+        assigned: false,
+      })),
+    ];
 
     // Trier par montant total décroissant
     return result.sort((a, b) => b.totalAmount - a.totalAmount);
