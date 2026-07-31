@@ -234,7 +234,12 @@
     "noBudget": "Pas de budget",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette catégorie ? Cette action est irréversible.",
     "categoryUpdated": "Catégorie mise à jour",
-    "categoryDeleted": "Catégorie supprimée"
+    "categoryDeleted": "Catégorie supprimée",
+    "kind": "S'applique aux",
+    "kindExpense": "Dépenses",
+    "kindIncome": "Revenus",
+    "kindExpenseHint": "Proposée sur les dépenses et les virements, et peut porter un budget mensuel.",
+    "kindIncomeHint": "Proposée sur les revenus uniquement. Un budget plafonne ce que vous dépensez : les catégories de revenus n'en ont pas."
   },
   "savings": {
     "title": "Objectifs d'Épargne",
@@ -323,7 +328,16 @@
     "deadlineOn": "Échéance: {{date}}",
     "monthlyRequiredLabel": "Épargne mensuelle requise: {{amount}}",
     "dailyRequired": "Soit {{amount}} par jour",
-    "of": "sur {{amount}}"
+    "of": "sur {{amount}}",
+    "categoriesAction": "Catégories",
+    "categoriesTitle": "Catégories comptabilisées ici",
+    "categoriesDesc": "L'argent mis de côté est une dépense, l'argent retiré est un revenu. Sélectionnez les deux côtés pour que la page puisse faire le net.",
+    "categoriesExpenseHint": "Ce que vous mettez de côté.",
+    "categoriesIncomeHint": "Ce que vous retirez, et ce que cela rapporte.",
+    "noCategoriesOfKind": "Aucune pour l'instant.",
+    "categoriesSaved": "Catégories d'épargne mises à jour",
+    "categoriesSavedDesc": "{{count}} catégories alimentent désormais cette page.",
+    "categoriesSaveFailed": "Impossible de mettre à jour les catégories."
   },
   "debts": {
     "title": "Dettes",

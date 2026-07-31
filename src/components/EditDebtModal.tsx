@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDebts, Debt } from '@/hooks/useDebts';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { Loader2 } from 'lucide-react';
+import { categoriesForType } from '@/lib/categoryKind';
 
 interface EditDebtModalProps {
   open: boolean;
@@ -203,7 +204,8 @@ export const EditDebtModal = ({ open, onOpenChange, debt }: EditDebtModalProps) 
                 <SelectValue placeholder={t('common.optional', { defaultValue: 'Optional' })} />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
+                {/* Repayments run opposite to the loan. */}
+                {categoriesForType(categories, formData.type === 'loan_given' ? 'income' : 'expense', formData.category_id).map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     <div className="flex items-center gap-2">
                       <div

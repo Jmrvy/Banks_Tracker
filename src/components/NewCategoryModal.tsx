@@ -16,6 +16,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import type { CategoryKind } from "@/lib/categoryKind";
 
 const PRESET_COLORS = [
   "#3B82F6",
@@ -45,6 +46,7 @@ export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryM
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [budget, setBudget] = useState("");
+  const [kind, setKind] = useState<CategoryKind>("expense");
   const [icon, setIcon] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -54,6 +56,7 @@ export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryM
       setName("");
       setColor(PRESET_COLORS[0]);
       setBudget("");
+      setKind("expense");
       setIcon(null);
       setSaving(false);
     }
@@ -72,8 +75,10 @@ export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryM
     const { error } = await createCategory({
       name: name.trim(),
       color,
-      budget: budget ? Number(budget) : null,
+      // The DB rejects the pair outright; keep the form from ever sending it.
+      budget: kind === "expense" && budget ? Number(budget) : null,
       icon,
+      kind,
     });
     if (error) {
       toast({
@@ -157,19 +162,49 @@ export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryM
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">
-              {t("categories.budget", { defaultValue: "Budget" })}{" "}
-              <span className="text-fg-dim font-normal">
-                ({t("common.optional", { defaultValue: "optional" })})
-              </span>
-            </Label>
-            <AmountInput value={budget} onChange={setBudget} placeholder="0.00" className="h-9 text-sm" />
+            <Label className="text-xs">{t("categories.kind", { defaultValue: "Applies to" })}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["expense", "income"] as const).map((k) => (
+                <Button
+                  key={k}
+                  type="button"
+                  variant={kind === k ? "default" : "outline"}
+                  className="h-9 text-sm"
+                  onClick={() => setKind(k)}
+                >
+                  {k === "expense"
+                    ? t("categories.kindExpense", { defaultValue: "Spending" })
+                    : t("categories.kindIncome", { defaultValue: "Income" })}
+                </Button>
+              ))}
+            </div>
             <p className="text-[11px] text-muted-foreground">
-              {t("categories.budgetHint", {
-                defaultValue: "Set a monthly cap to track spend against this category.",
-              })}
+              {kind === "expense"
+                ? t("categories.kindExpenseHint", {
+                    defaultValue: "Offered on expenses and transfers, and can carry a monthly budget.",
+                  })
+                : t("categories.kindIncomeHint", {
+                    defaultValue: "Offered on income only. Budgets cap what you spend, so income categories have none.",
+                  })}
             </p>
           </div>
+
+          {kind === "expense" && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">
+                {t("categories.budget", { defaultValue: "Budget" })}{" "}
+                <span className="text-fg-dim font-normal">
+                  ({t("common.optional", { defaultValue: "optional" })})
+                </span>
+              </Label>
+              <AmountInput value={budget} onChange={setBudget} placeholder="0.00" className="h-9 text-sm" />
+              <p className="text-[11px] text-muted-foreground">
+                {t("categories.budgetHint", {
+                  defaultValue: "Set a monthly cap to track spend against this category.",
+                })}
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <Label className="text-xs">

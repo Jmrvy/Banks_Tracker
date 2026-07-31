@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard } from "lucide-react";
+import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard, SlidersHorizontal } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
+import { SavingsCategoriesModal } from "@/components/SavingsCategoriesModal";
 import { useInstallmentPayments, InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import { useSpecialBudgets, type SpecialBudget } from "@/hooks/useSpecialBudgets";
 import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal";
@@ -32,7 +33,7 @@ import {
 } from "recharts";
 
 const Savings = () => {
-  const { transactions, categories, loading } = useFinancialData();
+  const { transactions, categories, loading, refetch } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { goals, isLoading: goalsLoading } = useSavingsGoals();
   const { specialBudgets } = useSpecialBudgets();
@@ -48,6 +49,7 @@ const Savings = () => {
   const { t } = useTranslation();
 
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [selectedReimbursement, setSelectedReimbursement] = useState<InstallmentPayment | null>(null);
   const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
@@ -76,28 +78,33 @@ const Savings = () => {
     return { total, count: reimbursementTransactions.length };
   }, [reimbursementTransactions]);
 
-  // Find investment category
-  const investmentCategory = useMemo(() => {
-    return categories.find(cat =>
-      cat.name.toLowerCase().includes('investissement') ||
-      cat.name.toLowerCase().includes('investment')
-    );
-  }, [categories]);
+  // The categories this page counts, chosen in the selector rather than
+  // guessed from their names. Both sides belong here: money put away is an
+  // expense, money taken back out is income, and the stats below net them.
+  const investmentCategoryIds = useMemo(
+    () => new Set(categories.filter(cat => cat.counts_as_savings).map(cat => cat.id)),
+    [categories],
+  );
+
+  const isInvestment = useCallback(
+    (tx: { category?: { id: string } | null }) => !!tx.category && investmentCategoryIds.has(tx.category.id),
+    [investmentCategoryIds],
+  );
 
   // Filter transactions by selected period
   const periodTransactions = useMemo(() => {
-    if (!investmentCategory) return [];
+    if (investmentCategoryIds.size === 0) return [];
     return transactions.filter(tx => {
       const transactionDate = parseLocalDate(tx.transaction_date);
-      return tx.category?.id === investmentCategory.id &&
+      return isInvestment(tx) &&
              isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
     });
-  }, [transactions, investmentCategory, dateRange]);
+  }, [transactions, investmentCategoryIds, isInvestment, dateRange]);
 
   // ALL savings-related transactions (no date filter) for running balance calculation
   const allSavingsTransactions = useMemo(() => {
-    const investmentTxs = investmentCategory
-      ? transactions.filter(tx => tx.category?.id === investmentCategory.id)
+    const investmentTxs = investmentCategoryIds.size
+      ? transactions.filter(isInvestment)
       : [];
     const reimbursementTxs = transactions.filter(tx =>
       tx.installment_payment_id && reimbursementInstallmentIds.has(tx.installment_payment_id)
@@ -109,11 +116,11 @@ const Savings = () => {
       seen.add(tx.id);
       return true;
     });
-  }, [transactions, investmentCategory, reimbursementInstallmentIds]);
+  }, [transactions, investmentCategoryIds, isInvestment, reimbursementInstallmentIds]);
 
   // Calculate investment statistics for the selected period
   const investmentStats = useMemo(() => {
-    const hasInvestments = investmentCategory && periodTransactions.length > 0;
+    const hasInvestments = investmentCategoryIds.size > 0 && periodTransactions.length > 0;
     const hasReimbursements = reimbursementTransactions.length > 0;
 
     if (!hasInvestments && !hasReimbursements) {
@@ -149,14 +156,14 @@ const Savings = () => {
     });
 
     return { totalSaved: netTotal, transactionCount: periodTransactions.length + reimbursementTransactions.length, trendData, incomeTotal, expenseTotal, netTotal };
-  }, [periodTransactions, investmentCategory, reimbursementTransactions, reimbursementStats.total]);
+  }, [periodTransactions, investmentCategoryIds, reimbursementTransactions, reimbursementStats.total]);
 
   // Calculate monthly average based on weighted recent months (more weight to recent)
   const allTimeStats = useMemo(() => {
-    if (!investmentCategory) return { monthlyAverage: 0 };
+    if (investmentCategoryIds.size === 0) return { monthlyAverage: 0 };
 
     const allInvestmentTransactions = transactions.filter(tx =>
-      tx.category?.id === investmentCategory.id
+      isInvestment(tx)
     );
 
     const sixMonthsAgo = new Date();
@@ -193,7 +200,7 @@ const Savings = () => {
     const weightedAverage = weightedSum / totalWeight;
 
     return { monthlyAverage: weightedAverage };
-  }, [transactions, investmentCategory]);
+  }, [transactions, investmentCategoryIds, isInvestment]);
 
   const calculateProjection = (goal: SavingsGoal) => {
     const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;
@@ -249,14 +256,27 @@ const Savings = () => {
               </Badge>
             </div>
           </div>
-          <Button
-            onClick={() => setShowNewGoalModal(true)}
-            size="sm"
-            className="h-8 px-3 gap-1.5 font-semibold"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('savings.newGoal')}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowCategoriesModal(true)}
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 gap-1.5"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {t('savings.categoriesAction', { defaultValue: 'Categories' })}
+              </span>
+            </Button>
+            <Button
+              onClick={() => setShowNewGoalModal(true)}
+              size="sm"
+              className="h-8 px-3 gap-1.5 font-semibold"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t('savings.newGoal')}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Investment Statistics for Period */}
@@ -544,6 +564,13 @@ const Savings = () => {
       <NewSavingsGoalModal
         isOpen={showNewGoalModal}
         onClose={() => setShowNewGoalModal(false)}
+      />
+
+      <SavingsCategoriesModal
+        open={showCategoriesModal}
+        onOpenChange={setShowCategoriesModal}
+        categories={categories}
+        onSaved={refetch}
       />
 
       {selectedGoal && (

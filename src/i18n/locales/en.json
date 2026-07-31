@@ -234,7 +234,12 @@
     "noBudget": "No budget",
     "confirmDelete": "Are you sure you want to delete this category? This action is irreversible.",
     "categoryUpdated": "Category updated",
-    "categoryDeleted": "Category deleted"
+    "categoryDeleted": "Category deleted",
+    "kind": "Applies to",
+    "kindExpense": "Spending",
+    "kindIncome": "Income",
+    "kindExpenseHint": "Offered on expenses and transfers, and can carry a monthly budget.",
+    "kindIncomeHint": "Offered on income only. Budgets cap what you spend, so income categories have none."
   },
   "savings": {
     "title": "Savings Goals",
@@ -323,7 +328,16 @@
     "deadlineOn": "Deadline: {{date}}",
     "monthlyRequiredLabel": "Monthly savings required: {{amount}}",
     "dailyRequired": "i.e. {{amount}} per day",
-    "of": "of {{amount}}"
+    "of": "of {{amount}}",
+    "categoriesAction": "Categories",
+    "categoriesTitle": "Categories counted here",
+    "categoriesDesc": "Money set aside is an expense and money taken back out is income. Pick both sides so the page can net them.",
+    "categoriesExpenseHint": "What you put away.",
+    "categoriesIncomeHint": "What you take back out, and what it earns.",
+    "noCategoriesOfKind": "None yet.",
+    "categoriesSaved": "Savings categories updated",
+    "categoriesSavedDesc": "{{count}} categories now feed this page.",
+    "categoriesSaveFailed": "Could not update the categories."
   },
   "debts": {
     "title": "Debts",
