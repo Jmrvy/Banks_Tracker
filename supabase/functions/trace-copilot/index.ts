@@ -18,7 +18,6 @@
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import OpenAI from "npm:openai@4.104.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -236,6 +235,52 @@ const TOOLS = [
 ];
 
 // ─── tool implementations ──────────────────────────────────────────────
+/**
+ * One call to OpenRouter's chat-completions endpoint.
+ *
+ * Deliberately `fetch` rather than the openai npm SDK. The SDK's Node
+ * transport does not survive the edge runtime: every request came back as
+ * an opaque `APIConnectionError: Connection error.` about two seconds in,
+ * with the real cause swallowed inside it. Trace uses exactly one
+ * endpoint, so the SDK bought nothing here and cost the error detail —
+ * which is the whole diagnosis when a model slug, a key, or a tool schema
+ * is what OpenRouter is unhappy about.
+ */
+async function chatCompletion(
+  apiKey: string,
+  payload: Record<string, unknown>,
+): Promise<any> {
+  let res: Response;
+  try {
+    res = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": Deno.env.get("APP_URL") ?? "https://banks-tracker.app",
+        "X-Title": "Banks Tracker — Trace",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(`Could not reach OpenRouter: ${reason}`);
+  }
+
+  const body = await res.text();
+  if (!res.ok) {
+    // OpenRouter states the refusal in the body — unknown model slug,
+    // exhausted credit, a tool schema the provider would not accept.
+    throw new Error(`OpenRouter ${res.status}: ${body.slice(0, 400)}`);
+  }
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new Error(`OpenRouter sent malformed JSON: ${body.slice(0, 200)}`);
+  }
+}
+
 type Db = ReturnType<typeof createClient>;
 
 /** Net of any refund, floored at zero — the same basis the app uses. */
@@ -549,18 +594,6 @@ const handler = async (req: Request): Promise<Response> => {
       current_page: pageContext || null,
     };
 
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: OPENROUTER_BASE_URL,
-      timeout: REQUEST_TIMEOUT_MS,
-      // OpenRouter attribution — shows the app on its dashboards and lets
-      // per-app rate limits apply to the right thing.
-      defaultHeaders: {
-        "HTTP-Referer": Deno.env.get("APP_URL") ?? "https://banks-tracker.app",
-        "X-Title": "Banks Tracker — Trace",
-      },
-    });
-
     const messages: any[] = [
       { role: "system", content: systemPrompt(ctx, lang, agency) },
       ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -571,7 +604,7 @@ const handler = async (req: Request): Promise<Response> => {
     // results back, and stop when it calls `answer`.
     let answer: { steps: string[]; blocks: unknown[] } | null = null;
     for (let turn = 0; turn < 8; turn++) {
-      const completion = await openai.chat.completions.create({
+      const completion = await chatCompletion(apiKey, {
         model,
         messages,
         tools: TOOLS,
@@ -580,7 +613,7 @@ const handler = async (req: Request): Promise<Response> => {
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
         reasoning: { effort: reasoningEffort },
-      } as any);
+      });
 
       const choice = completion.choices?.[0];
       const message = choice?.message;
@@ -640,10 +673,9 @@ const handler = async (req: Request): Promise<Response> => {
     // away. Reporting the failure in a 200 body is the only way the
     // client can show what OpenRouter actually said.
     const detail = error instanceof Error ? error.message : String(error);
-    const status = (error as { status?: number })?.status;
-    console.error("trace-copilot failed:", status ?? "", detail);
+    console.error("trace-copilot failed:", detail);
     return new Response(
-      JSON.stringify({ error: status ? `OpenRouter ${status}: ${detail}` : detail }),
+      JSON.stringify({ error: detail }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
