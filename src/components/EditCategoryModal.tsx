@@ -72,10 +72,14 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
       });
       onSaved();
       onOpenChange(false);
-    } catch {
+    } catch (err) {
+      // Postgres states the reason — a name already in use, a constraint the
+      // form should have prevented. Swallowing it leaves the user staring at
+      // "unable to update" with nothing to act on and no way to report it.
+      const detail = err instanceof Error ? err.message : String(err);
       toast({
         title: t("common.error", { defaultValue: "Error" }),
-        description: t("errors.updateError", { defaultValue: "Unable to update." }),
+        description: detail || t("errors.updateError", { defaultValue: "Unable to update." }),
         variant: "destructive",
       });
     } finally {
