@@ -1631,9 +1631,14 @@ function useFinancialDataInternal() {
           amount: excessAmount,
           type: 'income',
           account_id: refund.account_id,
-          category_id: refund.category_id || originalTransaction.category_id,
           transaction_date: refund.transaction_date,
           value_date: refund.value_date || refund.transaction_date,
+          // Excess is real income, so it obeys the ordinary rule: an income
+          // row takes an income category. Inheriting the expense category
+          // here would file genuine earnings under a spending budget, which
+          // the linked refund above is exempt from only because it is netted
+          // against the original.
+          category_id: null,
           refund_of_transaction_id: null, // Not linked - it's excess
           include_in_stats: true, // Excess is real income
           user_id: user.id

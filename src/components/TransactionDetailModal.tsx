@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2, Link2 } from "lucide-react";
 import { type Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format } from "date-fns";
@@ -25,6 +25,8 @@ interface TransactionDetailModalProps {
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   onRefund?: (transaction: Transaction) => void;
+  /** Offered on income that is not yet attached to the expense it refunds. */
+  onLinkRefund?: (transaction: Transaction) => void;
 }
 
 interface RefundTransaction {
@@ -41,7 +43,7 @@ interface OriginalTransaction {
   transaction_date: string;
 }
 
-export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund }: TransactionDetailModalProps) {
+export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund, onLinkRefund }: TransactionDetailModalProps) {
   const { formatCurrency } = useUserPreferences();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -338,7 +340,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           </div>
       </DetailSheetBody>
 
-      {(onEdit || onDelete || onRefund) && (
+      {(onEdit || onDelete || onRefund || onLinkRefund) && (
         <DetailSheetFooter>
           {onEdit && (
             <Button
@@ -349,6 +351,17 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
             >
               <Pencil className="w-3.5 h-3.5 mr-1.5" />
               Modifier
+            </Button>
+          )}
+          {onLinkRefund && transaction.type === 'income' && !transaction.refund_of_transaction_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => { onLinkRefund(transaction); onOpenChange(false); }}
+            >
+              <Link2 className="w-3.5 h-3.5 mr-1.5" />
+              {t('transactions.linkAsRefund', { defaultValue: 'Link as refund' })}
             </Button>
           )}
           {onRefund && transaction.type === 'expense' && remainingToRefund > 0 && (

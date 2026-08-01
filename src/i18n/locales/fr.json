@@ -221,7 +221,16 @@
     "hasRefund": "Avec remboursement",
     "isRefund": "Est un remboursement",
     "anyRefundState": "Indifférent",
-    "showMore": "Afficher plus (25)"
+    "showMore": "Afficher plus (25)",
+    "linkAsRefund": "Lier à une dépense",
+    "linkRefundTitle": "Quelle dépense ce remboursement concerne-t-il ?",
+    "linkRefundDesc": "Rattachement de {{amount}}. La dépense sera comptée nette, et cette ligne sortira des revenus.",
+    "noRefundCandidates": "Aucune dépense à cette date ou avant n'a de montant restant à rembourser. Il s'agit peut-être d'un vrai revenu.",
+    "bestMatch": "le plus proche",
+    "refundableLeft": "{{amount}} remboursable",
+    "link": "Lier",
+    "refundLinked": "Lié comme remboursement",
+    "refundLinkedDesc": "La dépense est désormais comptée nette de ce remboursement."
   },
   "categories": {
     "title": "Catégories",
