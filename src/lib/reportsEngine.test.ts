@@ -93,20 +93,35 @@ describe('computePeriodStats', () => {
       tx({ amount: 1000, type: 'income', transaction_date: '2026-06-01' }),
       tx({ amount: 50, type: 'income', transaction_date: '2026-06-02', refund_of_transaction_id: 'x' }), // refund → not income
       tx({ amount: 200, type: 'expense', transaction_date: '2026-06-03', refunded_amount: 50 }),          // nets to 150
-      tx({ amount: 80, type: 'expense', transaction_date: '2026-06-04', refunded_amount: 100 }),          // over-refunded → 0
+      tx({ amount: 80, type: 'expense', transaction_date: '2026-06-04', refunded_amount: 100 }),          // over-refunded → -20
       tx({ amount: 30, type: 'expense', transaction_date: '2026-06-05', include_in_stats: false }),       // excluded
       tx({ amount: 500, type: 'transfer', transaction_date: '2026-06-06', transfer_fee: 2 }),             // fee only
     ];
     const r = computePeriodStats(txs);
     expect(r.income).toBe(1000);
-    expect(r.expenses).toBe(150);
+    // 150 from the partly-refunded row, less the 20 the over-refunded row
+    // gave back beyond its value.
+    expect(r.expenses).toBe(130);
     expect(r.transferFees).toBe(2);
-    expect(r.net).toBe(1000 - 150 - 2);
+    expect(r.net).toBe(1000 - 130 - 2);
   });
 
-  it('netExpenseAmount floors at zero', () => {
-    expect(netExpenseAmount(tx({ amount: 80, type: 'expense', transaction_date: '2026-06-04', refunded_amount: 100 }))).toBe(0);
+  it('netExpenseAmount goes negative when more came back than went out', () => {
+    // The surplus belongs to the expense's category: 100 back on 80 spent
+    // leaves that category 20 cheaper, not merely free.
+    expect(netExpenseAmount(tx({ amount: 80, type: 'expense', transaction_date: '2026-06-04', refunded_amount: 100 }))).toBe(-20);
+    expect(netExpenseAmount(tx({ amount: 80, type: 'expense', transaction_date: '2026-06-04', refunded_amount: 80 }))).toBe(0);
     expect(netExpenseAmount(tx({ amount: 80, type: 'expense', transaction_date: '2026-06-04' }))).toBe(80);
+  });
+
+  it('a category is reduced by an over-refund rather than floored', () => {
+    // The Parfum Douaa shape: 100 spent, 160 refunded, all of it linked.
+    const txs = [
+      tx({ amount: 672, type: 'expense', transaction_date: '2026-06-01' }),
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-02', refunded_amount: 160 }),
+      tx({ amount: 160, type: 'income', transaction_date: '2026-06-03', refund_of_transaction_id: 'p', include_in_stats: false }),
+    ];
+    expect(computePeriodStats(txs).expenses).toBe(612);
   });
 });
 

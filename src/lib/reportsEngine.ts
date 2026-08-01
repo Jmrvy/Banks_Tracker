@@ -50,10 +50,18 @@ export const filterByPeriod = <T extends EngineTx>(
   dateType: TxDateType,
 ): T[] => txs.filter((t) => isWithinInterval(getTxDate(t, dateType), { start, end }));
 
-/** Expense amount net of linked refunds, floored at 0 (an over-refunded
- *  expense contributes nothing; the excess arrives as separate income). */
+/** Expense amount net of linked refunds, which may be negative.
+ *
+ *  Getting back more than you paid makes the category cheaper, not merely
+ *  free: 160 returned on a 100 purchase leaves you 60 up, and that belongs
+ *  to whatever category the purchase was in. Flooring at 0 swallowed it,
+ *  which is why the surplus used to be split into a separate income row and
+ *  why the budget page and Trace disagreed about the same category.
+ *
+ *  Linking is the decision. A surplus attached to the expense reduces its
+ *  category; left unlinked under an income category it is ordinary income. */
 export const netExpenseAmount = (t: EngineTx): number =>
-  Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
+  Number(t.amount) - Number(t.refunded_amount || 0);
 
 /** Income net of anything repaid against it, floored at 0. The mirror of
  *  netExpenseAmount: an advance that has been paid back is not earnings. */

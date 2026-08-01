@@ -136,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           // Net amount per transaction = original - refunded (clamped to 0).
-          const netOf = (t: any) => Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
+          const netOf = (t: any) => Number(t.amount) - Number(t.refunded_amount || 0);
 
           const totalSpent = transactions?.reduce((sum, t) => sum + netOf(t), 0) || 0;
           const budget = Number(category.budget);

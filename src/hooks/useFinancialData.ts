@@ -1583,12 +1583,14 @@ function useFinancialDataInternal() {
     }
     
     const currentRefunded = originalTransaction.refunded_amount || 0;
-    const remainingToRefund = originalTransaction.amount - currentRefunded;
-    
-    // Calculate how much goes to linked refund vs excess
-    const linkedRefundAmount = Math.min(refund.amount, remainingToRefund);
-    const excessAmount = Math.max(0, refund.amount - remainingToRefund);
-    
+
+    // The whole refund attaches to the expense, surplus included. Splitting
+    // the excess into standalone income put money the category had gained
+    // somewhere no budget would look, and left the budget page and Trace
+    // reporting different totals for the same category. An expense refunded
+    // past its value simply nets negative.
+    const linkedRefundAmount = refund.amount;
+
     // Create the linked refund transaction (as income, excluded from stats)
     if (linkedRefundAmount > 0) {
       const { error: refundError } = await supabase
@@ -1626,37 +1628,9 @@ function useFinancialDataInternal() {
       }
     }
     
-    // Create excess refund as standalone income (included in stats as it's a real gain)
-    if (excessAmount > 0) {
-      const { error: excessError } = await supabase
-        .from('transactions')
-        .insert([{
-          description: `${refund.description} (Excédent)`,
-          amount: excessAmount,
-          type: 'income',
-          account_id: refund.account_id,
-          transaction_date: refund.transaction_date,
-          value_date: refund.value_date || refund.transaction_date,
-          // Excess is real income, so it obeys the ordinary rule: an income
-          // row takes an income category. Inheriting the expense category
-          // here would file genuine earnings under a spending budget, which
-          // the linked refund above is exempt from only because it is netted
-          // against the original.
-          category_id: null,
-          refund_of_transaction_id: null, // Not linked - it's excess
-          include_in_stats: true, // Excess is real income
-          user_id: user.id
-        }]);
-      
-      if (excessError) {
-        console.error('Error creating excess refund:', excessError);
-        return { error: excessError };
-      }
-    }
-    
     fetchTransactions(); fetchAccounts();
 
-    return { error: null, linkedAmount: linkedRefundAmount, excessAmount };
+    return { error: null, linkedAmount: linkedRefundAmount };
   };
 
   const refetch = useCallback(() => {

@@ -319,9 +319,10 @@ async function chatCompletion(
 
 type Db = ReturnType<typeof createClient>;
 
-/** Net of any refund, floored at zero — the same basis the app uses. */
+/** Net of any refund — the same basis the app uses, negative included: an
+ *  expense refunded beyond its value makes its category cheaper. */
 const netExpense = (t: Record<string, unknown>) =>
-  Math.max(0, Number(t.amount) - Number(t.refunded_amount ?? 0));
+  Number(t.amount) - Number(t.refunded_amount ?? 0);
 
 async function runTool(
   db: Db,

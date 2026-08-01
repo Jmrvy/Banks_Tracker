@@ -115,21 +115,10 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
         variant: "destructive",
       });
     } else {
-      // Show appropriate message based on whether there was excess
-      const linkedAmount = (result as any).linkedAmount || amount;
-      const excessAmount = (result as any).excessAmount || 0;
-      
-      if (excessAmount > 0) {
-        toast({
-          title: "Remboursement créé",
-          description: `${formatCurrency(linkedAmount)} lié à la transaction originale, ${formatCurrency(excessAmount)} enregistré comme revenu excédentaire.`,
-        });
-      } else {
-        toast({
-          title: "Remboursement créé",
-          description: `Remboursement de ${formatCurrency(amount)} enregistré avec succès.`,
-        });
-      }
+      toast({
+        title: "Remboursement créé",
+        description: `Remboursement de ${formatCurrency(amount)} enregistré avec succès.`,
+      });
       
       setFormData({
         amount: '',
@@ -211,8 +200,8 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
             <div className="text-sm text-amber-600 dark:text-amber-400">
               <p className="font-medium">Remboursement supérieur au reste dû</p>
               <p className="text-xs mt-1">
-                {formatCurrency(remainingToRefund)} sera lié à cette transaction, 
-                et {formatCurrency(excessAmount)} sera créé comme revenu excédentaire.
+                L'intégralité sera liée à cette transaction. Elle deviendra négative
+                de {formatCurrency(excessAmount)}, ce qui réduira d'autant sa catégorie.
               </p>
             </div>
           </div>
