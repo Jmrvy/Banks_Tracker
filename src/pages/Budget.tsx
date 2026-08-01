@@ -137,7 +137,9 @@ function netExpense(tx: Transaction): number {
   // the regular category budget bracket.
   if (tx.special_budget_id) return 0;
   const refunded = tx.refunded_amount || 0;
-  return Math.max(0, tx.amount - refunded);
+  // May go negative: more came back than went out, so the category is
+  // genuinely cheaper. See netExpenseAmount in reportsEngine.
+  return tx.amount - refunded;
 }
 
 /** Amount a transaction contributes to a special budget. Mirrors
@@ -148,7 +150,7 @@ function specialBudgetSpend(tx: Transaction): number {
   if (tx.type !== "expense") return 0;
   if (!tx.special_budget_id) return 0;
   const refunded = tx.refunded_amount || 0;
-  return Math.max(0, tx.amount - refunded);
+  return tx.amount - refunded;
 }
 
 function p75(arr: number[]): number {

@@ -91,7 +91,12 @@ export const useLinkRefund = () => {
 
           // Exact remaining amount is the strongest signal by far; wording
           // and proximity only break ties between equally plausible rows.
-          const exact = Math.abs(remaining - refund.amount) < 0.005 ? 0.5 : 0;
+          // A surplus on an already-settled expense matches its gross
+          // instead, which is how an over-refund finds its original.
+          const exact =
+            Math.abs(remaining - refund.amount) < 0.005 || Math.abs(amount - refund.amount) < 0.005
+              ? 0.5
+              : 0;
           const covers = remaining >= refund.amount - 0.005 ? 0.1 : 0;
           const wording = similarity(t.description ?? '', refund.description) * 0.25;
           const recency = Math.max(0, 1 - days / 120) * 0.1;
@@ -110,8 +115,9 @@ export const useLinkRefund = () => {
             score: exact + covers + wording + recency + account,
           };
         })
-        // An expense already fully refunded has nothing left to attach to.
-        .filter((c) => c.remaining > 0.005)
+        // Fully-refunded expenses stay in the list: a surplus attaches to
+        // the expense it exceeded, and excluding them is what left the
+        // excess stranded as income no budget could see.
         .sort((a, b) => b.score - a.score)
         .slice(0, 25);
     },
@@ -144,14 +150,9 @@ export const useLinkRefund = () => {
       if (refund.type !== 'income') return { error: { message: 'Only an income transaction can be a refund' } };
 
       const refunded = Number(original.refunded_amount ?? 0);
-      const remaining = Number(original.amount) - refunded;
-      if (Number(refund.amount) > remaining + 0.005) {
-        return {
-          error: {
-            message: `That expense only has ${remaining.toFixed(2)} left to refund.`,
-          },
-        };
-      }
+      // Deliberately no cap. Getting back more than you paid is a real
+      // outcome, and refusing to link the surplus was what forced it into a
+      // separate income row that no budget could see.
 
       const { error: linkError } = await supabase
         .from('transactions')
