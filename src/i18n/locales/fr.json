@@ -243,7 +243,8 @@
     "incomeSection": "Catégories de revenus",
     "incomeSectionHint": "Proposées sur les revenus. Elles ne portent pas de budget — un plafond s'applique à ce que vous dépensez.",
     "newIncomeCategory": "Nouvelle",
-    "noIncomeCategories": "Aucune pour l'instant. Ajoutez-en une pour regrouper l'origine de vos revenus."
+    "noIncomeCategories": "Aucune pour l'instant. Ajoutez-en une pour regrouper l'origine de vos revenus.",
+    "duplicateName": "Vous avez déjà une catégorie de ce nom de ce côté."
   },
   "savings": {
     "title": "Objectifs d'Épargne",

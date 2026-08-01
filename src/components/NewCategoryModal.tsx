@@ -17,6 +17,7 @@ import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import type { CategoryKind } from "@/lib/categoryKind";
+import { describeError, isDuplicateError } from "@/lib/errorMessage";
 
 const PRESET_COLORS = [
   "#3B82F6",
@@ -86,7 +87,11 @@ export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = 
     if (error) {
       toast({
         title: t("transactions.createError", { defaultValue: "Could not create" }),
-        description: error.message,
+        description: isDuplicateError(error)
+          ? t("categories.duplicateName", {
+              defaultValue: "You already have a category with that name on this side.",
+            })
+          : describeError(error),
         variant: "destructive",
       });
       setSaving(false);

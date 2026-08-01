@@ -243,7 +243,8 @@
     "incomeSection": "Income categories",
     "incomeSectionHint": "Offered on income. They carry no budget — a ceiling applies to what you spend.",
     "newIncomeCategory": "New",
-    "noIncomeCategories": "None yet. Add one to group where your money comes from."
+    "noIncomeCategories": "None yet. Add one to group where your money comes from.",
+    "duplicateName": "You already have a category with that name on this side."
   },
   "savings": {
     "title": "Savings Goals",

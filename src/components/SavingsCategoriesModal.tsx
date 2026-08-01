@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Category } from "@/hooks/useFinancialData";
 import { kindOf } from "@/lib/categoryKind";
+import { describeError } from "@/lib/errorMessage";
 
 interface Props {
   open: boolean;
@@ -75,7 +76,7 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
       toast({
         title: t("common.error", { defaultValue: "Error" }),
         description:
-          failed.error?.message ??
+          describeError(failed.error) ||
           t("savings.categoriesSaveFailed", { defaultValue: "Could not update the categories." }),
         variant: "destructive",
       });
