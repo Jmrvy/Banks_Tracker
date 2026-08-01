@@ -8,6 +8,7 @@ import {
   signedGlobalAmount,
   realNetChange,
   netExpenseAmount,
+  netIncomeAmount,
   type EngineTx,
 } from './reportsEngine';
 import { normalizePeriod } from './dateUtils';
@@ -43,6 +44,46 @@ describe('filterByPeriod', () => {
   it('falls back to transaction_date when value_date is null', () => {
     const noValue = tx({ amount: 5, type: 'income', transaction_date: '2026-06-15', value_date: null });
     expect(filterByPeriod([noValue], PERIOD.from, PERIOD.to, 'value')).toHaveLength(1);
+  });
+});
+
+describe('advance repayments', () => {
+  it('nets a repaid advance out of income without counting it as spending', () => {
+    // 1200 advance received in June, repaid in full the same period.
+    const txs = [
+      tx({ amount: 3000, type: 'income', transaction_date: '2026-06-01' }),
+      tx({ amount: 1200, type: 'income', transaction_date: '2026-06-05', repaid_amount: 1200 }),
+      tx({ amount: 1200, type: 'expense', transaction_date: '2026-06-20', repayment_of_transaction_id: 'adv' }),
+    ];
+    const stats = computePeriodStats(txs);
+    // The advance is not earnings and settling it is not spending.
+    expect(stats.income).toBe(3000);
+    expect(stats.expenses).toBe(0);
+    expect(stats.net).toBe(3000);
+  });
+
+  it('nets only what has been repaid so far', () => {
+    const txs = [
+      tx({ amount: 1200, type: 'income', transaction_date: '2026-06-05', repaid_amount: 500 }),
+      tx({ amount: 500, type: 'expense', transaction_date: '2026-06-20', repayment_of_transaction_id: 'adv' }),
+    ];
+    const stats = computePeriodStats(txs);
+    expect(stats.income).toBe(700);
+    expect(stats.expenses).toBe(0);
+  });
+
+  it('floors an over-repaid income at zero rather than going negative', () => {
+    expect(netIncomeAmount(tx({ amount: 100, type: 'income', transaction_date: '2026-06-01', repaid_amount: 150 }))).toBe(0);
+  });
+
+  it('leaves ordinary spending alone', () => {
+    const txs = [
+      tx({ amount: 1000, type: 'income', transaction_date: '2026-06-01' }),
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-02' }),
+    ];
+    const stats = computePeriodStats(txs);
+    expect(stats.income).toBe(1000);
+    expect(stats.expenses).toBe(200);
   });
 });
 

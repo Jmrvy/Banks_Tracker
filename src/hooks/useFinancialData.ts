@@ -39,7 +39,11 @@ export interface Transaction {
   transfer_to_account_id?: string;
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
-  refund_of_transaction_id?: string | null; // Lien vers la transaction remboursée
+  refund_of_transaction_id?: string | null;
+  /** On income: how much has since been paid back. */
+  repaid_amount?: number | null;
+  /** On an expense: the income this settles. */
+  repayment_of_transaction_id?: string | null; // Lien vers la transaction remboursée
   refunded_amount?: number; // Montant déjà remboursé
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
   installment_payment_id?: string | null; // Lien vers le paiement échelonné source
