@@ -32,6 +32,7 @@ import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { BANK_COLORS } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/categoryIcons";
+import { LinkRefundModal } from "@/components/LinkRefundModal";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -258,13 +259,14 @@ interface TransactionHistoryProps {
 export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
-  const { transactions, loading, deleteTransaction } = useFinancialData();
+  const { transactions, loading, deleteTransaction, refetch } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { toast } = useToast();
   const [displayCount, setDisplayCount] = useState<number>(50);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const [refundingTransaction, setRefundingTransaction] = useState<Transaction | null>(null);
+  const [linkingRefund, setLinkingRefund] = useState<Transaction | null>(null);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -533,6 +535,20 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
         onRefund={(t) => {
           setViewingTransaction(null);
           setRefundingTransaction(t);
+        }}
+        onLinkRefund={(t) => {
+          setViewingTransaction(null);
+          setLinkingRefund(t);
+        }}
+      />
+
+      <LinkRefundModal
+        open={!!linkingRefund}
+        onOpenChange={(open) => !open && setLinkingRefund(null)}
+        transaction={linkingRefund}
+        onLinked={() => {
+          setLinkingRefund(null);
+          refetch();
         }}
       />
     </div>

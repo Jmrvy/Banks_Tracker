@@ -221,7 +221,16 @@
     "hasRefund": "Has refund",
     "isRefund": "Is a refund",
     "anyRefundState": "Any",
-    "showMore": "Show more (25)"
+    "showMore": "Show more (25)",
+    "linkAsRefund": "Link as refund",
+    "linkRefundTitle": "Which expense does this refund?",
+    "linkRefundDesc": "Attaching {{amount}}. The expense will count net of it, and this row will leave the income figures.",
+    "noRefundCandidates": "No expense on or before this date still has an unrefunded amount. It may be genuine income rather than a refund.",
+    "bestMatch": "closest",
+    "refundableLeft": "{{amount}} refundable",
+    "link": "Link",
+    "refundLinked": "Linked as a refund",
+    "refundLinkedDesc": "The expense now counts net of this refund."
   },
   "categories": {
     "title": "Categories",
