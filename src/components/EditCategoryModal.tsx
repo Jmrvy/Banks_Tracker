@@ -18,6 +18,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import type { Category } from "@/hooks/useFinancialData";
 import { kindOf, type CategoryKind } from "@/lib/categoryKind";
+import { describeError, isDuplicateError } from "@/lib/errorMessage";
 
 interface EditCategoryModalProps {
   open: boolean;
@@ -76,7 +77,11 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
       // Postgres states the reason — a name already in use, a constraint the
       // form should have prevented. Swallowing it leaves the user staring at
       // "unable to update" with nothing to act on and no way to report it.
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = isDuplicateError(err)
+        ? t("categories.duplicateName", {
+            defaultValue: "You already have a category with that name on this side.",
+          })
+        : describeError(err);
       toast({
         title: t("common.error", { defaultValue: "Error" }),
         description: detail || t("errors.updateError", { defaultValue: "Unable to update." }),

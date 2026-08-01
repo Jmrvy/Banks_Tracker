@@ -67,6 +67,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
 import { kindOf, type CategoryKind } from "@/lib/categoryKind";
+import { describeError } from "@/lib/errorMessage";
 import {
   addDays,
   addMonths,
@@ -1692,7 +1693,7 @@ const Budget = () => {
         title: t("categories.budgetUpdated", { defaultValue: "Budget updated" }),
       });
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = describeError(err);
       toast({
         title: t("common.error"),
         description: detail || t("errors.updateError"),
