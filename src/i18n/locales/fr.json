@@ -230,7 +230,14 @@
     "refundableLeft": "{{amount}} remboursable",
     "link": "Lier",
     "refundLinked": "Lié comme remboursement",
-    "refundLinkedDesc": "La dépense est désormais comptée nette de ce remboursement."
+    "refundLinkedDesc": "La dépense est désormais comptée nette de ce remboursement.",
+    "linkAsRepayment": "Lier à une avance",
+    "linkRepaymentTitle": "Quel revenu ce remboursement rembourse-t-il ?",
+    "linkRepaymentDesc": "Rattachement de {{amount}}. Le revenu sera compté net, et cette ligne cessera de compter comme une dépense.",
+    "noRepaymentCandidates": "Aucun revenu à cette date ou avant n'a de montant restant dû. Il s'agit peut-être d'une vraie dépense.",
+    "outstandingLeft": "{{amount}} restant dû",
+    "repaymentLinked": "Lié comme remboursement d'avance",
+    "repaymentLinkedDesc": "Le revenu est désormais compté net de ce remboursement."
   },
   "categories": {
     "title": "Catégories",

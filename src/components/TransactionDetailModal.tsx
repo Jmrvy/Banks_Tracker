@@ -27,6 +27,8 @@ interface TransactionDetailModalProps {
   onRefund?: (transaction: Transaction) => void;
   /** Offered on income that is not yet attached to the expense it refunds. */
   onLinkRefund?: (transaction: Transaction) => void;
+  /** Offered on an expense not yet attached to the income it settles. */
+  onLinkRepayment?: (transaction: Transaction) => void;
 }
 
 interface RefundTransaction {
@@ -43,7 +45,7 @@ interface OriginalTransaction {
   transaction_date: string;
 }
 
-export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund, onLinkRefund }: TransactionDetailModalProps) {
+export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund, onLinkRefund, onLinkRepayment }: TransactionDetailModalProps) {
   const { formatCurrency } = useUserPreferences();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -340,7 +342,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           </div>
       </DetailSheetBody>
 
-      {(onEdit || onDelete || onRefund || onLinkRefund) && (
+      {(onEdit || onDelete || onRefund || onLinkRefund || onLinkRepayment) && (
         <DetailSheetFooter>
           {onEdit && (
             <Button
@@ -351,6 +353,17 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
             >
               <Pencil className="w-3.5 h-3.5 mr-1.5" />
               Modifier
+            </Button>
+          )}
+          {onLinkRepayment && transaction.type === 'expense' && !transaction.repayment_of_transaction_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => { onLinkRepayment(transaction); onOpenChange(false); }}
+            >
+              <Link2 className="w-3.5 h-3.5 mr-1.5" />
+              {t('transactions.linkAsRepayment', { defaultValue: 'Link as repayment' })}
             </Button>
           )}
           {onLinkRefund && transaction.type === 'income' && !transaction.refund_of_transaction_id && (

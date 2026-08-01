@@ -230,7 +230,14 @@
     "refundableLeft": "{{amount}} refundable",
     "link": "Link",
     "refundLinked": "Linked as a refund",
-    "refundLinkedDesc": "The expense now counts net of this refund."
+    "refundLinkedDesc": "The expense now counts net of this refund.",
+    "linkAsRepayment": "Link as repayment",
+    "linkRepaymentTitle": "Which income does this repay?",
+    "linkRepaymentDesc": "Attaching {{amount}}. The income will count net of it, and this row will stop counting as spending.",
+    "noRepaymentCandidates": "No income on or before this date still has an outstanding amount. This may be genuine spending rather than a repayment.",
+    "outstandingLeft": "{{amount}} outstanding",
+    "repaymentLinked": "Linked as a repayment",
+    "repaymentLinkedDesc": "The income now counts net of this repayment."
   },
   "categories": {
     "title": "Categories",

@@ -900,6 +900,8 @@ export type Database = {
           installment_payment_id: string | null
           recurring_transaction_id: string | null
           refund_of_transaction_id: string | null
+          repaid_amount: number
+          repayment_of_transaction_id: string | null
           refunded_amount: number | null
           special_budget_id: string | null
           transaction_date: string
@@ -921,6 +923,8 @@ export type Database = {
           installment_payment_id?: string | null
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
+          repaid_amount?: number
+          repayment_of_transaction_id?: string | null
           refunded_amount?: number | null
           special_budget_id?: string | null
           transaction_date?: string
@@ -942,6 +946,8 @@ export type Database = {
           installment_payment_id?: string | null
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
+          repaid_amount?: number
+          repayment_of_transaction_id?: string | null
           refunded_amount?: number | null
           special_budget_id?: string | null
           transaction_date?: string

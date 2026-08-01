@@ -129,6 +129,10 @@ interface PeriodBuckets {
 function netExpense(tx: Transaction): number {
   if (tx.type !== "expense") return 0;
   if (tx.include_in_stats === false) return 0;
+  // Repaying an advance is settling a debt, not spending. The income it
+  // repays already counts net of it; charging it to a budget as well would
+  // take the same money out twice.
+  if (tx.repayment_of_transaction_id) return 0;
   // Tagged to a special event/trip budget — counted there, not under
   // the regular category budget bracket.
   if (tx.special_budget_id) return 0;

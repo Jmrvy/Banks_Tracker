@@ -12,6 +12,7 @@ interface Transaction {
   };
   include_in_stats?: boolean;
   refund_of_transaction_id?: string | null;
+  repaid_amount?: number | null;
   category?: { id: string; name: string } | null;
 }
 
@@ -172,7 +173,10 @@ export const useIncomeAnalysis = (transactions: Transaction[]): IncomeCategory[]
       }
     }
 
-    const sum = (rows: Transaction[]) => rows.reduce((s, t) => s + Number(t.amount), 0);
+    // Net of anything repaid: an advance that has been paid back is not
+    // income, however it was categorised at the time.
+    const sum = (rows: Transaction[]) =>
+      rows.reduce((s, t) => s + Math.max(0, Number(t.amount) - Number(t.repaid_amount || 0)), 0);
 
     // Convertir en tableau et générer les noms de catégories
     const result: IncomeCategory[] = [

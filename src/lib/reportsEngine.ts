@@ -23,6 +23,8 @@ export interface EngineTx {
   include_in_stats?: boolean | null;
   refund_of_transaction_id?: string | null;
   refunded_amount?: number | null;
+  repayment_of_transaction_id?: string | null;
+  repaid_amount?: number | null;
   transfer_fee?: number | string | null;
   account_id?: string;
   transfer_to_account_id?: string | null;
@@ -53,6 +55,11 @@ export const filterByPeriod = <T extends EngineTx>(
 export const netExpenseAmount = (t: EngineTx): number =>
   Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
 
+/** Income net of anything repaid against it, floored at 0. The mirror of
+ *  netExpenseAmount: an advance that has been paid back is not earnings. */
+export const netIncomeAmount = (t: EngineTx): number =>
+  Math.max(0, Number(t.amount) - Number(t.repaid_amount || 0));
+
 /** Signed effect of one transaction on the GLOBAL (all-accounts) balance.
  *  Transfers between own accounts are neutral except for their fee. */
 export const signedGlobalAmount = (t: EngineTx): number =>
@@ -65,15 +72,20 @@ export const signedGlobalAmount = (t: EngineTx): number =>
 /** Headline stats for an already-filtered set of transactions.
  *  Rules: rows with include_in_stats === false are skipped; refund
  *  incomes are excluded (they net against their original expense);
- *  expenses count net of refunds; transfers contribute only their fee. */
+ *  expenses count net of refunds; income counts net of repayments;
+ *  repayment expenses are excluded (they net against the income they
+ *  settle); transfers contribute only their fee. */
 export const computePeriodStats = (txs: EngineTx[]): PeriodStats => {
   let income = 0;
   let expenses = 0;
   let transferFees = 0;
   for (const t of txs) {
     if (t.include_in_stats === false) continue;
-    if (t.type === 'income' && !t.refund_of_transaction_id) income += Number(t.amount);
-    else if (t.type === 'expense') expenses += netExpenseAmount(t);
+    if (t.type === 'income' && !t.refund_of_transaction_id) income += netIncomeAmount(t);
+    // An expense repaying an advance is a settlement, not spending — the
+    // income it repays already counts net of it, so counting it here too
+    // would subtract the same money twice.
+    else if (t.type === 'expense' && !t.repayment_of_transaction_id) expenses += netExpenseAmount(t);
     else if (t.type === 'transfer') transferFees += Number(t.transfer_fee || 0);
   }
   return { income, expenses, transferFees, net: income - expenses - transferFees };
