@@ -51,6 +51,8 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
   // four places and only one of them wired the props, so the action existed
   // but was unreachable from the account and dashboard lists.
   const [linking, setLinking] = useState<null | 'refund' | 'repayment'>(null);
+  const [repayments, setRepayments] = useState<RefundTransaction[]>([]);
+  const [repaidIncome, setRepaidIncome] = useState<OriginalTransaction | null>(null);
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [refunds, setRefunds] = useState<RefundTransaction[]>([]);
   const [originalTransaction, setOriginalTransaction] = useState<OriginalTransaction | null>(null);
@@ -80,6 +82,32 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
         }
       }
       
+      // If this income has been repaid, fetch the expenses that settled it
+      if (transaction.type === 'income' && (transaction.repaid_amount || 0) > 0) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('id, description, amount, transaction_date')
+          .eq('repayment_of_transaction_id', transaction.id)
+          .order('transaction_date', { ascending: true });
+
+        if (!error && data) {
+          setRepayments(data);
+        }
+      }
+
+      // If this expense repays an advance, fetch the income it settles
+      if (transaction.repayment_of_transaction_id) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('id, description, amount, transaction_date')
+          .eq('id', transaction.repayment_of_transaction_id)
+          .maybeSingle();
+
+        if (!error && data) {
+          setRepaidIncome(data);
+        }
+      }
+
       // If this is a refund, fetch the original transaction
       if (transaction.refund_of_transaction_id) {
         const { data, error } = await supabase
@@ -165,6 +193,27 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                   Remboursement
                 </Badge>
               )}
+              {transaction.repayment_of_transaction_id && (
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  {t('transactions.repayment', { defaultValue: 'Repayment' })}
+                </Badge>
+              )}
+              {transaction.type === 'income' && (transaction.repaid_amount || 0) > 0 && (
+                <Badge
+                  variant="outline"
+                  className={
+                    (transaction.repaid_amount || 0) >= transaction.amount
+                      ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
+                      : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                  }
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  {(transaction.repaid_amount || 0) >= transaction.amount
+                    ? t('transactions.repaid', { defaultValue: 'Repaid' })
+                    : t('transactions.partialRepayment', { defaultValue: 'Partial' })}
+                </Badge>
+              )}
               {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
                 <Badge 
                   variant="outline" 
@@ -182,6 +231,53 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           </div>
 
           <Separator />
+
+          {/* The advance this expense settles */}
+          {transaction.repayment_of_transaction_id && repaidIncome && (
+            <>
+              <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Receipt className="w-4 h-4 text-blue-600" />
+                  <p className="text-sm font-medium text-blue-600">
+                    {t('transactions.repaidAdvance', { defaultValue: 'Advance repaid by this' })}
+                  </p>
+                </div>
+                <div className="ml-6 space-y-1">
+                  <p className="text-sm font-medium">{repaidIncome.description}</p>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>{format(parseLocalDate(repaidIncome.transaction_date), "d MMM yyyy", { locale: dateLocale })}</span>
+                    <span className="font-medium text-green-600">+{formatCurrency(repaidIncome.amount)}</span>
+                  </div>
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
+
+          {/* Repayments received against this income */}
+          {transaction.type === 'income' && repayments.length > 0 && (
+            <>
+              <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Receipt className="w-4 h-4 text-blue-600" />
+                  <p className="text-sm font-medium text-blue-600">
+                    {t('transactions.repaymentsReceived', { defaultValue: 'Repaid by' })}
+                  </p>
+                </div>
+                <div className="ml-6 space-y-1.5">
+                  {repayments.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between text-sm">
+                      <span className="truncate mr-2">{r.description}</span>
+                      <span className="font-medium text-muted-foreground whitespace-nowrap">
+                        {format(parseLocalDate(r.transaction_date), "d MMM", { locale: dateLocale })} · −{formatCurrency(r.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
 
           {/* Original transaction info (if this is a refund) */}
           {transaction.refund_of_transaction_id && originalTransaction && (
