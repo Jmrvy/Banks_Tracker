@@ -244,7 +244,11 @@
     "partialRepayment": "Partial",
     "fullyRepaid": "Advance fully repaid",
     "repaidAdvance": "Advance repaid by this",
-    "repaymentsReceived": "Repaid by"
+    "repaymentsReceived": "Repaid by",
+    "unlink": "Unlink",
+    "relink": "Link elsewhere",
+    "unlinked": "Unlinked",
+    "unlinkedDesc": "The two transactions are separate again, and the category was cleared."
   },
   "categories": {
     "title": "Categories",

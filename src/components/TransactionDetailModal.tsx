@@ -9,9 +9,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2, Link2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2, Link2, Link2Off } from "lucide-react";
 import { type Transaction, useFinancialData } from "@/hooks/useFinancialData";
 import { LinkRefundModal } from "@/components/LinkRefundModal";
+import { useLinkRefund } from "@/hooks/useLinkRefund";
+import { useLinkRepayment } from "@/hooks/useLinkRepayment";
+import { describeError } from "@/lib/errorMessage";
+import { useToast } from "@/hooks/use-toast";
 import { LinkRepaymentModal } from "@/components/LinkRepaymentModal";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format } from "date-fns";
@@ -51,6 +55,53 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
   // four places and only one of them wired the props, so the action existed
   // but was unreachable from the account and dashboard lists.
   const [linking, setLinking] = useState<null | 'refund' | 'repayment'>(null);
+  const { toast } = useToast();
+  const { unlinkRefund } = useLinkRefund();
+  const { unlinkRepayment } = useLinkRepayment();
+  const [unlinking, setUnlinking] = useState(false);
+  // The `transaction` prop is a snapshot held by whichever list opened this
+  // sheet, so refetching does not change it. Tracking the detach locally is
+  // what lets the footer swap to "link" without closing and reopening.
+  const [detached, setDetached] = useState(false);
+
+  useEffect(() => {
+    if (open) setDetached(false);
+  }, [open, transaction?.id]);
+
+  const isRefund = !!transaction?.refund_of_transaction_id && !detached;
+  const isRepayment = !!transaction?.repayment_of_transaction_id && !detached;
+
+  /** Detaches, and optionally reopens the picker to attach elsewhere. */
+  const handleUnlink = async (thenRelink: boolean) => {
+    if (!transaction) return;
+    setUnlinking(true);
+    const kind = transaction.refund_of_transaction_id ? 'refund' : 'repayment';
+    const { error } =
+      kind === 'refund'
+        ? await unlinkRefund(transaction.id)
+        : await unlinkRepayment(transaction.id);
+    setUnlinking(false);
+    if (error) {
+      toast({
+        title: t('common.error', { defaultValue: 'Error' }),
+        description: describeError(error),
+        variant: 'destructive',
+      });
+      return;
+    }
+    setDetached(true);
+    refetch();
+    if (thenRelink) {
+      setLinking(kind);
+    } else {
+      toast({
+        title: t('transactions.unlinked', { defaultValue: 'Unlinked' }),
+        description: t('transactions.unlinkedDesc', {
+          defaultValue: 'The two transactions are separate again, and the category was cleared.',
+        }),
+      });
+    }
+  };
   const [repayments, setRepayments] = useState<RefundTransaction[]>([]);
   const [repaidIncome, setRepaidIncome] = useState<OriginalTransaction | null>(null);
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -454,7 +505,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               Modifier
             </Button>
           )}
-          {transaction.type === 'expense' && !transaction.repayment_of_transaction_id && (
+          {transaction.type === 'expense' && !isRepayment && (
             <Button
               variant="outline"
               size="sm"
@@ -465,7 +516,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               {t('transactions.linkAsRepayment', { defaultValue: 'Link as repayment' })}
             </Button>
           )}
-          {transaction.type === 'income' && !transaction.refund_of_transaction_id && (
+          {transaction.type === 'income' && !isRefund && (
             <Button
               variant="outline"
               size="sm"
@@ -486,6 +537,30 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
               Rembourser
             </Button>
+          )}
+          {(isRefund || isRepayment) && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                disabled={unlinking}
+                onClick={() => handleUnlink(true)}
+              >
+                <Link2 className="w-3.5 h-3.5 mr-1.5" />
+                {t('transactions.relink', { defaultValue: 'Link elsewhere' })}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                disabled={unlinking}
+                onClick={() => handleUnlink(false)}
+              >
+                <Link2Off className="w-3.5 h-3.5 mr-1.5" />
+                {t('transactions.unlink', { defaultValue: 'Unlink' })}
+              </Button>
+            </>
           )}
           {onDelete && (
             <Button
