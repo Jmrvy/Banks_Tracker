@@ -16,6 +16,7 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { kindOf } from "@/lib/categoryKind";
 
 interface ActivityRow {
   id: string;
@@ -40,8 +41,11 @@ function useRadar() {
   return useMemo(() => {
     const cards: { id: string; title: string; sub: string; body: string; action: string; query: string }[] = [];
 
+    // Expenses only: the card is about budgets, and adding uncategorized
+    // income to uncategorized spending gives a headline figure that is
+    // neither one nor the other.
     const uncategorized = transactions.filter(
-      (tx) => !tx.category && tx.type !== "transfer" && tx.include_in_stats !== false,
+      (tx) => !tx.category && tx.type === "expense" && tx.include_in_stats !== false,
     );
     if (uncategorized.length > 0) {
       const total = uncategorized.reduce((s, tx) => s + Math.abs(tx.amount), 0);
@@ -71,7 +75,10 @@ function useRadar() {
       if (tx.type !== "expense" || tx.include_in_stats === false || !tx.category) continue;
       if (tx.special_budget_id) continue;
       if (parseLocalDate(tx.transaction_date) < monthStart) continue;
-      const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
+      // Not floored, matching netExpenseAmount: an expense refunded past its
+      // value makes the category cheaper, and flooring would hide that from
+      // the over-budget check.
+      const net = tx.amount - (tx.refunded_amount || 0);
       spendByCategory.set(tx.category.id, (spendByCategory.get(tx.category.id) ?? 0) + net);
     }
     const over = categories
@@ -102,7 +109,12 @@ function useRadar() {
       });
     }
 
-    const noBudget = categories.filter((c) => c.budget == null || c.budget === 0);
+    // Expense categories only. A budget is a ceiling on outgoings, so an
+    // income category having none is the design rather than an omission —
+    // flagging them tells the user to fix something that is already right.
+    const noBudget = categories.filter(
+      (c) => kindOf(c) === "expense" && (c.budget == null || c.budget === 0),
+    );
     if (noBudget.length > 0 && over.length === 0) {
       cards.push({
         id: "no-budget",
