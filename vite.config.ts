@@ -65,7 +65,13 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            urlPattern: /^https:\/\/cuanladihtpvkmjhvrln\.supabase\.co\/.*$/,
+            // Everything on the Supabase origin EXCEPT the endpoints that must
+            // never be served from a cache or mediated by the worker: edge
+            // functions (a copilot answer is not a cacheable document, and a
+            // call can legitimately run for two minutes) and auth. A single
+            // pattern over the whole origin put the service worker in the path
+            // of both.
+            urlPattern: /^https:\/\/cuanladihtpvkmjhvrln\.supabase\.co\/(?!functions\/v1\/|auth\/v1\/).*$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-cache',
