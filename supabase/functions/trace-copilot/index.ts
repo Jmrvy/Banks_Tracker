@@ -340,7 +340,7 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, repaid_amount, repayment_of_transaction_id, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
         .gte(dateColumn, input.start)
@@ -369,6 +369,11 @@ async function runTool(
           if (t.repayment_of_transaction_id) continue;
           expense += netExpense(t);
         } else if (t.type === "income") {
+          // A refund is already inside the expense it refunds, via that
+          // expense's refunded_amount. Counting it here as well subtracts
+          // the same money twice. include_in_stats is not a safe proxy for
+          // this — a linked refund can carry it true — so test the link.
+          if (t.refund_of_transaction_id) continue;
           income += netIncome(t);
         } else {
           transfers += Number(t.amount);
@@ -557,6 +562,7 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 # How to answer
 - Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
 - Money can come back on either side, and both are already netted for you. A refund reduces the expense it refunds — past zero if more came back than went out, which makes that category cheaper rather than merely free. A repayment settles an advance: the income counts net of it and the repaying expense is not spending. Never add either back in by hand.
+- What a category cost is `spending_by_category`, and its `spent` is FINAL: refunds are already inside it and no income row may be subtracted from it. `search_transactions` `expense` is the same figure for the same filter. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. Income sharing a category is a separate fact worth naming — never an adjustment to spend.
 - A merchant that both charges and pays out (gambling, reimbursements, resale, cashback) must be reported NET. Its payouts are often uncategorized, so a category total counts the losses and misses the winnings; quoting the gross there states a cost the user did not bear. When a merchant drives a category's move, check it with \`search_transactions\` and use \`net\`.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
