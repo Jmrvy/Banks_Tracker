@@ -237,7 +237,14 @@
     "noRepaymentCandidates": "Aucun revenu à cette date ou avant n'a de montant restant dû. Il s'agit peut-être d'une vraie dépense.",
     "outstandingLeft": "{{amount}} restant dû",
     "repaymentLinked": "Lié comme remboursement d'avance",
-    "repaymentLinkedDesc": "Le revenu est désormais compté net de ce remboursement."
+    "repaymentLinkedDesc": "Le revenu est désormais compté net de ce remboursement.",
+    "repayment": "Rbt avance",
+    "repaymentTooltip": "Cette dépense rembourse une avance",
+    "repaid": "Remboursée",
+    "partialRepayment": "Partiel",
+    "fullyRepaid": "Avance entièrement remboursée",
+    "repaidAdvance": "Avance remboursée par cette dépense",
+    "repaymentsReceived": "Remboursée par"
   },
   "categories": {
     "title": "Catégories",

@@ -32,8 +32,6 @@ import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { BANK_COLORS } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/categoryIcons";
-import { LinkRefundModal } from "@/components/LinkRefundModal";
-import { LinkRepaymentModal } from "@/components/LinkRepaymentModal";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -58,11 +56,24 @@ const TransactionRow = React.memo(
     const isFullyRefunded = transaction.type === 'expense' && refundedAmount >= transaction.amount;
     const isPartiallyRefunded =
       transaction.type === 'expense' && refundedAmount > 0 && refundedAmount < transaction.amount;
+
+    // The income mirror: an advance shows what it is once repaid.
+    const repaidAmount = transaction.repaid_amount || 0;
+    const isFullyRepaid = transaction.type === 'income' && repaidAmount >= transaction.amount;
+    const isPartiallyRepaid =
+      transaction.type === 'income' && repaidAmount > 0 && repaidAmount < transaction.amount;
+
+    // Not floored: a refund beyond the expense makes the row negative, which
+    // is the point of allowing it.
     const netExpenseAmount =
-      transaction.type === 'expense' ? Math.max(0, transaction.amount - refundedAmount) : transaction.amount;
+      transaction.type === 'expense'
+        ? transaction.amount - refundedAmount
+        : transaction.type === 'income'
+        ? transaction.amount - repaidAmount
+        : transaction.amount;
     const transferFee =
       transaction.type === 'transfer' && transaction.transfer_fee ? transaction.transfer_fee : 0;
-    const displayAmount = transaction.type === 'expense' ? netExpenseAmount : transaction.amount;
+    const displayAmount = transaction.type === 'transfer' ? transaction.amount : netExpenseAmount;
 
     const userIcon = getCategoryIcon(transaction.category?.icon ?? null);
     const FallbackIcon =
@@ -111,6 +122,38 @@ const TransactionRow = React.memo(
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{t('transactions.refundTooltip', { defaultValue: 'This income is a refund' })}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {transaction.repayment_of_transaction_id && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <span className="ft-tag">
+                    <RotateCcw className="h-2.5 w-2.5" />
+                    {t('transactions.repayment', { defaultValue: 'Repayment' })}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('transactions.repaymentTooltip', { defaultValue: 'This expense repays an advance' })}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {transaction.type === 'income' && repaidAmount > 0 && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <span className={`ft-tag ${repaidAmount >= transaction.amount ? '' : 'warn'}`}>
+                    <RotateCcw className="h-2.5 w-2.5" />
+                    {repaidAmount >= transaction.amount
+                      ? t('transactions.repaid', { defaultValue: 'Repaid' })
+                      : t('transactions.partialRepayment', { defaultValue: 'Partial' })}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {repaidAmount >= transaction.amount
+                      ? t('transactions.fullyRepaid', { defaultValue: 'Advance fully repaid' })
+                      : `${formatCurrency(repaidAmount)} / ${formatCurrency(transaction.amount)}`}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -180,7 +223,7 @@ const TransactionRow = React.memo(
         <div className="text-right whitespace-nowrap">
           <span
             className={`font-mono text-sm font-semibold ${
-              isFullyRefunded
+              isFullyRefunded || isFullyRepaid
                 ? 'text-muted-foreground line-through'
                 : transaction.type === 'income'
                 ? 'text-pos'
@@ -195,6 +238,11 @@ const TransactionRow = React.memo(
           {isPartiallyRefunded && (
             <div className="font-mono text-[10px] text-muted-foreground line-through">
               −{formatCurrency(transaction.amount)}
+            </div>
+          )}
+          {isPartiallyRepaid && (
+            <div className="font-mono text-[10px] text-muted-foreground line-through">
+              +{formatCurrency(transaction.amount)}
             </div>
           )}
           {transferFee > 0 && (
@@ -267,8 +315,6 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const [refundingTransaction, setRefundingTransaction] = useState<Transaction | null>(null);
-  const [linkingRefund, setLinkingRefund] = useState<Transaction | null>(null);
-  const [linkingRepayment, setLinkingRepayment] = useState<Transaction | null>(null);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -352,8 +398,12 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
     }
     for (const [key, value] of map.entries()) {
       const total = value.items.reduce((acc, t) => {
-        if (t.type === 'income' && !t.refund_of_transaction_id) return acc + t.amount;
-        if (t.type === 'expense') return acc - Math.max(0, t.amount - (t.refunded_amount || 0));
+        if (t.type === 'income' && !t.refund_of_transaction_id)
+          return acc + (t.amount - (t.repaid_amount || 0));
+        // A repayment is settled by the income it repays, and an over-refund
+        // is negative rather than floored — both as the rows now show them.
+        if (t.type === 'expense' && !t.repayment_of_transaction_id)
+          return acc - (t.amount - (t.refunded_amount || 0));
         return acc;
       }, 0);
       groups.push({ key, label: value.label, items: value.items, total });
@@ -538,35 +588,8 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
           setViewingTransaction(null);
           setRefundingTransaction(t);
         }}
-        onLinkRefund={(t) => {
-          setViewingTransaction(null);
-          setLinkingRefund(t);
-        }}
-        onLinkRepayment={(t) => {
-          setViewingTransaction(null);
-          setLinkingRepayment(t);
-        }}
       />
 
-      <LinkRefundModal
-        open={!!linkingRefund}
-        onOpenChange={(open) => !open && setLinkingRefund(null)}
-        transaction={linkingRefund}
-        onLinked={() => {
-          setLinkingRefund(null);
-          refetch();
-        }}
-      />
-
-      <LinkRepaymentModal
-        open={!!linkingRepayment}
-        onOpenChange={(open) => !open && setLinkingRepayment(null)}
-        transaction={linkingRepayment}
-        onLinked={() => {
-          setLinkingRepayment(null);
-          refetch();
-        }}
-      />
     </div>
   );
 };
