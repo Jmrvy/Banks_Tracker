@@ -584,6 +584,7 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 - Never put an id in \`changes\` that did not come back from a tool call.
 
 # Ledger context
+Each category carries a \`kind\`. Only expense categories can hold a budget, so an income category showing no budget is correct and never worth flagging. Two categories may share a name across the two kinds — say which side you mean.
 ${JSON.stringify(ctx, null, 2)}
 
 Today is ${new Date().toISOString().slice(0, 10)}.`;
@@ -657,7 +658,7 @@ const handler = async (req: Request): Promise<Response> => {
     // needs to call the tools meaningfully.
     const [accountsRes, categoriesRes, countRes] = await Promise.all([
       db.from("accounts").select("id, name, bank, account_type, balance").eq("user_id", userId),
-      db.from("categories").select("id, name, budget").eq("user_id", userId).order("name"),
+      db.from("categories").select("id, name, budget, kind").eq("user_id", userId).order("name"),
       db
         .from("transactions")
         .select("id", { count: "exact", head: true })
@@ -675,10 +676,15 @@ const handler = async (req: Request): Promise<Response> => {
         type: a.account_type,
         balance: Number(a.balance),
       })),
+      // `kind` matters as much as the name here: a budget is a ceiling on
+      // outgoings, so an income category has none by design. Without the
+      // distinction the model reads them as expense categories left
+      // unbudgeted and reports that as something to fix.
       categories: (categoriesRes.data ?? []).map((c: any) => ({
         id: c.id,
         name: c.name,
-        monthly_budget: c.budget === null ? null : Number(c.budget),
+        kind: c.kind === "income" ? "income" : "expense",
+        monthly_budget: c.kind === "income" || c.budget === null ? null : Number(c.budget),
       })),
       current_page: pageContext || null,
     };
