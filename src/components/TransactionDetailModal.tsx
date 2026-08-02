@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2, Link2 } from "lucide-react";
-import { type Transaction } from "@/hooks/useFinancialData";
+import { type Transaction, useFinancialData } from "@/hooks/useFinancialData";
+import { LinkRefundModal } from "@/components/LinkRefundModal";
+import { LinkRepaymentModal } from "@/components/LinkRepaymentModal";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -25,10 +27,6 @@ interface TransactionDetailModalProps {
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   onRefund?: (transaction: Transaction) => void;
-  /** Offered on income that is not yet attached to the expense it refunds. */
-  onLinkRefund?: (transaction: Transaction) => void;
-  /** Offered on an expense not yet attached to the income it settles. */
-  onLinkRepayment?: (transaction: Transaction) => void;
 }
 
 interface RefundTransaction {
@@ -45,9 +43,14 @@ interface OriginalTransaction {
   transaction_date: string;
 }
 
-export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund, onLinkRefund, onLinkRepayment }: TransactionDetailModalProps) {
+export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund }: TransactionDetailModalProps) {
   const { formatCurrency } = useUserPreferences();
   const { t, i18n } = useTranslation();
+  const { refetch } = useFinancialData();
+  // Linking lives here rather than in each host. This modal is rendered from
+  // four places and only one of them wired the props, so the action existed
+  // but was unreachable from the account and dashboard lists.
+  const [linking, setLinking] = useState<null | 'refund' | 'repayment'>(null);
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const [refunds, setRefunds] = useState<RefundTransaction[]>([]);
   const [originalTransaction, setOriginalTransaction] = useState<OriginalTransaction | null>(null);
@@ -342,7 +345,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           </div>
       </DetailSheetBody>
 
-      {(onEdit || onDelete || onRefund || onLinkRefund || onLinkRepayment) && (
+      {(onEdit || onDelete || onRefund || transaction.type !== 'transfer') && (
         <DetailSheetFooter>
           {onEdit && (
             <Button
@@ -355,23 +358,23 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               Modifier
             </Button>
           )}
-          {onLinkRepayment && transaction.type === 'expense' && !transaction.repayment_of_transaction_id && (
+          {transaction.type === 'expense' && !transaction.repayment_of_transaction_id && (
             <Button
               variant="outline"
               size="sm"
               className="flex-1"
-              onClick={() => { onLinkRepayment(transaction); onOpenChange(false); }}
+              onClick={() => setLinking('repayment')}
             >
               <Link2 className="w-3.5 h-3.5 mr-1.5" />
               {t('transactions.linkAsRepayment', { defaultValue: 'Link as repayment' })}
             </Button>
           )}
-          {onLinkRefund && transaction.type === 'income' && !transaction.refund_of_transaction_id && (
+          {transaction.type === 'income' && !transaction.refund_of_transaction_id && (
             <Button
               variant="outline"
               size="sm"
               className="flex-1"
-              onClick={() => { onLinkRefund(transaction); onOpenChange(false); }}
+              onClick={() => setLinking('refund')}
             >
               <Link2 className="w-3.5 h-3.5 mr-1.5" />
               {t('transactions.linkAsRefund', { defaultValue: 'Link as refund' })}
@@ -401,6 +404,28 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           )}
         </DetailSheetFooter>
       )}
+
+      <LinkRefundModal
+        open={linking === 'refund'}
+        onOpenChange={(o) => !o && setLinking(null)}
+        transaction={transaction}
+        onLinked={() => {
+          setLinking(null);
+          refetch();
+          onOpenChange(false);
+        }}
+      />
+
+      <LinkRepaymentModal
+        open={linking === 'repayment'}
+        onOpenChange={(o) => !o && setLinking(null)}
+        transaction={transaction}
+        onLinked={() => {
+          setLinking(null);
+          refetch();
+          onOpenChange(false);
+        }}
+      />
     </DetailSheet>
   );
 }

@@ -32,8 +32,6 @@ import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { BANK_COLORS } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/categoryIcons";
-import { LinkRefundModal } from "@/components/LinkRefundModal";
-import { LinkRepaymentModal } from "@/components/LinkRepaymentModal";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -267,8 +265,6 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const [refundingTransaction, setRefundingTransaction] = useState<Transaction | null>(null);
-  const [linkingRefund, setLinkingRefund] = useState<Transaction | null>(null);
-  const [linkingRepayment, setLinkingRepayment] = useState<Transaction | null>(null);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -538,35 +534,8 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
           setViewingTransaction(null);
           setRefundingTransaction(t);
         }}
-        onLinkRefund={(t) => {
-          setViewingTransaction(null);
-          setLinkingRefund(t);
-        }}
-        onLinkRepayment={(t) => {
-          setViewingTransaction(null);
-          setLinkingRepayment(t);
-        }}
       />
 
-      <LinkRefundModal
-        open={!!linkingRefund}
-        onOpenChange={(open) => !open && setLinkingRefund(null)}
-        transaction={linkingRefund}
-        onLinked={() => {
-          setLinkingRefund(null);
-          refetch();
-        }}
-      />
-
-      <LinkRepaymentModal
-        open={!!linkingRepayment}
-        onOpenChange={(open) => !open && setLinkingRepayment(null)}
-        transaction={linkingRepayment}
-        onLinked={() => {
-          setLinkingRepayment(null);
-          refetch();
-        }}
-      />
     </div>
   );
 };
