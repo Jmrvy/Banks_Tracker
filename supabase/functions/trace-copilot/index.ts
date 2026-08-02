@@ -324,6 +324,11 @@ type Db = ReturnType<typeof createClient>;
 const netExpense = (t: Record<string, unknown>) =>
   Number(t.amount) - Number(t.refunded_amount ?? 0);
 
+/** Income net of anything repaid against it. An advance that has been paid
+ *  back was never earnings, so quoting it gross overstates the month. */
+const netIncome = (t: Record<string, unknown>) =>
+  Number(t.amount) - Number(t.repaid_amount ?? 0);
+
 async function runTool(
   db: Db,
   userId: string,
@@ -335,7 +340,7 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, refunded_amount, repaid_amount, repayment_of_transaction_id, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
         .gte(dateColumn, input.start)
@@ -358,9 +363,16 @@ async function runTool(
       let expense = 0;
       let transfers = 0;
       for (const t of rows as any[]) {
-        if (t.type === "expense") expense += netExpense(t);
-        else if (t.type === "income") income += Number(t.amount);
-        else transfers += Number(t.amount);
+        if (t.type === "expense") {
+          // An expense repaying an advance settles income rather than being
+          // spending; the income it repays already counts net of it.
+          if (t.repayment_of_transaction_id) continue;
+          expense += netExpense(t);
+        } else if (t.type === "income") {
+          income += netIncome(t);
+        } else {
+          transfers += Number(t.amount);
+        }
       }
       const limit = Math.min(Math.max(Number(input.limit ?? 10), 1), 50);
       const sample = [...rows]
@@ -370,7 +382,7 @@ async function runTool(
           id: t.id,
           date: dateColumn === "value_date" ? (t.value_date || t.transaction_date) : t.transaction_date,
           description: t.description,
-          amount: t.type === "expense" ? netExpense(t) : Number(t.amount),
+          amount: t.type === "expense" ? netExpense(t) : netIncome(t),
           type: t.type,
           category: t.categories?.name ?? null,
           account: t.accounts?.name ?? null,
@@ -391,10 +403,10 @@ async function runTool(
 
     case "spending_by_category": {
       const [{ data: cats, error: catErr }, { data: txs, error: txErr }] = await Promise.all([
-        db.from("categories").select("id, name, budget").eq("user_id", userId),
+        db.from("categories").select("id, name, budget").eq("user_id", userId).eq("kind", "expense"),
         db
           .from("transactions")
-          .select("amount, refunded_amount, category_id")
+          .select("amount, refunded_amount, category_id, repayment_of_transaction_id")
           .eq("user_id", userId)
           .eq("type", "expense")
           .eq("include_in_stats", true)
@@ -407,6 +419,8 @@ async function runTool(
       if (txErr) throw txErr;
       const spent = new Map<string, { total: number; count: number }>();
       for (const t of txs ?? []) {
+        // Settling an advance is not spending against a budget.
+        if ((t as any).repayment_of_transaction_id) continue;
         const key = (t as any).category_id ?? "__none__";
         const cur = spent.get(key) ?? { total: 0, count: 0 };
         cur.total += netExpense(t as any);
@@ -542,6 +556,7 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 
 # How to answer
 - Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
+- Money can come back on either side, and both are already netted for you. A refund reduces the expense it refunds — past zero if more came back than went out, which makes that category cheaper rather than merely free. A repayment settles an advance: the income counts net of it and the repaying expense is not spending. Never add either back in by hand.
 - A merchant that both charges and pays out (gambling, reimbursements, resale, cashback) must be reported NET. Its payouts are often uncategorized, so a category total counts the losses and misses the winnings; quoting the gross there states a cost the user did not bear. When a merchant drives a category's move, check it with \`search_transactions\` and use \`net\`.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
