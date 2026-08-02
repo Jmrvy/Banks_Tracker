@@ -186,5 +186,66 @@ export const useLinkRefund = () => {
     [user],
   );
 
-  return { findCandidates, linkRefund };
+  /**
+   * Detaches a refund from the expense it was attached to.
+   *
+   * Undoes every part of the link, not just the pointer: the expense's
+   * refunded_amount comes back down, the row returns to the statistics, and
+   * the category goes with it. The category was borrowed from the expense —
+   * an income row is only allowed to hold a spending category while it is a
+   * linked refund — so keeping it would leave a row the database rejects on
+   * the next save.
+   */
+  const unlinkRefund = useCallback(
+    async (refundId: string) => {
+      if (!user) return { error: { message: 'Not authenticated' } };
+
+      const { data: refund } = await supabase
+        .from('transactions')
+        .select('id, amount, refund_of_transaction_id')
+        .eq('id', refundId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!refund) return { error: { message: 'Transaction not found' } };
+      if (!refund.refund_of_transaction_id) return { error: null };
+
+      const { data: original } = await supabase
+        .from('transactions')
+        .select('id, refunded_amount')
+        .eq('id', refund.refund_of_transaction_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const { error: clearError } = await supabase
+        .from('transactions')
+        .update({ refund_of_transaction_id: null, category_id: null, include_in_stats: true })
+        .eq('id', refundId)
+        .eq('user_id', user.id);
+      if (clearError) return { error: clearError };
+
+      if (original) {
+        // Floor at zero: a negative refunded_amount would read as an expense
+        // costing more than it did.
+        const next = Math.max(0, Number(original.refunded_amount ?? 0) - Number(refund.amount));
+        const { error: bumpError } = await supabase
+          .from('transactions')
+          .update({ refunded_amount: next })
+          .eq('id', original.id)
+          .eq('user_id', user.id);
+        if (bumpError) {
+          await supabase
+            .from('transactions')
+            .update({ refund_of_transaction_id: refund.refund_of_transaction_id, include_in_stats: false })
+            .eq('id', refundId)
+            .eq('user_id', user.id);
+          return { error: bumpError };
+        }
+      }
+
+      return { error: null };
+    },
+    [user],
+  );
+
+  return { findCandidates, linkRefund, unlinkRefund };
 };

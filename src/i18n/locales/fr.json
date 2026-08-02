@@ -244,7 +244,11 @@
     "partialRepayment": "Partiel",
     "fullyRepaid": "Avance entièrement remboursée",
     "repaidAdvance": "Avance remboursée par cette dépense",
-    "repaymentsReceived": "Remboursée par"
+    "repaymentsReceived": "Remboursée par",
+    "unlink": "Délier",
+    "relink": "Lier ailleurs",
+    "unlinked": "Lien supprimé",
+    "unlinkedDesc": "Les deux transactions sont de nouveau séparées, et la catégorie a été effacée."
   },
   "categories": {
     "title": "Catégories",

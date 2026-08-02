@@ -181,5 +181,61 @@ export const useLinkRepayment = () => {
     [user],
   );
 
-  return { findCandidates, linkRepayment };
+  /**
+   * Detaches a repayment from the advance it settled.
+   *
+   * The mirror of unlinkRefund: the income's repaid_amount comes back down
+   * and the borrowed category goes with the link, since an expense may only
+   * hold an income category while it is a linked repayment.
+   */
+  const unlinkRepayment = useCallback(
+    async (repaymentId: string) => {
+      if (!user) return { error: { message: 'Not authenticated' } };
+
+      const { data: repayment } = await supabase
+        .from('transactions')
+        .select('id, amount, repayment_of_transaction_id')
+        .eq('id', repaymentId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!repayment) return { error: { message: 'Transaction not found' } };
+      if (!repayment.repayment_of_transaction_id) return { error: null };
+
+      const { data: income } = await supabase
+        .from('transactions')
+        .select('id, repaid_amount')
+        .eq('id', repayment.repayment_of_transaction_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const { error: clearError } = await supabase
+        .from('transactions')
+        .update({ repayment_of_transaction_id: null, category_id: null })
+        .eq('id', repaymentId)
+        .eq('user_id', user.id);
+      if (clearError) return { error: clearError };
+
+      if (income) {
+        const next = Math.max(0, Number(income.repaid_amount ?? 0) - Number(repayment.amount));
+        const { error: bumpError } = await supabase
+          .from('transactions')
+          .update({ repaid_amount: next })
+          .eq('id', income.id)
+          .eq('user_id', user.id);
+        if (bumpError) {
+          await supabase
+            .from('transactions')
+            .update({ repayment_of_transaction_id: repayment.repayment_of_transaction_id })
+            .eq('id', repaymentId)
+            .eq('user_id', user.id);
+          return { error: bumpError };
+        }
+      }
+
+      return { error: null };
+    },
+    [user],
+  );
+
+  return { findCandidates, linkRepayment, unlinkRepayment };
 };
