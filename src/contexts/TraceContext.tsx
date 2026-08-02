@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
-import { FunctionsHttpError } from "@supabase/supabase-js";
+import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
@@ -19,6 +19,17 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
  * status was non-2xx, which tells the user nothing they can act on.
  */
 async function describeInvokeError(error: unknown): Promise<string> {
+  // FunctionsFetchError means the request never completed — the browser could
+  // not reach the function at all, so there is no status and no body, and
+  // nothing is logged server-side either. Distinct from a function that ran
+  // and failed, and worth saying so: the causes are entirely different.
+  if (error instanceof FunctionsFetchError) {
+    return (
+      "The request never reached Trace — no reply came back at all. " +
+      "Check your connection; if it persists, unregister the app's service " +
+      "worker and reload, then tell me it is still happening."
+    );
+  }
   if (error instanceof FunctionsHttpError) {
     try {
       const body = await error.context.json();
