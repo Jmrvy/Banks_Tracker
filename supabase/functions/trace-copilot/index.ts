@@ -195,8 +195,8 @@ const READ_TOOLS = [
     description:
       "Aggregate and sample the ledger. Returns the matched count, income and expense " +
       "separately, their net, and the biggest rows with their ids. Use this before quoting " +
-      "any figure. For a merchant that pays out as well as charges — gambling, " +
-      "reimbursements, resale — `net` is the real cost; `expense` alone overstates it.",
+      "any figure. `expense` is ALREADY net of refunds and `income` excludes refunds and " +
+      "counts advances net of what has been repaid — take nothing further off either.",
     parameters: obj({
       start: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
       end: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
@@ -211,10 +211,10 @@ const READ_TOOLS = [
     name: "spending_by_category",
     description:
       "Expense per category over a period, with each category's monthly budget and id. " +
-      "The basis for any budget answer or budget proposal. Counts expense rows ONLY: " +
-      "income never offsets a category here, so a category fed by a merchant that also " +
-      "pays out will look more expensive than it was. Check such merchants with " +
-      "search_transactions before describing a category's rise.",
+      "The basis for any budget answer or budget proposal. `spent` is FINAL: refunds are " +
+      "already netted into it and settlements of advances are excluded. Counts expense " +
+      "rows only, so income sharing a category is not subtracted here — mention such " +
+      "income as its own fact, never as a correction to `spent`.",
     parameters: obj({ start: str, end: str }),
   },
   {
