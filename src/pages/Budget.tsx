@@ -2446,7 +2446,17 @@ const Budget = () => {
               {incomeCategories.map((category) => (
                 <div key={category.id} className="flex items-center gap-2.5 py-2">
                   <CategoryIcon icon={category.icon} color={category.color} size={20} />
-                  <span className="text-sm flex-1 truncate">{category.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm truncate block">{category.name}</span>
+                    {/* Auto-paired twins read the same as standalone income
+                        otherwise, and the difference decides whether money
+                        filed here reduces a budget or counts as earnings. */}
+                    <span className="text-[10px] text-muted-foreground">
+                      {category.offsets_category_id
+                        ? t("categories.offsetsLabel", { defaultValue: "reduces the matching budget" })
+                        : t("categories.standaloneLabel", { defaultValue: "counts as income" })}
+                    </span>
+                  </div>
                   <Button
                     size="sm"
                     variant="ghost"

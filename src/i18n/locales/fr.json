@@ -274,7 +274,9 @@
     "duplicateName": "Vous avez déjà une catégorie de ce nom de ce côté.",
     "offsets": "Se déduit de",
     "offsetsNone": "Rien — compté comme revenu",
-    "offsetsHint": "Les revenus de cette catégorie sont soustraits des dépenses de celle-ci, au lieu de compter comme des gains."
+    "offsetsHint": "Les revenus de cette catégorie sont soustraits des dépenses de celle-ci, au lieu de compter comme des gains.",
+    "offsetsLabel": "réduit le budget correspondant",
+    "standaloneLabel": "compté comme revenu"
   },
   "savings": {
     "title": "Objectifs d'Épargne",
