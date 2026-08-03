@@ -1,7 +1,7 @@
 # Banks Tracker - Project Reference
 
 > Personal finance management PWA built with React + Supabase.
-> **Last updated:** 2026-07-30
+> **Last updated:** 2026-08-03
 
 ---
 
@@ -257,6 +257,7 @@ src/
 
 | Date | Changes |
 |------|---------|
+| 2026-08-03 | Categories merged to one row per name working in both directions: `kind`, `offsets_category_id` and `wants_income_twin` dropped along with the twin triggers and the kind-enforcement trigger. Income no longer reduces a budget by category — only an explicit refund/repayment link nets, via the expense's `refunded_amount`. Pickers stop filtering by side (`categoryKind.ts` deleted); Budget loses its income panel and offsetting-income line; the savings picker lists each category once instead of twice (ticking one side used to halve the total) |
 | 2026-07-30 | Trace copilot: read-only ledger Q&A (`trace-copilot` edge function, OpenRouter + tool calling) answering in a fixed block vocabulary; dock / ⌘K-modal / `/trace` page surfaces; proposals apply client-side under the user's session with an undo log (`trace_activity`); per-user API key, model picker and agency in Settings → Trace copilot |
 | 2026-07-30 | Transactional email localized (fr/en) via `_shared/emailI18n.ts` + `notification_preferences.email_language`; CTAs deep-link off `APP_URL`; pace bar renders budget line + today tick; legacy `.glass-*` CSS removed; "Has refund" filter in Transactions |
 | 2026-07-03 | Reports engine overhaul: date-type fixes (noon-boundary, one-timeline evolution chart, transfer fees in running balances, calendar-aware PDF comparison, timezone-safe formatDate) + pure engine extracted to src/lib/reportsEngine.ts shared by hook/PDF/Excel, unit-tested; Excel export i18n (fr/en); ReportsStats gains realNetChange/realFinalBalance (see docs/REPORTS_ENGINE_AUDIT.md) |
