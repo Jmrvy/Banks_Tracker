@@ -16,7 +16,6 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
 import { parseLocalDate } from "@/lib/dateUtils";
-import { kindOf } from "@/lib/categoryKind";
 
 interface ActivityRow {
   id: string;
@@ -71,9 +70,14 @@ function useRadar() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const spendByCategory = new Map<string, number>();
+    // Whether a category has ever seen an expense, over all time rather than
+    // this month. A category now works on both sides, so "has no budget" is
+    // only worth raising about one that actually spends.
+    const everSpent = new Set<string>();
     for (const tx of transactions) {
       if (tx.type !== "expense" || tx.include_in_stats === false || !tx.category) continue;
       if (tx.special_budget_id) continue;
+      everSpent.add(tx.category.id);
       if (parseLocalDate(tx.transaction_date) < monthStart) continue;
       // Not floored, matching netExpenseAmount: an expense refunded past its
       // value makes the category cheaper, and flooring would hide that from
@@ -109,11 +113,12 @@ function useRadar() {
       });
     }
 
-    // Expense categories only. A budget is a ceiling on outgoings, so an
-    // income category having none is the design rather than an omission —
-    // flagging them tells the user to fix something that is already right.
+    // A budget is a ceiling on outgoings. A category that only ever receives
+    // income has nothing to cap, so leaving it unbudgeted is the design
+    // rather than an omission — flagging it tells the user to fix something
+    // that is already right.
     const noBudget = categories.filter(
-      (c) => kindOf(c) === "expense" && (c.budget == null || c.budget === 0),
+      (c) => (c.budget == null || c.budget === 0) && everSpent.has(c.id),
     );
     if (noBudget.length > 0 && over.length === 0) {
       cards.push({

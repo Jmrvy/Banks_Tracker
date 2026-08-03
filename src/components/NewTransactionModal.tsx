@@ -16,7 +16,6 @@ import { useSpecialBudgets } from '@/hooks/useSpecialBudgets';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
-import { categoriesForType } from '@/lib/categoryKind';
 
 interface NewTransactionModalProps {
   open: boolean;
@@ -322,7 +321,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                   <SelectValue placeholder={t('common.selectCategoryOptional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categoriesForType(categories, formData.type, formData.category_id).map((category) => (
+                  {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
                         <div

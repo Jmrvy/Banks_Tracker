@@ -98,64 +98,44 @@ export const signedGlobalAmount = (t: EngineTx): number =>
 export interface CategoryNet {
   gross: number;
   refunded: number;
-  offsetIncome: number;
   net: number;
 }
 
-export interface CategoryLike {
-  id: string;
-  kind?: string | null;
-  offsets_category_id?: string | null;
-}
-
 /**
- * Net per expense category, keyed by category id.
+ * Net per category, keyed by category id.
  *
  * Takes transactions already filtered to the period. Rows excluded from
  * statistics, tagged to a special budget, or settling an advance are not
  * spending and do not appear.
+ *
+ * Only the expense side counts. A category works in both directions now, so
+ * it may well hold income too, but income does not reduce a budget: money
+ * genuinely coming back is linked as a refund and lands in the expense's
+ * `refunded_amount` instead. Subtracting unlinked income here as well would
+ * take the same money off twice, and would quietly net earnings that happen
+ * to share a category against the spending beside them.
  */
-export const computeCategoryNets = (
-  txs: EngineTx[],
-  categories: CategoryLike[],
-): Map<string, CategoryNet> => {
+export const computeCategoryNets = (txs: EngineTx[]): Map<string, CategoryNet> => {
   const out = new Map<string, CategoryNet>();
-  const blank = (): CategoryNet => ({ gross: 0, refunded: 0, offsetIncome: 0, net: 0 });
-
-  // Which expense category each income category feeds, if any.
-  const offsetTarget = new Map<string, string>();
-  for (const c of categories) {
-    if (c.kind === 'income' && c.offsets_category_id) {
-      offsetTarget.set(c.id, c.offsets_category_id);
-    }
-  }
+  const blank = (): CategoryNet => ({ gross: 0, refunded: 0, net: 0 });
 
   for (const t of txs) {
     if (t.include_in_stats === false) continue;
+    if (t.type !== 'expense') continue;
     const categoryId = (t as EngineTx & { category_id?: string | null }).category_id;
     if (!categoryId) continue;
 
-    if (t.type === 'expense') {
-      // Settling an advance is not spending; a special budget counts elsewhere.
-      if (t.repayment_of_transaction_id) continue;
-      if ((t as EngineTx & { special_budget_id?: string | null }).special_budget_id) continue;
-      const row = out.get(categoryId) ?? blank();
-      row.gross += Number(t.amount);
-      row.refunded += Number(t.refunded_amount || 0);
-      out.set(categoryId, row);
-    } else if (t.type === 'income') {
-      // A refund is already inside its expense's refunded_amount.
-      if (t.refund_of_transaction_id) continue;
-      const target = offsetTarget.get(categoryId);
-      if (!target) continue;
-      const row = out.get(target) ?? blank();
-      row.offsetIncome += netIncomeAmount(t);
-      out.set(target, row);
-    }
+    // Settling an advance is not spending; a special budget counts elsewhere.
+    if (t.repayment_of_transaction_id) continue;
+    if ((t as EngineTx & { special_budget_id?: string | null }).special_budget_id) continue;
+    const row = out.get(categoryId) ?? blank();
+    row.gross += Number(t.amount);
+    row.refunded += Number(t.refunded_amount || 0);
+    out.set(categoryId, row);
   }
 
   for (const row of out.values()) {
-    row.net = row.gross - row.refunded - row.offsetIncome;
+    row.net = row.gross - row.refunded;
   }
   return out;
 };

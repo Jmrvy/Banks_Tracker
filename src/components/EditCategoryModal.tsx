@@ -17,9 +17,6 @@ import { Label } from "@/components/ui/label";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import type { Category } from "@/hooks/useFinancialData";
-import { kindOf, type CategoryKind } from "@/lib/categoryKind";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useFinancialData } from "@/hooks/useFinancialData";
 import { describeError, isDuplicateError } from "@/lib/errorMessage";
 
 interface EditCategoryModalProps {
@@ -35,10 +32,6 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
   const [name, setName] = useState("");
   const [color, setColor] = useState("#3B82F6");
   const [budget, setBudget] = useState("");
-  const [kind, setKind] = useState<CategoryKind>("expense");
-  const [offsets, setOffsets] = useState<string>("none");
-  const { categories } = useFinancialData();
-  const expenseCategories = categories.filter((c) => kindOf(c) === "expense");
   const [icon, setIcon] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -47,8 +40,6 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
       setName(category.name);
       setColor(category.color || "#3B82F6");
       setBudget(category.budget != null ? String(category.budget) : "");
-      setKind(kindOf(category));
-      setOffsets(category.offsets_category_id ?? "none");
       setIcon(category.icon ?? null);
     }
   }, [category]);
@@ -64,15 +55,10 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
         .update({
           name: name.trim(),
           color,
-          // Switching a category to income drops its budget: the two cannot
-          // coexist, and the DB check would reject the row rather than the
-          // form telling the user why.
-          budget: kind === "expense" && budget ? Number(budget) : null,
+          // A budget caps what leaves. A category that only ever receives
+          // income simply never reaches it, so there is nothing to gate on.
+          budget: budget ? Number(budget) : null,
           icon: icon ?? null,
-          kind,
-          // Only income offsets, and the database rejects the pair otherwise;
-          // clear it rather than send something it will refuse.
-          offsets_category_id: kind === "income" && offsets !== "none" ? offsets : null,
         })
         .eq("id", category.id);
       if (error) throw error;
@@ -88,7 +74,7 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
       // "unable to update" with nothing to act on and no way to report it.
       const detail = isDuplicateError(err)
         ? t("categories.duplicateName", {
-            defaultValue: "You already have a category with that name on this side.",
+            defaultValue: "You already have a category with that name.",
           })
         : describeError(err);
       toast({
@@ -141,73 +127,20 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">{t("categories.kind", { defaultValue: "Applies to" })}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["expense", "income"] as const).map((k) => (
-                <Button
-                  key={k}
-                  type="button"
-                  variant={kind === k ? "default" : "outline"}
-                  className="h-9 text-sm"
-                  onClick={() => setKind(k)}
-                >
-                  {k === "expense"
-                    ? t("categories.kindExpense", { defaultValue: "Spending" })
-                    : t("categories.kindIncome", { defaultValue: "Income" })}
-                </Button>
-              ))}
-            </div>
+            <Label className="text-xs">{t("categories.budget", { defaultValue: "Budget" })}</Label>
+            <AmountInput
+              value={budget}
+              onChange={setBudget}
+              placeholder="0.00"
+              className="h-9 text-sm"
+            />
             <p className="text-[11px] text-muted-foreground">
-              {kind === "expense"
-                ? t("categories.kindExpenseHint", {
-                    defaultValue: "Offered on expenses and transfers, and can carry a monthly budget.",
-                  })
-                : t("categories.kindIncomeHint", {
-                    defaultValue: "Offered on income only. Budgets cap what you spend, so income categories have none.",
-                  })}
+              {t("categories.budgetHint", {
+                defaultValue:
+                  "A ceiling on what leaves. Income filed here counts as earnings and never reduces it — link money coming back as a refund instead.",
+              })}
             </p>
           </div>
-
-          {kind === "income" && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">
-                {t("categories.offsets", { defaultValue: "Nets against" })}
-              </Label>
-              <Select value={offsets} onValueChange={setOffsets}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    {t("categories.offsetsNone", { defaultValue: "Nothing — counts as income" })}
-                  </SelectItem>
-                  {expenseCategories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">
-                {t("categories.offsetsHint", {
-                  defaultValue:
-                    "Income here is subtracted from that category's spending instead of counting as earnings.",
-                })}
-              </p>
-            </div>
-          )}
-
-          {kind === "expense" && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">{t("categories.budget", { defaultValue: "Budget" })}</Label>
-              <AmountInput
-                value={budget}
-                onChange={setBudget}
-                placeholder="0.00"
-                className="h-9 text-sm"
-              />
-            </div>
-          )}
 
           <div className="flex flex-col gap-2">
             <Label className="text-xs">{t("categoryIcons.pickIcon", { defaultValue: "Icon" })}</Label>

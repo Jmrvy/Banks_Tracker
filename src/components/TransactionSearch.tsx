@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { format, parseISO } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { kindOf } from "@/lib/categoryKind";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Slider } from "@/components/ui/slider";
@@ -60,16 +59,6 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { categories, accounts, transactions } = useFinancialData();
-  // Grouped rather than flat: a name is unique per side, not overall, so an
-  // expense "Investissement" and an income one are two entries reading
-  // identically in a single list.
-  const categoryGroups = useMemo(
-    () => ({
-      expense: categories.filter((c) => kindOf(c) === 'expense'),
-      income: categories.filter((c) => kindOf(c) === 'income'),
-    }),
-    [categories],
-  );
   const [isOpen, setIsOpen] = useState(false);
 
   const maxAmount = useMemo(() => {
@@ -126,13 +115,8 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
   const categoryFilterLabel = useMemo(() => {
     if (filters.categoryId === 'all') return null;
     const cat = categories.find((c) => c.id === filters.categoryId);
-    if (!cat) return null;
-    const side =
-      kindOf(cat) === 'income'
-        ? t('categories.kindIncome', { defaultValue: 'Income' })
-        : t('categories.kindExpense', { defaultValue: 'Spending' });
-    return `${cat.name} · ${side}`;
-  }, [filters.categoryId, categories, t]);
+    return cat?.name ?? null;
+  }, [filters.categoryId, categories]);
   const accountFilterLabel = filters.accountId !== 'all'
     ? accounts.find((a) => a.id === filters.accountId)?.name
     : null;
@@ -333,26 +317,14 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('transactions.allCategories', { defaultValue: 'All categories' })}</SelectItem>
-                  {(
-                    [
-                      ['expense', t('categories.kindExpense', { defaultValue: 'Spending' })],
-                      ['income', t('categories.kindIncome', { defaultValue: 'Income' })],
-                    ] as const
-                  ).map(([kind, label]) =>
-                    categoryGroups[kind].length === 0 ? null : (
-                      <SelectGroup key={kind}>
-                        <SelectLabel className="text-[11px]">{label}</SelectLabel>
-                        {categoryGroups[kind].map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                              {cat.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ),
-                  )}
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                        {cat.name}
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

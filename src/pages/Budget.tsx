@@ -66,7 +66,6 @@ import { Plane as PlaneEmptyIcon, Wallet as WalletIcon } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
-import { kindOf, type CategoryKind } from "@/lib/categoryKind";
 import { describeError } from "@/lib/errorMessage";
 import { computeCategoryNets } from "@/lib/reportsEngine";
 import {
@@ -107,7 +106,6 @@ interface CategoryStats {
   /** The parts behind `spent`, so the card can show what was netted out. */
   gross: number;
   refunded: number;
-  offsetIncome: number;
   prevSpent: number;
   projected: number;
   used: number;
@@ -738,7 +736,7 @@ function BudgetCard({
           {/* What was taken off, when anything was. Otherwise `spent` is a
               lone figure and there is no way to tell a category that cost
               540 from one that cost 700 and got 160 back. */}
-          {(stat.refunded > 0 || stat.offsetIncome > 0) && (
+          {stat.refunded > 0 && (
             <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground">
@@ -752,14 +750,6 @@ function BudgetCard({
                     {t("budget.breakdownRefunded", { defaultValue: "Refunded" })}
                   </span>
                   <span className="font-mono text-pos">−{formatCurrency(stat.refunded)}</span>
-                </div>
-              )}
-              {stat.offsetIncome > 0 && (
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground">
-                    {t("budget.breakdownOffset", { defaultValue: "Offsetting income" })}
-                  </span>
-                  <span className="font-mono text-pos">−{formatCurrency(stat.offsetIncome)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-[11px] font-medium border-t border-line/60 pt-1 mt-0.5">
@@ -1202,21 +1192,7 @@ const Budget = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { categories: allCategories, transactions, recurringTransactions, refetch } = useFinancialData();
-  // A budget is a ceiling on what leaves, so income categories have none.
-  // Left unfiltered they would sit here forever as unbudgeted rows, and the
-  // bulk-apply would try to give them a limit the DB refuses.
-  const categories = useMemo(
-    () => allCategories.filter((c) => kindOf(c) === "expense"),
-    [allCategories],
-  );
-  // Managed on this page as well: this is the only place categories are
-  // created, edited or deleted, so filtering them out of the budget table
-  // without giving them a list of their own would strand them.
-  const incomeCategories = useMemo(
-    () => allCategories.filter((c) => kindOf(c) === "income"),
-    [allCategories],
-  );
+  const { categories, transactions, recurringTransactions, refetch } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { specialBudgets } = useSpecialBudgets();
@@ -1232,7 +1208,6 @@ const Budget = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [newCategoryKind, setNewCategoryKind] = useState<CategoryKind>("expense");
   const [newSpecialOpen, setNewSpecialOpen] = useState(false);
   const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
   const [showClosedSpecial, setShowClosedSpecial] = useState(false);
@@ -1581,8 +1556,8 @@ const Budget = () => {
       const d = dateOf(tx);
       return d >= period.from && d <= period.to;
     });
-    return computeCategoryNets(inPeriod as any, allCategories as any);
-  }, [transactions, allCategories, period, dateOf]);
+    return computeCategoryNets(inPeriod as any);
+  }, [transactions, categories, period, dateOf]);
 
   // --- stats (preserved) ------------------------------------------------
   const stats = useMemo<CategoryStats[]>(() => {
@@ -1653,7 +1628,6 @@ const Budget = () => {
       const parts = periodNets.get(category.id) ?? {
         gross: spent,
         refunded: 0,
-        offsetIncome: 0,
         net: spent,
       };
 
@@ -1662,7 +1636,6 @@ const Budget = () => {
         spent: parts.net,
         gross: parts.gross,
         refunded: parts.refunded,
-        offsetIncome: parts.offsetIncome,
         prevSpent,
         projected,
         used,
@@ -2405,79 +2378,6 @@ const Budget = () => {
           t={t}
         />
 
-        {/* Income categories — no budget, so no budget table. */}
-        <div className="ft-card p-4 flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">
-                {t("categories.incomeSection", { defaultValue: "Income categories" })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("categories.incomeSectionHint", {
-                  defaultValue:
-                    "Offered on income. They carry no budget — a ceiling applies to what you spend.",
-                })}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 gap-1.5 shrink-0"
-              onClick={() => {
-                setNewCategoryKind("income");
-                setNewOpen(true);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">
-                {t("categories.newIncomeCategory", { defaultValue: "New" })}
-              </span>
-            </Button>
-          </div>
-
-          {incomeCategories.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">
-              {t("categories.noIncomeCategories", {
-                defaultValue: "None yet. Add one to group where your money comes from.",
-              })}
-            </p>
-          ) : (
-            <div className="flex flex-col divide-y">
-              {incomeCategories.map((category) => (
-                <div key={category.id} className="flex items-center gap-2.5 py-2">
-                  <CategoryIcon icon={category.icon} color={category.color} size={20} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm truncate block">{category.name}</span>
-                    {/* Auto-paired twins read the same as standalone income
-                        otherwise, and the difference decides whether money
-                        filed here reduces a budget or counts as earnings. */}
-                    <span className="text-[10px] text-muted-foreground">
-                      {category.offsets_category_id
-                        ? t("categories.offsetsLabel", { defaultValue: "reduces the matching budget" })
-                        : t("categories.standaloneLabel", { defaultValue: "counts as income" })}
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2"
-                    onClick={() => startEditingCategory(category)}
-                  >
-                    {t("common.edit", { defaultValue: "Edit" })}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-destructive"
-                    onClick={() => handleDelete(category.id)}
-                  >
-                    {t("common.delete", { defaultValue: "Delete" })}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Modals + sheets */}
@@ -2510,9 +2410,7 @@ const Budget = () => {
         open={newOpen}
         onOpenChange={(o) => {
           setNewOpen(o);
-          if (!o) setNewCategoryKind("expense");
         }}
-        defaultKind={newCategoryKind}
         onCreated={() => {
           refetch();
           setNewOpen(false);

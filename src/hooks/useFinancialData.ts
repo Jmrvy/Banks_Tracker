@@ -1,7 +1,6 @@
 import React, { useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { CategoryKind } from '@/lib/categoryKind';
 import { useAuth } from '@/contexts/AuthContext';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
@@ -65,16 +64,12 @@ export interface Category {
   id: string;
   name: string;
   color: string;
-  /** Expense categories only — a ceiling on outgoings has no income analogue. */
+  /** A ceiling on what leaves. Income filed on the category never reduces
+   *  it — money coming back is linked as a refund instead. */
   budget: number | null;
   icon: string | null;
-  kind: CategoryKind;
   /** Feeds the savings page, on either side of the ledger. */
   counts_as_savings: boolean;
-  /** Income categories only: the expense category this income nets against. */
-  offsets_category_id?: string | null;
-  /** Expense categories only: whether an income twin is kept in step with it. */
-  wants_income_twin?: boolean;
 }
 
 export interface RecurringTransaction {

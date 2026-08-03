@@ -22,7 +22,6 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { getRecurringEffectiveType, resolveDebtForRecurring } from '@/lib/recurringAmount';
-import { categoriesForType } from '@/lib/categoryKind';
 
 interface EditRecurringTransactionModalProps {
   open: boolean;
@@ -402,7 +401,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucune catégorie</SelectItem>
-                  {categoriesForType(categories, formData.type, formData.category_id).map((category) => (
+                  {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
                         <div 

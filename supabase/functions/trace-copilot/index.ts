@@ -212,9 +212,9 @@ const READ_TOOLS = [
     description:
       "Expense per category over a period, with each category's monthly budget and id. " +
       "The basis for any budget answer or budget proposal. `spent` is FINAL: refunds are " +
-      "already netted into it, settlements of advances are excluded, and income from a " +
-      "category paired to this one is subtracted too — `charged` and `offsetting_income` " +
-      "show that split. Nothing further comes off `spent`.",
+      "already netted into it and settlements of advances are excluded. Income filed on the " +
+      "same category is NOT subtracted — a category holds both directions now, and money " +
+      "genuinely coming back is linked as a refund, so it is already inside `spent`.",
     parameters: obj({ start: str, end: str }),
   },
   {
@@ -408,7 +408,7 @@ async function runTool(
 
     case "spending_by_category": {
       const [{ data: cats, error: catErr }, { data: txs, error: txErr }] = await Promise.all([
-        db.from("categories").select("id, name, budget, kind, offsets_category_id").eq("user_id", userId),
+        db.from("categories").select("id, name, budget").eq("user_id", userId),
         db
           .from("transactions")
           .select("amount, refunded_amount, category_id, repayment_of_transaction_id")
@@ -422,8 +422,8 @@ async function runTool(
       ]);
       if (catErr) throw catErr;
       if (txErr) throw txErr;
-      const spent = new Map<string, { total: number; count: number; offset: number }>();
-      const blank = () => ({ total: 0, count: 0, offset: 0 });
+      const spent = new Map<string, { total: number; count: number }>();
+      const blank = () => ({ total: 0, count: 0 });
       for (const t of txs ?? []) {
         // Settling an advance is not spending against a budget.
         if ((t as any).repayment_of_transaction_id) continue;
@@ -434,48 +434,18 @@ async function runTool(
         spent.set(key, cur);
       }
 
-      // Income from a category that declares it offsets a spending one comes
-      // off that category, the same way the budget page counts it.
-      const offsetting = (cats ?? []).filter((c: any) => c.kind === "income" && c.offsets_category_id);
-      if (offsetting.length > 0) {
-        const { data: offsetTxs, error: offErr } = await db
-          .from("transactions")
-          .select("amount, repaid_amount, category_id")
-          .eq("user_id", userId)
-          .eq("type", "income")
-          .eq("include_in_stats", true)
-          .is("refund_of_transaction_id", null)
-          .in("category_id", offsetting.map((c: any) => c.id))
-          .gte(dateColumn, input.start)
-          .lte(dateColumn, input.end)
-          .limit(5000);
-        if (offErr) throw offErr;
-        const targetOf = new Map(offsetting.map((c: any) => [c.id, c.offsets_category_id]));
-        for (const t of offsetTxs ?? []) {
-          const target = targetOf.get((t as any).category_id);
-          if (!target) continue;
-          const cur = spent.get(target) ?? blank();
-          cur.offset += netIncome(t as any);
-          spent.set(target, cur);
-        }
-      }
-
-      return (cats ?? [])
-        .filter((c: any) => c.kind !== "income")
-        .map((c: any) => {
-          const row = spent.get(c.id) ?? blank();
-          return {
-            category_id: c.id,
-            name: c.name,
-            monthly_budget: c.budget === null ? null : Number(c.budget),
-            // Already net of refunds AND of any income paired to this
-            // category. Nothing further comes off it.
-            spent: Number((row.total - row.offset).toFixed(2)),
-            charged: Number(row.total.toFixed(2)),
-            offsetting_income: Number(row.offset.toFixed(2)),
-            transactions: row.count,
-          };
-        });
+      return (cats ?? []).map((c: any) => {
+        const row = spent.get(c.id) ?? blank();
+        return {
+          category_id: c.id,
+          name: c.name,
+          monthly_budget: c.budget === null ? null : Number(c.budget),
+          // Already net of refunds. Nothing further comes off it — income on
+          // this category is earnings, not a reduction of the budget.
+          spent: Number(row.total.toFixed(2)),
+          transactions: row.count,
+        };
+      });
     }
 
     case "list_uncategorized": {
@@ -599,7 +569,7 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 # How to answer
 - Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
 - Money can come back on either side, and both are already netted for you. A refund reduces the expense it refunds — past zero if more came back than went out, which makes that category cheaper rather than merely free. A repayment settles an advance: the income counts net of it and the repaying expense is not spending. Never add either back in by hand.
-- What a category cost is \`spending_by_category\`, and its \`spent\` is FINAL: refunds are already inside it and no income row may be subtracted from it. \`search_transactions\` \`expense\` is the same figure for the same filter. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. Income sharing a category is a separate fact worth naming — never an adjustment to spend.
+- What a category cost is \`spending_by_category\`, and its \`spent\` is FINAL: refunds are already inside it and no income row may be subtracted from it. \`search_transactions\` \`expense\` is the same figure for the same filter. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. A category holds both directions, so income filed on a budgeted category is earnings sitting beside the spending — a separate fact worth naming, never an adjustment to spend.
 - A merchant that both charges and pays out (gambling, reimbursements, resale, cashback) must be reported NET. Its payouts are often uncategorized, so a category total counts the losses and misses the winnings; quoting the gross there states a cost the user did not bear. When a merchant drives a category's move, check it with \`search_transactions\` and use \`net\`.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
@@ -621,7 +591,7 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 - Never put an id in \`changes\` that did not come back from a tool call.
 
 # Ledger context
-Each category carries a \`kind\`. Only expense categories can hold a budget, so an income category showing no budget is correct and never worth flagging. Two categories may share a name across the two kinds — say which side you mean.
+One category per name, working in both directions: the same \`Salaire\` holds the salary and any expense filed against it. A budget is a ceiling on what leaves, so a category that only ever receives money having none is correct and never worth flagging.
 ${JSON.stringify(ctx, null, 2)}
 
 Today is ${new Date().toISOString().slice(0, 10)}.`;
@@ -695,7 +665,7 @@ const handler = async (req: Request): Promise<Response> => {
     // needs to call the tools meaningfully.
     const [accountsRes, categoriesRes, countRes] = await Promise.all([
       db.from("accounts").select("id, name, bank, account_type, balance").eq("user_id", userId),
-      db.from("categories").select("id, name, budget, kind").eq("user_id", userId).order("name"),
+      db.from("categories").select("id, name, budget").eq("user_id", userId).order("name"),
       db
         .from("transactions")
         .select("id", { count: "exact", head: true })
@@ -713,15 +683,14 @@ const handler = async (req: Request): Promise<Response> => {
         type: a.account_type,
         balance: Number(a.balance),
       })),
-      // `kind` matters as much as the name here: a budget is a ceiling on
-      // outgoings, so an income category has none by design. Without the
-      // distinction the model reads them as expense categories left
-      // unbudgeted and reports that as something to fix.
+      // One category per name, working in both directions: the same one can
+      // hold a salary and a refund. A missing budget therefore means "never
+      // capped", not "income category" — categories that only ever receive
+      // money are expected to have none.
       categories: (categoriesRes.data ?? []).map((c: any) => ({
         id: c.id,
         name: c.name,
-        kind: c.kind === "income" ? "income" : "expense",
-        monthly_budget: c.kind === "income" || c.budget === null ? null : Number(c.budget),
+        monthly_budget: c.budget === null ? null : Number(c.budget),
       })),
       current_page: pageContext || null,
     };

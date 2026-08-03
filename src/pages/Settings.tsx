@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
-  Tags,
   User,
   Wallet,
   Wifi,
@@ -30,7 +29,6 @@ import { ProfileSection } from "@/components/settings/ProfileSection";
 import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { NotificationsSection } from "@/components/settings/NotificationsSection";
 import { AccountsSection } from "@/components/settings/AccountsSection";
-import { CategoriesSection } from "@/components/settings/CategoriesSection";
 import { TraceSection } from "@/components/settings/TraceSection";
 import { cn } from "@/lib/utils";
 
@@ -107,12 +105,6 @@ const Settings = () => {
         labelKey: "settings.myAccounts",
         labelDefault: "My accounts",
         icon: Wallet,
-      },
-      {
-        id: "categories",
-        labelKey: "categories.twinsSection",
-        labelDefault: "Categories & income twins",
-        icon: Tags,
       },
       {
         id: "trace",
@@ -327,14 +319,6 @@ const Settings = () => {
             <section id="accounts" className="scroll-mt-6">
               <AccountsSection
                 accounts={accounts}
-                refetch={refetch}
-                formatCurrency={formatCurrency}
-              />
-            </section>
-
-            <section id="categories" className="scroll-mt-6">
-              <CategoriesSection
-                categories={categories}
                 refetch={refetch}
                 formatCurrency={formatCurrency}
               />

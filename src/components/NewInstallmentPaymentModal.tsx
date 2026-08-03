@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Calculator, ListChecks, Pencil, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { addWeeks, addMonths, format } from 'date-fns';
 import { roundCurrency, subtractCurrency } from '@/lib/currency';
-import { categoriesForType } from '@/lib/categoryKind';
 
 type CalculationMode = 'auto_count' | 'auto_amount' | 'manual';
 
@@ -610,7 +609,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                   <SelectValue placeholder={t('common.selectCategoryOptional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {                  categoriesForType(categories, 'expense', formData.category_id).map((category) => (
+                  {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
                         <div
