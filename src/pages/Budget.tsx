@@ -1192,7 +1192,30 @@ const Budget = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { categories, transactions, recurringTransactions, refetch } = useFinancialData();
+  const { categories: allCategories, transactions, recurringTransactions, refetch } = useFinancialData();
+
+  // Which categories have ever held spending this page would count, over all
+  // time rather than the period on screen — otherwise a category would drop
+  // off the page in any month it happened not to be used, taking its budget
+  // with it. Deliberately the engine that fills the cards rather than a
+  // predicate of its own: a category can then never appear with nothing to
+  // show, nor vanish while still holding a figure. Repayments and
+  // stats-excluded rows are not spending, which is why Salaire — whose only
+  // expense is a €1,200 advance being settled — counts as never having spent.
+  const everSpent = useMemo(() => computeCategoryNets(transactions as any), [transactions]);
+
+  // A category earns a budget card by capping something or spending
+  // something. One that only ever receives money has nothing to cap, so a
+  // card for it is a permanent 0,00 € row; it moves to the list below and
+  // returns here the moment a real expense lands on it.
+  const categories = useMemo(
+    () => allCategories.filter((c) => c.budget != null || everSpent.has(c.id)),
+    [allCategories, everSpent],
+  );
+  const otherCategories = useMemo(
+    () => allCategories.filter((c) => c.budget == null && !everSpent.has(c.id)),
+    [allCategories, everSpent],
+  );
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { specialBudgets } = useSpecialBudgets();
@@ -2378,6 +2401,50 @@ const Budget = () => {
           t={t}
         />
 
+        {/* Categories with nothing to cap — no budget, and no spending on
+            record. A budget card for one would be a permanent empty row, but
+            they still have to be reachable: this page is where categories are
+            renamed and deleted, so filtering them off it entirely would
+            strand them. */}
+        {otherCategories.length > 0 && (
+          <div className="ft-card p-4 flex flex-col gap-3">
+            <div>
+              <div className="text-sm font-semibold">
+                {t("categories.otherSection", { defaultValue: "Not budgeted" })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("categories.otherSectionDesc", {
+                  defaultValue:
+                    "Nothing has been spent on these, so there is no budget to track. Give one a budget, or spend on it, and it joins the cards above.",
+                })}
+              </p>
+            </div>
+            <div className="flex flex-col divide-y">
+              {otherCategories.map((category) => (
+                <div key={category.id} className="flex items-center gap-2.5 py-2">
+                  <CategoryIcon icon={category.icon} color={category.color} size={20} />
+                  <span className="text-sm truncate flex-1 min-w-0">{category.name}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2"
+                    onClick={() => startEditingCategory(category)}
+                  >
+                    {t("common.edit", { defaultValue: "Edit" })}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-destructive"
+                    onClick={() => handleDelete(category.id)}
+                  >
+                    {t("common.delete", { defaultValue: "Delete" })}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modals + sheets */}
