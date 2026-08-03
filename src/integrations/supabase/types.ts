@@ -111,6 +111,7 @@ export type Database = {
           name: string
           offsets_category_id: string | null
           user_id: string
+          wants_income_twin: boolean
         }
         Insert: {
           budget?: number | null
@@ -123,6 +124,7 @@ export type Database = {
           name: string
           offsets_category_id?: string | null
           user_id: string
+          wants_income_twin?: boolean
         }
         Update: {
           budget?: number | null
@@ -135,6 +137,7 @@ export type Database = {
           name?: string
           offsets_category_id?: string | null
           user_id?: string
+          wants_income_twin?: boolean
         }
         Relationships: [
           {

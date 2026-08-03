@@ -73,6 +73,8 @@ export interface Category {
   counts_as_savings: boolean;
   /** Income categories only: the expense category this income nets against. */
   offsets_category_id?: string | null;
+  /** Expense categories only: whether an income twin is kept in step with it. */
+  wants_income_twin?: boolean;
 }
 
 export interface RecurringTransaction {
