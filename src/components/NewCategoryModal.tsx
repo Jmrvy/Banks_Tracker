@@ -16,7 +16,6 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData } from "@/hooks/useFinancialData";
-import type { CategoryKind } from "@/lib/categoryKind";
 import { describeError, isDuplicateError } from "@/lib/errorMessage";
 
 const PRESET_COLORS = [
@@ -37,12 +36,9 @@ interface NewCategoryModalProps {
   onOpenChange: (open: boolean) => void;
   /** Optional callback after a successful create. */
   onCreated?: () => void;
-  /** Which side the toggle starts on, so a section can open the modal
-   *  already pointed at the list the user is looking at. */
-  defaultKind?: CategoryKind;
 }
 
-export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = "expense" }: NewCategoryModalProps) {
+export function NewCategoryModal({ open, onOpenChange, onCreated }: NewCategoryModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { createCategory } = useFinancialData();
@@ -50,7 +46,6 @@ export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = 
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [budget, setBudget] = useState("");
-  const [kind, setKind] = useState<CategoryKind>(defaultKind);
   const [icon, setIcon] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -60,11 +55,10 @@ export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = 
       setName("");
       setColor(PRESET_COLORS[0]);
       setBudget("");
-      setKind(defaultKind);
       setIcon(null);
       setSaving(false);
     }
-  }, [open, defaultKind]);
+  }, [open]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -79,17 +73,15 @@ export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = 
     const { error } = await createCategory({
       name: name.trim(),
       color,
-      // The DB rejects the pair outright; keep the form from ever sending it.
-      budget: kind === "expense" && budget ? Number(budget) : null,
+      budget: budget ? Number(budget) : null,
       icon,
-      kind,
     });
     if (error) {
       toast({
         title: t("transactions.createError", { defaultValue: "Could not create" }),
         description: isDuplicateError(error)
           ? t("categories.duplicateName", {
-              defaultValue: "You already have a category with that name on this side.",
+              defaultValue: "You already have a category with that name.",
             })
           : describeError(error),
         variant: "destructive",
@@ -170,49 +162,20 @@ export function NewCategoryModal({ open, onOpenChange, onCreated, defaultKind = 
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">{t("categories.kind", { defaultValue: "Applies to" })}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["expense", "income"] as const).map((k) => (
-                <Button
-                  key={k}
-                  type="button"
-                  variant={kind === k ? "default" : "outline"}
-                  className="h-9 text-sm"
-                  onClick={() => setKind(k)}
-                >
-                  {k === "expense"
-                    ? t("categories.kindExpense", { defaultValue: "Spending" })
-                    : t("categories.kindIncome", { defaultValue: "Income" })}
-                </Button>
-              ))}
-            </div>
+            <Label className="text-xs">
+              {t("categories.budget", { defaultValue: "Budget" })}{" "}
+              <span className="text-fg-dim font-normal">
+                ({t("common.optional", { defaultValue: "optional" })})
+              </span>
+            </Label>
+            <AmountInput value={budget} onChange={setBudget} placeholder="0.00" className="h-9 text-sm" />
             <p className="text-[11px] text-muted-foreground">
-              {kind === "expense"
-                ? t("categories.kindExpenseHint", {
-                    defaultValue: "Offered on expenses and transfers, and can carry a monthly budget.",
-                  })
-                : t("categories.kindIncomeHint", {
-                    defaultValue: "Offered on income only. Budgets cap what you spend, so income categories have none.",
-                  })}
+              {t("categories.budgetHint", {
+                defaultValue:
+                  "A ceiling on what leaves. Income filed here counts as earnings and never reduces it — link money coming back as a refund instead.",
+              })}
             </p>
           </div>
-
-          {kind === "expense" && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs">
-                {t("categories.budget", { defaultValue: "Budget" })}{" "}
-                <span className="text-fg-dim font-normal">
-                  ({t("common.optional", { defaultValue: "optional" })})
-                </span>
-              </Label>
-              <AmountInput value={budget} onChange={setBudget} placeholder="0.00" className="h-9 text-sm" />
-              <p className="text-[11px] text-muted-foreground">
-                {t("categories.budgetHint", {
-                  defaultValue: "Set a monthly cap to track spend against this category.",
-                })}
-              </p>
-            </div>
-          )}
 
           <div className="flex flex-col gap-2">
             <Label className="text-xs">

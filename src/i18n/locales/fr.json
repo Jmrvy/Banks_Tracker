@@ -271,7 +271,25 @@
     "incomeSectionHint": "Proposées sur les revenus. Elles ne portent pas de budget — un plafond s'applique à ce que vous dépensez.",
     "newIncomeCategory": "Nouvelle",
     "noIncomeCategories": "Aucune pour l'instant. Ajoutez-en une pour regrouper l'origine de vos revenus.",
-    "duplicateName": "Vous avez déjà une catégorie de ce nom de ce côté."
+    "duplicateName": "Vous avez déjà une catégorie de ce nom de ce côté.",
+    "offsets": "Se déduit de",
+    "offsetsNone": "Rien — compté comme revenu",
+    "offsetsHint": "Les revenus de cette catégorie sont soustraits des dépenses de celle-ci, au lieu de compter comme des gains.",
+    "offsetsLabel": "réduit le budget correspondant",
+    "standaloneLabel": "compté comme revenu",
+    "twinsSection": "Catégories et revenus jumeaux",
+    "twinsSectionDesc": "Chaque catégorie de dépense peut porter une catégorie de revenus du même nom. Les revenus classés là sont retranchés de ce budget au lieu de compter comme des gains — ce que vous voulez pour un remboursement, et pas du tout ce que vous voulez quand l'argent rentre vraiment.",
+    "twinNetting": "{{count}} revenu(s) déduit(s) de ce budget",
+    "twinReady": "Prêt — aucun revenu classé ici pour l'instant",
+    "twinNone": "Pas de jumeau — les revenus ne réduisent jamais ce budget",
+    "twinOn": "Revenus jumeaux activés",
+    "twinOnDesc": "Les revenus classés sous {{name}} réduisent désormais son budget.",
+    "twinOff": "Revenus jumeaux supprimés",
+    "twinOffDesc": "{{name}} n'apparaît plus du côté des revenus.",
+    "twinKept": "Revenus jumeaux détachés",
+    "twinKeptDesc": "{{count}} transaction(s) restent classées sous {{name}}, mais elle compte maintenant comme un revenu ordinaire.",
+    "standaloneSection": "Revenus à part entière",
+    "standaloneSectionDesc": "L'argent qui rentre vraiment, plutôt que celui qui revient. Ces catégories n'ont aucun budget à réduire : elles sont comptées comme des revenus, et rien d'autre."
   },
   "savings": {
     "title": "Objectifs d'Épargne",
@@ -1462,7 +1480,11 @@
     "periodYtd": "Année en cours",
     "period1y": "Année complète",
     "todayTickTooltip": "Aujourd'hui · {{pct}}% de la période écoulée",
-    "todayTickAria": "Repère du jour"
+    "todayTickAria": "Repère du jour",
+    "breakdownGross": "Débité",
+    "breakdownRefunded": "Remboursé",
+    "breakdownOffset": "Revenus déduits",
+    "breakdownNet": "Compté au budget"
   },
   "specialBudgets": {
     "eyebrow": "Enveloppes",

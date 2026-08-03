@@ -9,6 +9,7 @@ import {
   realNetChange,
   netExpenseAmount,
   netIncomeAmount,
+  computeCategoryNets,
   type EngineTx,
 } from './reportsEngine';
 import { normalizePeriod } from './dateUtils';
@@ -84,6 +85,51 @@ describe('advance repayments', () => {
     const stats = computePeriodStats(txs);
     expect(stats.income).toBe(1000);
     expect(stats.expenses).toBe(200);
+  });
+});
+
+describe('computeCategoryNets', () => {
+  it('nets refunds and reports the parts', () => {
+    const txs = [
+      tx({ amount: 660, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 40, type: 'expense', transaction_date: '2026-06-02', category_id: 'loisirs', refunded_amount: 40 }),
+      tx({ amount: 40, type: 'income', transaction_date: '2026-06-03', category_id: 'loisirs', refund_of_transaction_id: 'x' }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.gross).toBe(700);
+    expect(row.refunded).toBe(40);
+    expect(row.net).toBe(660);
+  });
+
+  // A category works on both sides now, so income filed on a budgeted
+  // category is ordinary earnings. Only a refund link reduces the budget,
+  // and it does so through the expense's refunded_amount.
+  it('leaves unlinked income on a budgeted category out of the net', () => {
+    const txs = [
+      tx({ amount: 660, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 120, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs' }),
+      tx({ amount: 2000, type: 'income', transaction_date: '2026-06-03', category_id: 'salaire' }),
+    ];
+    const nets = computeCategoryNets(txs);
+    expect(nets.get('loisirs')!.net).toBe(660);
+    expect(nets.has('salaire')).toBe(false);
+  });
+
+  it('skips rows that are not spending', () => {
+    const txs = [
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 50, type: 'expense', transaction_date: '2026-06-02', category_id: 'loisirs', include_in_stats: false }),
+      tx({ amount: 70, type: 'expense', transaction_date: '2026-06-03', category_id: 'loisirs', special_budget_id: 'trip' }),
+      tx({ amount: 90, type: 'expense', transaction_date: '2026-06-04', category_id: 'loisirs', repayment_of_transaction_id: 'adv' }),
+    ];
+    expect(computeCategoryNets(txs).get('loisirs')!.net).toBe(100);
+  });
+
+  it('goes negative when more came back than went out', () => {
+    const txs = [
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs', refunded_amount: 160 }),
+    ];
+    expect(computeCategoryNets(txs).get('loisirs')!.net).toBe(-60);
   });
 });
 

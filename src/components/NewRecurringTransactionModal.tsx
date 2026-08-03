@@ -17,7 +17,6 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AVAILABLE_PLACEHOLDERS, resolveNamePlaceholders, hasPlaceholders } from '@/utils/namePlaceholders';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { categoriesForType } from '@/lib/categoryKind';
 
 interface NewRecurringTransactionModalProps {
   open: boolean;
@@ -279,7 +278,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucune catégorie</SelectItem>
-                  {categoriesForType(categories, formData.type, formData.category_id).map((category) => (
+                  {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
                         <div 

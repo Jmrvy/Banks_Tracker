@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Category } from "@/hooks/useFinancialData";
-import { kindOf } from "@/lib/categoryKind";
 import { describeError } from "@/lib/errorMessage";
 
 interface Props {
@@ -26,10 +25,11 @@ interface Props {
 /**
  * Chooses which categories feed the savings page.
  *
- * Both sides matter and for different reasons: what you put away is an
- * expense, what you take back out or earn on it is income, and the page
- * nets the two. Picking only one side would report contributions as
- * savings while a withdrawal the same month left the figure untouched.
+ * Both directions matter and for different reasons: what you put away is
+ * an expense, what you take back out or earn on it is income, and the page
+ * nets the two. One tick now covers both — when a category was split into
+ * an expense row and an income twin, ticking only one of the pair reported
+ * contributions as savings while withdrawals left the figure untouched.
  */
 export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved }: Props) {
   const { t } = useTranslation();
@@ -43,11 +43,8 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
     }
   }, [open, categories]);
 
-  const groups = useMemo(
-    () => ({
-      expense: categories.filter((c) => kindOf(c) === "expense"),
-      income: categories.filter((c) => kindOf(c) === "income"),
-    }),
+  const rows = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
     [categories],
   );
 
@@ -94,36 +91,6 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
     onOpenChange(false);
   };
 
-  const renderGroup = (label: string, hint: string, rows: Category[]) => (
-    <div className="flex flex-col gap-1.5">
-      <div>
-        <div className="text-xs font-semibold">{label}</div>
-        <p className="text-[11px] text-muted-foreground">{hint}</p>
-      </div>
-      {rows.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground italic py-1">
-          {t("savings.noCategoriesOfKind", { defaultValue: "None yet." })}
-        </p>
-      ) : (
-        <div className="flex flex-col">
-          {rows.map((category) => (
-            <label
-              key={category.id}
-              className="flex items-center gap-2.5 py-2 cursor-pointer rounded-md px-1 hover:bg-muted/50"
-            >
-              <Checkbox
-                checked={selected.has(category.id)}
-                onCheckedChange={() => toggle(category.id)}
-              />
-              <CategoryIcon icon={category.icon} color={category.color} size={20} />
-              <span className="text-sm">{category.name}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
@@ -134,21 +101,30 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
           <DialogDescription className="text-xs">
             {t("savings.categoriesDesc", {
               defaultValue:
-                "Money set aside is an expense and money taken back out is income. Pick both sides so the page can net them.",
+                "Money set aside is an expense and money taken back out is income. Tick a category and this page nets both directions of it.",
             })}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-2 flex flex-col gap-4">
-          {renderGroup(
-            t("categories.kindExpense", { defaultValue: "Spending" }),
-            t("savings.categoriesExpenseHint", { defaultValue: "What you put away." }),
-            groups.expense,
-          )}
-          {renderGroup(
-            t("categories.kindIncome", { defaultValue: "Income" }),
-            t("savings.categoriesIncomeHint", { defaultValue: "What you take back out, and what it earns." }),
-            groups.income,
+        <div className="flex-1 overflow-y-auto px-4 pb-2 flex flex-col">
+          {rows.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic py-2">
+              {t("savings.noCategoriesOfKind", { defaultValue: "None yet." })}
+            </p>
+          ) : (
+            rows.map((category) => (
+              <label
+                key={category.id}
+                className="flex items-center gap-2.5 py-2 cursor-pointer rounded-md px-1 hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={selected.has(category.id)}
+                  onCheckedChange={() => toggle(category.id)}
+                />
+                <CategoryIcon icon={category.icon} color={category.color} size={20} />
+                <span className="text-sm">{category.name}</span>
+              </label>
+            ))
           )}
         </div>
 

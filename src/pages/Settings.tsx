@@ -45,7 +45,7 @@ interface SectionDef {
 const Settings = () => {
   const { t } = useTranslation();
   const { user, signOut } = useAuth();
-  const { accounts, refetch } = useFinancialData();
+  const { accounts, categories, refetch } = useFinancialData();
   const { preferences, updatePreferences, formatCurrency } = useUserPreferences();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { isOnline } = useOffline();

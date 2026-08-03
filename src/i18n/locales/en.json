@@ -271,7 +271,25 @@
     "incomeSectionHint": "Offered on income. They carry no budget — a ceiling applies to what you spend.",
     "newIncomeCategory": "New",
     "noIncomeCategories": "None yet. Add one to group where your money comes from.",
-    "duplicateName": "You already have a category with that name on this side."
+    "duplicateName": "You already have a category with that name on this side.",
+    "offsets": "Nets against",
+    "offsetsNone": "Nothing — counts as income",
+    "offsetsHint": "Income here is subtracted from that category's spending instead of counting as earnings.",
+    "offsetsLabel": "reduces the matching budget",
+    "standaloneLabel": "counts as income",
+    "twinsSection": "Categories & income twins",
+    "twinsSectionDesc": "Every spending category can carry an income category of the same name. Income filed there is subtracted from that budget instead of counting as earnings — which is what you want for reimbursements, and not what you want when the money is genuinely coming in.",
+    "twinNetting": "{{count}} income transaction(s) netted off this budget",
+    "twinReady": "Ready — no income filed here yet",
+    "twinNone": "No income twin — income never reduces this budget",
+    "twinOn": "Income twin enabled",
+    "twinOnDesc": "Income filed under {{name}} now reduces its budget.",
+    "twinOff": "Income twin removed",
+    "twinOffDesc": "{{name}} no longer appears on the income side.",
+    "twinKept": "Income twin detached",
+    "twinKeptDesc": "{{count}} transaction(s) stay filed under {{name}}, but it now counts as plain income.",
+    "standaloneSection": "Income of its own",
+    "standaloneSectionDesc": "Money that is genuinely coming in rather than coming back. These have no budget to reduce, so they are counted as income and nothing else."
   },
   "savings": {
     "title": "Savings Goals",
@@ -1466,7 +1484,11 @@
     "periodYtd": "Year to date",
     "period1y": "Full year",
     "todayTickTooltip": "Today · {{pct}}% of the period elapsed",
-    "todayTickAria": "Today marker"
+    "todayTickAria": "Today marker",
+    "breakdownGross": "Charged",
+    "breakdownRefunded": "Refunded",
+    "breakdownOffset": "Offsetting income",
+    "breakdownNet": "Counted against budget"
   },
   "specialBudgets": {
     "eyebrow": "Envelopes",

@@ -13,7 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { supabase } from '@/integrations/supabase/client';
 import type { ParsedLoanInfo, CsvValidationResult } from '@/utils/csvScheduleParser';
-import { categoriesForType } from '@/lib/categoryKind';
 import {
   Upload,
   FileSpreadsheet,
@@ -554,7 +553,7 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
                     <SelectValue placeholder="Optionnel" />
                   </SelectTrigger>
                   <SelectContent>
-                    {                    categoriesForType(categories, 'expense', formData.category_id).map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         <div className="flex items-center gap-2">
                           <div

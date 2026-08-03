@@ -138,7 +138,14 @@ const handler = async (req: Request): Promise<Response> => {
           // Net amount per transaction = original - refunded (clamped to 0).
           const netOf = (t: any) => Number(t.amount) - Number(t.refunded_amount || 0);
 
+          // Expenses net of refunds, and nothing else. A category now works
+          // in both directions, so it may hold income too — but income does
+          // not reduce a budget: money genuinely coming back is linked as a
+          // refund and is already inside refunded_amount. Subtracting it
+          // again here would take the same money off twice, and would net
+          // unrelated earnings against the spending beside them.
           const totalSpent = transactions?.reduce((sum, t) => sum + netOf(t), 0) || 0;
+
           const budget = Number(category.budget);
 
           // Build cumulative daily series for the SVG chart — uses net spend

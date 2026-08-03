@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import type { CategoryKind } from '@/lib/categoryKind';
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -47,20 +46,20 @@ const accountTypes = [
   { value: 'investment', label: 'Investissement' },
 ];
 
-// Salaire is the one seed that is unambiguously money coming in. Epargne
-// stays on the spending side: setting money aside leaves the account it is
-// budgeted from, whatever it becomes afterwards.
-const defaultCategories: { name: string; color: string; kind: CategoryKind }[] = [
-  { name: 'Alimentation', color: '#10B981', kind: 'expense' },
-  { name: 'Transport', color: '#3B82F6', kind: 'expense' },
-  { name: 'Logement', color: '#8B5CF6', kind: 'expense' },
-  { name: 'Loisirs', color: '#F59E0B', kind: 'expense' },
-  { name: 'Sante', color: '#EF4444', kind: 'expense' },
-  { name: 'Shopping', color: '#EC4899', kind: 'expense' },
-  { name: 'Restaurants', color: '#F97316', kind: 'expense' },
-  { name: 'Abonnements', color: '#06B6D4', kind: 'expense' },
-  { name: 'Salaire', color: '#84CC16', kind: 'income' },
-  { name: 'Epargne', color: '#6366F1', kind: 'expense' },
+// A category works in both directions, so these are just names: Salaire
+// will hold income, Epargne will mostly hold what leaves, and either can
+// take the other side without a second category being created for it.
+const defaultCategories: { name: string; color: string }[] = [
+  { name: 'Alimentation', color: '#10B981' },
+  { name: 'Transport', color: '#3B82F6' },
+  { name: 'Logement', color: '#8B5CF6' },
+  { name: 'Loisirs', color: '#F59E0B' },
+  { name: 'Sante', color: '#EF4444' },
+  { name: 'Shopping', color: '#EC4899' },
+  { name: 'Restaurants', color: '#F97316' },
+  { name: 'Abonnements', color: '#06B6D4' },
+  { name: 'Salaire', color: '#84CC16' },
+  { name: 'Epargne', color: '#6366F1' },
 ];
 
 const currencyOptions = [
@@ -1208,7 +1207,6 @@ const Onboarding = () => {
             color: cat.color,
             budget: null,
             icon: null,
-            kind: cat.kind,
           });
         }
 
@@ -1284,7 +1282,7 @@ const Onboarding = () => {
         }
         for (const index of selectedCategories) {
           const cat = defaultCategories[index];
-          await createCategory({ name: cat.name, color: cat.color, budget: null, icon: null, kind: cat.kind });
+          await createCategory({ name: cat.name, color: cat.color, budget: null, icon: null });
         }
         updatePreferences({ currency });
       }
