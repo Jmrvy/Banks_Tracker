@@ -41,7 +41,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0],
     value_date: new Date().toISOString().split('T')[0],
-    include_in_stats: true
+    include_in_stats: true,
+    offsets_category: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -57,7 +58,8 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
       transfer_fee: '',
       transaction_date: new Date().toISOString().split('T')[0],
       value_date: new Date().toISOString().split('T')[0],
-      include_in_stats: true
+      include_in_stats: true,
+      offsets_category: false
     });
   };
 
@@ -104,6 +106,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
         transaction_date: formData.transaction_date,
         value_date: formData.value_date,
         include_in_stats: formData.include_in_stats,
+        offsets_category: formData.type === 'income' && !!formData.category_id && formData.offsets_category,
       });
       error = result?.error;
     }
@@ -334,6 +337,40 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Money coming back rather than coming in. A category holds both
+              directions, so income filed on one is earnings by default — this
+              is how a gambling payout gets netted against its stakes without
+              pretending to be a refund of one particular bet. */}
+          {formData.type === 'income' && !!formData.category_id && (
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Switch
+                id="new-offsets-category"
+                checked={formData.offsets_category}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, offsets_category: checked }))
+                }
+              />
+              <div className="min-w-0">
+                <Label htmlFor="new-offsets-category" className="text-sm cursor-pointer">
+                  {t('transactions.offsetsCategory', {
+                    defaultValue: 'Came back on this category',
+                  })}
+                </Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {formData.offsets_category
+                    ? t('transactions.offsetsCategoryOn', {
+                        defaultValue:
+                          'Reduces what this category cost instead of counting as income.',
+                      })
+                    : t('transactions.offsetsCategoryOff', {
+                        defaultValue:
+                          'Counts as income. Turn on for money coming back rather than coming in.',
+                      })}
+                </p>
+              </div>
             </div>
           )}
 

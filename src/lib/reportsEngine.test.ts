@@ -131,6 +131,63 @@ describe('computeCategoryNets', () => {
     ];
     expect(computeCategoryNets(txs).get('loisirs')!.net).toBe(-60);
   });
+
+  // The case a refund link cannot express: a gambling payout is not a refund
+  // of any one stake, so it carries the flag instead of a target expense.
+  it('subtracts income that says it came back on the category', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.gross).toBe(200);
+    expect(row.offsetIncome).toBe(130);
+    expect(row.net).toBe(70);
+  });
+
+  it('leaves income without the flag as earnings', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs' }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.offsetIncome).toBe(0);
+    expect(row.net).toBe(200);
+  });
+
+  it('counts offsetting income net of what has been repaid', () => {
+    const txs = [
+      tx({ amount: 500, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 200, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true, repaid_amount: 150 }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.offsetIncome).toBe(50);
+    expect(row.net).toBe(450);
+  });
+
+  // Belt and braces for the DB constraint: a linked refund already nets
+  // through its expense, so honouring the flag too would double-count.
+  it('ignores the flag on a linked refund', () => {
+    const txs = [
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs', refunded_amount: 40 }),
+      tx({ amount: 40, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true, refund_of_transaction_id: 'x' }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.offsetIncome).toBe(0);
+    expect(row.net).toBe(60);
+  });
+
+  it('excludes offsetting income from stats but takes it off expenses', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true }),
+      tx({ amount: 1000, type: 'income', transaction_date: '2026-06-03', category_id: 'salaire' }),
+    ];
+    const stats = computePeriodStats(txs);
+    expect(stats.income).toBe(1000);
+    expect(stats.expenses).toBe(70);
+    expect(stats.net).toBe(930);
+  });
 });
 
 describe('computePeriodStats', () => {

@@ -894,6 +894,7 @@ export type Database = {
           description: string
           id: string
           include_in_stats: boolean
+          offsets_category: boolean
           installment_payment_id: string | null
           recurring_transaction_id: string | null
           refund_of_transaction_id: string | null
@@ -917,6 +918,7 @@ export type Database = {
           description: string
           id?: string
           include_in_stats?: boolean
+          offsets_category?: boolean
           installment_payment_id?: string | null
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
@@ -940,6 +942,7 @@ export type Database = {
           description?: string
           id?: string
           include_in_stats?: boolean
+          offsets_category?: boolean
           installment_payment_id?: string | null
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null

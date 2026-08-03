@@ -106,6 +106,7 @@ interface CategoryStats {
   /** The parts behind `spent`, so the card can show what was netted out. */
   gross: number;
   refunded: number;
+  offsetIncome: number;
   prevSpent: number;
   projected: number;
   used: number;
@@ -736,7 +737,7 @@ function BudgetCard({
           {/* What was taken off, when anything was. Otherwise `spent` is a
               lone figure and there is no way to tell a category that cost
               540 from one that cost 700 and got 160 back. */}
-          {stat.refunded > 0 && (
+          {(stat.refunded > 0 || stat.offsetIncome > 0) && (
             <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground">
@@ -750,6 +751,17 @@ function BudgetCard({
                     {t("budget.breakdownRefunded", { defaultValue: "Refunded" })}
                   </span>
                   <span className="font-mono text-pos">−{formatCurrency(stat.refunded)}</span>
+                </div>
+              )}
+              {/* Income filed here that says it came back on this category
+                  rather than being earnings — a gambling payout against its
+                  stakes, a reimbursement with no single expense to point at. */}
+              {stat.offsetIncome > 0 && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">
+                    {t("budget.breakdownOffset", { defaultValue: "Came back on this category" })}
+                  </span>
+                  <span className="font-mono text-pos">−{formatCurrency(stat.offsetIncome)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-[11px] font-medium border-t border-line/60 pt-1 mt-0.5">
@@ -1651,6 +1663,7 @@ const Budget = () => {
       const parts = periodNets.get(category.id) ?? {
         gross: spent,
         refunded: 0,
+        offsetIncome: 0,
         net: spent,
       };
 
@@ -1659,6 +1672,7 @@ const Budget = () => {
         spent: parts.net,
         gross: parts.gross,
         refunded: parts.refunded,
+        offsetIncome: parts.offsetIncome,
         prevSpent,
         projected,
         used,

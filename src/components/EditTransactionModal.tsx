@@ -40,7 +40,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     value_date: '',
     transfer_to_account_id: '',
     transfer_fee: '',
-    include_in_stats: true
+    include_in_stats: true,
+    offsets_category: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -58,7 +59,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         value_date: transaction.value_date || transaction.transaction_date,
         transfer_to_account_id: transaction.transfer_to_account_id || '',
         transfer_fee: transaction.transfer_fee?.toString() || '',
-        include_in_stats: transaction.include_in_stats ?? true
+        include_in_stats: transaction.include_in_stats ?? true,
+        offsets_category: transaction.offsets_category ?? false
       });
     }
   }, [transaction]);
@@ -75,7 +77,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       value_date: '',
       transfer_to_account_id: '',
       transfer_fee: '',
-      include_in_stats: true
+      include_in_stats: true,
+      offsets_category: false
     });
   };
 
@@ -115,6 +118,15 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       transaction_date: formData.transaction_date,
       value_date: formData.value_date,
       include_in_stats: formData.include_in_stats,
+      // Only income on a category can offset it, and never a linked refund —
+      // that one already nets through its expense. The DB normalises this
+      // too, but sending a value the row cannot hold makes the save read as
+      // if it took effect.
+      offsets_category:
+        formData.type === 'income' &&
+        !!formData.category_id &&
+        !transaction.refund_of_transaction_id &&
+        formData.offsets_category,
       ...(formData.type === 'transfer' && {
         transfer_to_account_id: formData.transfer_to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0
@@ -279,6 +291,46 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Which side of the ledger this income lands on.
+              A category holds both directions, so most income filed on one is
+              earnings that merely shares its name with the spending beside it
+              — a salary is not a discount on anything. This says otherwise for
+              the money that genuinely came back: a gambling payout against its
+              stakes, a reimbursement with no single expense to point at.
+              Hidden on a linked refund, which already nets through the expense
+              it refunds and would otherwise take the money off twice. */}
+          {formData.type === 'income'
+            && !!formData.category_id
+            && !transaction?.refund_of_transaction_id && (
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Switch
+                id="offsets-category"
+                checked={formData.offsets_category}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, offsets_category: checked }))
+                }
+              />
+              <div className="min-w-0">
+                <Label htmlFor="offsets-category" className="text-sm cursor-pointer">
+                  {t('transactions.offsetsCategory', {
+                    defaultValue: 'Came back on this category',
+                  })}
+                </Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {formData.offsets_category
+                    ? t('transactions.offsetsCategoryOn', {
+                        defaultValue:
+                          'Reduces what this category cost instead of counting as income.',
+                      })
+                    : t('transactions.offsetsCategoryOff', {
+                        defaultValue:
+                          'Counts as income. Turn on for money coming back rather than coming in.',
+                      })}
+                </p>
+              </div>
             </div>
           )}
 

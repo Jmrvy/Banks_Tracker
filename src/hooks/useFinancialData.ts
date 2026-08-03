@@ -39,6 +39,10 @@ export interface Transaction {
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
   refund_of_transaction_id?: string | null;
+  /** Income only: this money came back on its category rather than being
+   *  earnings, so it reduces that category's spend. Decided per row because
+   *  one category legitimately holds both kinds. */
+  offsets_category?: boolean | null;
   /** On income: how much has since been paid back. */
   repaid_amount?: number | null;
   /** On an expense: the income this settles. */
@@ -279,7 +283,7 @@ function useFinancialDataInternal() {
     return { error: null };
   };
 
-  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null; special_budget_id?: string | null }) => {
+  const createTransaction = async (transaction: Omit<Transaction, 'id' | 'account' | 'category'> & { account_id: string; category_id?: string; value_date?: string; include_in_stats?: boolean; installment_payment_id?: string | null; special_budget_id?: string | null; offsets_category?: boolean }) => {
     if (!user) return;
 
     // Si value_date n'est pas fournie, utiliser transaction_date
@@ -583,6 +587,7 @@ function useFinancialDataInternal() {
     transfer_to_account_id?: string;
     transfer_fee?: number;
     include_in_stats?: boolean;
+    offsets_category?: boolean;
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
 

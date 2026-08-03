@@ -25,6 +25,8 @@ export interface EngineTx {
   refunded_amount?: number | null;
   repayment_of_transaction_id?: string | null;
   repaid_amount?: number | null;
+  /** Income only: came back on its category rather than being earnings. */
+  offsets_category?: boolean | null;
   category_id?: string | null;
   special_budget_id?: string | null;
   transfer_fee?: number | string | null;
@@ -98,6 +100,7 @@ export const signedGlobalAmount = (t: EngineTx): number =>
 export interface CategoryNet {
   gross: number;
   refunded: number;
+  offsetIncome: number;
   net: number;
 }
 
@@ -108,34 +111,51 @@ export interface CategoryNet {
  * statistics, tagged to a special budget, or settling an advance are not
  * spending and do not appear.
  *
- * Only the expense side counts. A category works in both directions now, so
- * it may well hold income too, but income does not reduce a budget: money
- * genuinely coming back is linked as a refund and lands in the expense's
- * `refunded_amount` instead. Subtracting unlinked income here as well would
- * take the same money off twice, and would quietly net earnings that happen
- * to share a category against the spending beside them.
+ * Income reduces a category only when it says so. A category works in both
+ * directions, so most income filed on one is earnings that merely shares a
+ * name with the spending beside it — netting all of it would quietly make a
+ * salary look like a discount. Two things say otherwise, and both are per
+ * transaction rather than per category:
+ *
+ *   - a refund link, which nets through its expense's `refunded_amount`
+ *     and so is already inside `refunded` below;
+ *   - `offsets_category`, for money that came back on the category without
+ *     mapping to one specific expense — a gambling payout against its
+ *     stakes, a reimbursement filed among genuine transfers.
+ *
+ * The two are mutually exclusive at the database level, so nothing here can
+ * subtract the same money twice.
  */
 export const computeCategoryNets = (txs: EngineTx[]): Map<string, CategoryNet> => {
   const out = new Map<string, CategoryNet>();
-  const blank = (): CategoryNet => ({ gross: 0, refunded: 0, net: 0 });
+  const blank = (): CategoryNet => ({ gross: 0, refunded: 0, offsetIncome: 0, net: 0 });
 
   for (const t of txs) {
     if (t.include_in_stats === false) continue;
-    if (t.type !== 'expense') continue;
     const categoryId = (t as EngineTx & { category_id?: string | null }).category_id;
     if (!categoryId) continue;
 
-    // Settling an advance is not spending; a special budget counts elsewhere.
-    if (t.repayment_of_transaction_id) continue;
-    if ((t as EngineTx & { special_budget_id?: string | null }).special_budget_id) continue;
-    const row = out.get(categoryId) ?? blank();
-    row.gross += Number(t.amount);
-    row.refunded += Number(t.refunded_amount || 0);
-    out.set(categoryId, row);
+    if (t.type === 'expense') {
+      // Settling an advance is not spending; a special budget counts elsewhere.
+      if (t.repayment_of_transaction_id) continue;
+      if ((t as EngineTx & { special_budget_id?: string | null }).special_budget_id) continue;
+      const row = out.get(categoryId) ?? blank();
+      row.gross += Number(t.amount);
+      row.refunded += Number(t.refunded_amount || 0);
+      out.set(categoryId, row);
+    } else if (t.type === 'income') {
+      if (!(t as EngineTx & { offsets_category?: boolean | null }).offsets_category) continue;
+      // Belt and braces: a refund link nets through the expense instead, and
+      // the DB constraint forbids a row carrying both.
+      if (t.refund_of_transaction_id) continue;
+      const row = out.get(categoryId) ?? blank();
+      row.offsetIncome += netIncomeAmount(t);
+      out.set(categoryId, row);
+    }
   }
 
   for (const row of out.values()) {
-    row.net = row.gross - row.refunded;
+    row.net = row.gross - row.refunded - row.offsetIncome;
   }
   return out;
 };
@@ -143,16 +163,22 @@ export const computeCategoryNets = (txs: EngineTx[]): Map<string, CategoryNet> =
 /** Headline stats for an already-filtered set of transactions.
  *  Rules: rows with include_in_stats === false are skipped; refund
  *  incomes are excluded (they net against their original expense);
- *  expenses count net of refunds; income counts net of repayments;
- *  repayment expenses are excluded (they net against the income they
- *  settle); transfers contribute only their fee. */
+ *  income marked `offsets_category` is likewise not earnings and comes
+ *  off expenses instead; expenses count net of refunds; income counts net
+ *  of repayments; repayment expenses are excluded (they net against the
+ *  income they settle); transfers contribute only their fee. */
 export const computePeriodStats = (txs: EngineTx[]): PeriodStats => {
   let income = 0;
   let expenses = 0;
   let transferFees = 0;
   for (const t of txs) {
     if (t.include_in_stats === false) continue;
-    if (t.type === 'income' && !t.refund_of_transaction_id) income += netIncomeAmount(t);
+    // Money that came back on a category is a reduction of what that
+    // category cost, not earnings — the same treatment a refund gets, so
+    // that "income" keeps meaning money earned on both screens.
+    if (t.type === 'income' && (t as EngineTx & { offsets_category?: boolean | null }).offsets_category
+        && !t.refund_of_transaction_id) expenses -= netIncomeAmount(t);
+    else if (t.type === 'income' && !t.refund_of_transaction_id) income += netIncomeAmount(t);
     // An expense repaying an advance is a settlement, not spending — the
     // income it repays already counts net of it, so counting it here too
     // would subtract the same money twice.
