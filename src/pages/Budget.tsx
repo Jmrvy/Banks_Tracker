@@ -68,6 +68,7 @@ import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
 import { kindOf, type CategoryKind } from "@/lib/categoryKind";
 import { describeError } from "@/lib/errorMessage";
+import { computeCategoryNets } from "@/lib/reportsEngine";
 import {
   addDays,
   addMonths,
@@ -103,6 +104,10 @@ interface Driver {
 interface CategoryStats {
   category: Category;
   spent: number;
+  /** The parts behind `spent`, so the card can show what was netted out. */
+  gross: number;
+  refunded: number;
+  offsetIncome: number;
   prevSpent: number;
   projected: number;
   used: number;
@@ -730,6 +735,39 @@ function BudgetCard({
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-line/60 pt-3 flex flex-col gap-3">
+          {/* What was taken off, when anything was. Otherwise `spent` is a
+              lone figure and there is no way to tell a category that cost
+              540 from one that cost 700 and got 160 back. */}
+          {(stat.refunded > 0 || stat.offsetIncome > 0) && (
+            <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">
+                  {t("budget.breakdownGross", { defaultValue: "Charged" })}
+                </span>
+                <span className="font-mono">{formatCurrency(stat.gross)}</span>
+              </div>
+              {stat.refunded > 0 && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">
+                    {t("budget.breakdownRefunded", { defaultValue: "Refunded" })}
+                  </span>
+                  <span className="font-mono text-pos">−{formatCurrency(stat.refunded)}</span>
+                </div>
+              )}
+              {stat.offsetIncome > 0 && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">
+                    {t("budget.breakdownOffset", { defaultValue: "Offsetting income" })}
+                  </span>
+                  <span className="font-mono text-pos">−{formatCurrency(stat.offsetIncome)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-[11px] font-medium border-t border-line/60 pt-1 mt-0.5">
+                <span>{t("budget.breakdownNet", { defaultValue: "Counted against budget" })}</span>
+                <span className="font-mono">{formatCurrency(stat.spent)}</span>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <DetailStat
               label={t("budget.statSpent", { defaultValue: "Spent" })}
@@ -1535,6 +1573,17 @@ const Budget = () => {
     return out;
   }, [transactions, categories, dateOf]);
 
+  // Refunds and paired income come from the engine so this page cannot
+  // drift from the reports, the emails or Trace — they had each grown their
+  // own version and disagreed about the same category.
+  const periodNets = useMemo(() => {
+    const inPeriod = transactions.filter((tx) => {
+      const d = dateOf(tx);
+      return d >= period.from && d <= period.to;
+    });
+    return computeCategoryNets(inPeriod as any, allCategories as any);
+  }, [transactions, allCategories, period, dateOf]);
+
   // --- stats (preserved) ------------------------------------------------
   const stats = useMemo<CategoryStats[]>(() => {
     const monthStart = startOfMonth(today);
@@ -1600,9 +1649,20 @@ const Budget = () => {
 
       const topDrivers = driversInPeriod.sort((a, b) => b.amount - a.amount).slice(0, 5);
 
+      // The engine's figure wins: it is the one the rest of the app quotes.
+      const parts = periodNets.get(category.id) ?? {
+        gross: spent,
+        refunded: 0,
+        offsetIncome: 0,
+        net: spent,
+      };
+
       return {
         category,
-        spent,
+        spent: parts.net,
+        gross: parts.gross,
+        refunded: parts.refunded,
+        offsetIncome: parts.offsetIncome,
         prevSpent,
         projected,
         used,
@@ -1617,7 +1677,7 @@ const Budget = () => {
         topDrivers,
       };
     });
-  }, [categories, transactions, dateOf, period, projectedByCategory, historyByCategory, today]);
+  }, [categories, transactions, dateOf, period, periodNets, projectedByCategory, historyByCategory, today]);
 
   // --- totals (preserved) -----------------------------------------------
   const totals = useMemo(() => {

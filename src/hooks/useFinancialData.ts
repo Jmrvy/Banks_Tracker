@@ -71,6 +71,8 @@ export interface Category {
   kind: CategoryKind;
   /** Feeds the savings page, on either side of the ledger. */
   counts_as_savings: boolean;
+  /** Income categories only: the expense category this income nets against. */
+  offsets_category_id?: string | null;
 }
 
 export interface RecurringTransaction {

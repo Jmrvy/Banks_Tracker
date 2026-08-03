@@ -271,7 +271,10 @@
     "incomeSectionHint": "Proposées sur les revenus. Elles ne portent pas de budget — un plafond s'applique à ce que vous dépensez.",
     "newIncomeCategory": "Nouvelle",
     "noIncomeCategories": "Aucune pour l'instant. Ajoutez-en une pour regrouper l'origine de vos revenus.",
-    "duplicateName": "Vous avez déjà une catégorie de ce nom de ce côté."
+    "duplicateName": "Vous avez déjà une catégorie de ce nom de ce côté.",
+    "offsets": "Se déduit de",
+    "offsetsNone": "Rien — compté comme revenu",
+    "offsetsHint": "Les revenus de cette catégorie sont soustraits des dépenses de celle-ci, au lieu de compter comme des gains."
   },
   "savings": {
     "title": "Objectifs d'Épargne",
@@ -1462,7 +1465,11 @@
     "periodYtd": "Année en cours",
     "period1y": "Année complète",
     "todayTickTooltip": "Aujourd'hui · {{pct}}% de la période écoulée",
-    "todayTickAria": "Repère du jour"
+    "todayTickAria": "Repère du jour",
+    "breakdownGross": "Débité",
+    "breakdownRefunded": "Remboursé",
+    "breakdownOffset": "Revenus déduits",
+    "breakdownNet": "Compté au budget"
   },
   "specialBudgets": {
     "eyebrow": "Enveloppes",

@@ -25,6 +25,8 @@ export interface EngineTx {
   refunded_amount?: number | null;
   repayment_of_transaction_id?: string | null;
   repaid_amount?: number | null;
+  category_id?: string | null;
+  special_budget_id?: string | null;
   transfer_fee?: number | string | null;
   account_id?: string;
   transfer_to_account_id?: string | null;
@@ -76,6 +78,87 @@ export const signedGlobalAmount = (t: EngineTx): number =>
     : t.type === 'expense'
       ? -Number(t.amount)
       : -Number(t.transfer_fee || 0);
+
+/**
+ * What a category actually cost, and the three figures behind it.
+ *
+ * Category spend was being derived independently in the budget page, the
+ * reports engine, the alert emails, Trace and the radar, and they drifted:
+ * the same category read 672 in one place and 612 in another because each
+ * had its own idea of what to subtract. This is the one definition.
+ *
+ *   gross         what was charged, before anything came back
+ *   refunded      refunds attached to those charges
+ *   offsetIncome  income from categories that declare they offset this one
+ *   net           gross − refunded − offsetIncome
+ *
+ * `net` may be negative: more can come back than went out, and that makes
+ * the category cheaper rather than merely free.
+ */
+export interface CategoryNet {
+  gross: number;
+  refunded: number;
+  offsetIncome: number;
+  net: number;
+}
+
+export interface CategoryLike {
+  id: string;
+  kind?: string | null;
+  offsets_category_id?: string | null;
+}
+
+/**
+ * Net per expense category, keyed by category id.
+ *
+ * Takes transactions already filtered to the period. Rows excluded from
+ * statistics, tagged to a special budget, or settling an advance are not
+ * spending and do not appear.
+ */
+export const computeCategoryNets = (
+  txs: EngineTx[],
+  categories: CategoryLike[],
+): Map<string, CategoryNet> => {
+  const out = new Map<string, CategoryNet>();
+  const blank = (): CategoryNet => ({ gross: 0, refunded: 0, offsetIncome: 0, net: 0 });
+
+  // Which expense category each income category feeds, if any.
+  const offsetTarget = new Map<string, string>();
+  for (const c of categories) {
+    if (c.kind === 'income' && c.offsets_category_id) {
+      offsetTarget.set(c.id, c.offsets_category_id);
+    }
+  }
+
+  for (const t of txs) {
+    if (t.include_in_stats === false) continue;
+    const categoryId = (t as EngineTx & { category_id?: string | null }).category_id;
+    if (!categoryId) continue;
+
+    if (t.type === 'expense') {
+      // Settling an advance is not spending; a special budget counts elsewhere.
+      if (t.repayment_of_transaction_id) continue;
+      if ((t as EngineTx & { special_budget_id?: string | null }).special_budget_id) continue;
+      const row = out.get(categoryId) ?? blank();
+      row.gross += Number(t.amount);
+      row.refunded += Number(t.refunded_amount || 0);
+      out.set(categoryId, row);
+    } else if (t.type === 'income') {
+      // A refund is already inside its expense's refunded_amount.
+      if (t.refund_of_transaction_id) continue;
+      const target = offsetTarget.get(categoryId);
+      if (!target) continue;
+      const row = out.get(target) ?? blank();
+      row.offsetIncome += netIncomeAmount(t);
+      out.set(target, row);
+    }
+  }
+
+  for (const row of out.values()) {
+    row.net = row.gross - row.refunded - row.offsetIncome;
+  }
+  return out;
+};
 
 /** Headline stats for an already-filtered set of transactions.
  *  Rules: rows with include_in_stats === false are skipped; refund

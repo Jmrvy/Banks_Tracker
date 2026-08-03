@@ -109,6 +109,7 @@ export type Database = {
           id: string
           kind: string
           name: string
+          offsets_category_id: string | null
           user_id: string
         }
         Insert: {
@@ -120,6 +121,7 @@ export type Database = {
           id?: string
           kind?: string
           name: string
+          offsets_category_id?: string | null
           user_id: string
         }
         Update: {
@@ -131,6 +133,7 @@ export type Database = {
           id?: string
           kind?: string
           name?: string
+          offsets_category_id?: string | null
           user_id?: string
         }
         Relationships: [

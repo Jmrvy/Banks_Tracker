@@ -9,6 +9,7 @@ import {
   realNetChange,
   netExpenseAmount,
   netIncomeAmount,
+  computeCategoryNets,
   type EngineTx,
 } from './reportsEngine';
 import { normalizePeriod } from './dateUtils';
@@ -84,6 +85,64 @@ describe('advance repayments', () => {
     const stats = computePeriodStats(txs);
     expect(stats.income).toBe(1000);
     expect(stats.expenses).toBe(200);
+  });
+});
+
+describe('computeCategoryNets', () => {
+  const LOISIRS = { id: 'loisirs', kind: 'expense' as const, offsets_category_id: null };
+  const LOISIRS_IN = { id: 'loisirs-in', kind: 'income' as const, offsets_category_id: 'loisirs' };
+  const SALAIRE = { id: 'salaire', kind: 'income' as const, offsets_category_id: null };
+  const CATS = [LOISIRS, LOISIRS_IN, SALAIRE];
+
+  it('nets refunds and paired income, and reports the parts', () => {
+    const txs = [
+      tx({ amount: 660, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 40, type: 'expense', transaction_date: '2026-06-02', category_id: 'loisirs', refunded_amount: 40 }),
+      tx({ amount: 40, type: 'income', transaction_date: '2026-06-03', category_id: 'loisirs', refund_of_transaction_id: 'x' }),
+      tx({ amount: 120, type: 'income', transaction_date: '2026-06-04', category_id: 'loisirs-in' }),
+    ];
+    const row = computeCategoryNets(txs, CATS).get('loisirs')!;
+    expect(row.gross).toBe(700);
+    expect(row.refunded).toBe(40);
+    expect(row.offsetIncome).toBe(120);
+    expect(row.net).toBe(540);
+  });
+
+  it('ignores income from a category that offsets nothing', () => {
+    const txs = [
+      tx({ amount: 660, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 2000, type: 'income', transaction_date: '2026-06-02', category_id: 'salaire' }),
+    ];
+    const nets = computeCategoryNets(txs, CATS);
+    expect(nets.get('loisirs')!.net).toBe(660);
+    expect(nets.has('salaire')).toBe(false);
+  });
+
+  it('skips rows that are not spending', () => {
+    const txs = [
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 50, type: 'expense', transaction_date: '2026-06-02', category_id: 'loisirs', include_in_stats: false }),
+      tx({ amount: 70, type: 'expense', transaction_date: '2026-06-03', category_id: 'loisirs', special_budget_id: 'trip' }),
+      tx({ amount: 90, type: 'expense', transaction_date: '2026-06-04', category_id: 'loisirs', repayment_of_transaction_id: 'adv' }),
+    ];
+    expect(computeCategoryNets(txs, CATS).get('loisirs')!.net).toBe(100);
+  });
+
+  it('goes negative when more came back than went out', () => {
+    const txs = [
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs', refunded_amount: 160 }),
+    ];
+    expect(computeCategoryNets(txs, CATS).get('loisirs')!.net).toBe(-60);
+  });
+
+  it('counts paired income net of what has been repaid', () => {
+    const txs = [
+      tx({ amount: 500, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 200, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs-in', repaid_amount: 150 }),
+    ];
+    const row = computeCategoryNets(txs, CATS).get('loisirs')!;
+    expect(row.offsetIncome).toBe(50);
+    expect(row.net).toBe(450);
   });
 });
 

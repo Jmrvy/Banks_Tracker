@@ -18,6 +18,8 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryIconPicker } from "@/components/CategoryIconPicker";
 import type { Category } from "@/hooks/useFinancialData";
 import { kindOf, type CategoryKind } from "@/lib/categoryKind";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFinancialData } from "@/hooks/useFinancialData";
 import { describeError, isDuplicateError } from "@/lib/errorMessage";
 
 interface EditCategoryModalProps {
@@ -34,6 +36,9 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
   const [color, setColor] = useState("#3B82F6");
   const [budget, setBudget] = useState("");
   const [kind, setKind] = useState<CategoryKind>("expense");
+  const [offsets, setOffsets] = useState<string>("none");
+  const { categories } = useFinancialData();
+  const expenseCategories = categories.filter((c) => kindOf(c) === "expense");
   const [icon, setIcon] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -43,6 +48,7 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
       setColor(category.color || "#3B82F6");
       setBudget(category.budget != null ? String(category.budget) : "");
       setKind(kindOf(category));
+      setOffsets(category.offsets_category_id ?? "none");
       setIcon(category.icon ?? null);
     }
   }, [category]);
@@ -64,6 +70,9 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
           budget: kind === "expense" && budget ? Number(budget) : null,
           icon: icon ?? null,
           kind,
+          // Only income offsets, and the database rejects the pair otherwise;
+          // clear it rather than send something it will refuse.
+          offsets_category_id: kind === "income" && offsets !== "none" ? offsets : null,
         })
         .eq("id", category.id);
       if (error) throw error;
@@ -158,6 +167,35 @@ export function EditCategoryModal({ open, category, onOpenChange, onSaved }: Edi
                   })}
             </p>
           </div>
+
+          {kind === "income" && (
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">
+                {t("categories.offsets", { defaultValue: "Nets against" })}
+              </Label>
+              <Select value={offsets} onValueChange={setOffsets}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    {t("categories.offsetsNone", { defaultValue: "Nothing — counts as income" })}
+                  </SelectItem>
+                  {expenseCategories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {t("categories.offsetsHint", {
+                  defaultValue:
+                    "Income here is subtracted from that category's spending instead of counting as earnings.",
+                })}
+              </p>
+            </div>
+          )}
 
           {kind === "expense" && (
             <div className="flex flex-col gap-1.5">

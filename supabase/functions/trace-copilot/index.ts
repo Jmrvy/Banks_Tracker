@@ -212,9 +212,9 @@ const READ_TOOLS = [
     description:
       "Expense per category over a period, with each category's monthly budget and id. " +
       "The basis for any budget answer or budget proposal. `spent` is FINAL: refunds are " +
-      "already netted into it and settlements of advances are excluded. Counts expense " +
-      "rows only, so income sharing a category is not subtracted here — mention such " +
-      "income as its own fact, never as a correction to `spent`.",
+      "already netted into it, settlements of advances are excluded, and income from a " +
+      "category paired to this one is subtracted too — `charged` and `offsetting_income` " +
+      "show that split. Nothing further comes off `spent`.",
     parameters: obj({ start: str, end: str }),
   },
   {
@@ -408,7 +408,7 @@ async function runTool(
 
     case "spending_by_category": {
       const [{ data: cats, error: catErr }, { data: txs, error: txErr }] = await Promise.all([
-        db.from("categories").select("id, name, budget").eq("user_id", userId).eq("kind", "expense"),
+        db.from("categories").select("id, name, budget, kind, offsets_category_id").eq("user_id", userId),
         db
           .from("transactions")
           .select("amount, refunded_amount, category_id, repayment_of_transaction_id")
@@ -422,23 +422,60 @@ async function runTool(
       ]);
       if (catErr) throw catErr;
       if (txErr) throw txErr;
-      const spent = new Map<string, { total: number; count: number }>();
+      const spent = new Map<string, { total: number; count: number; offset: number }>();
+      const blank = () => ({ total: 0, count: 0, offset: 0 });
       for (const t of txs ?? []) {
         // Settling an advance is not spending against a budget.
         if ((t as any).repayment_of_transaction_id) continue;
         const key = (t as any).category_id ?? "__none__";
-        const cur = spent.get(key) ?? { total: 0, count: 0 };
+        const cur = spent.get(key) ?? blank();
         cur.total += netExpense(t as any);
         cur.count += 1;
         spent.set(key, cur);
       }
-      return (cats ?? []).map((c: any) => ({
-        category_id: c.id,
-        name: c.name,
-        monthly_budget: c.budget === null ? null : Number(c.budget),
-        spent: Number((spent.get(c.id)?.total ?? 0).toFixed(2)),
-        transactions: spent.get(c.id)?.count ?? 0,
-      }));
+
+      // Income from a category that declares it offsets a spending one comes
+      // off that category, the same way the budget page counts it.
+      const offsetting = (cats ?? []).filter((c: any) => c.kind === "income" && c.offsets_category_id);
+      if (offsetting.length > 0) {
+        const { data: offsetTxs, error: offErr } = await db
+          .from("transactions")
+          .select("amount, repaid_amount, category_id")
+          .eq("user_id", userId)
+          .eq("type", "income")
+          .eq("include_in_stats", true)
+          .is("refund_of_transaction_id", null)
+          .in("category_id", offsetting.map((c: any) => c.id))
+          .gte(dateColumn, input.start)
+          .lte(dateColumn, input.end)
+          .limit(5000);
+        if (offErr) throw offErr;
+        const targetOf = new Map(offsetting.map((c: any) => [c.id, c.offsets_category_id]));
+        for (const t of offsetTxs ?? []) {
+          const target = targetOf.get((t as any).category_id);
+          if (!target) continue;
+          const cur = spent.get(target) ?? blank();
+          cur.offset += netIncome(t as any);
+          spent.set(target, cur);
+        }
+      }
+
+      return (cats ?? [])
+        .filter((c: any) => c.kind !== "income")
+        .map((c: any) => {
+          const row = spent.get(c.id) ?? blank();
+          return {
+            category_id: c.id,
+            name: c.name,
+            monthly_budget: c.budget === null ? null : Number(c.budget),
+            // Already net of refunds AND of any income paired to this
+            // category. Nothing further comes off it.
+            spent: Number((row.total - row.offset).toFixed(2)),
+            charged: Number(row.total.toFixed(2)),
+            offsetting_income: Number(row.offset.toFixed(2)),
+            transactions: row.count,
+          };
+        });
     }
 
     case "list_uncategorized": {
