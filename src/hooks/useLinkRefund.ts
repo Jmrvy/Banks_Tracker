@@ -190,11 +190,13 @@ export const useLinkRefund = () => {
    * Detaches a refund from the expense it was attached to.
    *
    * Undoes every part of the link, not just the pointer: the expense's
-   * refunded_amount comes back down, the row returns to the statistics, and
-   * the category goes with it. The category was borrowed from the expense —
-   * an income row is only allowed to hold a spending category while it is a
-   * linked refund — so keeping it would leave a row the database rejects on
-   * the next save.
+   * refunded_amount comes back down and the row returns to the statistics.
+   *
+   * The category stays. It used to be cleared, because an income row was
+   * only allowed to hold a spending category while it was a linked refund —
+   * but categories now hold both directions and that rule is gone, so
+   * clearing it is pure loss: the row drops out of every category-filtered
+   * view at once, which reads as the transaction having been deleted.
    */
   const unlinkRefund = useCallback(
     async (refundId: string) => {
@@ -218,7 +220,7 @@ export const useLinkRefund = () => {
 
       const { error: clearError } = await supabase
         .from('transactions')
-        .update({ refund_of_transaction_id: null, category_id: null, include_in_stats: true })
+        .update({ refund_of_transaction_id: null, include_in_stats: true })
         .eq('id', refundId)
         .eq('user_id', user.id);
       if (clearError) return { error: clearError };
