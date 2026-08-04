@@ -660,10 +660,6 @@ async function runTool(
           .from("recurring_transactions")
           // category_id so a budget answer can tell a charge the user does
           // not decide row by row from discretionary spending.
-          // installment_payments(payment_type) is what separates an instalment
-          // that SPENDS from one that REPAYS. Without it these rows are just
-          // income carrying a spending category, which reads exactly like a
-          // refund nobody linked.
           .select("description, amount, type, recurrence_type, next_due_date, end_date, category_id, categories(name), installment_payment_id, installment_payments(payment_type, installment_amount)")
           .eq("user_id", userId)
           .eq("is_active", true)
