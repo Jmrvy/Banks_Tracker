@@ -83,8 +83,16 @@ export function renderBudgets(ctx: ReportCtx) {
     const wPct = worst.budget > 0 ? Math.round((worst.spent / worst.budget) * 100) : 0;
     const overBy = worst.spent - worst.budget;
     const wName = (worst.name || '').toLowerCase();
+    // Count the rows the figure beside it is actually built from. Without
+    // these guards the callout read "588.88 of 500.00 · 14 transactions"
+    // when only nine of them were inside the 588.88.
     const txCount = filteredTransactions.filter(
-      (tx) => tx.type === 'expense' && (tx.category?.name || '').toLowerCase() === wName,
+      (tx) =>
+        tx.type === 'expense' &&
+        tx.include_in_stats !== false &&
+        !tx.special_budget_id &&
+        !tx.repayment_of_transaction_id &&
+        (tx.category?.name || '').toLowerCase() === wName,
     ).length;
 
     const calloutH = 22;

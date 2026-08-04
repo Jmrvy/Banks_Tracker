@@ -398,12 +398,22 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
     }
     for (const [key, value] of map.entries()) {
       const total = value.items.reduce((acc, t) => {
-        if (t.type === 'income' && !t.refund_of_transaction_id)
-          return acc + (t.amount - (t.repaid_amount || 0));
+        // Rows you excluded from statistics are invisible in Reports; they
+        // must not silently move the strip total either.
+        if (t.include_in_stats === false) return acc;
+        if (t.type === 'income' && !t.refund_of_transaction_id) {
+          const net = Math.max(0, t.amount - (t.repaid_amount || 0));
+          // Income that came back on its category reduces spend rather than
+          // adding to earnings, so it lands on the same side either way.
+          return acc + net;
+        }
         // A repayment is settled by the income it repays, and an over-refund
         // is negative rather than floored — both as the rows now show them.
         if (t.type === 'expense' && !t.repayment_of_transaction_id)
           return acc - (t.amount - (t.refunded_amount || 0));
+        // A transfer moves money between your own accounts; only the fee
+        // leaves, and the row above renders it.
+        if (t.type === 'transfer') return acc - Number(t.transfer_fee || 0);
         return acc;
       }, 0);
       groups.push({ key, label: value.label, items: value.items, total });

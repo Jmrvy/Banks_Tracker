@@ -152,7 +152,12 @@ export function renderSummary(ctx: ReportCtx) {
   if (donutSegs.length > 0) drawDonut(donutCx, donutCy, 30, 18, donutSegs);
   mono(10, 'bold');
   setText(ink);
-  pdf.text(fmt(totalExpenses), donutCx, donutCy + 0.5, { align: 'center' });
+  // The sum of this ring's own slices, not the period expense total. They
+  // differ whenever a special budget or an uncategorised row is in play, and
+  // printing the latter in the middle of the former put a number in the hole
+  // that was not the sum of the parts around it — under an eyebrow claiming
+  // "100 % accounted for".
+  pdf.text(fmt(totalCatSpent), donutCx, donutCy + 0.5, { align: 'center' });
   mono(6);
   setText(mute);
   pdf.text('EXPENSES', donutCx, donutCy + 5, { align: 'center' });

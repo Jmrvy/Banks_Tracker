@@ -18,7 +18,8 @@ import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
 import { ReimbursementDetailModal } from "@/components/ReimbursementDetailModal";
 import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
+import { netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
 import { fr } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -34,7 +35,7 @@ import {
 
 const Savings = () => {
   const { transactions, categories, loading, refetch } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { goals, isLoading: goalsLoading } = useSavingsGoals();
   const { specialBudgets } = useSpecialBudgets();
   const specialBudgetByGoalId = useMemo(() => {
@@ -91,15 +92,27 @@ const Savings = () => {
     [investmentCategoryIds],
   );
 
-  // Filter transactions by selected period
+  // Filter transactions by selected period.
+  //
+  // Same row rules as everywhere else: excluded rows stay excluded, a trip's
+  // envelope is not savings, and neither leg of a refund/repayment link is a
+  // contribution — the pair nets to nothing, but counting only the leg that
+  // falls inside the window made the total drift. Honours the value-date
+  // preference too; it used to always window on transaction_date, so a
+  // deposit could sit in a different month here than in Reports.
   const periodTransactions = useMemo(() => {
     if (investmentCategoryIds.size === 0) return [];
     return transactions.filter(tx => {
-      const transactionDate = parseLocalDate(tx.transaction_date);
-      return isInvestment(tx) &&
-             isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
+      if (!isInvestment(tx)) return false;
+      if (tx.include_in_stats === false) return false;
+      if (tx.special_budget_id) return false;
+      if (tx.repayment_of_transaction_id || tx.refund_of_transaction_id) return false;
+      return isWithinInterval(getTxDate(tx, preferences.dateType), {
+        start: dateRange.start,
+        end: dateRange.end,
+      });
     });
-  }, [transactions, investmentCategoryIds, isInvestment, dateRange]);
+  }, [transactions, investmentCategoryIds, isInvestment, dateRange, preferences.dateType]);
 
   // ALL savings-related transactions (no date filter) for running balance calculation
   const allSavingsTransactions = useMemo(() => {
@@ -127,21 +140,23 @@ const Savings = () => {
       return { totalSaved: 0, transactionCount: 0, trendData: [], incomeTotal: 0, expenseTotal: 0, netTotal: 0 };
     }
 
+    // Net, not gross: a withdrawal since partly repaid was never that big a
+    // withdrawal, and a contribution that was refunded never fully left.
     const incomeTotal = periodTransactions
       .filter(tx => tx.type === 'income')
-      .reduce((sum, tx) => sum + tx.amount, 0);
+      .reduce((sum, tx) => sum + netIncomeAmount(tx as any), 0);
 
     const expenseTotal = periodTransactions
       .filter(tx => tx.type === 'expense')
-      .reduce((sum, tx) => sum + tx.amount, 0);
+      .reduce((sum, tx) => sum + netExpenseAmount(tx as any), 0);
 
     const investmentNet = expenseTotal - incomeTotal;
     const netTotal = investmentNet + reimbursementStats.total;
 
     const allSavingsTransactions = [
       ...periodTransactions.map(tx => ({
-        date: parseLocalDate(tx.transaction_date),
-        amount: tx.type === 'expense' ? tx.amount : -tx.amount,
+        date: getTxDate(tx, preferences.dateType),
+        amount: tx.type === 'expense' ? netExpenseAmount(tx as any) : -netIncomeAmount(tx as any),
       })),
       ...reimbursementTransactions.map(tx => ({
         date: parseLocalDate(tx.transaction_date),

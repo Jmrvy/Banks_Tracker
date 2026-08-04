@@ -6,6 +6,7 @@ import { useDebts } from "@/hooks/useDebts";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { signedGlobalAmount } from "@/lib/reportsEngine";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { projectMonthEndDelta } from "@/lib/projectMonthEndBalance";
 
@@ -64,13 +65,16 @@ export function HeroNetWorth() {
     const key = (d: Date) =>
       `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
+    // A balance replay is not a statistics report. The bank moved the money
+    // whatever the reporting flags say, so every row counts — including ones
+    // excluded from stats — refunds are NOT netted (the refund is its own
+    // row and moved its own money), and a transfer costs its fee. That is
+    // signedGlobalAmount, and using the stats rules here made the curve
+    // drift further from the real balance the further back you looked.
     for (const txn of transactions) {
-      if (txn.include_in_stats === false) continue;
       const d = parseLocalDate(txn.transaction_date);
       const k = key(d);
-      const sign =
-        txn.type === "income" ? 1 : txn.type === "expense" ? -1 : 0;
-      deltaByDay.set(k, (deltaByDay.get(k) || 0) + sign * txn.amount);
+      deltaByDay.set(k, (deltaByDay.get(k) || 0) + signedGlobalAmount(txn as any));
     }
 
     // Walk backward from today balance, subtracting each day's delta to

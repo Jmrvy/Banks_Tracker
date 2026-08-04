@@ -1,3 +1,4 @@
+import { computePeriodStats, netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TrendingUp, TrendingDown, Wallet, Repeat, Info } from "lucide-react";
@@ -111,13 +112,13 @@ export function StatsCards({
     const statsTxns = filtered.filter((t) => t.include_in_stats !== false);
     const excluded = filtered.filter((t) => t.include_in_stats === false);
 
-    const moneyIn = statsTxns
-      .filter((t) => t.type === "income" && !t.refund_of_transaction_id)
-      .reduce((s, t) => s + t.amount, 0);
-
-    const moneyOut = statsTxns
-      .filter((t) => t.type === "expense")
-      .reduce((s, t) => s + Math.max(0, t.amount - (t.refunded_amount || 0)), 0);
+    // The engine, not a local copy of its rules. These two tiles are the
+    // first numbers seen after login, and they had drifted from every other
+    // surface: repayments counted as spending, a repaid advance counted as
+    // income gross, and over-refunds floored at zero.
+    const periodStats = computePeriodStats(statsTxns as any);
+    const moneyIn = periodStats.income;
+    const moneyOut = periodStats.expenses;
 
     const available = accounts.reduce((s, a) => s + a.balance, 0);
     const activeRecurring = recurringTransactions.filter((rt) => rt.is_active).length;
@@ -131,16 +132,32 @@ export function StatsCards({
     const netByBucket = new Array(days).fill(0);
     const recurringByBucket = new Array(days).fill(activeRecurring);
 
+    // Per-bucket the engine cannot help — it returns totals — so mirror its
+    // rules row by row rather than inventing looser ones, or the sparkline
+    // tells a different story from the tile above it.
     for (const tx of statsTxns) {
       const d = dateOf(tx).getTime();
       const idx = Math.max(0, Math.min(days - 1, Math.floor((d - startDate.getTime()) / bucketMs)));
       if (tx.type === "income" && !tx.refund_of_transaction_id) {
-        incomeByBucket[idx] += tx.amount;
-        netByBucket[idx] += tx.amount;
+        const net = netIncomeAmount(tx as any);
+        // Income that came back on its category is a reduction of spend,
+        // not earnings — the same treatment computePeriodStats gives it.
+        if (tx.offsets_category) {
+          expenseByBucket[idx] -= net;
+          netByBucket[idx] += net;
+        } else {
+          incomeByBucket[idx] += net;
+          netByBucket[idx] += net;
+        }
       } else if (tx.type === "expense") {
-        const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
+        if (tx.repayment_of_transaction_id) continue;
+        const net = netExpenseAmount(tx as any);
         expenseByBucket[idx] += net;
         netByBucket[idx] -= net;
+      } else if (tx.type === "transfer") {
+        const fee = Number(tx.transfer_fee || 0);
+        expenseByBucket[idx] += fee;
+        netByBucket[idx] -= fee;
       }
     }
 
@@ -175,13 +192,11 @@ export function StatsCards({
       const d = dateOf(tx);
       return d >= priorStart && d <= priorEnd && tx.include_in_stats !== false;
     });
-    const moneyIn = filtered
-      .filter((t) => t.type === "income" && !t.refund_of_transaction_id)
-      .reduce((s, t) => s + t.amount, 0);
-    const moneyOut = filtered
-      .filter((t) => t.type === "expense")
-      .reduce((s, t) => s + Math.max(0, t.amount - (t.refunded_amount || 0)), 0);
-    return { moneyIn, moneyOut };
+    // Same rules as the current period, or the "vs prior" caption compares
+    // two differently-computed numbers and reports a change that is partly
+    // an artefact of the arithmetic.
+    const priorStats = computePeriodStats(filtered as any);
+    return { moneyIn: priorStats.income, moneyOut: priorStats.expenses };
   }, [transactions, priorStart, priorEnd, activeDateType]);
 
   // Returns null when no meaningful comparison exists (no prior data, both zero, etc.)

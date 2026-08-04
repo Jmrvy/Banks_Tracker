@@ -196,9 +196,13 @@ export function renderAccounts(ctx: ReportCtx) {
     const refundedIncome = ctx.data.refundTotal;
     let refundedExpense = 0;
     for (const t of periodTx) {
-      const amt = Number(t.amount);
+      if (t.include_in_stats === false) continue;
       if (t.type === 'expense') {
-        refundedExpense += Math.min(amt, Number(t.refunded_amount || 0));
+        if (t.repayment_of_transaction_id) continue;
+        // Unclamped: an over-refund really did return more than the charge,
+        // and Math.min hid the surplus, which then reappeared further down
+        // relabelled as money the user had excluded from statistics.
+        refundedExpense += Number(t.refunded_amount || 0);
       }
     }
 
@@ -206,6 +210,10 @@ export function renderAccounts(ctx: ReportCtx) {
     const cashflowInc = ctx.data.grossIncome;
     const grossExp = tot.outflow;
     const budgetExp = ctx.data.grossExpenses;
+    // Derived by subtraction, so every rule the two sides disagree about
+    // lands here wearing the wrong label. Kept clamped at 0 so the line
+    // cannot read negative, but the inputs above now follow the same rules
+    // the totals do.
     const excludedIncome = Math.max(0, grossInc - refundedIncome - cashflowInc);
     const excludedExpense = Math.max(0, grossExp - refundedExpense - budgetExp);
 

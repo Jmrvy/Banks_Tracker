@@ -6,6 +6,7 @@ import { Plus, Download } from "lucide-react";
 import { TransactionSearch, TransactionFilters } from "@/components/TransactionSearch";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { NewTransactionModal } from "@/components/NewTransactionModal";
+import { computePeriodStats } from "@/lib/reportsEngine";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
@@ -92,14 +93,12 @@ const Transactions = () => {
   // Totals reflect the active filters so the header stays in sync
   const totals = useMemo(() => {
     const filtered = transactions.filter(matchesFilters);
-    const stats = filtered.filter((tx) => tx.include_in_stats !== false);
-    const income = stats
-      .filter((tx) => tx.type === "income" && !tx.refund_of_transaction_id)
-      .reduce((s, tx) => s + tx.amount, 0);
-    const expenses = stats
-      .filter((tx) => tx.type === "expense")
-      .reduce((s, tx) => s + Math.max(0, tx.amount - (tx.refunded_amount || 0)), 0);
-    return { count: filtered.length, income, expenses };
+    // The engine, so this header agrees with the Budget card a click away.
+    // Hand-rolled, it counted special-budget rows and advance settlements as
+    // spending and summed income gross — which is how a Loisirs filter read
+    // 823,88 € here beside 588,88 € on the budget card for the same period.
+    const s = computePeriodStats(filtered as any);
+    return { count: filtered.length, income: s.income, expenses: s.expenses };
   }, [transactions, matchesFilters]);
 
   // CSV export of the currently-filtered set

@@ -101,8 +101,10 @@ export const FlowsTab = ({
       if (tx.type !== 'expense' || !tx.special_budget_id) continue;
       const sb = specialBudgets.find(b => b.id === tx.special_budget_id);
       if (!sb) continue;
+      // specialBudgetTransactionAmount now excludes repayments and returns a
+      // signed net, so a refunded envelope shrinks instead of reading full.
       const amt = specialBudgetTransactionAmount(tx);
-      if (amt <= 0) continue;
+      if (amt === 0) continue;
       const e = byId.get(sb.id) ?? { name: sb.name, color: sb.color || 'hsl(var(--muted-foreground))', amount: 0, count: 0 };
       e.amount += amt;
       e.count += 1;
@@ -230,8 +232,14 @@ export const FlowsTab = ({
   const totalIncome = stats.income;
   const totalExpenses = stats.expenses;
 
-  const incomeCount = filteredTransactions.filter(t => t.type === 'income').length + (includeUpcoming ? projectedIncomeCount : 0);
-  const expenseCount = filteredTransactions.filter(t => t.type === 'expense').length + (includeUpcoming ? projectedExpenseCount : 0);
+  // Counted over the same rows the totals are built from. Counting every row
+  // of a type made the caption say "14 transactions" above a list of 11.
+  const incomeCount = filteredTransactions.filter(
+    t => t.type === 'income' && t.include_in_stats !== false && !t.refund_of_transaction_id,
+  ).length + (includeUpcoming ? projectedIncomeCount : 0);
+  const expenseCount = filteredTransactions.filter(
+    t => t.type === 'expense' && t.include_in_stats !== false && !t.repayment_of_transaction_id,
+  ).length + (includeUpcoming ? projectedExpenseCount : 0);
 
 
   return (

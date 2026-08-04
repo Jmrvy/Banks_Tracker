@@ -207,6 +207,10 @@ export function renderCategories(ctx: ReportCtx) {
       ctx.pdf.setCharSpace(0);
     }
   }
-  drawBottomStrip(`Total expenses · ${ctx.periodLabel}`, fmt(totalCatSpent), neg);
+  // Named for what it actually is. This is the sum of the categories on this
+  // page — special-budget rows live in their own envelope and never reach it
+  // — so labelling it the period's total expenses put a second, different
+  // "total expenses" in the same document.
+  drawBottomStrip(`Total by category · ${ctx.periodLabel}`, fmt(totalCatSpent), neg);
   drawBottomChrome(state.pageIdx, totalPagesEstimate);
 }
