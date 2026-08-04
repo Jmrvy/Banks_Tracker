@@ -680,7 +680,7 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
   }
 - \`kind: "categorize"\` — each change is \`{transaction_id, category_id}\`. Only propose a category the user has actually used for that merchant before; call \`merchant_history\` first and leave genuinely new merchants out, listing them in a \`chips\` block instead. Set \`monthly_budget\` to null on these.
 - \`kind: "budget"\` — each change is \`{category_id, monthly_budget}\`. Base the figure on observed spend, not on a round number you like. Set \`transaction_id\` to null on these. A category you leave out of \`changes\` keeps the cap it has; \`monthly_budget: null\` removes its cap altogether.
-- A budget proposal is a claim about the whole envelope, not about one category. Add up every non-null \`monthly_budget\` in the context — that is the envelope today — and work out what it becomes with your rows applied. Take the period's earnings from \`search_transactions\` over the same window with no filters, and put both on the same footing: a cap is monthly, so divide that \`income\` by the whole months in the window. Never propose caps you have not compared with what actually comes in.
+- A budget proposal is a claim about the whole envelope, not about one category. The envelope today is \`budget_envelope.monthly_total\` in the context, already totalled for you: quote that number and never re-add the individual caps to get it — adding a dozen figures inside an answer is how you end up stating a total that contradicts the one on the user's dashboard. Work out what it becomes by adding your own changes to it: for each row, proposed cap minus current cap; the envelope after is the given total plus the sum of those differences, and the difference you print must equal that sum. If your "after" minus your "before" does not equal the deltas in your own table, you have made an arithmetic error — recompute before answering. Take the period's earnings from \`search_transactions\` over the same window with no filters, and put both on the same footing: a cap is monthly, so divide that \`income\` by the whole months in the window. Never propose caps you have not compared with what actually comes in.
 - Say what it costs, in \`impact\`: the envelope before, the envelope after, the difference, and a month of income beside them — "envelope 1 840 → 1 990 (+150) against 2 310 a month coming in, leaving 320 for everything uncapped". That leftover is not spare money: the categories with no cap spend out of it. If the new envelope passes a month's income, the first sentence of \`summary\` says so and says by how much.
 - Hold the envelope flat where you honestly can. A category that stayed under its cap in every month of the window has real slack; propose the decrease alongside the rise, in the same proposal, and land the total where it started. Slack is what a category did not use, never what you would prefer it not to use, and no cap goes below what that category actually spends. If the total has to rise, say plainly that it is rising and what that leaves — never let a rise arrive unremarked.
 - Tell a cap that is set wrong from spending that ran over, and never assume the first. Call \`spending_by_category\` once per month across the window rather than once for the whole of it — one pass gives you every candidate's shape and its cap; six months is enough, and more spends the time budget for nothing. Over in nearly every month, on charges the user does not decide row by row — rent, a subscription that went up, anything \`scheduled_charges\` reports with the same \`category_id\` — is a cap set wrong: raise it to what the ledger says. Over in one or two months, or over on a handful of discretionary rows, is overspending: leave that cap alone and say why, because raising it only makes the overspend the new normal and costs the user the one line that flagged it. Put the evidence in \`diff\` — months over out of months looked at, current cap, proposed cap.
@@ -792,6 +792,25 @@ const handler = async (req: Request): Promise<Response> => {
         name: c.name,
         monthly_budget: c.budget === null ? null : Number(c.budget),
       })),
+      // Totalled here rather than left for the model to add up.
+      //
+      // Asked for "the total budget", Trace summed the twelve caps listed
+      // above by hand and answered 2 465 against a real 2 795, then quoted a
+      // delta that did not match its own proposal table either. Nothing was
+      // wrong with the data — the arithmetic was done in the answer. A
+      // figure the user can check against the number on their dashboard has
+      // to be computed, not recalled, so it is computed once here and the
+      // prompt forbids re-deriving it.
+      budget_envelope: (() => {
+        const caps = (categoriesRes.data ?? [])
+          .map((c: any) => (c.budget === null ? null : Number(c.budget)))
+          .filter((b: number | null): b is number => b !== null && b > 0);
+        return {
+          monthly_total: Number(caps.reduce((s: number, b: number) => s + b, 0).toFixed(2)),
+          categories_with_budget: caps.length,
+          categories_without_budget: (categoriesRes.data ?? []).length - caps.length,
+        };
+      })(),
       current_page: pageContext || null,
     };
 
