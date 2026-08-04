@@ -63,7 +63,7 @@ const bankColors: Record<string, string> = {
   caisse_epargne: 'bg-yellow-600',
   credit_mutuel: 'bg-blue-800',
   sg: 'bg-red-500', // Legacy support
-  other: 'bg-gray-500'
+  other: 'bg-fg-dim'
 };
 
 const bankNames: Record<string, string> = {
@@ -453,7 +453,7 @@ export const CategoryTransactionsModal = ({
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                         <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
-                          bankColors[transaction.bank] || 'bg-gray-500'
+                          bankColors[transaction.bank] || 'bg-fg-dim'
                         }`} />
                         <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-muted">
                           {transaction.type === 'income' ? (

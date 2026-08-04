@@ -1,13 +1,28 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { Plus, Menu, Search } from "lucide-react";
-import { mainNavigation, accountsGroup, toolsGroup, settingsItem, mobileBottomNav } from "@/config/navigation";
+import { Plus, Menu, Search, ChevronRight, Home, Wallet, Target } from "lucide-react";
+import {
+  mainNavigation,
+  accountsGroup,
+  toolsGroup,
+  settingsItem,
+  type NavigationItem,
+} from "@/config/navigation";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
+
+/**
+ * The four destinations flanking the centre action. Deliberately not the
+ * whole IA — everything else lives one tap away behind "Plus", which keeps
+ * the bar readable at thumb size. Home / Accounts / Budget are the three
+ * screens people open without a task in mind; Search is how they arrive
+ * with one.
+ */
+const TAB_HOME: NavigationItem = { nameKey: "navigation.home", path: "/", icon: Home };
+const TAB_ACCOUNTS: NavigationItem = { nameKey: "navigation.accounts", path: "/accounts", icon: Wallet };
+const TAB_BUDGET: NavigationItem = { nameKey: "navigation.budget", path: "/budget", icon: Target };
 
 export const MobileNavigation = () => {
   const { t } = useTranslation();
@@ -21,190 +36,114 @@ export const MobileNavigation = () => {
     return location.pathname.startsWith(path);
   };
 
+  const Tab = ({ item }: { item: NavigationItem }) => {
+    const active = isActive(item.path);
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(item.path)}
+        aria-current={active ? "page" : undefined}
+        className={cn("ft-tab", active && "active")}
+      >
+        <item.icon className="h-5 w-5" />
+        <span>{t(item.nameKey)}</span>
+      </button>
+    );
+  };
+
+  /* Everything not on the bar. Grouped exactly as the sidebar groups it, so
+     the two navigations teach the same map. */
+  const menuGroups = [
+    { labelKey: null as string | null, items: mainNavigation },
+    { labelKey: accountsGroup.labelKey, items: accountsGroup.items },
+    { labelKey: toolsGroup.labelKey, items: toolsGroup.items },
+  ];
+
   return (
     <>
-      <nav data-tour="nav" className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-line z-50 md:hidden safe-area-inset-bottom">
-        <div className="flex items-center justify-around px-1 py-1">
+      <nav data-tour="nav" className="ft-tabbar safe-area-inset-bottom">
+        <Tab item={TAB_HOME} />
+        <Tab item={TAB_ACCOUNTS} />
 
-          {/* Home and Accounts from config */}
-          {mobileBottomNav.map((item) => {
-            const isItemActive = location.pathname === item.path;
-            const Icon = item.icon;
+        {/* Centre action — raised, and the only filled control on the bar. */}
+        <button
+          data-tour="new-tx"
+          type="button"
+          onClick={() => navigate("/new-transaction")}
+          aria-label={t("transactions.newTransaction")}
+          className="ft-tab"
+        >
+          <span className="ft-tab-fab">
+            <Plus className="h-5 w-5" />
+          </span>
+        </button>
 
-            return (
-              <Button
-                key={item.path}
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(item.path)}
-                className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                  isItemActive
-                    ? "text-primary bg-primary/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-                }`}
-              >
-                <Icon className={`h-5 w-5 transition-transform ${isItemActive ? 'scale-110' : ''}`} />
-                <span className={`text-xs leading-tight font-medium ${isItemActive ? 'font-semibold' : ''}`}>
-                  {t(item.nameKey)}
-                </span>
-              </Button>
-            );
-          })}
+        <Tab item={TAB_BUDGET} />
 
-          {/* Add Transaction Button */}
-          <Button
-            data-tour="new-tx"
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/new-transaction")}
-            className={`flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-              location.pathname === "/new-transaction"
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-            }`}
-          >
-            <Plus className={`h-5 w-5 transition-transform ${location.pathname === "/new-transaction" ? 'scale-110' : ''}`} />
-            <span className={`text-xs leading-tight font-medium ${location.pathname === "/new-transaction" ? 'font-semibold' : ''}`}>
-              {t('common.add')}
-            </span>
-          </Button>
+        {/* Search opens the command palette, which is a full-screen sheet on
+            mobile — reachable without relying on a hidden ⌘K shortcut. */}
+        <button
+          data-tour="search"
+          type="button"
+          onClick={togglePalette}
+          aria-label={t("common.search", { defaultValue: "Search" })}
+          className="ft-tab"
+        >
+          <Search className="h-5 w-5" />
+          <span>{t("common.search", { defaultValue: "Search" })}</span>
+        </button>
 
-          {/* Search button — opens the command palette as a full-screen
-              sheet on mobile. Per the mobile design review, search is
-              the 5th tab so it's reachable without leaving the bottom
-              nav or relying on a hidden ⌘K shortcut. */}
-          <Button
-            data-tour="search"
-            variant="ghost"
-
-            size="sm"
-            onClick={togglePalette}
-            aria-label={t('common.search', { defaultValue: 'Search' })}
-            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-          >
-            <Search className="h-5 w-5" />
-            <span className="text-xs leading-tight font-medium">{t('common.search', { defaultValue: 'Search' })}</span>
-          </Button>
-
-          {/* Menu button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMenuOpen(true)}
-            className="flex flex-col h-12 flex-1 max-w-[72px] gap-0.5 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-          >
-            <Menu className="h-5 w-5" />
-            <span className="text-xs leading-tight font-medium">{t('common.menu')}</span>
-          </Button>
-        </div>
+        {/* "Plus" — the rest of the app. */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label={t("common.menu")}
+          className="ft-tab"
+        >
+          <Menu className="h-5 w-5" />
+          <span>{t("common.menu")}</span>
+        </button>
       </nav>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="right" className="w-[280px] p-0">
-          <SheetHeader className="px-6 py-4 border-b">
-            <SheetTitle className="text-left">{t('common.menu')}</SheetTitle>
+        <SheetContent side="bottom" className="p-0 rounded-t-3xl max-h-[85vh] flex flex-col">
+          <SheetHeader className="px-5 pt-4 pb-3 border-b border-line-soft flex-shrink-0">
+            <SheetTitle className="text-left font-display text-xl font-normal tracking-tight">
+              {t("common.menu")}
+            </SheetTitle>
           </SheetHeader>
 
-          <nav className="flex-1 overflow-y-auto py-4">
-            <div className="space-y-1 px-3">
-              {/* Main Navigation */}
-              <div className="mb-4">
-                {mainNavigation.map((item) => {
+          <nav className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+            {menuGroups.map((group, gi) => (
+              <div key={gi} className="flex flex-col gap-px">
+                {group.labelKey && <div className="ft-nav-label">{t(group.labelKey)}</div>}
+                {group.items.map((item) => {
                   const active = isActive(item.path);
                   return (
                     <Link
                       key={item.path}
                       to={item.path}
                       onClick={() => setMenuOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        active
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground/70"
-                      )}
+                      className={cn("ft-nav-item py-2.5 text-sm", active && "active")}
                     >
-                      <item.icon className="h-5 w-5" />
-                      <span>{t(item.nameKey)}</span>
+                      <item.icon className="h-[18px] w-[18px] flex-shrink-0 ft-nav-icon" />
+                      <span className="flex-1">{t(item.nameKey)}</span>
+                      <ChevronRight className="h-4 w-4 text-fg-dim" />
                     </Link>
                   );
                 })}
               </div>
+            ))}
 
-              <Separator className="my-2" />
-
-              {/* Comptes Group */}
-              <div className="mb-4">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  {t(accountsGroup.labelKey)}
-                </div>
-                {accountsGroup.items.map((item) => {
-                  const active = isActive(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setMenuOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        active
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground/70"
-                      )}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{t(item.nameKey)}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              <Separator className="my-2" />
-
-              {/* Outils Group */}
-              <div className="mb-4">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                  {t(toolsGroup.labelKey)}
-                </div>
-                {toolsGroup.items.map((item) => {
-                  const active = isActive(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setMenuOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        active
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground/70"
-                      )}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{t(item.nameKey)}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              <Separator className="my-2" />
-
-              {/* Settings */}
+            <div className="flex flex-col gap-px pt-2 border-t border-line-soft">
               <Link
                 to={settingsItem.path}
                 onClick={() => setMenuOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  isActive(settingsItem.path)
-                    ? "bg-accent text-accent-foreground"
-                    : "text-foreground/70"
-                )}
+                className={cn("ft-nav-item py-2.5 text-sm", isActive(settingsItem.path) && "active")}
               >
-                <settingsItem.icon className="h-5 w-5" />
-                <span>{t(settingsItem.nameKey)}</span>
+                <settingsItem.icon className="h-[18px] w-[18px] flex-shrink-0 ft-nav-icon" />
+                <span className="flex-1">{t(settingsItem.nameKey)}</span>
+                <ChevronRight className="h-4 w-4 text-fg-dim" />
               </Link>
             </div>
           </nav>

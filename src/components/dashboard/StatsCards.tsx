@@ -336,7 +336,7 @@ export function StatsCards({
 
               {/* Delta + caption */}
               {showTrendCaption ? (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                <div className="ft-kpi-foot min-w-0">
                   <span className={`ft-delta ${cls} whitespace-nowrap`}>
                     {trendNull
                       ? "—"
@@ -353,7 +353,7 @@ export function StatsCards({
                   </span>
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="ft-kpi-foot truncate">
                   {card.id === "available"
                     ? t("dashboard.acrossAccounts", { defaultValue: "across {{n}} accounts", n: accounts.length })
                     : t("dashboard.activePlans", { defaultValue: "active plans" })}

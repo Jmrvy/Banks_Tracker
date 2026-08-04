@@ -538,7 +538,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                     {/* Validation summary */}
                     <div className={`flex items-center justify-between p-2.5 rounded-lg border text-sm ${
                       manualIsValid
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                        ? 'bg-pos/10 border-pos/30 text-pos'
                         : 'bg-destructive/10 border-destructive/30 text-destructive'
                     }`}>
                       <div className="flex items-center gap-2">

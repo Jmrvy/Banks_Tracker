@@ -140,7 +140,12 @@
       "passwordUppercase": "Au moins une majuscule",
       "passwordLowercase": "Au moins une minuscule",
       "passwordDigit": "Au moins un chiffre"
-    }
+    },
+    "previewEyebrow": "Ce que vous verrez ensuite",
+    "previewDisclaimer": "Chiffres illustratifs — il ne s'agit pas de données réelles.",
+    "previewCatGroceries": "Courses",
+    "previewCatDining": "Restaurants",
+    "previewCatTransport": "Transport"
   },
   "accounts": {
     "title": "Comptes",
@@ -959,7 +964,10 @@
     "shareLabel": "Part :",
     "othersMore": "+{{count}} autres",
     "title": "Tableau de bord",
-    "projectedBalanceShort": "Solde projeté"
+    "projectedBalanceShort": "Solde projeté",
+    "bucketLiquid": "Liquide",
+    "bucketSavings": "Épargne",
+    "bucketInvested": "Investi"
   },
   "budgetAlerts": {
     "exceeded_one": "{{count}} budget dépassé",
@@ -1637,6 +1645,7 @@
     "radarNoBudgetQ": "Propose un budget mensuel pour chacune de mes catégories qui n'en a pas encore.",
     "errNotConfiguredTitle": "Trace n'est pas encore configuré",
     "errNotConfiguredBody": "Ajoutez une clé API OpenRouter dans Paramètres → Copilote Trace et Trace pourra lire votre historique.",
-    "openSettings": "Ouvrir les réglages de Trace"
+    "openSettings": "Ouvrir les réglages de Trace",
+    "askTrace": "Demander à Trace"
   }
 }

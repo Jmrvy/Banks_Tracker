@@ -14,10 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
-        sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+        inter: ['Instrument Sans', 'sans-serif'],
+        sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
         mono: ['Geist Mono', 'JetBrains Mono', 'SF Mono', 'ui-monospace', 'monospace'],
-        display: ['Geist', 'Inter', 'sans-serif'],
+        // Display serif — page titles, hero figures, brand marks.
+        display: ['Instrument Serif', 'Georgia', 'serif'],
       },
       fontSize: {
         xs: ['0.6875rem', { lineHeight: '1rem' }],    // 11px instead of 12px
@@ -64,17 +65,24 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
-        // Fintech extras
+        // Refonte 2026 surface / ink scale
         pos: "hsl(var(--pos))",
         neg: "hsl(var(--neg))",
+        warn: "hsl(var(--warn))",
         line: "hsl(var(--line))",
+        "line-soft": "hsl(var(--line-soft))",
         "line-strong": "hsl(var(--line-strong))",
         "fg-mute": "hsl(var(--fg-mute))",
         "fg-dim": "hsl(var(--fg-dim))",
+        "fg-onink": "hsl(var(--fg-onink))",
         "bg-elev": "hsl(var(--bg-elev))",
+        "bg-sunk": "hsl(var(--bg-sunk))",
         "bg-subtle": "hsl(var(--bg-subtle))",
         "bg-hover": "hsl(var(--bg-hover))",
+        "bg-ink": "hsl(var(--bg-ink))",
         "bg-inverse": "hsl(var(--bg-inverse))",
+        "accent-deep": "hsl(var(--accent-deep))",
+        "on-accent": "hsl(var(--on-accent))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
@@ -108,10 +116,22 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
+      // Refonte 2026 radius scale. Remapped rather than extended so the
+      // ~270 existing `rounded-xl` / `rounded-2xl` call sites pick up the
+      // new geometry without being touched.
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "var(--r-xs)",    //  8px
+        DEFAULT: "var(--r-xs)",
+        md: "var(--r-sm)",    // 11px
+        lg: "var(--r-md)",    // 15px
+        xl: "var(--r-lg)",    // 20px
+        "2xl": "var(--r-lg)", // 20px — the card radius
+        "3xl": "var(--r-xl)", // 28px — hero / sheet
+      },
+      boxShadow: {
+        "sh-1": "var(--sh-1)",
+        "sh-2": "var(--sh-2)",
+        "sh-3": "var(--sh-3)",
       },
       keyframes: {
         "accordion-down": {

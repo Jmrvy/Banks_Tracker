@@ -108,7 +108,9 @@ export function DebtsPayoffTrajectory({ debts }: Props) {
 
   if (active.length === 0) return null;
 
-  const strategyColors = ["var(--primary)", "var(--warning)", "var(--info)"];
+  // Wrapped in hsl(): the tokens hold bare HSL components, so a bare
+  // `var(--primary)` is not a colour and the badge rendered transparent.
+  const strategyColors = ["hsl(var(--primary))", "hsl(var(--warning))", "hsl(var(--info))"];
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1.65fr_1fr] gap-4">

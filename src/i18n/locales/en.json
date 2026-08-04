@@ -140,7 +140,12 @@
       "passwordUppercase": "At least one uppercase letter",
       "passwordLowercase": "At least one lowercase letter",
       "passwordDigit": "At least one digit"
-    }
+    },
+    "previewEyebrow": "What you'll see next",
+    "previewDisclaimer": "Illustrative figures — not real account data.",
+    "previewCatGroceries": "Groceries",
+    "previewCatDining": "Dining",
+    "previewCatTransport": "Transport"
   },
   "accounts": {
     "title": "Accounts",
@@ -959,7 +964,10 @@
     "shareLabel": "Share:",
     "othersMore": "+{{count}} others",
     "title": "Dashboard",
-    "projectedBalanceShort": "Projected balance"
+    "projectedBalanceShort": "Projected balance",
+    "bucketLiquid": "Liquid",
+    "bucketSavings": "Savings",
+    "bucketInvested": "Invested"
   },
   "budgetAlerts": {
     "exceeded_one": "{{count}} budget exceeded",
@@ -1641,6 +1649,7 @@
     "radarNoBudgetQ": "Suggest a monthly budget for each of my categories that doesn't have one yet.",
     "errNotConfiguredTitle": "Trace isn't set up yet",
     "errNotConfiguredBody": "Add an OpenRouter API key in Settings → Trace copilot and Trace can start reading your ledger.",
-    "openSettings": "Open Trace settings"
+    "openSettings": "Open Trace settings",
+    "askTrace": "Ask Trace"
   }
 }
