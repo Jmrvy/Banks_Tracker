@@ -255,7 +255,7 @@ var mcp_default = defineMcp({
   name: "spendingtrackerjmrvy",
   title: "spendingtrackerjmrvy",
   version: "0.1.0",
-  instructions: "Tools for a personal finance tracker. Read the signed-in user's bank accounts, categories, transactions, savings goals and upcoming commitments, summarize spending over a period, and record new income or expense transactions. Amounts are net of refunds. Dates are YYYY-MM-DD.",
+  instructions: "Tools for a personal finance tracker. Read the signed-in user's bank accounts, categories, transactions, savings goals and upcoming commitments, summarize spending over a period, and record new income or expense transactions. Amounts are already netted: refunds are inside the expense they refund, repayments inside the income they settle, and money the user marked as having come back on a category reduces that category. Never subtract a refund or repayment yourself. Dates are YYYY-MM-DD.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
