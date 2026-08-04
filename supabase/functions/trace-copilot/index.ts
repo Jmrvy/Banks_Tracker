@@ -270,7 +270,12 @@ const READ_TOOLS = [
     name: "scheduled_charges",
     description:
       "Recurring transactions, installment plan instalments and scheduled debt payments falling " +
-      "due between two dates. Use for cash-flow and affordability questions.",
+      "due between two dates. Use for cash-flow and affordability questions. A recurring row " +
+      "carries `plan_type` when it belongs to an installment plan: \"payment\" means it is " +
+      "paying a purchase off in instalments and shows as an expense; \"reimbursement\" means " +
+      "the user fronted the cost and is paying themselves back, and shows as INCOME on the " +
+      "category the original expense was filed under. A reimbursement instalment is not a " +
+      "refund and never reduces what that category cost.",
     parameters: obj({ start: str, end: str }),
   },
 ];
@@ -656,7 +661,11 @@ async function runTool(
           .from("recurring_transactions")
           // category_id so a budget answer can tell a charge the user does
           // not decide row by row from discretionary spending.
-          .select("description, amount, type, recurrence_type, next_due_date, end_date, category_id, categories(name)")
+          // installment_payments(payment_type) is what separates an instalment
+          // that SPENDS from one that REPAYS. Without it these rows are just
+          // income carrying a spending category, which reads exactly like a
+          // refund nobody linked.
+          .select("description, amount, type, recurrence_type, next_due_date, end_date, category_id, categories(name), installment_payment_id, installment_payments(payment_type)")
           .eq("user_id", userId)
           .eq("is_active", true)
           // The window was never applied here, so every active rule came
@@ -712,6 +721,10 @@ async function runTool(
           ends: r.end_date,
           category: r.categories?.name ?? null,
           category_id: r.category_id ?? null,
+          // null when the rule stands alone; otherwise which kind of plan it
+          // belongs to. "reimbursement" income is savings being paid back,
+          // NOT money coming off the category it names.
+          plan_type: r.installment_payments?.payment_type ?? null,
         })),
         installments: (installments.data ?? []).map((i: any) => ({
           description: i.installment_payments?.description ?? "",
@@ -772,6 +785,8 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 - Never put an id in \`changes\` that did not come back from a tool call.
 
 # Ledger context
+An installment plan comes in two kinds and they are opposites. \`payment\` spreads a purchase the user has not paid for yet, so each instalment is an EXPENSE. \`reimbursement\` covers a cost the user already met out of savings, so each instalment is INCOME on the category the original expense sits under, moving money back to where it came from. That income is an internal movement, not a discount: the expense was real and stays in full. Never read a reimbursement instalment as a refund that failed to net, and never conclude from one that a category is overstated — the only things that reduce a category are the refund/repayment links and \`offsets_category\`, all of which are already applied in \`spending_by_category\`. If \`offsetting_income\` is 0 while reimbursement instalments exist for that category, that is correct and expected, not a discrepancy to report.
+
 One category per name, working in both directions: the same \`Salaire\` holds the salary and any expense filed against it. A budget is a ceiling on what leaves, so a category that only ever receives money having none is correct and never worth flagging. Money coming back is netted per transaction, never per category — either by a refund link to the expense it repays, or by the user marking an income row as having come back on its category (a gambling payout against its stakes, a reimbursement filed among genuine transfers).
 ${JSON.stringify(ctx, null, 2)}
 
