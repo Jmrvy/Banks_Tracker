@@ -93,26 +93,58 @@ export interface PeriodStats {
   net: number;
 }
 
+export type PeriodRole = 'income' | 'expense' | 'transfer_fee' | 'ignored';
+
+/**
+ * How one row contributes to the headline figures.
+ *
+ * `computePeriodStats` is just the sum of this over a period. Callers that
+ * need the same money split a different way — per month, per category —
+ * fold the same contributions into their own buckets instead of re-testing
+ * the rules, so a breakdown always adds up to the total printed above it.
+ *
+ * Note this is the PERIOD rule, not the budget rule: a special-budget row
+ * is money that left the account and belongs in the headline, while
+ * `computeCategoryNets` files it under its own envelope and leaves it out.
+ * The two differ deliberately; don't "fix" one to match the other.
+ */
+export function periodContribution(t: LedgerRow): { role: PeriodRole; amount: number } {
+  const ignored = { role: 'ignored' as const, amount: 0 };
+  if (t.include_in_stats === false) return ignored;
+
+  if (t.type === 'income') {
+    // A refund is already inside the expense it refunds.
+    if (t.refund_of_transaction_id) return ignored;
+    // Money that came back is a reduction of what was spent, not earnings —
+    // the same treatment a refund gets, so "income" keeps meaning income
+    // here as it does in the app. It lands on expenses, negative.
+    if (t.offsets_category) return { role: 'expense', amount: -netIncomeAmount(t) };
+    return { role: 'income', amount: netIncomeAmount(t) };
+  }
+  if (t.type === 'expense') {
+    // Settling an advance is not spending: the income it repays already
+    // counts net of it, so counting it here subtracts the same money twice.
+    if (t.repayment_of_transaction_id) return ignored;
+    return { role: 'expense', amount: netExpenseAmount(t) };
+  }
+  if (t.type === 'transfer') {
+    // Only the fee leaves — the principal moves between the user's own
+    // accounts.
+    return { role: 'transfer_fee', amount: num(t.transfer_fee) };
+  }
+  return ignored;
+}
+
 /** Headline stats for a set of rows. Mirrors computePeriodStats. */
 export function computePeriodStats(rows: LedgerRow[]): PeriodStats {
   let income = 0;
   let expenses = 0;
   let transferFees = 0;
   for (const t of rows) {
-    if (t.include_in_stats === false) continue;
-    if (t.type === 'income') {
-      if (t.refund_of_transaction_id) continue;
-      // Money that came back is a reduction of what was spent, not earnings
-      // — the same treatment a refund gets, so "income" keeps meaning
-      // income on the email as it does in the app.
-      if (t.offsets_category) expenses -= netIncomeAmount(t);
-      else income += netIncomeAmount(t);
-    } else if (t.type === 'expense') {
-      if (t.repayment_of_transaction_id) continue;
-      expenses += netExpenseAmount(t);
-    } else if (t.type === 'transfer') {
-      transferFees += num(t.transfer_fee);
-    }
+    const { role, amount } = periodContribution(t);
+    if (role === 'income') income += amount;
+    else if (role === 'expense') expenses += amount;
+    else if (role === 'transfer_fee') transferFees += amount;
   }
   return { income, expenses, transferFees, net: income - expenses - transferFees };
 }

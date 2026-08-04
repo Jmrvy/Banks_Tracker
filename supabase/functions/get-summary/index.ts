@@ -12,6 +12,7 @@ import {
   round2,
   AuthCredentials,
 } from '../_shared/api.ts';
+import { LEDGER_COLUMNS, periodContribution } from '../_shared/ledgerRules.ts';
 
 interface Body extends AuthCredentials {
   period_start: string; // YYYY-MM-DD
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
       .eq('user_id', userId),
     supabase
       .from('transactions')
-      .select('type, amount, refunded_amount, transfer_fee, refund_of_transaction_id, transaction_date, value_date, categories ( name )')
+      .select(`${LEDGER_COLUMNS}, transaction_date, value_date, categories ( name )`)
       .eq('user_id', userId)
       .gte(dateField, body.period_start)
       .lte(dateField, body.period_end)
@@ -69,23 +70,33 @@ Deno.serve(async (req) => {
   const categoryMap = new Map<string, number>();
   const monthlyMap = new Map<string, { income: number; expenses: number }>();
 
+  // Every figure below is a fold of the same shared contribution rule, so
+  // the monthly breakdown and the top categories add up to the totals
+  // printed beside them. This loop used to test the rules itself: it
+  // counted income gross of repayments, treated money marked as coming
+  // back on a category as earnings, counted advance settlements as
+  // spending, and floored a refund at the expense it refunded — four ways
+  // to disagree with the app about the same period.
   for (const t of txs) {
+    const { role, amount } = periodContribution(t as any);
+    if (role === 'ignored') continue;
+
     const month = (t as any)[dateField].substring(0, 7);
     const bucket = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
 
-    if (t.type === 'income' && !t.refund_of_transaction_id) {
-      totalIncome += Number(t.amount);
-      bucket.income += Number(t.amount);
-    } else if (t.type === 'expense') {
-      const refunded = Number(t.refunded_amount || 0);
-      const net = Math.max(0, Number(t.amount) - refunded);
-      totalExpenses += net;
-      totalRefunded += refunded;
-      bucket.expenses += net;
+    if (role === 'income') {
+      totalIncome += amount;
+      bucket.income += amount;
+    } else if (role === 'expense') {
+      // `amount` is negative for income that came back on its category,
+      // which is what makes it reduce the category rather than inflate it.
+      totalExpenses += amount;
+      totalRefunded += Number((t as any).refunded_amount || 0);
+      bucket.expenses += amount;
       const catName = (t as any).categories?.name || 'Sans catégorie';
-      categoryMap.set(catName, (categoryMap.get(catName) ?? 0) + net);
-    } else if (t.type === 'transfer') {
-      totalTransferFees += Number(t.transfer_fee || 0);
+      categoryMap.set(catName, (categoryMap.get(catName) ?? 0) + amount);
+    } else {
+      totalTransferFees += amount;
     }
 
     monthlyMap.set(month, bucket);

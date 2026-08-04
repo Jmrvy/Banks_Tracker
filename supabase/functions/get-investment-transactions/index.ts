@@ -20,6 +20,7 @@ import {
   successResponse,
   round2,
 } from '../_shared/api.ts';
+import { netExpenseAmount, netIncomeAmount, periodContribution } from '../_shared/ledgerRules.ts';
 
 type TxType = 'expense' | 'income' | 'transfer';
 type DateField = 'transaction_date' | 'value_date';
@@ -135,6 +136,10 @@ Deno.serve(async (req) => {
       description,
       amount,
       refunded_amount,
+      repaid_amount,
+      repayment_of_transaction_id,
+      offsets_category,
+      special_budget_id,
       type,
       transaction_date,
       value_date,
@@ -214,27 +219,44 @@ Deno.serve(async (req) => {
     return errorResponse(500, { code: 'query_failed', message: 'Failed to fetch transactions', details: txErr.message });
   }
 
-  const transactions = (rows ?? []).map((tx: any) => {
-    const refunded = Number(tx.refunded_amount || 0);
-    const gross = Number(tx.amount);
-    return {
-      ...tx,
-      refunded_amount: refunded,
-      net_amount: tx.type === 'expense' ? Math.max(0, gross - refunded) : gross,
-    };
-  });
+  const transactions = (rows ?? []).map((tx: any) => ({
+    ...tx,
+    refunded_amount: Number(tx.refunded_amount || 0),
+    // Signed, not floored: an expense that got back more than it cost is a
+    // surplus on its category, and income counts net of anything repaid
+    // against it. This used to clamp the first at zero and report the
+    // second gross, so a fully-repaid advance read as earnings.
+    net_amount:
+      tx.type === 'expense' ? netExpenseAmount(tx)
+      : tx.type === 'income' ? netIncomeAmount(tx)
+      : Number(tx.amount),
+  }));
 
   const totalCount = count ?? 0;
   const expenses = transactions.filter(t => t.type === 'expense');
   const income = transactions.filter(t => t.type === 'income' && !t.refund_of_transaction_id);
   const transfers = transactions.filter(t => t.type === 'transfer');
 
+  // Totals fold the shared contribution rule rather than re-deriving it, so
+  // this endpoint reports the same period as the app: advance settlements
+  // are not spending, income marked as coming back on its category reduces
+  // expenses instead of adding to earnings, and refunds are already netted.
+  let totalIncome = 0;
+  let totalExpenses = 0;
+  let totalTransferFees = 0;
+  let offsettingIncome = 0;
+  for (const t of transactions) {
+    const { role, amount } = periodContribution(t);
+    if (role === 'income') totalIncome += amount;
+    else if (role === 'expense') {
+      totalExpenses += amount;
+      if (t.type === 'income') offsettingIncome += -amount;
+    } else if (role === 'transfer_fee') totalTransferFees += amount;
+  }
+
   const grossExpenses = expenses.reduce((s, t) => s + Number(t.amount), 0);
   const refundedAmount = expenses.reduce((s, t) => s + t.refunded_amount, 0);
-  const totalExpenses = grossExpenses - refundedAmount;
-  const totalIncome = income.reduce((s, t) => s + Number(t.amount), 0);
   const totalTransfers = transfers.reduce((s, t) => s + Number(t.amount), 0);
-  const totalTransferFees = transfers.reduce((s, t) => s + Number(t.transfer_fee || 0), 0);
   const netTotal = totalIncome - totalExpenses - totalTransferFees;
 
   const uniqueCategories = Array.from(new Set(transactions.map(t => t.categories?.name).filter(Boolean))) as string[];
@@ -245,11 +267,12 @@ Deno.serve(async (req) => {
     if (!acc[name]) acc[name] = { count: 0, total: 0, expenses: 0, income: 0, refunded: 0 };
     acc[name].count++;
     acc[name].total += Number(t.amount);
-    if (t.type === 'expense') {
-      acc[name].expenses += t.net_amount;
+    const { role, amount } = periodContribution(t);
+    if (role === 'expense') {
+      acc[name].expenses += amount;
       acc[name].refunded += t.refunded_amount;
-    } else if (t.type === 'income' && !t.refund_of_transaction_id) {
-      acc[name].income += Number(t.amount);
+    } else if (role === 'income') {
+      acc[name].income += amount;
     }
     return acc;
   }, {});
@@ -266,9 +289,12 @@ Deno.serve(async (req) => {
     const name = t.accounts?.name || 'Inconnu';
     if (!acc[name]) acc[name] = { count: 0, expenses: 0, income: 0, transfers: 0 };
     acc[name].count++;
-    if (t.type === 'expense') acc[name].expenses += t.net_amount;
-    else if (t.type === 'income' && !t.refund_of_transaction_id) acc[name].income += Number(t.amount);
-    else if (t.type === 'transfer') acc[name].transfers += Number(t.amount);
+    const { role, amount } = periodContribution(t);
+    if (role === 'expense') acc[name].expenses += amount;
+    else if (role === 'income') acc[name].income += amount;
+    // The principal, not the fee: this line answers "how much moved through
+    // this account", which is a different question from the period totals.
+    if (t.type === 'transfer') acc[name].transfers += Number(t.amount);
     return acc;
   }, {});
   const byAccount = Object.entries(accountAccum).map(([account, d]) => ({
@@ -287,6 +313,7 @@ Deno.serve(async (req) => {
     transfer_count: transfers.length,
     gross_expenses: round2(grossExpenses),
     refunded_amount: round2(refundedAmount),
+    offsetting_income: round2(offsettingIncome),
     total_expenses: round2(totalExpenses),
     total_income: round2(totalIncome),
     total_transfers: round2(totalTransfers),

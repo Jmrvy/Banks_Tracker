@@ -160,30 +160,62 @@ export const computeCategoryNets = (txs: EngineTx[]): Map<string, CategoryNet> =
   return out;
 };
 
-/** Headline stats for an already-filtered set of transactions.
- *  Rules: rows with include_in_stats === false are skipped; refund
- *  incomes are excluded (they net against their original expense);
- *  income marked `offsets_category` is likewise not earnings and comes
- *  off expenses instead; expenses count net of refunds; income counts net
- *  of repayments; repayment expenses are excluded (they net against the
- *  income they settle); transfers contribute only their fee. */
+export type PeriodRole = 'income' | 'expense' | 'transfer_fee' | 'ignored';
+
+/**
+ * How one transaction contributes to the headline figures.
+ *
+ * The rules, stated once: rows with include_in_stats === false are
+ * skipped; refund incomes are excluded (they net against their original
+ * expense); income marked `offsets_category` is likewise not earnings and
+ * comes off expenses instead; expenses count net of refunds; income counts
+ * net of repayments; repayment expenses are excluded (they net against the
+ * income they settle); transfers contribute only their fee.
+ *
+ * `computePeriodStats` is the sum of this over a period. Callers that need
+ * the same money split a different way — per month, per account, per
+ * category — fold these contributions into their own buckets rather than
+ * re-testing the rules, so a breakdown always adds up to the total printed
+ * beside it.
+ *
+ * This is the PERIOD rule, not the budget rule: a special-budget row is
+ * money that left the account and belongs in the headline, while
+ * `computeCategoryNets` files it under its own envelope and leaves it out.
+ * The two differ deliberately.
+ */
+export const periodContribution = (t: EngineTx): { role: PeriodRole; amount: number } => {
+  const ignored = { role: 'ignored' as const, amount: 0 };
+  if (t.include_in_stats === false) return ignored;
+
+  if (t.type === 'income') {
+    if (t.refund_of_transaction_id) return ignored;
+    // Money that came back on a category is a reduction of what that
+    // category cost, not earnings — the same treatment a refund gets, so
+    // that "income" keeps meaning money earned on both screens.
+    if (t.offsets_category) return { role: 'expense', amount: -netIncomeAmount(t) };
+    return { role: 'income', amount: netIncomeAmount(t) };
+  }
+  if (t.type === 'expense') {
+    // An expense repaying an advance is a settlement, not spending — the
+    // income it repays already counts net of it, so counting it here too
+    // would subtract the same money twice.
+    if (t.repayment_of_transaction_id) return ignored;
+    return { role: 'expense', amount: netExpenseAmount(t) };
+  }
+  if (t.type === 'transfer') return { role: 'transfer_fee', amount: Number(t.transfer_fee || 0) };
+  return ignored;
+};
+
+/** Headline stats for an already-filtered set of transactions. */
 export const computePeriodStats = (txs: EngineTx[]): PeriodStats => {
   let income = 0;
   let expenses = 0;
   let transferFees = 0;
   for (const t of txs) {
-    if (t.include_in_stats === false) continue;
-    // Money that came back on a category is a reduction of what that
-    // category cost, not earnings — the same treatment a refund gets, so
-    // that "income" keeps meaning money earned on both screens.
-    if (t.type === 'income' && (t as EngineTx & { offsets_category?: boolean | null }).offsets_category
-        && !t.refund_of_transaction_id) expenses -= netIncomeAmount(t);
-    else if (t.type === 'income' && !t.refund_of_transaction_id) income += netIncomeAmount(t);
-    // An expense repaying an advance is a settlement, not spending — the
-    // income it repays already counts net of it, so counting it here too
-    // would subtract the same money twice.
-    else if (t.type === 'expense' && !t.repayment_of_transaction_id) expenses += netExpenseAmount(t);
-    else if (t.type === 'transfer') transferFees += Number(t.transfer_fee || 0);
+    const { role, amount } = periodContribution(t);
+    if (role === 'income') income += amount;
+    else if (role === 'expense') expenses += amount;
+    else if (role === 'transfer_fee') transferFees += amount;
   }
   return { income, expenses, transferFees, net: income - expenses - transferFees };
 };

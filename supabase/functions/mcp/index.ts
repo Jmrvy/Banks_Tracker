@@ -144,6 +144,25 @@ var list_upcoming_default = defineTool5({
   }
 });
 
+// src/lib/reportsEngine.ts
+var netExpenseAmount = (t) => Number(t.amount) - Number(t.refunded_amount || 0);
+var netIncomeAmount = (t) => Math.max(0, Number(t.amount) - Number(t.repaid_amount || 0));
+var periodContribution = (t) => {
+  const ignored = { role: "ignored", amount: 0 };
+  if (t.include_in_stats === false) return ignored;
+  if (t.type === "income") {
+    if (t.refund_of_transaction_id) return ignored;
+    if (t.offsets_category) return { role: "expense", amount: -netIncomeAmount(t) };
+    return { role: "income", amount: netIncomeAmount(t) };
+  }
+  if (t.type === "expense") {
+    if (t.repayment_of_transaction_id) return ignored;
+    return { role: "expense", amount: netExpenseAmount(t) };
+  }
+  if (t.type === "transfer") return { role: "transfer_fee", amount: Number(t.transfer_fee || 0) };
+  return ignored;
+};
+
 // src/lib/mcp/tools/spending-summary.ts
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.0";
 import { z as z3 } from "npm:zod@^3.25.76";
@@ -151,7 +170,7 @@ var round2 = (n) => Math.round(n * 100) / 100;
 var spending_summary_default = defineTool6({
   name: "spending_summary",
   title: "Spending summary",
-  description: "Summarize income, expenses and net flow over a date range, broken down by category. Amounts are net of refunds.",
+  description: "Summarize income, expenses and net flow over a date range, broken down by category. Expenses are net of refunds and of income the user marked as having come back on a category; income is net of anything repaid against it. Advance settlements and refund rows are excluded \u2014 they would otherwise count the same money twice. Nothing further should be subtracted from these figures.",
   inputSchema: {
     from: z3.string().describe("Inclusive start date, YYYY-MM-DD."),
     to: z3.string().describe("Inclusive end date, YYYY-MM-DD."),
@@ -162,29 +181,35 @@ var spending_summary_default = defineTool6({
     if (!ctx.isAuthenticated()) return unauthenticated();
     const supabase = supabaseForUser(ctx);
     const [{ data: tx, error }, { data: cats }] = await Promise.all([
-      supabase.from("transactions").select("amount, type, category_id, refunded_amount, include_in_stats").gte("transaction_date", from).lte("transaction_date", to),
+      supabase.from("transactions").select(
+        "amount, type, category_id, refunded_amount, repaid_amount, include_in_stats, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee"
+      ).gte("transaction_date", from).lte("transaction_date", to),
       supabase.from("categories").select("id, name")
     ]);
     if (error) return fail(error.message);
     const names = new Map((cats ?? []).map((c) => [c.id, c.name]));
     let income = 0;
     let expenses = 0;
+    let transferFees = 0;
     const byCategory = /* @__PURE__ */ new Map();
-    for (const t of tx ?? []) {
-      if (!include_excluded && t.include_in_stats === false) continue;
-      const net = Math.max(0, Number(t.amount ?? 0) - Number(t.refunded_amount ?? 0));
-      if (t.type === "income") income += net;
-      else if (t.type === "expense") {
-        expenses += net;
+    for (const raw of tx ?? []) {
+      const t = include_excluded ? { ...raw, include_in_stats: true } : raw;
+      const { role, amount } = periodContribution(t);
+      if (role === "ignored") continue;
+      if (role === "income") income += amount;
+      else if (role === "transfer_fee") transferFees += amount;
+      else {
+        expenses += amount;
         const key = t.category_id ? names.get(t.category_id) ?? "Unknown" : "Uncategorized";
-        byCategory.set(key, (byCategory.get(key) ?? 0) + net);
+        byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
       }
     }
     return ok({
       period: { from, to },
       income: round2(income),
       expenses: round2(expenses),
-      net: round2(income - expenses),
+      transfer_fees: round2(transferFees),
+      net: round2(income - expenses - transferFees),
       by_category: [...byCategory.entries()].map(([category, amount]) => ({ category, amount: round2(amount) })).sort((a, b) => b.amount - a.amount)
     });
   }
