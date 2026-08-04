@@ -49,9 +49,15 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       { amount: number; color: string; icon: string | null; specialBudgetIcon: ReturnType<typeof getSpecialBudgetIcon> | null }
     >();
     for (const tx of inRange) {
-      const refunded = tx.refunded_amount || 0;
-      const net = Math.max(0, tx.amount - refunded);
-      if (net <= 0) continue;
+      // Settling an advance is not spending. Special-budget rows stay (the
+      // donut shows them under their own envelope) but a repayment never
+      // belonged in any slice.
+      if (tx.repayment_of_transaction_id) continue;
+      const net = tx.amount - (tx.refunded_amount || 0);
+      // Signed, not floored: a category that ended net-positive has to be
+      // able to shrink the donut, and flooring inflated the centre total so
+      // every *other* slice's percentage was wrong too.
+      if (net === 0) continue;
 
       const sb = tx.special_budget_id ? budgetMap.get(tx.special_budget_id) : null;
       let name: string;
@@ -79,9 +85,14 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       });
     }
 
+    // The centre total keeps every category, signed, so it agrees with the
+    // Expenses tile above it. The drawn slices cannot: an arc has no
+    // negative length, so a category that got back more than it spent is
+    // left out of the ring rather than rendered as a phantom positive.
     const sum = [...totals.values()].reduce((s, v) => s + v.amount, 0);
     const list = [...totals.entries()]
       .map(([name, v]) => ({ name, value: v.amount, color: v.color, icon: v.icon, specialBudgetIcon: v.specialBudgetIcon }))
+      .filter((x) => x.value > 0)
       .sort((a, b) => b.value - a.value);
 
     return { items: list, total: sum };

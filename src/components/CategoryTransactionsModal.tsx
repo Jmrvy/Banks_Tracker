@@ -102,8 +102,10 @@ export const CategoryTransactionsModal = ({
   
   // Calculer le total en utilisant les montants nets si disponibles
   const totalAmount = transactions.reduce((sum, t) => {
+    // Not Math.abs: a net-negative row (refunded past its value) has to pull
+    // the total down, otherwise it is counted as if it were spending.
     const netAmount = t.netAmount ?? t.amount;
-    return sum + Math.abs(netAmount);
+    return sum + netAmount;
   }, 0);
   const projectedTotal = transactions.filter(t => t.isProjected).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -133,11 +135,17 @@ export const CategoryTransactionsModal = ({
   const budgetChartData = useMemo(() => {
     if (!hasBudget || !allTransactions || !periodStart || !periodEnd) return [];
 
+    // The same predicate computeCategoryNets uses. Without the last two
+    // guards this chart counted special-budget rows and advance
+    // settlements, which is how the dialog came to draw 823,88 € above a
+    // list of transactions summing to 588,88 €.
     const catTxs = allTransactions
       .filter(
         (t) =>
           t.type === "expense" &&
           t.include_in_stats !== false &&
+          !t.special_budget_id &&
+          !t.repayment_of_transaction_id &&
           t.category?.name === categoryName
       )
       .sort(
@@ -166,9 +174,11 @@ export const CategoryTransactionsModal = ({
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
         .reduce((s, t) => {
+          // Signed: an over-refunded day genuinely walks the cumulative
+          // line back down.
           const gross = Number(t.amount);
           const refunded = Number((t as any).refunded_amount || 0);
-          return s + Math.max(0, gross - refunded);
+          return s + (gross - refunded);
         }, 0);
       cumulative += dayTotal;
       spentByDay.set(dayStr, cumulative);
@@ -246,9 +256,14 @@ export const CategoryTransactionsModal = ({
     return chartPoints;
   }, [hasBudget, allTransactions, days, categoryName, isMobile, categoryData, includeUpcoming, upcomingItems]);
 
-  // Use the final chart value (which includes net amounts + projections) for display
+  // End of the cumulative line, including projections. Used for the chart's
+  // own scaling only — never as the category's spend, which comes from the
+  // engine via categoryData.spent.
   const chartFinalSpent = budgetChartData.length > 0 ? budgetChartData[budgetChartData.length - 1].spent : 0;
-  const effectiveSpent = hasBudget && budgetChartData.length > 0 ? chartFinalSpent : Number(categoryData?.spent || 0);
+  // The engine figure always wins. This used to prefer the chart's own
+  // running total whenever the category had a budget, which let the dialog
+  // contradict both the row that opened it and its own transaction list.
+  const effectiveSpent = Number(categoryData?.spent || 0);
   
   const yMaxRaw = hasBudget
     ? Math.max(Number(categoryData.budget) * 1.15, effectiveSpent * 1.05, 100)

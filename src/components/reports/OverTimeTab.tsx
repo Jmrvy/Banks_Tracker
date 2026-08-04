@@ -74,12 +74,21 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
         const refunded = Number(t.refunded_amount || 0);
         if (t.type === 'income') {
           if (mode === 'real') income += amount;
-          else if (!isExcluded && !t.refund_of_transaction_id) income += amount;
+          else if (!isExcluded && !t.refund_of_transaction_id) {
+            // computePeriodStats: net of what has been repaid, and income
+            // marked as having come back on its category is a reduction of
+            // spend rather than earnings.
+            const net = Math.max(0, amount - Number(t.repaid_amount || 0));
+            if (t.offsets_category) expenses -= net;
+            else income += net;
+          }
           if (isExcluded) { excludedIncome += amount; excludedCount++; }
         } else if (t.type === 'expense') {
           if (mode === 'real') expenses += amount;
-          else if (!isExcluded) {
-            expenses += Math.max(0, amount - refunded);
+          else if (!isExcluded && !t.repayment_of_transaction_id) {
+            // Signed, not floored — this row is the reconciliation table's
+            // own definition of the number printed in the card header.
+            expenses += amount - refunded;
             if (refunded > 0) { refundOffset += Math.min(refunded, amount); refundedCount++; }
           }
           if (isExcluded) { excludedExpenses += amount; excludedCount++; }

@@ -106,6 +106,7 @@ interface CategoryStats {
   /** The parts behind `spent`, so the card can show what was netted out. */
   gross: number;
   refunded: number;
+  offsetIncome: number;
   prevSpent: number;
   projected: number;
   used: number;
@@ -129,31 +130,42 @@ interface PeriodBuckets {
 // Pure helpers — preserved verbatim from v1
 // =============================================================================
 
-function netExpense(tx: Transaction): number {
-  if (tx.type !== "expense") return 0;
+/**
+ * Signed contribution of one transaction to its category's spend.
+ *
+ * Deliberately the same arithmetic as `computeCategoryNets`, because this
+ * page needs a per-transaction figure the engine does not expose — the
+ * bucket series, the trailing history and the top drivers are built row by
+ * row. Anywhere a *total* is wanted the engine's own result is used
+ * instead; this only fills in the shapes it cannot.
+ *
+ * May go negative twice over: an over-refunded expense is genuinely money
+ * back, and income marked as having come back on the category subtracts
+ * outright. Flooring either at zero is what had this page reading 104 % of
+ * budget beside "40,00 € left" on the same card.
+ */
+function categorySpend(tx: Transaction): number {
   if (tx.include_in_stats === false) return 0;
-  // Repaying an advance is settling a debt, not spending. The income it
-  // repays already counts net of it; charging it to a budget as well would
-  // take the same money out twice.
-  if (tx.repayment_of_transaction_id) return 0;
-  // Tagged to a special event/trip budget — counted there, not under
-  // the regular category budget bracket.
-  if (tx.special_budget_id) return 0;
-  const refunded = tx.refunded_amount || 0;
-  // May go negative: more came back than went out, so the category is
-  // genuinely cheaper. See netExpenseAmount in reportsEngine.
-  return tx.amount - refunded;
-}
-
-/** Amount a transaction contributes to a special budget. Mirrors
- *  netExpense but for the special-budget bracket: includes
- *  excluded-from-stats rows (special budgets are an envelope of real
- *  outflows) and always nets refunds. */
-function specialBudgetSpend(tx: Transaction): number {
-  if (tx.type !== "expense") return 0;
-  if (!tx.special_budget_id) return 0;
-  const refunded = tx.refunded_amount || 0;
-  return tx.amount - refunded;
+  if (tx.type === "expense") {
+    // Repaying an advance is settling a debt, not spending. The income it
+    // repays already counts net of it; charging it to a budget as well would
+    // take the same money out twice.
+    if (tx.repayment_of_transaction_id) return 0;
+    // Tagged to a special event/trip budget — counted there, not under
+    // the regular category budget bracket.
+    if (tx.special_budget_id) return 0;
+    return tx.amount - (tx.refunded_amount || 0);
+  }
+  if (tx.type === "income") {
+    // Only income that says it came back on this category. A linked refund
+    // already nets through its expense's refunded_amount.
+    if (!tx.offsets_category) return 0;
+    if (tx.refund_of_transaction_id) return 0;
+    // Floored, matching netIncomeAmount: an advance repaid past its value
+    // is not a credit to the budget it was never charged to.
+    return -Math.max(0, tx.amount - (tx.repaid_amount || 0));
+  }
+  return 0;
 }
 
 function p75(arr: number[]): number {
@@ -736,7 +748,7 @@ function BudgetCard({
           {/* What was taken off, when anything was. Otherwise `spent` is a
               lone figure and there is no way to tell a category that cost
               540 from one that cost 700 and got 160 back. */}
-          {stat.refunded > 0 && (
+          {(stat.refunded > 0 || stat.offsetIncome > 0) && (
             <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground">
@@ -750,6 +762,17 @@ function BudgetCard({
                     {t("budget.breakdownRefunded", { defaultValue: "Refunded" })}
                   </span>
                   <span className="font-mono text-pos">−{formatCurrency(stat.refunded)}</span>
+                </div>
+              )}
+              {/* Income filed here that says it came back on this category
+                  rather than being earnings — a gambling payout against its
+                  stakes, a reimbursement with no single expense to point at. */}
+              {stat.offsetIncome > 0 && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">
+                    {t("budget.breakdownOffset", { defaultValue: "Came back on this category" })}
+                  </span>
+                  <span className="font-mono text-pos">−{formatCurrency(stat.offsetIncome)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-[11px] font-medium border-t border-line/60 pt-1 mt-0.5">
@@ -1550,8 +1573,8 @@ const Budget = () => {
     const byCat = new Map<string, Map<string, number>>();
     for (const tx of transactions) {
       if (!tx.category?.id) continue;
-      const net = netExpense(tx);
-      if (net <= 0) continue;
+      const net = categorySpend(tx);
+      if (net === 0) continue;
       const d = dateOf(tx);
       const bucket = buckets.find((b) => d >= b.from && d <= b.to);
       if (!bucket) continue;
@@ -1597,8 +1620,8 @@ const Budget = () => {
       const driversInPeriod: Driver[] = [];
       for (const tx of transactions) {
         if (tx.category?.id !== category.id) continue;
-        const net = netExpense(tx);
-        if (net <= 0) continue;
+        const net = categorySpend(tx);
+        if (net === 0) continue;
         const d = dateOf(tx);
         if (d >= period.from && d <= period.to) {
           spent += net;
@@ -1615,10 +1638,23 @@ const Budget = () => {
         if (d >= monthStart && d <= monthEnd) currentMonthSpent += net;
       }
 
+      // The engine's figure wins: it is the one the rest of the app quotes.
+      // Everything below derives from `net`, so the headline, the pace bar,
+      // the status pill and the over-budget count can no longer disagree —
+      // they used to, because `used` was built from a separately clamped
+      // local while the headline came from here.
+      const parts = periodNets.get(category.id) ?? {
+        gross: spent,
+        refunded: 0,
+        offsetIncome: 0,
+        net: spent,
+      };
+      const net = parts.net;
+
       const projection = projectedByCategory.get(category.id);
       const projected = projection?.total ?? 0;
       const projectedBuckets = projection?.series ?? new Array(period.buckets.count).fill(0);
-      const used = spent + projected;
+      const used = net + projected;
 
       const monthly = category.budget != null ? Number(category.budget) : null;
       const periodBudget = monthly != null ? monthly * period.effectiveMonths : null;
@@ -1627,7 +1663,7 @@ const Budget = () => {
       const status = statusOf(used, periodBudget, period.elapsedFraction);
 
       const history = historyByCategory.get(category.id) ?? [];
-      const hasHistory = history.some((v) => v > 0);
+      const hasHistory = history.some((v) => v !== 0);
       const monthlyAvg =
         history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0;
       const p75v = p75(history);
@@ -1636,29 +1672,26 @@ const Budget = () => {
       const expectedMonthTotal = currentMonthSpent + (1 - monthFraction) * monthlyAvg;
 
       let pacedMonthly = 0;
-      if (period.elapsedFraction > 0.05 && period.effectiveMonths > 0 && spent > 0) {
-        const projectedPeriodTotal = spent / period.elapsedFraction;
+      if (period.elapsedFraction > 0.05 && period.effectiveMonths > 0 && net > 0) {
+        const projectedPeriodTotal = net / period.elapsedFraction;
         pacedMonthly = projectedPeriodTotal / period.effectiveMonths;
       }
 
-      const base = Math.max(p75v, expectedMonthTotal, pacedMonthly);
+      // Floored at 0: a suggestion is a budget to write into the database,
+      // and a category that netted negative over the window must not persist
+      // a negative cap through "Apply suggested".
+      const base = Math.max(0, p75v, expectedMonthTotal, pacedMonthly);
       const suggested =
-        hasHistory || currentMonthSpent > 0 || pacedMonthly > 0 ? niceRound(base) : 0;
+        hasHistory || currentMonthSpent !== 0 || pacedMonthly > 0 ? niceRound(base) : 0;
 
       const topDrivers = driversInPeriod.sort((a, b) => b.amount - a.amount).slice(0, 5);
 
-      // The engine's figure wins: it is the one the rest of the app quotes.
-      const parts = periodNets.get(category.id) ?? {
-        gross: spent,
-        refunded: 0,
-        net: spent,
-      };
-
       return {
         category,
-        spent: parts.net,
+        spent: net,
         gross: parts.gross,
         refunded: parts.refunded,
+        offsetIncome: parts.offsetIncome,
         prevSpent,
         projected,
         used,

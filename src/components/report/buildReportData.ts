@@ -1,7 +1,7 @@
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { parseLocalDate, getTxDate } from '@/lib/dateUtils';
-import { statsForRange, signedGlobalAmount, computeAccountDelta } from '@/lib/reportsEngine';
+import { statsForRange, signedGlobalAmount, computeAccountDelta, netIncomeAmount } from '@/lib/reportsEngine';
 import { priorPeriodRange } from '@/lib/periodUtils';
 import type { Transaction, Account } from '@/hooks/useFinancialData';
 import type { ReportsStats, CategoryData, RecurringData } from '@/hooks/useReportsData';
@@ -202,7 +202,10 @@ export function buildReportData(input: BuildInputs): ReportData {
 
   // ── Categories ───────────────────────────────────────────────────
   const baseCats = categoryChartData
-    .filter((c) => Number(c.spent) > 0)
+    // Non-zero, not positive: a category refunded past what it spent belongs
+    // in the report as a credit. Filtering on > 0 deleted it outright, so the
+    // categories in the document did not add up to the period's expenses.
+    .filter((c) => Number(c.spent) !== 0)
     .map((c) => {
       const spent = Number(c.spent);
       const budget = Number(c.budget) || 0;
@@ -356,7 +359,9 @@ export function buildReportData(input: BuildInputs): ReportData {
     if (t.recurring_transaction_id) prev.recurring = true;
     sourceMap.set(key, prev);
   }
-  const grossIncome = incomeTx.reduce((s, t) => s + Number(t.amount), 0) || totalIncome;
+  // Net of what has since been repaid, matching netIncomeAmount — summing
+  // raw amounts made a repaid advance inflate every source's share.
+  const grossIncome = incomeTx.reduce((s, t) => s + netIncomeAmount(t as any), 0) || totalIncome;
   const incomeSources: IncomeSource[] = Array.from(sourceMap.entries())
     .map(([name, v]) => ({
       name,

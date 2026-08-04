@@ -11,6 +11,7 @@ import {
   round2,
   AuthCredentials,
 } from '../_shared/api.ts';
+import { LEDGER_COLUMNS, computeCategoryNets } from '../_shared/ledgerRules.ts';
 
 interface Body extends AuthCredentials {
   period_start?: string;
@@ -40,7 +41,13 @@ Deno.serve(async (req) => {
   }
 
   const categories = cats ?? [];
-  let withSpending: (typeof categories[number] & { period_spent?: number; period_net_spent?: number; period_refunded?: number; remaining_budget?: number })[] = categories;
+  let withSpending: (typeof categories[number] & {
+    period_spent?: number;
+    period_net_spent?: number;
+    period_refunded?: number;
+    period_offsetting_income?: number;
+    remaining_budget?: number;
+  })[] = categories;
 
   if (body.period_start || body.period_end) {
     const dateField = body.date_type === 'transaction_date' || body.date_type === 'accounting_date'
@@ -49,9 +56,12 @@ Deno.serve(async (req) => {
 
     let q = supabase
       .from('transactions')
-      .select('category_id, amount, refunded_amount, type')
+      .select(LEDGER_COLUMNS)
       .eq('user_id', userId)
-      .eq('type', 'expense')
+      // Income belongs in this query too. A row the user marked as having
+      // come back on its category reduces what that category cost, so
+      // asking only for expenses reported a spend the user never bore.
+      .in('type', ['expense', 'income'])
       .neq('include_in_stats', false);
     if (body.period_start) q = q.gte(dateField, body.period_start);
     if (body.period_end) q = q.lte(dateField, body.period_end);
@@ -61,24 +71,26 @@ Deno.serve(async (req) => {
       return errorResponse(500, { code: 'query_failed', message: 'Failed to compute spending', details: txErr.message });
     }
 
-    const spentMap = new Map<string, { gross: number; refunded: number }>();
-    for (const t of txs ?? []) {
-      if (!t.category_id) continue;
-      const prev = spentMap.get(t.category_id) ?? { gross: 0, refunded: 0 };
-      prev.gross += Number(t.amount);
-      prev.refunded += Number(t.refunded_amount || 0);
-      spentMap.set(t.category_id, prev);
-    }
+    // One definition of what a category cost, shared with the app, the
+    // alert emails and Trace. It also drops advance settlements and
+    // special-budget rows, which this endpoint used to count as spending.
+    const nets = computeCategoryNets((txs ?? []) as any[]);
 
     withSpending = categories.map(cat => {
-      const s = spentMap.get(cat.id) ?? { gross: 0, refunded: 0 };
-      const net = Math.max(0, s.gross - s.refunded);
+      const s = nets.get(cat.id);
+      const net = s?.net ?? 0;
       return {
         ...cat,
-        period_spent: round2(s.gross),
-        period_refunded: round2(s.refunded),
+        period_spent: round2(s?.gross ?? 0),
+        period_refunded: round2(s?.refunded ?? 0),
+        period_offsetting_income: round2(s?.offsetIncome ?? 0),
+        // Not floored: more can come back than went out, and that makes the
+        // category cheaper rather than merely free. Flooring here reported
+        // a surplus as a zero and hid it from whoever consumes this API.
         period_net_spent: round2(net),
-        remaining_budget: cat.budget ? round2(Math.max(0, Number(cat.budget) - net)) : null,
+        // Likewise signed — a negative remaining budget is an overspend,
+        // which is exactly what a caller checking a budget needs to see.
+        remaining_budget: cat.budget ? round2(Number(cat.budget) - net) : null,
       };
     });
   }

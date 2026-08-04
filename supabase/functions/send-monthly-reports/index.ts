@@ -1,4 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {
+  LEDGER_COLUMNS,
+  computePeriodStats,
+  computeCategoryNets,
+  netExpenseAmount,
+
+} from "../_shared/ledgerRules.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import {
   startOfMonth, endOfMonth, subMonths, format,
@@ -613,9 +620,6 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Use the user's preferred date column (accounting vs value).
         const dateColumn = userPref.date_type === 'value' ? 'value_date' : 'transaction_date';
-        // Net spend per transaction: amount minus any refunded portion (clamped to 0).
-        const netExpense = (t: any) =>
-          Math.max(0, Number(t.amount) - Number(t.refunded_amount || 0));
 
         // Fetch accounts
         const { data: accounts } = await supabaseAdmin
@@ -629,7 +633,7 @@ const handler = async (req: Request): Promise<Response> => {
         // `transaction_date`, mirroring the in-app `dateOf` helper).
         const { data: transactions } = await supabaseAdmin
           .from('transactions')
-          .select('amount, type, category_id, account_id, description, transaction_date, value_date, include_in_stats, refunded_amount, refund_of_transaction_id, transfer_fee, special_budget_id')
+          .select(`${LEDGER_COLUMNS}, account_id, description, transaction_date, value_date`)
           .eq('user_id', userPref.user_id)
           .gte(dateColumn, monthStart.toISOString().split('T')[0])
           .lte(dateColumn, monthEnd.toISOString().split('T')[0]);
@@ -637,7 +641,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Fetch previous month transactions for comparison
         const { data: prevTransactions } = await supabaseAdmin
           .from('transactions')
-          .select('amount, type, include_in_stats, refunded_amount, refund_of_transaction_id, transfer_fee')
+          .select(LEDGER_COLUMNS)
           .eq('user_id', userPref.user_id)
           .gte(dateColumn, prevMonthStart.toISOString().split('T')[0])
           .lte(dateColumn, prevMonthEnd.toISOString().split('T')[0]);
@@ -662,42 +666,36 @@ const handler = async (req: Request): Promise<Response> => {
         const catList = categories || [];
         const accList = accounts || [];
 
-        // Calculate totals — income excludes refund-typed entries (those are
-        // already netted into the original expense), expenses use net amount
-        // after refunds, and transfer fees count as expenses.
-        const income = txList
-          .filter((t: any) => t.type === 'income' && !t.refund_of_transaction_id)
-          .reduce((s: number, t: any) => s + Number(t.amount), 0);
-        const expenses = txList
-          .filter((t: any) => t.type === 'expense')
-          .reduce((s: number, t: any) => s + netExpense(t), 0);
-        const transferFees = txList
-          .filter((t: any) => t.type === 'transfer')
-          .reduce((s: number, t: any) => s + Number(t.transfer_fee || 0), 0);
+        // One statement of the rules, shared with the other functions and
+        // mirroring the browser engine. Hand-rolled, this counted advance
+        // settlements as spending and summed income gross, so the report
+        // disagreed with every screen it was summarising.
+        const periodStats = computePeriodStats(txList as any);
+        const income = periodStats.income;
+        const expenses = periodStats.expenses;
+        const transferFees = periodStats.transferFees;
         const totalBalance = accList.reduce((s: number, a: any) => s + Number(a.balance), 0);
 
-        const prevIncome = prevTxList
-          .filter((t: any) => t.type === 'income' && !t.refund_of_transaction_id)
-          .reduce((s: number, t: any) => s + Number(t.amount), 0);
-        const prevExpenses = prevTxList
-          .filter((t: any) => t.type === 'expense')
-          .reduce((s: number, t: any) => s + netExpense(t), 0);
+        const prevStats = computePeriodStats(prevTxList as any);
+        const prevIncome = prevStats.income;
+        const prevExpenses = prevStats.expenses;
 
         // Category breakdown — net of refunds. Transactions tagged to a
         // special (event/trip) budget are excluded: they belong to their
         // own envelope (surfaced separately below) and must not count
         // against a category's budget, mirroring the in-app aggregation.
+        const catNets = computeCategoryNets(txList as any);
         const catMap = new Map<string, { name: string; spent: number; budget: number | null }>();
         for (const cat of catList) {
-          catMap.set(cat.id, { name: cat.name, spent: 0, budget: (cat as any).budget || null });
-        }
-        for (const tx of txList.filter((t: any) => t.type === 'expense' && t.category_id && !t.special_budget_id)) {
-          const entry = catMap.get((tx as any).category_id);
-          if (entry) entry.spent += netExpense(tx);
+          catMap.set(cat.id, {
+            name: cat.name,
+            spent: catNets.get(cat.id)?.net ?? 0,
+            budget: (cat as any).budget || null,
+          });
         }
 
         const allCategories = Array.from(catMap.values())
-          .filter(c => c.spent > 0)
+          .filter(c => c.spent !== 0)
           .map(c => ({ ...c, pct: expenses > 0 ? Math.round((c.spent / expenses) * 100) : 0 }))
           .sort((a, b) => b.spent - a.spent);
 
@@ -716,7 +714,10 @@ const handler = async (req: Request): Promise<Response> => {
         const spendBySpb = new Map<string, { spent: number; count: number }>();
         for (const tx of (transactions || [])) {
           if (tx.type !== 'expense' || !tx.special_budget_id) continue;
-          const amt = netExpense(tx);
+          // Envelope semantics: excluded-from-stats rows stay, but settling
+          // an advance was never an outflow of this envelope.
+          if (tx.repayment_of_transaction_id) continue;
+          const amt = netExpenseAmount(tx as any);
           const e = spendBySpb.get(tx.special_budget_id) || { spent: 0, count: 0 };
           e.spent += amt;
           e.count += 1;
@@ -751,12 +752,10 @@ const handler = async (req: Request): Promise<Response> => {
           return {
             name: acc.name,
             balance: Number(acc.balance),
-            income: accTx
-              .filter((t: any) => t.type === 'income' && !t.refund_of_transaction_id)
-              .reduce((s: number, t: any) => s + Number(t.amount), 0),
-            expense: accTx
-              .filter((t: any) => t.type === 'expense')
-              .reduce((s: number, t: any) => s + netExpense(t), 0),
+            // Same rules per account as the headline, or the account rows
+            // fail to add up to the totals printed above them.
+            income: computePeriodStats(accTx as any).income,
+            expense: computePeriodStats(accTx as any).expenses,
           };
         });
 
@@ -779,6 +778,11 @@ const handler = async (req: Request): Promise<Response> => {
           sections: userPref.sections,
           income: income.toFixed(2),
           expenses: expenses.toFixed(2),
+          // Forwarded so the email's NET figure can match the savings rate
+          // printed beside it. It used to compute income - expenses while
+          // the rate was income - expenses - fees, so the two contradicted
+          // each other whenever a transfer carried a fee.
+          transferFees: transferFees.toFixed(2),
           balance: totalBalance.toFixed(2),
           savingsRate,
           topCategories,

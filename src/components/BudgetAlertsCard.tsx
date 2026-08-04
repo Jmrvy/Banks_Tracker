@@ -72,12 +72,18 @@ export const BudgetAlertsCard = () => {
       // Mirror the budget aggregation: special-budget (event/trip) rows
       // live in their own envelope and don't count toward the category
       // budget, so they're excluded from this drill-down too.
-      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory && t.include_in_stats !== false && !t.special_budget_id)
+      // Settling an advance is not spending either — same predicate as
+      // computeCategoryNets, so this list sums to the figure on the row
+      // that opened it.
+      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory
+        && t.include_in_stats !== false && !t.special_budget_id
+        && !t.repayment_of_transaction_id)
       .map(t => ({
         id: t.id,
         description: t.description,
         amount: t.amount,
-        netAmount: Math.max(0, t.amount - (t.refunded_amount || 0)),
+        // Signed, matching netExpenseAmount: an over-refund is money back.
+        netAmount: t.amount - (t.refunded_amount || 0),
         refundedAmount: t.refunded_amount || 0,
         hasRefund: (t.refunded_amount || 0) > 0,
         isFullyRefunded: (t.refunded_amount || 0) >= t.amount,

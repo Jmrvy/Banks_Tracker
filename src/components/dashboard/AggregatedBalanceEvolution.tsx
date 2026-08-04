@@ -18,6 +18,7 @@ import {
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { signedGlobalAmount } from "@/lib/reportsEngine";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -67,8 +68,11 @@ export const AggregatedBalanceEvolution = () => {
 
   // Last 10 transactions sorted most-recent first, with running balance after each
   const items = useMemo(() => {
+    // Every row, including refunds: this walks real balances backward, and a
+    // refund credit did land in the account. Dropping it while also undoing
+    // expenses net of their refunds took the same money off twice and showed
+    // balances that never existed.
     const sorted = [...transactions]
-      .filter((tx) => !tx.refund_of_transaction_id)
       .sort(
         (a, b) =>
           parseLocalDate(b.transaction_date).getTime() -
@@ -84,12 +88,10 @@ export const AggregatedBalanceEvolution = () => {
       if (idx === 0) {
         out.push({ transaction: tx, balanceAfter: running });
       } else {
+        // Undo the previous row exactly as the ledger applied it — gross,
+        // no refund netting, fee included.
         const prev = sorted[idx - 1];
-        if (prev.type === "income") running -= prev.amount;
-        else if (prev.type === "expense")
-          running += Math.max(0, prev.amount - (prev.refunded_amount || 0));
-        else if (prev.type === "transfer" && prev.transfer_fee)
-          running += prev.transfer_fee;
+        running -= signedGlobalAmount(prev as any);
         out.push({ transaction: tx, balanceAfter: running });
       }
     });

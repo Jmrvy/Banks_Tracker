@@ -49,7 +49,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { getTxDate } from "@/lib/dateUtils";
 import { resolvePeriodRange } from "@/lib/periodUtils";
-import { filterByPeriod, signedGlobalAmount } from "@/lib/reportsEngine";
+import { filterByPeriod, signedGlobalAmount, netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
 import {
   type ReportSection,
   type PageId,
@@ -270,14 +270,32 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
         isSameDay(getTxDate(t, config.dateType), day)
       );
 
-      const dayIncome = dayTransactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      const dayExpense = dayTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+      // Two different questions, two different rules — this series answers
+      // both and used to apply neither. The bars are statistics (exclusions
+      // honoured, refunds netted, settlements and refund credits skipped);
+      // the balance line is a replay, where every row counts gross because
+      // the bank moved it regardless of any reporting flag.
+      let dayIncome = 0;
+      let dayExpense = 0;
+      for (const t of dayTransactions) {
+        if (t.include_in_stats === false) continue;
+        if (t.type === 'income') {
+          if (t.refund_of_transaction_id) continue;
+          const net = netIncomeAmount(t as any);
+          if (t.offsets_category) dayExpense -= net;
+          else dayIncome += net;
+        } else if (t.type === 'expense') {
+          if (t.repayment_of_transaction_id) continue;
+          dayExpense += netExpenseAmount(t as any);
+        } else if (t.type === 'transfer') {
+          dayExpense += Number(t.transfer_fee || 0);
+        }
+      }
 
-      runningBalance += dayIncome - dayExpense;
+      runningBalance += dayTransactions.reduce(
+        (s, t) => s + signedGlobalAmount(t as any),
+        0,
+      );
 
       return {
         date: format(day, 'd MMM', { locale }),
@@ -397,17 +415,22 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
 
     // Categories sheet
     if (config.sections.includes('categories')) {
+      const categoryTotal = categoryChartData.reduce((s, c) => s + Number(c.spent), 0);
       const data = [
         [L('categoriesTitle', 'Expenses by category')],
         [],
         [L('category', 'Category'), L('amount', 'Amount'), L('share', 'Share (%)')],
         ...categoryChartData
-          .filter(c => c.spent > 0)
+          .filter(c => c.spent !== 0)
           .sort((a, b) => b.spent - a.spent)
           .map(c => [
             c.name,
             formatNum(c.spent),
-            stats.expenses > 0 ? Number(((c.spent / stats.expenses) * 100).toFixed(1)) : 0
+            // Share of the categories listed in this sheet, which is what the
+            // PDF divides by too. Dividing by stats.expenses mixed two bases
+            // — special-budget rows are in one and not the other — so the
+            // column never summed to 100 %.
+            categoryTotal !== 0 ? Number(((c.spent / categoryTotal) * 100).toFixed(1)) : 0
           ])
       ];
       const ws = XLSX.utils.aoa_to_sheet(data);

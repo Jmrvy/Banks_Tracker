@@ -473,7 +473,11 @@ const handler = async (req: Request): Promise<Response> => {
       const expensesNum = parseFloat(String(data.expenses));
       const balanceNum = parseFloat(String(data.balance));
       const balanceColor = balanceNum >= 0 ? '#0c0d0c' : '#c83a2a';
-      const net = incomeNum - expensesNum;
+      // Transfer fees are real outflows and the caller already netted them
+      // into the savings rate. Leaving them out here printed a NET that did
+      // not agree with the percentage directly beside it.
+      const transferFeesNum = parseFloat(String(data.transferFees ?? '0')) || 0;
+      const net = incomeNum - expensesNum - transferFeesNum;
       const netColor = net >= 0 ? '#3a8a4d' : '#c83a2a';
       const savingsRate = data.savingsRate || 0;
       const incomeChange = data.incomeChange || 0;

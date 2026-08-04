@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { startOfMonth, endOfMonth } from "https://esm.sh/date-fns@3.6.0";
+import { netExpenseAmount, netIncomeAmount } from "../_shared/ledgerRules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -126,6 +127,11 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('type', 'expense')
             .eq('include_in_stats', true)
             .is('special_budget_id', null)
+            // Settling an advance is not spending. Without this the alert
+            // fires on a total no screen shows — and the notification_logs
+            // dedupe then blocks the corrected alert for the rest of the
+            // month, so the wrong number is the only one the user ever sees.
+            .is('repayment_of_transaction_id', null)
             .gte(dateColumn, monthStart.toISOString().split('T')[0])
             .lte(dateColumn, monthEnd.toISOString().split('T')[0])
             .order(dateColumn, { ascending: true });
@@ -135,16 +141,38 @@ const handler = async (req: Request): Promise<Response> => {
             continue;
           }
 
-          // Net amount per transaction = original - refunded (clamped to 0).
-          const netOf = (t: any) => Number(t.amount) - Number(t.refunded_amount || 0);
+          const netOf = (t: any) => netExpenseAmount(t);
 
-          // Expenses net of refunds, and nothing else. A category now works
-          // in both directions, so it may hold income too — but income does
-          // not reduce a budget: money genuinely coming back is linked as a
-          // refund and is already inside refunded_amount. Subtracting it
-          // again here would take the same money off twice, and would net
-          // unrelated earnings against the spending beside them.
-          const totalSpent = transactions?.reduce((sum, t) => sum + netOf(t), 0) || 0;
+          let totalSpent = transactions?.reduce((sum, t) => sum + netOf(t), 0) || 0;
+
+          // Income that says it came back on this category comes off the
+          // total, the same way the budget page counts it. Alerting on a
+          // figure the app does not show is how a user gets warned about a
+          // breach their own screen says did not happen.
+          //
+          // Only rows carrying the flag: a category holds both directions, so
+          // most income filed on one is earnings and netting it would let a
+          // salary cancel a budget. Linked refunds are excluded because they
+          // are already inside refunded_amount above.
+          const { data: offsetTxs, error: offsetError } = await supabaseAdmin
+            .from('transactions')
+            .select('amount, repaid_amount')
+            .eq('user_id', userPref.user_id)
+            .eq('category_id', category.id)
+            .eq('type', 'income')
+            .eq('offsets_category', true)
+            .eq('include_in_stats', true)
+            .is('refund_of_transaction_id', null)
+            .gte(dateColumn, monthStart.toISOString().split('T')[0])
+            .lte(dateColumn, monthEnd.toISOString().split('T')[0]);
+
+          if (offsetError) {
+            console.error(`Error fetching offsetting income for category ${category.id}:`, offsetError);
+            continue;
+          }
+          for (const t of offsetTxs ?? []) {
+            totalSpent -= netIncomeAmount(t as any);
+          }
 
           const budget = Number(category.budget);
 

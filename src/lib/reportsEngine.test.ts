@@ -10,6 +10,7 @@ import {
   netExpenseAmount,
   netIncomeAmount,
   computeCategoryNets,
+  periodContribution,
   type EngineTx,
 } from './reportsEngine';
 import { normalizePeriod } from './dateUtils';
@@ -130,6 +131,118 @@ describe('computeCategoryNets', () => {
       tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs', refunded_amount: 160 }),
     ];
     expect(computeCategoryNets(txs).get('loisirs')!.net).toBe(-60);
+  });
+
+  // The case a refund link cannot express: a gambling payout is not a refund
+  // of any one stake, so it carries the flag instead of a target expense.
+  it('subtracts income that says it came back on the category', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.gross).toBe(200);
+    expect(row.offsetIncome).toBe(130);
+    expect(row.net).toBe(70);
+  });
+
+  it('leaves income without the flag as earnings', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs' }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.offsetIncome).toBe(0);
+    expect(row.net).toBe(200);
+  });
+
+  it('counts offsetting income net of what has been repaid', () => {
+    const txs = [
+      tx({ amount: 500, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 200, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true, repaid_amount: 150 }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.offsetIncome).toBe(50);
+    expect(row.net).toBe(450);
+  });
+
+  // Belt and braces for the DB constraint: a linked refund already nets
+  // through its expense, so honouring the flag too would double-count.
+  it('ignores the flag on a linked refund', () => {
+    const txs = [
+      tx({ amount: 100, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs', refunded_amount: 40 }),
+      tx({ amount: 40, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true, refund_of_transaction_id: 'x' }),
+    ];
+    const row = computeCategoryNets(txs).get('loisirs')!;
+    expect(row.offsetIncome).toBe(0);
+    expect(row.net).toBe(60);
+  });
+
+  it('excludes offsetting income from stats but takes it off expenses', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true }),
+      tx({ amount: 1000, type: 'income', transaction_date: '2026-06-03', category_id: 'salaire' }),
+    ];
+    const stats = computePeriodStats(txs);
+    expect(stats.income).toBe(1000);
+    expect(stats.expenses).toBe(70);
+    expect(stats.net).toBe(930);
+  });
+});
+
+describe('periodContribution', () => {
+  const D = '2026-06-10';
+  const role = (t: EngineTx) => periodContribution(t).role;
+
+  it('routes income marked as coming back on its category to expenses, negative', () => {
+    const got = periodContribution(tx({ amount: 40, type: 'income', transaction_date: D, offsets_category: true }));
+    expect(got).toEqual({ role: 'expense', amount: -40 });
+  });
+
+  it('ignores rows that would double-count money already netted elsewhere', () => {
+    expect(role(tx({ amount: 10, type: 'income', transaction_date: D, refund_of_transaction_id: 'x' }))).toBe('ignored');
+    expect(role(tx({ amount: 10, type: 'expense', transaction_date: D, repayment_of_transaction_id: 'x' }))).toBe('ignored');
+    expect(role(tx({ amount: 10, type: 'expense', transaction_date: D, include_in_stats: false }))).toBe('ignored');
+    // offsets_category never beats a refund link: the expense already nets it.
+    expect(role(tx({ amount: 10, type: 'income', transaction_date: D, offsets_category: true, refund_of_transaction_id: 'x' }))).toBe('ignored');
+  });
+
+  it('nets each side and takes only the fee off a transfer', () => {
+    expect(periodContribution(tx({ amount: 100, type: 'expense', transaction_date: D, refunded_amount: 160 })).amount).toBe(-60);
+    expect(periodContribution(tx({ amount: 100, type: 'income', transaction_date: D, repaid_amount: 100 })).amount).toBe(0);
+    expect(periodContribution(tx({ amount: 500, type: 'transfer', transaction_date: D, transfer_fee: 3 }))).toEqual({ role: 'transfer_fee', amount: 3 });
+  });
+
+  it('counts a special-budget expense, unlike the category rule', () => {
+    const t = tx({ amount: 25, type: 'expense', transaction_date: D, category_id: 'c1', special_budget_id: 'sb1' });
+    // Money left the account, so it belongs to the period...
+    expect(periodContribution(t)).toEqual({ role: 'expense', amount: 25 });
+    // ...but not to the category's own envelope.
+    expect(computeCategoryNets([t]).get('c1')).toBeUndefined();
+  });
+
+  it('sums to computePeriodStats over a mixed set', () => {
+    const txs = [
+      tx({ amount: 3000, type: 'income', transaction_date: D }),
+      tx({ amount: 200, type: 'income', transaction_date: D, offsets_category: true }),
+      tx({ amount: 500, type: 'expense', transaction_date: D, refunded_amount: 50 }),
+      tx({ amount: 90, type: 'expense', transaction_date: D, repayment_of_transaction_id: 'x' }),
+      tx({ amount: 400, type: 'transfer', transaction_date: D, transfer_fee: 2 }),
+    ];
+    const folded = txs.reduce(
+      (acc, t) => {
+        const { role, amount } = periodContribution(t);
+        if (role !== 'ignored') acc[role] += amount;
+        return acc;
+      },
+      { income: 0, expense: 0, transfer_fee: 0 } as Record<string, number>,
+    );
+    const stats = computePeriodStats(txs);
+    expect(folded.income).toBe(stats.income);
+    expect(folded.expense).toBe(stats.expenses);
+    expect(folded.transfer_fee).toBe(stats.transferFees);
+    expect(stats).toEqual({ income: 3000, expenses: 250, transferFees: 2, net: 2748 });
   });
 });
 

@@ -362,8 +362,12 @@ export const useReportsData = (
 
     const expensesByCategory = filteredTransactions
       // Special-budget tx live in their own bracket and don't count
-      // against the category budgets.
-      .filter(t => t.type === 'expense' && t.include_in_stats !== false && !t.special_budget_id)
+      // against the category budgets. Settling an advance is not spending
+      // either — and post-merge that matters more than it used to, because
+      // useLinkRepayment stamps the settled income's category onto the
+      // repaying expense, and that category can now carry a budget.
+      .filter(t => t.type === 'expense' && t.include_in_stats !== false
+        && !t.special_budget_id && !t.repayment_of_transaction_id)
       .reduce((acc, t) => {
         const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';
@@ -881,7 +885,10 @@ export const useReportsData = (
 
     const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
     const expensesByCategory = secondaryFilteredTransactions
-      .filter(t => t.type === 'expense' && t.include_in_stats !== false && !t.special_budget_id)
+      // Same predicate as categoryChartData above — the two must agree or
+      // the value-date comparison contradicts the accounting-date one.
+      .filter(t => t.type === 'expense' && t.include_in_stats !== false
+        && !t.special_budget_id && !t.repayment_of_transaction_id)
       .reduce((acc, t) => {
         const categoryId = t.category?.id || 'uncategorized';
         const categoryName = t.category?.name || 'Non catégorisé';

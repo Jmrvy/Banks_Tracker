@@ -78,9 +78,15 @@ export interface SpecialBudgetComputed {
 
 export function specialBudgetTransactionAmount(tx: Transaction): number {
   if (tx.type !== "expense") return 0;
+  // Settling an advance is not spending, here as anywhere else. The envelope
+  // deliberately keeps stats-excluded rows — that is the point of tracking a
+  // trip separately — but a repayment was never an outflow of this envelope.
+  if (tx.repayment_of_transaction_id) return 0;
   const amount = Number(tx.amount) || 0;
   const refunded = Number(tx.refunded_amount || 0);
-  return Math.max(0, amount - refunded);
+  // Not floored: getting more back than went out leaves the envelope with
+  // room, and hiding that made a refunded trip read as fully spent.
+  return amount - refunded;
 }
 
 /** Compute the per-budget figures used by every card / sheet surface.

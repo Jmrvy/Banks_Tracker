@@ -9,6 +9,7 @@ import { useDebts } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { computePeriodStats } from '@/lib/reportsEngine';
 import { parseLocalDate } from "@/lib/dateUtils";
 import { format, addDays, isAfter, isBefore, startOfToday, startOfMonth, endOfMonth } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -89,18 +90,11 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       return date >= monthStart && date <= monthEnd && t.include_in_stats !== false;
     });
 
-    const income = monthTransactions
-      .filter(t => t.type === 'income' && !t.refund_of_transaction_id)
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const expenses = monthTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => {
-        const refundedAmount = t.refunded_amount || 0;
-        return sum + Math.max(0, t.amount - refundedAmount);
-      }, 0);
-
-    return { income, expenses, net: income - expenses };
+    // The engine rather than a third copy of its rules: this panel is shown
+    // on every login, and it was counting repayments as spending, a repaid
+    // advance as income, and dropping transfer fees from Net.
+    const s = computePeriodStats(monthTransactions as any);
+    return { income: s.income, expenses: s.expenses, net: s.net };
   }, [transactions, preferences.dateType]);
 
 
