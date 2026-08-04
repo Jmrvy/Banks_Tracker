@@ -26,6 +26,9 @@ jobs:
       - name: Strict null-check (ratcheted scope)
         run: npm run typecheck:strict
 
+      - name: Edge function syntax
+        run: npm run check:functions
+
       - name: Unit tests
         run: npm test
 

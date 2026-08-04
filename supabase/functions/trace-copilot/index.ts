@@ -196,11 +196,15 @@ const READ_TOOLS = [
     description:
       "Aggregate and sample the ledger. Returns the matched count, income and expense " +
       "separately, their net, and the biggest rows with their ids. Use this before quoting " +
-      "any figure. `expense` is ALREADY net of refunds, excludes advance settlements and " +
-      "special-budget rows, and has income marked as coming back on its category taken off; " +
-      "`income` excludes refunds and counts advances net of what has been repaid. Take " +
-      "nothing further off either. `transfer_fees` is what transfers cost — the principal " +
-      "moved between the user's own accounts and is not spending.",
+      "any figure. `expense` is ALREADY net of refunds, excludes advance settlements, and " +
+      "has income marked as coming back on its category taken off; `income` excludes refunds " +
+      "and counts advances net of what has been repaid. Take nothing further off either. " +
+      "`expense` is the period figure the app shows as headline spending and it INCLUDES " +
+      "special-budget rows; `expense_excluding_special_budgets` is the same spend without " +
+      "them, which is what spending_by_category adds up to. Quote `expense` for \"what did I " +
+      "spend\" and the excluding figure only when reconciling against category rows. " +
+      "`transfer_fees` is what transfers cost — the principal moved between the user's own " +
+      "accounts and is not spending.",
     parameters: obj({
       start: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
       end: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
@@ -225,7 +229,12 @@ const READ_TOOLS = [
   },
   {
     name: "list_uncategorized",
-    description: "Transactions with no category, newest first. Returns ids so they can be proposed for categorization.",
+    description:
+      "Transactions with no category, newest first, on the user's own date basis. Returns ids so " +
+      "they can be proposed for categorization. Transfers are excluded, as are rows kept out of " +
+      "statistics and refunds/repayments already linked to another row. INCOME is included: " +
+      "`expense_count` and `income_count` split the total, and only the expenses move a budget — " +
+      "never claim a budget impact for an uncategorized income row.",
     parameters: obj({ limit: nullable({ type: "number" }) }),
   },
   {
@@ -342,14 +351,16 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee, special_budget_id, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
-        // Special-budget rows belong to their own envelope, exactly as in
-        // spending_by_category. Omitting it here let Trace answer the same
-        // question two different ways depending on which tool it reached
-        // for — and vouch for either in a `method` block.
-        .is("special_budget_id", null)
+        // Special-budget rows STAY. This tool answers period questions, and
+        // the period rule counts them: that money left the account and is in
+        // the Reports headline and the dashboard tile. Filtering them out
+        // here — to match spending_by_category, which files them under their
+        // own envelope — made Trace quote a spend lower than the figure on
+        // the screen behind it. The two rules differ deliberately; the split
+        // is reported below instead of being hidden in a WHERE clause.
         .gte(dateColumn, input.start)
         .lte(dateColumn, input.end);
       if (input.category_id) q = q.eq("category_id", input.category_id);
@@ -369,12 +380,14 @@ async function runTool(
       let income = 0;
       let expense = 0;
       let transfers = 0;
+      let specialBudgetExpense = 0;
       for (const t of rows as any[]) {
         if (t.type === "expense") {
           // An expense repaying an advance settles income rather than being
           // spending; the income it repays already counts net of it.
           if (t.repayment_of_transaction_id) continue;
           expense += netExpense(t);
+          if (t.special_budget_id) specialBudgetExpense += netExpense(t);
         } else if (t.type === "income") {
           // A refund is already inside the expense it refunds, via that
           // expense's refunded_amount. Counting it here as well subtracts
@@ -412,7 +425,13 @@ async function runTool(
         // that is really a total for the first 2000 rows.
         truncated: rows.length === ROW_CAP,
         income: round(income),
+        // The period figure, matching the Reports headline.
         expense: round(expense),
+        // The same spend with special-budget envelopes taken out, which is
+        // what spending_by_category totals. Equal to `expense` unless a
+        // special budget falls in the window.
+        expense_excluding_special_budgets: round(expense - specialBudgetExpense),
+        special_budget_expense: round(specialBudgetExpense),
         net: round(income - expense),
         transfer_fees: round(transfers),
         sample,
@@ -479,21 +498,44 @@ async function runTool(
       const limit = Math.min(Math.max(Number(input.limit ?? 50), 1), 200);
       const { data, error } = await db
         .from("transactions")
-        .select("id, description, amount, transaction_date, type, accounts!transactions_account_id_fkey(name)")
+        // value_date too: this tool used to order by and report
+        // transaction_date whatever date basis the user works in, so it
+        // quoted dates the app does not show for the same row.
+        .select("id, description, amount, transaction_date, value_date, type, accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .is("category_id", null)
         .neq("type", "transfer")
-        .order("transaction_date", { ascending: false })
+        // Rows out of the statistics are not spending and a category would
+        // not change that.
+        .eq("include_in_stats", true)
+        // A linked refund or repayment takes its side from the row it is
+        // attached to; proposing a category for one is busywork that moves
+        // no budget.
+        .is("refund_of_transaction_id", null)
+        .is("repayment_of_transaction_id", null)
+        .order(dateColumn, { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return (data ?? []).map((t: any) => ({
+      const rows = (data ?? []).map((t: any) => ({
         id: t.id,
-        date: t.transaction_date,
+        date: dateColumn === "value_date" ? (t.value_date || t.transaction_date) : t.transaction_date,
         description: t.description,
         amount: Number(t.amount),
         type: t.type,
         account: t.accounts?.name ?? null,
       }));
+      // Split it out. The radar card on the Trace page counts uncategorized
+      // EXPENSES only, because it is a budget card; this tool returns income
+      // as well, since an unfiled salary is worth catching too. Returning
+      // both counts lets an answer agree with the number on the screen it
+      // was launched from instead of quietly contradicting it.
+      return {
+        count: rows.length,
+        expense_count: rows.filter((r) => r.type === "expense").length,
+        income_count: rows.filter((r) => r.type === "income").length,
+        truncated: rows.length === limit,
+        transactions: rows,
+      };
     }
 
     case "merchant_history": {
@@ -535,16 +577,28 @@ async function runTool(
       const [recurring, installments, debtPayments] = await Promise.all([
         db
           .from("recurring_transactions")
-          .select("description, amount, type, recurrence_type, next_due_date, end_date")
+          // category_id so a budget answer can tell a charge the user does
+          // not decide row by row from discretionary spending.
+          .select("description, amount, type, recurrence_type, next_due_date, end_date, category_id, categories(name)")
           .eq("user_id", userId)
-          .eq("is_active", true),
+          .eq("is_active", true)
+          // The window was never applied here, so every active rule came
+          // back whatever dates were asked for — a rule next due in two
+          // years counted as due this month.
+          .lte("next_due_date", input.end),
         db
           .from("installment_payment_records")
-          .select("amount, payment_date, is_paid, installment_payments(description)")
+          // scheduled_amount/scheduled_date, not amount/payment_date. The
+          // table was rebuilt with these names and this query was never
+          // updated, so PostgREST answered 42703 and — sharing one error
+          // check with the other two legs — took the whole tool down with
+          // it. Every affordability question got "Query failed" instead of
+          // the schedule.
+          .select("scheduled_amount, actual_amount, scheduled_date, is_paid, installment_payments(description)")
           .eq("user_id", userId)
           .eq("is_paid", false)
-          .gte("payment_date", input.start)
-          .lte("payment_date", input.end),
+          .gte("scheduled_date", input.start)
+          .lte("scheduled_date", input.end),
         db
           .from("scheduled_debt_payments")
           .select("scheduled_amount, scheduled_date, is_paid, debts(contact_name)")
@@ -557,10 +611,21 @@ async function runTool(
       // an unchecked failure degrades to `?? []` and the model reports "nothing
       // due" — a false all-clear on exactly the question people ask before
       // spending money.
-      for (const r of [recurring, installments, debtPayments]) {
-        if (r.error) throw r.error;
-      }
+      //
+      // Reported per leg rather than thrown: one broken leg used to discard
+      // the two that worked, which is how a single wrong column name left
+      // Trace with no schedule at all. Naming the failure lets it answer on
+      // what it has and say what it could not read.
+      const unread: string[] = [];
+      if (recurring.error) unread.push(`recurring transactions (${recurring.error.message})`);
+      if (installments.error) unread.push(`installment plans (${installments.error.message})`);
+      if (debtPayments.error) unread.push(`scheduled debt payments (${debtPayments.error.message})`);
+      if (unread.length === 3) throw new Error(`Could not read any schedule: ${unread.join("; ")}`);
+
       return {
+        // Present only when something failed, so the model can say which part
+        // of the schedule it is missing instead of implying nothing is due.
+        ...(unread.length ? { could_not_read: unread } : {}),
         recurring: (recurring.data ?? []).map((r: any) => ({
           description: r.description,
           amount: Number(r.amount),
@@ -568,11 +633,13 @@ async function runTool(
           frequency: r.recurrence_type,
           next_due: r.next_due_date,
           ends: r.end_date,
+          category: r.categories?.name ?? null,
+          category_id: r.category_id ?? null,
         })),
         installments: (installments.data ?? []).map((i: any) => ({
           description: i.installment_payments?.description ?? "",
-          amount: Number(i.amount),
-          due: i.payment_date,
+          amount: Number(i.actual_amount ?? i.scheduled_amount),
+          due: i.scheduled_date,
         })),
         debt_payments: (debtPayments.data ?? []).map((d: any) => ({
           contact: d.debts?.contact_name ?? "",
@@ -596,7 +663,7 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 # How to answer
 - Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
 - Money can come back on either side, and both are already netted for you. A refund reduces the expense it refunds — past zero if more came back than went out, which makes that category cheaper rather than merely free. A repayment settles an advance: the income counts net of it and the repaying expense is not spending. Never add either back in by hand.
-- What a category cost is \`spending_by_category\`, and its \`spent\` is FINAL: refunds are already inside it and no income row may be subtracted from it. \`search_transactions\` \`expense\` is the same figure for the same filter. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. A category holds both directions: income filed on one is earnings sitting beside the spending unless the user marked it as having come back on that category, in which case `spending_by_category` has already subtracted it and shows the split in `offsetting_income`. Either way it is never an adjustment for you to make by hand.
+- What a category cost is \`spending_by_category\`, and its \`spent\` is FINAL: refunds are already inside it and no income row may be subtracted from it. \`search_transactions\` \`expense\` is the same figure for the same filter, with one exception you must not try to reconcile by hand: an unfiltered \`expense\` is the period total and includes special-budget envelopes, which the category table files separately — \`expense_excluding_special_budgets\` is the figure that matches the sum of the category rows. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. A category holds both directions: income filed on one is earnings sitting beside the spending unless the user marked it as having come back on that category, in which case \`spending_by_category\` has already subtracted it and shows the split in \`offsetting_income\`. Either way it is never an adjustment for you to make by hand.
 - A merchant that both charges and pays out (gambling, reimbursements, resale, cashback) must be reported NET. Its payouts are often uncategorized, so a category total counts the losses and misses the winnings; quoting the gross there states a cost the user did not bear. When a merchant drives a category's move, check it with \`search_transactions\` and use \`net\`.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
@@ -612,7 +679,13 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
       : "The user reviews and confirms it before anything is applied."
   }
 - \`kind: "categorize"\` — each change is \`{transaction_id, category_id}\`. Only propose a category the user has actually used for that merchant before; call \`merchant_history\` first and leave genuinely new merchants out, listing them in a \`chips\` block instead. Set \`monthly_budget\` to null on these.
-- \`kind: "budget"\` — each change is \`{category_id, monthly_budget}\`. Base the figure on observed spend, not on a round number you like. Set \`transaction_id\` to null on these.
+- \`kind: "budget"\` — each change is \`{category_id, monthly_budget}\`. Base the figure on observed spend, not on a round number you like. Set \`transaction_id\` to null on these. A category you leave out of \`changes\` keeps the cap it has; \`monthly_budget: null\` removes its cap altogether.
+- A budget proposal is a claim about the whole envelope, not about one category. Add up every non-null \`monthly_budget\` in the context — that is the envelope today — and work out what it becomes with your rows applied. Take the period's earnings from \`search_transactions\` over the same window with no filters, and put both on the same footing: a cap is monthly, so divide that \`income\` by the whole months in the window. Never propose caps you have not compared with what actually comes in.
+- Say what it costs, in \`impact\`: the envelope before, the envelope after, the difference, and a month of income beside them — "envelope 1 840 → 1 990 (+150) against 2 310 a month coming in, leaving 320 for everything uncapped". That leftover is not spare money: the categories with no cap spend out of it. If the new envelope passes a month's income, the first sentence of \`summary\` says so and says by how much.
+- Hold the envelope flat where you honestly can. A category that stayed under its cap in every month of the window has real slack; propose the decrease alongside the rise, in the same proposal, and land the total where it started. Slack is what a category did not use, never what you would prefer it not to use, and no cap goes below what that category actually spends. If the total has to rise, say plainly that it is rising and what that leaves — never let a rise arrive unremarked.
+- Tell a cap that is set wrong from spending that ran over, and never assume the first. Call \`spending_by_category\` once per month across the window rather than once for the whole of it — one pass gives you every candidate's shape and its cap; six months is enough, and more spends the time budget for nothing. Over in nearly every month, on charges the user does not decide row by row — rent, a subscription that went up, anything \`scheduled_charges\` reports with the same \`category_id\` — is a cap set wrong: raise it to what the ledger says. Over in one or two months, or over on a handful of discretionary rows, is overspending: leave that cap alone and say why, because raising it only makes the overspend the new normal and costs the user the one line that flagged it. Put the evidence in \`diff\` — months over out of months looked at, current cap, proposed cap.
+- If every category you looked at turns out to be overspending rather than mis-set, do not emit a budget proposal at all — there are no caps to change. Say it in a \`text\` or \`list\` block instead. A proposal whose \`changes\` array is empty still renders a live apply button, which invites the user to apply nothing.
+- Never silently drop a category. Every category you weighed gets a \`diff\` row, the ones you are not moving included — those show their current cap and "unchanged" and stay out of \`changes\`, so \`primary\` counts only the caps that actually move.
 - \`diff\` is what the user reads before deciding: one row per change or per merchant group, with enough context to judge it.
 - \`impact\` states the consequence in the app's own terms, e.g. which budgets move and by how much.
 - Never put an id in \`changes\` that did not come back from a tool call.
