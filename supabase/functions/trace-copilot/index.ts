@@ -342,7 +342,7 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
         // Special-budget rows belong to their own envelope, exactly as in
