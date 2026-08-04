@@ -225,7 +225,16 @@ const READ_TOOLS = [
       "`offsetting_income` show that split. Ordinary income filed on the same category is " +
       "NOT subtracted: a category holds both directions, so a salary sharing a category " +
       "with spending stays earnings. Nothing further comes off `spent`.",
-    parameters: obj({ start: str, end: str }),
+    parameters: obj({
+      start: str,
+      end: str,
+      by_month: nullable({
+        type: "boolean",
+        description:
+          "Also break each category down per calendar month, with months_over/months_counted " +
+          "already worked out. Ask for this ONCE instead of calling this tool per month.",
+      }),
+    }),
   },
   {
     name: "list_uncategorized",
@@ -443,7 +452,7 @@ async function runTool(
         db.from("categories").select("id, name, budget").eq("user_id", userId),
         db
           .from("transactions")
-          .select("amount, refunded_amount, repaid_amount, category_id, type, offsets_category, repayment_of_transaction_id, refund_of_transaction_id")
+          .select("amount, refunded_amount, repaid_amount, category_id, type, offsets_category, repayment_of_transaction_id, refund_of_transaction_id, transaction_date, value_date")
           .eq("user_id", userId)
           .in("type", ["expense", "income"])
           .eq("include_in_stats", true)
@@ -456,6 +465,19 @@ async function runTool(
       if (txErr) throw txErr;
       const spent = new Map<string, { total: number; count: number; offset: number }>();
       const blank = () => ({ total: 0, count: 0, offset: 0 });
+      // category id -> month -> net. Built in the same pass as the totals, so
+      // a per-month figure can never disagree with the total above it.
+      const perMonth = new Map<string, Map<string, number>>();
+      const monthsSeen = new Set<string>();
+      const bump = (key: string, t: any, delta: number) => {
+        const d = dateColumn === "value_date" ? (t.value_date || t.transaction_date) : t.transaction_date;
+        if (!d) return;
+        const m = String(d).slice(0, 7);
+        monthsSeen.add(m);
+        const row = perMonth.get(key) ?? new Map<string, number>();
+        row.set(m, (row.get(m) ?? 0) + delta);
+        perMonth.set(key, row);
+      };
       for (const t of txs ?? []) {
         const key = (t as any).category_id;
         if (!key) continue;
@@ -466,6 +488,7 @@ async function runTool(
           cur.total += netExpense(t as any);
           cur.count += 1;
           spent.set(key, cur);
+          bump(key, t, netExpense(t as any));
         } else {
           // Only income the user marked as having come back on this category.
           // A linked refund is already inside the expense's refunded_amount,
@@ -475,21 +498,39 @@ async function runTool(
           const cur = spent.get(key) ?? blank();
           cur.offset += netIncome(t as any);
           spent.set(key, cur);
+          bump(key, t, -netIncome(t as any));
         }
       }
 
+      const months = [...monthsSeen].sort();
       return (cats ?? []).map((c: any) => {
         const row = spent.get(c.id) ?? blank();
-        return {
+        const cap = c.budget === null ? null : Number(c.budget);
+        const base = {
           category_id: c.id,
           name: c.name,
-          monthly_budget: c.budget === null ? null : Number(c.budget),
+          monthly_budget: cap,
           // Already net of refunds AND of income marked as coming back on
           // this category. Nothing further comes off it.
           spent: Number((row.total - row.offset).toFixed(2)),
           charged: Number(row.total.toFixed(2)),
           offsetting_income: Number(row.offset.toFixed(2)),
           transactions: row.count,
+        };
+        if (!input.by_month) return base;
+        // The shape a budget answer actually needs: whether a category is
+        // over in nearly every month (a cap set wrong) or in one (an
+        // overspend). Counted here so the model reads a verdict instead of
+        // reconstructing it from six separate tool calls — which is what
+        // exhausted the tool-round budget before it could answer at all.
+        const by = perMonth.get(c.id) ?? new Map<string, number>();
+        const by_month: Record<string, number> = {};
+        for (const m of months) by_month[m] = Number((by.get(m) ?? 0).toFixed(2));
+        return {
+          ...base,
+          by_month,
+          months_counted: months.length,
+          months_over: cap === null ? null : months.filter((m) => (by.get(m) ?? 0) > cap).length,
         };
       });
     }
@@ -683,7 +724,7 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 - A budget proposal is a claim about the whole envelope, not about one category. The envelope today is \`budget_envelope.monthly_total\` in the context, already totalled for you: quote that number and never re-add the individual caps to get it — adding a dozen figures inside an answer is how you end up stating a total that contradicts the one on the user's dashboard. Work out what it becomes by adding your own changes to it: for each row, proposed cap minus current cap; the envelope after is the given total plus the sum of those differences, and the difference you print must equal that sum. If your "after" minus your "before" does not equal the deltas in your own table, you have made an arithmetic error — recompute before answering. Take the period's earnings from \`search_transactions\` over the same window with no filters, and put both on the same footing: a cap is monthly, so divide that \`income\` by the whole months in the window. Never propose caps you have not compared with what actually comes in.
 - Say what it costs, in \`impact\`: the envelope before, the envelope after, the difference, and a month of income beside them — "envelope 1 840 → 1 990 (+150) against 2 310 a month coming in, leaving 320 for everything uncapped". That leftover is not spare money: the categories with no cap spend out of it. If the new envelope passes a month's income, the first sentence of \`summary\` says so and says by how much.
 - Hold the envelope flat where you honestly can. A category that stayed under its cap in every month of the window has real slack; propose the decrease alongside the rise, in the same proposal, and land the total where it started. Slack is what a category did not use, never what you would prefer it not to use, and no cap goes below what that category actually spends. If the total has to rise, say plainly that it is rising and what that leaves — never let a rise arrive unremarked.
-- Tell a cap that is set wrong from spending that ran over, and never assume the first. Call \`spending_by_category\` once per month across the window rather than once for the whole of it — one pass gives you every candidate's shape and its cap; six months is enough, and more spends the time budget for nothing. Over in nearly every month, on charges the user does not decide row by row — rent, a subscription that went up, anything \`scheduled_charges\` reports with the same \`category_id\` — is a cap set wrong: raise it to what the ledger says. Over in one or two months, or over on a handful of discretionary rows, is overspending: leave that cap alone and say why, because raising it only makes the overspend the new normal and costs the user the one line that flagged it. Put the evidence in \`diff\` — months over out of months looked at, current cap, proposed cap.
+- Tell a cap that is set wrong from spending that ran over, and never assume the first. Call \`spending_by_category\` ONCE with \`by_month: true\` over the whole window — six months is plenty — and it returns each category's \`by_month\`, \`months_over\` and \`months_counted\` already worked out. Never call it once per month: you have a limited number of tool rounds and spending them that way leaves none to answer in. Over in nearly every month, on charges the user does not decide row by row — rent, a subscription that went up, anything \`scheduled_charges\` reports with the same \`category_id\` — is a cap set wrong: raise it to what the ledger says. Over in one or two months, or over on a handful of discretionary rows, is overspending: leave that cap alone and say why, because raising it only makes the overspend the new normal and costs the user the one line that flagged it. Put the evidence in \`diff\` — months over out of months looked at, current cap, proposed cap.
 - If every category you looked at turns out to be overspending rather than mis-set, do not emit a budget proposal at all — there are no caps to change. Say it in a \`text\` or \`list\` block instead. A proposal whose \`changes\` array is empty still renders a live apply button, which invites the user to apply nothing.
 - Never silently drop a category. Every category you weighed gets a \`diff\` row, the ones you are not moving included — those show their current cap and "unchanged" and stay out of \`changes\`, so \`primary\` counts only the caps that actually move.
 - \`diff\` is what the user reads before deciding: one row per change or per merchant group, with enough context to judge it.
@@ -827,13 +868,26 @@ const handler = async (req: Request): Promise<Response> => {
     let ranOutOfTime = false;
     const deadline = Date.now() + INVOCATION_BUDGET_MS;
 
-    for (let turn = 0; turn < 8; turn++) {
+    // One more round than the model normally needs, because the last one is
+    // spent forcing the answer rather than gathering.
+    const MAX_TURNS = 10;
+    let outOfRounds = false;
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
       const left = deadline - Date.now();
       if (left < MIN_ROUND_MS) {
         // Stop on our own terms while a response can still be written.
         ranOutOfTime = true;
         break;
       }
+      // Last round, or nearly out of clock: stop letting it gather and make
+      // it answer with what it has. Without this the loop simply ended after
+      // its last tool call and returned nothing — every query paid for,
+      // thrown away, and the user told only "could not finish". A partial
+      // answer from real data beats an empty one.
+      const lastRound = turn === MAX_TURNS - 1;
+      const mustAnswer = lastRound || left < MIN_ROUND_MS * 2;
+      // Only the round ceiling sets this; the clock has its own message.
+      if (lastRound) outOfRounds = true;
       // Reasoning is what actually costs the time on a slow model: those
       // tokens are generated before any tool call, so every round pays for
       // them. A question needing several rounds cannot afford the full
@@ -845,7 +899,9 @@ const handler = async (req: Request): Promise<Response> => {
         model,
         messages,
         tools: TOOLS,
-        tool_choice: "auto",
+        tool_choice: mustAnswer
+          ? { type: "function", function: { name: "answer" } }
+          : "auto",
         max_tokens: pressed ? 4_000 : 16_000,
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
@@ -892,16 +948,27 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       messages.push(message);
-      for (const call of toolCalls) {
-        let content: string;
-        try {
-          const input = JSON.parse(call.function.arguments || "{}");
-          content = JSON.stringify(await runTool(db, userId, dateColumn, call.function.name, input));
-        } catch (err) {
-          content = `Query failed: ${(err as Error).message}`;
-        }
-        messages.push({ role: "tool", tool_call_id: call.id, content });
-      }
+      // Concurrently. The prompt tells the model these "run together", and
+      // it asks for several at once on that promise — but they were awaited
+      // one after another, so a turn cost the sum of its queries instead of
+      // the slowest. Independent reads against the same database have no
+      // reason to queue.
+      const results = await Promise.all(
+        toolCalls.map(async (call: any) => {
+          try {
+            const input = JSON.parse(call.function.arguments || "{}");
+            const out = await runTool(db, userId, dateColumn, call.function.name, input);
+            return { role: "tool", tool_call_id: call.id, content: JSON.stringify(out) };
+          } catch (err) {
+            return {
+              role: "tool",
+              tool_call_id: call.id,
+              content: `Query failed: ${(err as Error).message}`,
+            };
+          }
+        }),
+      );
+      for (const r of results) messages.push(r);
     }
 
     if (!answer || !Array.isArray(answer.blocks) || answer.blocks.length === 0) {
@@ -911,7 +978,11 @@ const handler = async (req: Request): Promise<Response> => {
             ? `Trace ran out of time on that one. ${model} needed more than the ` +
               "two minutes a request gets. Narrow the question — one period, or one " +
               "kind of spending — or pick a faster model in Settings › Trace copilot."
-            : "Trace could not finish that one. Try narrowing the question.",
+            : outOfRounds
+              ? `Trace kept gathering and never answered. ${model} used all ` +
+                `${MAX_TURNS} tool rounds on that question. Narrow it — one period, ` +
+                "or one kind of spending."
+              : "Trace could not finish that one. Try narrowing the question.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
