@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import {useEffect, useState} from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -15,19 +15,7 @@ import { TraceProposal } from "@/components/trace/TraceProposal";
 import type { TraceBlock } from "@/contexts/TraceContext";
 import { isNumericCell } from "@/lib/traceFormat";
 import { cn } from "@/lib/utils";
-
-/** `**bold**` is the only markup the copilot is allowed to emit. */
-function rich(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**") ? (
-      <strong key={i} className="font-semibold text-foreground">
-        {part.slice(2, -2)}
-      </strong>
-    ) : (
-      <Fragment key={i}>{part}</Fragment>
-    ),
-  );
-}
+import { rich } from "@/components/trace/rich";
 
 function Figure({ b }: { b: Extract<TraceBlock, { t: "figure" }> }) {
   const sign = b.delta?.v.trim().charAt(0);
@@ -36,7 +24,7 @@ function Figure({ b }: { b: Extract<TraceBlock, { t: "figure" }> }) {
   return (
     <div className="rounded-xl border border-line bg-bg-subtle/50 px-4 py-3.5">
       <div className="text-[10.5px] uppercase tracking-[0.09em] font-semibold text-muted-foreground">
-        {b.label}
+        {rich(b.label)}
       </div>
       <div className="mt-1.5 text-2xl sm:text-[28px] font-semibold tracking-tight tabular-nums leading-none">
         {b.value}
@@ -55,7 +43,7 @@ function Figure({ b }: { b: Extract<TraceBlock, { t: "figure" }> }) {
             {b.delta.v}
           </span>
         )}
-        <span className="text-muted-foreground">{b.sub}</span>
+        <span className="text-muted-foreground">{rich(b.sub)}</span>
       </div>
     </div>
   );
@@ -95,7 +83,7 @@ function BlockTable({ b }: { b: Extract<TraceBlock, { t: "table" }> }) {
                         : "text-right text-muted-foreground",
                   )}
                 >
-                  {cell}
+                  {rich(cell)}
                 </td>
               ))}
             </tr>
@@ -130,8 +118,8 @@ function Notes({ b }: { b: Extract<TraceBlock, { t: "list" }> }) {
               )}
             />
             <div className="min-w-0">
-              <div className="text-xs font-medium">{item.title}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{item.body}</div>
+              <div className="text-xs font-medium">{rich(item.title)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{rich(item.body)}</div>
             </div>
           </div>
         );
@@ -148,7 +136,7 @@ function Forecast({ b }: { b: Extract<TraceBlock, { t: "forecast" }> }) {
           key={i}
           className="flex items-baseline justify-between gap-3 px-3.5 py-2 border-b border-line text-xs"
         >
-          <span className="text-muted-foreground">{row.k}</span>
+          <span className="text-muted-foreground">{rich(row.k)}</span>
           <span
             className={cn(
               "font-mono tabular-nums font-medium whitespace-nowrap",
@@ -161,7 +149,7 @@ function Forecast({ b }: { b: Extract<TraceBlock, { t: "forecast" }> }) {
         </div>
       ))}
       <div className="flex items-baseline justify-between gap-3 px-3.5 py-2.5 bg-bg-subtle/60">
-        <span className="text-xs font-medium">{b.foot.k}</span>
+        <span className="text-xs font-medium">{rich(b.foot.k)}</span>
         <span
           className={cn(
             "font-mono tabular-nums text-sm font-semibold whitespace-nowrap",
@@ -180,7 +168,7 @@ function Chips({ b }: { b: Extract<TraceBlock, { t: "chips" }> }) {
   return (
     <div>
       <div className="text-[10.5px] uppercase tracking-[0.09em] font-semibold text-muted-foreground mb-1.5">
-        {b.label}
+        {rich(b.label)}
       </div>
       <div className="flex flex-wrap gap-1.5">
         {b.items.map((item, i) => (
@@ -188,7 +176,7 @@ function Chips({ b }: { b: Extract<TraceBlock, { t: "chips" }> }) {
             key={i}
             className="inline-flex items-center gap-2 rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs"
           >
-            <span className="font-medium truncate max-w-[160px]">{item.name}</span>
+            <span className="font-medium truncate max-w-[160px]">{rich(item.name)}</span>
             <span className="font-mono tabular-nums">{item.amount}</span>
             <span className="text-muted-foreground text-[11px]">{item.date}</span>
           </span>
@@ -232,7 +220,7 @@ function Bars({ b }: { b: Extract<TraceBlock, { t: "bars" }> }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="text-[11px] text-muted-foreground mt-1.5">{b.note}</div>
+      <div className="text-[11px] text-muted-foreground mt-1.5">{rich(b.note)}</div>
     </div>
   );
 }
