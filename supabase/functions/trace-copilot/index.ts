@@ -59,6 +59,17 @@ const RESPONSE_RESERVE_MS = 3_000;
 /** Below this, there is no point starting another round. */
 const MIN_ROUND_MS = 15_000;
 
+/**
+ * Wall clock kept back for the answer itself.
+ *
+ * A finished proposal is the longest thing Trace ever writes — a diff row
+ * per category weighed, the funding rows, the blocks around them — and it
+ * is generated in one call. Reserving only a gathering round's worth left
+ * it being forced out under time pressure with a truncated token budget,
+ * which is not a slow answer but no answer at all.
+ */
+const ANSWER_RESERVE_MS = 50_000;
+
 // ─── block schema ──────────────────────────────────────────────────────
 // The answer travels as the argument object of an `answer` tool call
 // rather than through `response_format: json_schema`, because json_schema
@@ -895,6 +906,7 @@ const handler = async (req: Request): Promise<Response> => {
     let answer: { steps: string[]; blocks: unknown[] } | null = null;
     let nudged = false;
     let ranOutOfTime = false;
+    let truncatedAnswer = false;
     const deadline = Date.now() + INVOCATION_BUDGET_MS;
 
     // One more round than the model normally needs, because the last one is
@@ -914,9 +926,21 @@ const handler = async (req: Request): Promise<Response> => {
       // thrown away, and the user told only "could not finish". A partial
       // answer from real data beats an empty one.
       const lastRound = turn === MAX_TURNS - 1;
-      const mustAnswer = lastRound || left < MIN_ROUND_MS * 2;
+      const mustAnswer = lastRound || left < ANSWER_RESERVE_MS;
       // Only the round ceiling sets this; the clock has its own message.
       if (lastRound) outOfRounds = true;
+      if (mustAnswer) {
+        // Forcing the tool guarantees an answer is attempted; it does not
+        // stop the model writing a fuller one than the remaining budget can
+        // carry. Ask for the short version too, so what comes back fits.
+        messages.push({
+          role: "user",
+          content:
+            "Answer now, with what you already have — no further tool calls. Keep it tight: " +
+            "the verdict, the essential evidence, and the proposal if there is one. Trim the " +
+            "commentary before you trim the rows a decision depends on.",
+        });
+      }
       // Reasoning is what actually costs the time on a slow model: those
       // tokens are generated before any tool call, so every round pays for
       // them. A question needing several rounds cannot afford the full
@@ -931,10 +955,19 @@ const handler = async (req: Request): Promise<Response> => {
         tool_choice: mustAnswer
           ? { type: "function", function: { name: "answer" } }
           : "auto",
-        max_tokens: pressed ? 4_000 : 16_000,
+        // The answer round always gets the full budget. `pressed` exists to
+        // buy time by thinking less, and it does that through `reasoning`
+        // below — but it was also halving max_tokens, and since the answer
+        // is only ever forced when time is short, the one call that has to
+        // emit a whole proposal was the one call capped at 4k. The JSON
+        // came back cut off mid-object, JSON.parse threw, and a complete
+        // set of tool results was thrown away with it.
+        max_tokens: mustAnswer ? 16_000 : pressed ? 4_000 : 16_000,
         // OpenRouter's unified reasoning control. Silently ignored by
         // models that don't reason, so it needs no per-model branching.
-        reasoning: { effort: pressed ? "low" : reasoningEffort },
+        // Nothing to deliberate about on the answer round: everything has
+        // already been gathered, so spend the remaining clock writing.
+        reasoning: { effort: mustAnswer || pressed ? "low" : reasoningEffort },
       }, Math.max(1_000, left - RESPONSE_RESERVE_MS));
 
       const choice = completion.choices?.[0];
@@ -968,10 +1001,18 @@ const handler = async (req: Request): Promise<Response> => {
       // are ignored, since the model already had what it needed.
       const answerCall = toolCalls.find((c: any) => c.function?.name === "answer");
       if (answerCall) {
+        const raw = answerCall.function.arguments || "{}";
         try {
-          answer = JSON.parse(answerCall.function.arguments || "{}");
+          answer = JSON.parse(raw);
         } catch {
-          console.error("trace-copilot: unparseable answer arguments");
+          // Almost always a token cut, not malformed generation. Record
+          // enough to tell the two apart in the logs, and tell the user
+          // which it was rather than "could not finish".
+          truncatedAnswer = choice?.finish_reason === "length" || raw.length > 2_000;
+          console.error(
+            `trace-copilot: unparseable answer arguments (${raw.length} chars, ` +
+              `finish_reason=${choice?.finish_reason ?? "none"})`,
+          );
         }
         break;
       }
@@ -1003,7 +1044,12 @@ const handler = async (req: Request): Promise<Response> => {
     if (!answer || !Array.isArray(answer.blocks) || answer.blocks.length === 0) {
       return new Response(
         JSON.stringify({
-          error: ranOutOfTime
+          error: truncatedAnswer
+            ? `Trace's answer came back cut off. ${model} produced more than the ` +
+              "reply could hold, so nothing could be rendered. Ask for one part of " +
+              "it — a single period, or a single category — or pick a model with a " +
+              "larger output budget in Settings › Trace copilot."
+            : ranOutOfTime
             ? `Trace ran out of time on that one. ${model} needed more than the ` +
               "two minutes a request gets. Narrow the question — one period, or one " +
               "kind of spending — or pick a faster model in Settings › Trace copilot."
