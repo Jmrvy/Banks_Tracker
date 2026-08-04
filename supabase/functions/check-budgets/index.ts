@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { startOfMonth, endOfMonth } from "https://esm.sh/date-fns@3.6.0";
+import { netExpenseAmount, netIncomeAmount } from "../_shared/ledgerRules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -126,6 +127,11 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('type', 'expense')
             .eq('include_in_stats', true)
             .is('special_budget_id', null)
+            // Settling an advance is not spending. Without this the alert
+            // fires on a total no screen shows — and the notification_logs
+            // dedupe then blocks the corrected alert for the rest of the
+            // month, so the wrong number is the only one the user ever sees.
+            .is('repayment_of_transaction_id', null)
             .gte(dateColumn, monthStart.toISOString().split('T')[0])
             .lte(dateColumn, monthEnd.toISOString().split('T')[0])
             .order(dateColumn, { ascending: true });
@@ -135,8 +141,7 @@ const handler = async (req: Request): Promise<Response> => {
             continue;
           }
 
-          // Net amount per transaction = original - refunded (clamped to 0).
-          const netOf = (t: any) => Number(t.amount) - Number(t.refunded_amount || 0);
+          const netOf = (t: any) => netExpenseAmount(t);
 
           let totalSpent = transactions?.reduce((sum, t) => sum + netOf(t), 0) || 0;
 
@@ -166,7 +171,7 @@ const handler = async (req: Request): Promise<Response> => {
             continue;
           }
           for (const t of offsetTxs ?? []) {
-            totalSpent -= Number(t.amount) - Number((t as any).repaid_amount || 0);
+            totalSpent -= netIncomeAmount(t as any);
           }
 
           const budget = Number(category.budget);

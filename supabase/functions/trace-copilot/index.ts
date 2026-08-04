@@ -18,6 +18,7 @@
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { netExpenseAmount, netIncomeAmount } from "../_shared/ledgerRules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -195,8 +196,11 @@ const READ_TOOLS = [
     description:
       "Aggregate and sample the ledger. Returns the matched count, income and expense " +
       "separately, their net, and the biggest rows with their ids. Use this before quoting " +
-      "any figure. `expense` is ALREADY net of refunds and `income` excludes refunds and " +
-      "counts advances net of what has been repaid — take nothing further off either.",
+      "any figure. `expense` is ALREADY net of refunds, excludes advance settlements and " +
+      "special-budget rows, and has income marked as coming back on its category taken off; " +
+      "`income` excludes refunds and counts advances net of what has been repaid. Take " +
+      "nothing further off either. `transfer_fees` is what transfers cost — the principal " +
+      "moved between the user's own accounts and is not spending.",
     parameters: obj({
       start: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
       end: { ...str, description: "Inclusive ISO date (yyyy-mm-dd)." },
@@ -321,15 +325,11 @@ async function chatCompletion(
 
 type Db = ReturnType<typeof createClient>;
 
-/** Net of any refund — the same basis the app uses, negative included: an
- *  expense refunded beyond its value makes its category cheaper. */
-const netExpense = (t: Record<string, unknown>) =>
-  Number(t.amount) - Number(t.refunded_amount ?? 0);
-
-/** Income net of anything repaid against it. An advance that has been paid
- *  back was never earnings, so quoting it gross overstates the month. */
-const netIncome = (t: Record<string, unknown>) =>
-  Number(t.amount) - Number(t.repaid_amount ?? 0);
+/** The shared rules, so Trace cannot answer a question differently from the
+ *  screen the user is looking at. `netIncome` used to omit the floor these
+ *  apply, which quoted a fully-repaid advance as earnings. */
+const netExpense = (t: Record<string, unknown>) => netExpenseAmount(t as any);
+const netIncome = (t: Record<string, unknown>) => netIncomeAmount(t as any);
 
 async function runTool(
   db: Db,
@@ -342,9 +342,14 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
+        // Special-budget rows belong to their own envelope, exactly as in
+        // spending_by_category. Omitting it here let Trace answer the same
+        // question two different ways depending on which tool it reached
+        // for — and vouch for either in a `method` block.
+        .is("special_budget_id", null)
         .gte(dateColumn, input.start)
         .lte(dateColumn, input.end);
       if (input.category_id) q = q.eq("category_id", input.category_id);
@@ -376,9 +381,15 @@ async function runTool(
           // the same money twice. include_in_stats is not a safe proxy for
           // this — a linked refund can carry it true — so test the link.
           if (t.refund_of_transaction_id) continue;
-          income += netIncome(t);
+          // Income that came back on its category reduces spend rather than
+          // being earnings, the same way computePeriodStats treats it.
+          if (t.offsets_category) expense -= netIncome(t);
+          else income += netIncome(t);
         } else {
-          transfers += Number(t.amount);
+          // Only the fee leaves: a transfer moves money between the user's
+          // own accounts. Summing the principal reported a movement as
+          // though it were money gone.
+          transfers += Number(t.transfer_fee ?? 0);
         }
       }
       const limit = Math.min(Math.max(Number(input.limit ?? 10), 1), 50);
@@ -403,7 +414,7 @@ async function runTool(
         income: round(income),
         expense: round(expense),
         net: round(income - expense),
-        transfers_excluded: round(transfers),
+        transfer_fees: round(transfers),
         sample,
       };
     }
