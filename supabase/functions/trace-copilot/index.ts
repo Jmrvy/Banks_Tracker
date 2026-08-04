@@ -231,8 +231,10 @@ const READ_TOOLS = [
       by_month: nullable({
         type: "boolean",
         description:
-          "Also break each category down per calendar month, with months_over/months_counted " +
-          "already worked out. Ask for this ONCE instead of calling this tool per month.",
+          "Also break each category down per calendar month, with months_over, months_counted, " +
+          "max_month, avg_month and headroom (what the cap can give up without going over in " +
+          "any month it has already seen) already worked out. Ask for this ONCE instead of " +
+          "calling this tool per month.",
       }),
     }),
   },
@@ -449,7 +451,7 @@ async function runTool(
 
     case "spending_by_category": {
       const [{ data: cats, error: catErr }, { data: txs, error: txErr }] = await Promise.all([
-        db.from("categories").select("id, name, budget").eq("user_id", userId),
+        db.from("categories").select("id, name, budget, counts_as_savings").eq("user_id", userId),
         db
           .from("transactions")
           .select("amount, refunded_amount, repaid_amount, category_id, type, offsets_category, repayment_of_transaction_id, refund_of_transaction_id, transaction_date, value_date")
@@ -510,6 +512,9 @@ async function runTool(
           category_id: c.id,
           name: c.name,
           monthly_budget: cap,
+          // Its cap is a savings target, not a spending limit. Headroom here
+          // is money the user chose to put aside.
+          counts_as_savings: !!c.counts_as_savings,
           // Already net of refunds AND of income marked as coming back on
           // this category. Nothing further comes off it.
           spent: Number((row.total - row.offset).toFixed(2)),
@@ -526,11 +531,31 @@ async function runTool(
         const by = perMonth.get(c.id) ?? new Map<string, number>();
         const by_month: Record<string, number> = {};
         for (const m of months) by_month[m] = Number((by.get(m) ?? 0).toFixed(2));
+        const monthly = months.map((m) => by.get(m) ?? 0);
+        const peak = monthly.length ? Math.max(...monthly) : 0;
+        const mean = monthly.length ? monthly.reduce((a, b) => a + b, 0) / monthly.length : 0;
         return {
           ...base,
           by_month,
           months_counted: months.length,
           months_over: cap === null ? null : months.filter((m) => (by.get(m) ?? 0) > cap).length,
+          max_month: Number(peak.toFixed(2)),
+          avg_month: Number(mean.toFixed(2)),
+          // What this cap could give up without putting the category over in
+          // any month it has already lived through — cap minus its worst
+          // month, never negative. This is the ONLY money a rise elsewhere
+          // may be funded from; anything more would be cutting a cap below
+          // what the category actually spends, which just moves the alert
+          // rather than removing the cost.
+          headroom: cap === null ? null : Number(Math.max(0, cap - peak).toFixed(2)),
+          // A second, softer tier: cap down to the AVERAGE month rather than
+          // the worst one. Real money, but it buys the funding by accepting
+          // that this category will breach in its heavier months, so it is
+          // only ever offered with that consequence stated. Kept separate
+          // from `headroom` precisely so the two cannot be confused.
+          headroom_to_average: cap === null ? null : Number(Math.max(0, cap - mean).toFixed(2)),
+          months_over_if_cut_to_average:
+            cap === null ? null : months.filter((m) => (by.get(m) ?? 0) > mean).length,
         };
       });
     }
@@ -722,8 +747,12 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 - \`kind: "categorize"\` — each change is \`{transaction_id, category_id}\`. Only propose a category the user has actually used for that merchant before; call \`merchant_history\` first and leave genuinely new merchants out, listing them in a \`chips\` block instead. Set \`monthly_budget\` to null on these.
 - \`kind: "budget"\` — each change is \`{category_id, monthly_budget}\`. Base the figure on observed spend, not on a round number you like. Set \`transaction_id\` to null on these. A category you leave out of \`changes\` keeps the cap it has; \`monthly_budget: null\` removes its cap altogether.
 - A budget proposal is a claim about the whole envelope, not about one category. The envelope today is \`budget_envelope.monthly_total\` in the context, already totalled for you: quote that number and never re-add the individual caps to get it — adding a dozen figures inside an answer is how you end up stating a total that contradicts the one on the user's dashboard. Work out what it becomes by adding your own changes to it: for each row, proposed cap minus current cap; the envelope after is the given total plus the sum of those differences, and the difference you print must equal that sum. If your "after" minus your "before" does not equal the deltas in your own table, you have made an arithmetic error — recompute before answering. Take the period's earnings from \`search_transactions\` over the same window with no filters, and put both on the same footing: a cap is monthly, so divide that \`income\` by the whole months in the window. Never propose caps you have not compared with what actually comes in.
-- Say what it costs, in \`impact\`: the envelope before, the envelope after, the difference, and a month of income beside them — "envelope 1 840 → 1 990 (+150) against 2 310 a month coming in, leaving 320 for everything uncapped". That leftover is not spare money: the categories with no cap spend out of it. If the new envelope passes a month's income, the first sentence of \`summary\` says so and says by how much.
-- Hold the envelope flat where you honestly can. A category that stayed under its cap in every month of the window has real slack; propose the decrease alongside the rise, in the same proposal, and land the total where it started. Slack is what a category did not use, never what you would prefer it not to use, and no cap goes below what that category actually spends. If the total has to rise, say plainly that it is rising and what that leaves — never let a rise arrive unremarked.
+- Say what it costs, in \`impact\`: the envelope before, the envelope after, the difference, and a month of income beside them — "envelope 2 795 → 2 795 (unchanged): +180 on Loyer and Abonnements, funded by −180 from Sport and Investissement, against 3 618 a month coming in". When the total is unchanged, say so in those words and name what paid for what. That leftover against income is not spare money: the categories with no cap spend out of it.
+- The envelope is a ceiling, not a starting point. \`budget_envelope.monthly_total\` is what the user has decided to allow themselves, and a budget proposal MUST NOT come out above it. Every rise is funded, in the same proposal, by decreases that pay for it: pick them from categories with real \`headroom\`, take at most that headroom from any one of them, and make the decreases sum to at least the rises so the new total lands at or below the old one. Show every funding decrease as its own \`diff\` row and its own entry in \`changes\` — a rise whose funding is only described in prose is not funded.
+- \`headroom\` is the first money you may move, and it is computed for you: a cap minus that category's worst month, so taking it cannot put that category over in any month it has already lived through. Never cut a cap below what the category actually spends — that does not save anything, it just moves the alert onto a category that was behaving. If a category has zero headroom it cannot contribute, whatever its name suggests.
+- A category with \`counts_as_savings\` is money being put aside, not money being spent. Its headroom is the last place you look, and taking any of it means the user saves less so they can spend more — which may well be the right trade, but it is theirs to make. Never fund a rise from a savings cap without saying so in the FIRST sentence of \`summary\`, in those terms.
+- When safe headroom is not enough, you may go one tier further and use \`headroom_to_average\` — cutting a cap towards that category's average month instead of its worst. That is real money but it buys the funding by accepting breaches: \`months_over_if_cut_to_average\` says how many of the months looked at would have gone over. Never use this tier silently. Name every category cut this way in \`summary\`, with how often it would have breached, and prefer taking a little from several categories over gutting one. If even this does not cover the rises, fund what you can and leave the rest unraised.
+- If the rises cannot be funded from available headroom, do NOT raise anything. Emit the proposal with only the moves you can fund, or none at all, and say plainly in \`summary\` what could not be paid for and what it would take — which cap would have to go, or that the envelope itself needs to rise and by how much. Raising the total silently is the one outcome that is never acceptable: the user set that number deliberately.
 - Tell a cap that is set wrong from spending that ran over, and never assume the first. Call \`spending_by_category\` ONCE with \`by_month: true\` over the whole window — six months is plenty — and it returns each category's \`by_month\`, \`months_over\` and \`months_counted\` already worked out. Never call it once per month: you have a limited number of tool rounds and spending them that way leaves none to answer in. Over in nearly every month, on charges the user does not decide row by row — rent, a subscription that went up, anything \`scheduled_charges\` reports with the same \`category_id\` — is a cap set wrong: raise it to what the ledger says. Over in one or two months, or over on a handful of discretionary rows, is overspending: leave that cap alone and say why, because raising it only makes the overspend the new normal and costs the user the one line that flagged it. Put the evidence in \`diff\` — months over out of months looked at, current cap, proposed cap.
 - If every category you looked at turns out to be overspending rather than mis-set, do not emit a budget proposal at all — there are no caps to change. Say it in a \`text\` or \`list\` block instead. A proposal whose \`changes\` array is empty still renders a live apply button, which invites the user to apply nothing.
 - Never silently drop a category. Every category you weighed gets a \`diff\` row, the ones you are not moving included — those show their current cap and "unchanged" and stay out of \`changes\`, so \`primary\` counts only the caps that actually move.
