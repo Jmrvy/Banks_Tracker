@@ -712,18 +712,20 @@ async function runTool(
         // of the schedule it is missing instead of implying nothing is due.
         ...(unread.length ? { could_not_read: unread } : {}),
         recurring: (recurring.data ?? []).map((r: any) => {
-          // An installment-linked rule does NOT create what it says it does.
-          // Both materialisers — the cron at process-recurring-transactions
-          // effectiveType, and useFinancialData client-side — force these to
-          // expense and take the amount from the plan. The stored `type` is
-          // dead data: reimbursement plans keep "income" on the rule while
-          // every transaction they have ever produced is an expense.
+          // Derived, not read. An installment-linked rule only ever creates
+          // expenses: both materialisers force it — the cron's effectiveType
+          // in process-recurring-transactions, and useFinancialData
+          // client-side — and take the amount from the plan.
           //
-          // Reporting the stored value is what made Trace announce "scheduled
-          // income of 205.68/mo for Fit Factory" against a category whose
-          // offsetting_income was 0, and conclude the category was overstated
-          // by a refund nobody had linked. There was no refund. That 205.68
-          // is an expense, already inside the Sport budget.
+          // Five reimbursement rules used to store type = "income" from
+          // before the write paths settled, and reporting that stored value
+          // is what made Trace announce "scheduled income of 205.68/mo for
+          // Fit Factory" against a category whose offsetting_income was 0,
+          // then correctly deduce from that premise that a refund had gone
+          // unlinked and Sport was overstated. There was no refund; the
+          // 205.68 is an expense already inside the Sport budget. The rows
+          // are normalised now (20260804180000), so this derivation agrees
+          // with the column — and keeps agreeing if either ever drifts.
           const plan = r.installment_payments;
           return {
             description: r.description,
