@@ -210,7 +210,9 @@ export const useLinkRepayment = () => {
 
       const { error: clearError } = await supabase
         .from('transactions')
-        .update({ repayment_of_transaction_id: null, category_id: null })
+        // The category stays: categories hold both directions now, so
+        // clearing it only hides the row from category-filtered views.
+        .update({ repayment_of_transaction_id: null })
         .eq('id', repaymentId)
         .eq('user_id', user.id);
       if (clearError) return { error: clearError };
