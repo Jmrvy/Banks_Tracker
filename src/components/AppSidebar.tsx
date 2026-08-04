@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search, Settings as SettingsIcon } from "lucide-react";
+import { Plus, Search, Settings as SettingsIcon, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
@@ -12,6 +12,7 @@ import {
   mainNavigation,
   accountsGroup,
   toolsGroup,
+  settingsItem,
   type NavigationItem,
 } from "@/config/navigation";
 
@@ -28,6 +29,9 @@ export function AppSidebar() {
     return location.pathname.startsWith(path);
   };
 
+  const displayName =
+    user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
+
   const initials = (user?.user_metadata?.full_name || user?.email || "U")
     .split(/\s+|@/)
     .filter(Boolean)
@@ -38,41 +42,42 @@ export function AppSidebar() {
   const NavLink = ({ item }: { item: NavigationItem }) => {
     const active = isActive(item.path);
     return (
-      <Link
-        to={item.path}
-        className={cn("ft-nav-item", active && "active")}
-      >
+      <Link to={item.path} className={cn("ft-nav-item", active && "active")}>
         <item.icon className="ft-nav-icon" />
-        <span>{t(item.nameKey)}</span>
+        <span className="truncate">{t(item.nameKey)}</span>
       </Link>
     );
   };
 
   return (
-    <aside data-tour="nav" className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col">
-      {/* Brand */}
-      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-        <div className="h-7 w-7 rounded-lg bg-foreground text-background dark:bg-primary dark:text-primary-foreground grid place-items-center font-bold text-sm tracking-tight">
-          S
-        </div>
-        <div className="leading-tight">
-          <div className="text-[15px] font-semibold tracking-tight">Spending</div>
-          <div className="text-[11px] text-muted-foreground -mt-0.5">Tracker</div>
-        </div>
-      </div>
+    <aside
+      data-tour="nav"
+      className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col gap-4 px-3 pt-5 pb-3 overflow-y-auto"
+    >
+      {/* Brand — the display serif's smallest appearance, and the only place
+          the app signs its own name. */}
+      <Link to="/" className="flex items-center gap-2.5 px-2 pb-1">
+        <span className="ft-brand-mark">S</span>
+        <span className="min-w-0">
+          <span className="ft-brand-name block truncate">Spending Tracker</span>
+          <span className="block text-[10px] uppercase tracking-[0.1em] font-semibold text-fg-dim truncate mt-px">
+            {displayName}
+          </span>
+        </span>
+      </Link>
 
       {/* Search shortcut — opens the global command palette directly through
           context, not via a synthetic keyboard event (which was fragile and
           relied on the document listener still being attached). */}
-      <div className="px-3 pb-3">
+      <div className="flex flex-col gap-1.5">
         <button
           data-tour="search"
           onClick={togglePalette}
-          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
+          className="flex items-center gap-2 w-full px-2.5 py-2.5 rounded-md text-[12.5px] text-fg-dim bg-bg-elev border border-line hover:border-line-strong hover:text-fg-mute transition-colors text-left"
         >
           <Search className="h-3.5 w-3.5" />
           <span className="flex-1">{t("common.searchPlaceholder")}</span>
-          <kbd className="text-[10px] font-mono bg-bg-elev border border-line-strong text-fg-dim px-1 py-px rounded">
+          <kbd className="text-[10px] font-mono bg-bg-elev border border-line-strong text-fg-dim px-1.5 py-px rounded-[5px]">
             ⌘K
           </kbd>
         </button>
@@ -82,32 +87,31 @@ export function AppSidebar() {
             copilot scoped to what the user is looking at. */}
         <button
           onClick={openDock}
-          className="mt-1.5 flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-muted-foreground bg-bg-subtle border border-line hover:bg-bg-hover hover:text-foreground transition-colors text-left"
+          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-fg-dim bg-bg-elev border border-line hover:border-line-strong hover:text-fg-mute transition-colors text-left"
         >
           <TraceMark size="sm" plain />
-          <span className="flex-1">{t("trace.askAboutPage", { defaultValue: "Ask Trace about this page" })}</span>
+          <span className="flex-1 truncate">
+            {t("trace.askAboutPage", { defaultValue: "Ask Trace about this page" })}
+          </span>
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 pb-3">
-        {/* Main */}
+      <nav className="flex flex-col">
         <div className="flex flex-col gap-px">
           {mainNavigation.map((item) => (
             <NavLink key={item.path} item={item} />
           ))}
         </div>
 
-        {/* Accounts group */}
-        <div className="flex flex-col gap-px mt-2">
+        <div className="flex flex-col gap-px">
           <div className="ft-nav-label">{t(accountsGroup.labelKey)}</div>
           {accountsGroup.items.map((item) => (
             <NavLink key={item.path} item={item} />
           ))}
         </div>
 
-        {/* Tools group */}
-        <div className="flex flex-col gap-px mt-2">
+        <div className="flex flex-col gap-px">
           <div className="ft-nav-label">{t(toolsGroup.labelKey)}</div>
           {toolsGroup.items.map((item) => (
             <NavLink key={item.path} item={item} />
@@ -115,35 +119,49 @@ export function AppSidebar() {
         </div>
       </nav>
 
-      {/* Language selector */}
+      {/* Primary action — the one thing the app is for, always one click
+          away regardless of which page is open. */}
+      <Link
+        to="/new-transaction"
+        data-tour="new-tx"
+        className="flex items-center justify-center gap-2 h-[38px] rounded-md bg-primary text-on-accent text-[13px] font-bold hover:brightness-105 active:translate-y-px transition-all"
+      >
+        <Plus className="h-4 w-4" />
+        {t("transactions.newTransaction")}
+      </Link>
+
       <SidebarResumePill />
 
-      {/* Language selector */}
-      <div className="px-3 pb-2">
-        <LanguageSelector />
-      </div>
+      {/* Footer — settings, language, and the account this data belongs to. */}
+      <div className="mt-auto pt-2.5 border-t border-line flex flex-col gap-1">
+        <div className="px-0.5 pb-1">
+          <LanguageSelector />
+        </div>
 
-      {/* User footer — clickable: opens Settings */}
-      <button
-        type="button"
-        onClick={() => navigate("/settings")}
-        aria-label={t("navigation.settings")}
-        className={cn(
-          "group flex items-center gap-2.5 px-3 py-3 border-t border-line text-left transition-colors w-full hover:bg-bg-hover",
-          location.pathname.startsWith("/settings") && "bg-bg-subtle"
-        )}
-      >
-        <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground grid place-items-center text-xs font-semibold flex-shrink-0">
-          {initials || "JM"}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold text-foreground truncate">
-            {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
-          </p>
-          <p className="text-[11px] text-fg-dim truncate">Personal · Pro</p>
-        </div>
-        <SettingsIcon className="h-4 w-4 text-muted-foreground group-hover:text-foreground flex-shrink-0" />
-      </button>
+        <Link
+          to={settingsItem.path}
+          className={cn("ft-nav-item", isActive(settingsItem.path) && "active")}
+        >
+          <SettingsIcon className="ft-nav-icon" />
+          <span>{t(settingsItem.nameKey)}</span>
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => navigate("/settings")}
+          aria-label={t("navigation.manageProfile")}
+          className="group flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors w-full hover:bg-bg-hover"
+        >
+          <div className="h-8 w-8 rounded-[11px] bg-primary/[0.16] text-accent-deep grid place-items-center text-xs font-bold flex-shrink-0">
+            {initials || "JM"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-foreground truncate">{displayName}</p>
+            <p className="text-[11px] text-fg-dim truncate">{user?.email}</p>
+          </div>
+          <MoreHorizontal className="h-4 w-4 text-fg-dim group-hover:text-foreground flex-shrink-0" />
+        </button>
+      </div>
     </aside>
   );
 }

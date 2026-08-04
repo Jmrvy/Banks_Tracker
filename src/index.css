@@ -3,182 +3,237 @@
 @tailwind utilities;
 
 /* =========================================================================
-   Spending Tracker — Fintech Redesign
-   Clean, modern, accessible. Light + Dark themes.
-   Tokens stored as HSL components so Tailwind's hsl(var(--token)) wrappers
-   continue to work across the existing component library.
+   Banks Tracker — Refonte 2026
+   Warm design system: paper, espresso ink, apricot.
+
+   The palette is authored in OKLCH (one chroma band, hue swept warm-first)
+   and stored here as the sRGB equivalent in HSL components, because every
+   Tailwind token and ~270 call sites read them through `hsl(var(--token))`
+   and `hsl(var(--token) / 0.12)`. Keeping the storage format means the
+   colour system changes without touching a single consumer.
+
+   Type: Instrument Sans (UI) · Instrument Serif (display) · Geist Mono
+   (every figure). Light + dark.
    ========================================================================= */
 
 @layer base {
   :root,
   .light {
     /* ----- Surfaces ----- */
-    --background: 220 7% 98%;
-    --foreground: 220 14% 11%;
+    --background: 34.6 53.1% 97.1%;   /* paper            */
+    --foreground: 23.9 28.3% 11.5%;   /* espresso ink     */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 14% 11%;
+    --card-foreground: 23.9 28.3% 11.5%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 11%;
+    --popover-foreground: 23.9 28.3% 11.5%;
 
-    /* Primary accent — electric green (oklch hue 152) */
-    --primary: 152 50% 38%;
-    --primary-foreground: 152 30% 14%;
+    /* Primary accent — apricot (OKLCH hue 58, chroma 0.145) */
+    --primary: 28.2 74.6% 54.7%;
+    --primary-foreground: 24.2 79.1% 12.1%;
 
-    --secondary: 220 6% 96%;
-    --secondary-foreground: 220 14% 11%;
+    --secondary: 34.6 36.7% 94.6%;
+    --secondary-foreground: 23.9 28.3% 11.5%;
 
-    --muted: 220 6% 96%;
-    --muted-foreground: 220 8% 42%;
+    --muted: 34.6 36.7% 94.6%;
+    --muted-foreground: 26.1 8.5% 36.9%;
 
-    --accent: 220 6% 94%;
-    --accent-foreground: 220 14% 11%;
+    /* shadcn's `accent` is the neutral hover surface, not the brand colour.
+       The brand accent lives in `--primary` / `--accent-deep`. */
+    --accent: 33.5 32.7% 91.9%;
+    --accent-foreground: 23.9 28.3% 11.5%;
 
-    --destructive: 15 75% 55%;
+    --destructive: 4.8 51.2% 47.5%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 50% 38%;
+    --success: 147.4 48.5% 32.7%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 80% 50%;
-    --warning-foreground: 220 14% 11%;
+    --warning: 37.1 79% 40.8%;
+    --warning-foreground: 0 0% 100%;
 
-    --info: 220 65% 50%;
+    --info: 208.6 46.8% 42.3%;
     --info-foreground: 0 0% 100%;
 
-    --border: 220 5% 90%;
-    --input: 220 5% 88%;
-    --ring: 152 50% 38%;
+    --border: 32.4 20.3% 88%;
+    --input: 31.3 16.7% 80.2%;
+    --ring: 28.2 74.6% 54.7%;
 
     /* Bank colors (kept for logos) */
     --bank-sg: 0 84% 50%;
     --bank-revolut: 220 90% 50%;
     --bank-boursorama: 195 80% 42%;
 
-    /* Sidebar */
-    --sidebar-background: 220 7% 98%;
-    --sidebar-foreground: 220 14% 11%;
-    --sidebar-primary: 152 50% 38%;
-    --sidebar-primary-foreground: 152 30% 14%;
-    --sidebar-accent: 220 6% 94%;
-    --sidebar-accent-foreground: 220 14% 11%;
-    --sidebar-border: 220 5% 90%;
-    --sidebar-ring: 152 50% 38%;
+    /* Sidebar sits on the sunk surface, a shade below the page */
+    --sidebar-background: 33.5 34.5% 93.6%;
+    --sidebar-foreground: 23.9 28.3% 11.5%;
+    --sidebar-primary: 28.2 74.6% 54.7%;
+    --sidebar-primary-foreground: 24.2 79.1% 12.1%;
+    --sidebar-accent: 33.5 32.7% 91.9%;
+    --sidebar-accent-foreground: 23.9 28.3% 11.5%;
+    --sidebar-border: 32.4 20.3% 88%;
+    --sidebar-ring: 28.2 74.6% 54.7%;
 
-    /* Extra fintech tokens */
-    --fg-mute: 220 8% 42%;
-    --fg-dim: 220 6% 58%;
+    /* ----- Extended surface / ink scale ----- */
+    --fg-mute: 26.1 8.5% 36.9%;
+    --fg-dim: 28.6 6% 55.1%;
+    --fg-onink: 34.6 34.7% 94.9%;
     --bg-elev: 0 0% 100%;
-    --bg-subtle: 220 6% 96%;
-    --bg-hover: 220 8% 94%;
-    --bg-inverse: 220 14% 18%;
-    --line: 220 5% 90%;
-    --line-strong: 220 6% 84%;
-    --pos: 152 50% 38%;
-    --pos-soft: 152 50% 38% / 0.12;
-    --neg: 15 75% 55%;
-    --neg-soft: 15 75% 55% / 0.12;
+    --bg-sunk: 33.5 34.5% 93.6%;
+    --bg-subtle: 34.6 36.7% 94.6%;
+    --bg-hover: 33.5 32.7% 91.9%;
+    --bg-ink: 23.9 27.3% 12%;
+    --bg-inverse: 23.9 27.3% 12%;
+    --line: 32.4 20.3% 88%;
+    --line-soft: 33.5 23.1% 91.4%;
+    --line-strong: 31.3 16.7% 80.2%;
+    --grid: 33.5 21.3% 89.7%;
+    --scrim: 26.8 33.9% 15.2% / 0.34;
+
+    /* Brand accent, expanded */
+    --accent-deep: 30.3 100% 26.3%;
+    --accent-soft: 28.2 74.6% 54.7% / 0.16;
+    --accent-wash: 28.2 74.6% 54.7% / 0.07;
+    --on-accent: 24.2 79.1% 12.1%;
+
+    /* ----- Semantic ----- */
+    --pos: 147.4 48.5% 32.7%;
+    --pos-soft: 147.4 48.5% 32.7% / 0.13;
+    --neg: 4.8 51.2% 47.5%;
+    --neg-soft: 4.8 51.2% 47.5% / 0.12;
+    --warn: 37.1 79% 40.8%;
+    --warn-soft: 37.1 79% 40.8% / 0.14;
+    --info-soft: 208.6 46.8% 42.3% / 0.12;
 
     /* ----- Categorical chart palette -----
-       Single chroma (~0.10 OKLCH), single lightness band (~52–60 %),
-       hue swept evenly. Pos / neg semantics never come from this list. */
-    --chart-1: 152 50% 38%;   /* primary green */
-    --chart-2: 215 60% 45%;   /* steel blue    */
-    --chart-3:  42 68% 50%;   /* mustard       */
-    --chart-4:  15 68% 50%;   /* terra         */
-    --chart-5: 268 38% 55%;   /* heather       */
-    --chart-6: 184 50% 42%;   /* teal          */
-    --chart-7:  24 58% 60%;   /* clay          */
-    --chart-8: 215 12% 42%;   /* slate         */
+       One chroma band, hue swept warm-first. Pos / neg semantics never
+       come from this list. */
+    --chart-1:  28.1 61.8% 50%;    /* apricot  */
+    --chart-2: 144.9 33.9% 42.7%;  /* moss     */
+    --chart-3:   5.7 51% 54.3%;    /* clay     */
+    --chart-4:   187 58.5% 40.6%;  /* lagoon   */
+    --chart-5: 305.4 24.4% 52.5%;  /* mauve    */
+    --chart-6:  76.5 33.2% 42.3%;  /* olive    */
+    --chart-7: 223.8 32.7% 54%;    /* indigo   */
+    --chart-8:  42.7 34% 49.1%;    /* ochre    */
+    --chart-9:  31.5 12.9% 46.6%;  /* stone    */
+
+    /* ----- Radius scale ----- */
+    --r-xs: 8px;
+    --r-sm: 11px;
+    --r-md: 15px;
+    --r-lg: 20px;
+    --r-xl: 28px;
+    --radius: 15px;
+
+    /* ----- Elevation ----- */
+    --sh-1: 0 1px 2px hsl(26 30% 20% / 0.05);
+    --sh-2: 0 2px 4px hsl(26 30% 20% / 0.04), 0 8px 22px hsl(26 30% 20% / 0.06);
+    --sh-3: 0 4px 8px hsl(26 30% 20% / 0.05), 0 18px 44px hsl(26 30% 20% / 0.10);
 
     /* ----- Motion language ----- */
     --motion-fast: 120ms;
-    --motion-base: 220ms;
+    --motion-base: 180ms;
     --motion-slow: 360ms;
-    --motion-ease: cubic-bezier(.16, 1, .3, 1);
-
-    --radius: 0.75rem;
+    --motion-ease: cubic-bezier(.2, .8, .25, 1);
   }
 
   /* ---------- DARK ---------- */
   .dark {
-    --background: 220 14% 11%;
-    --foreground: 220 5% 96%;
+    --background: 27.3 21% 6.5%;
+    --foreground: 34.6 24.3% 93.7%;
 
-    --card: 220 12% 16%;
-    --card-foreground: 220 5% 96%;
+    --card: 27.2 15.5% 10.4%;
+    --card-foreground: 34.6 24.3% 93.7%;
 
-    --popover: 220 12% 18%;
-    --popover-foreground: 220 5% 96%;
+    --popover: 27.2 15.5% 10.4%;
+    --popover-foreground: 34.6 24.3% 93.7%;
 
-    --primary: 152 60% 60%;
-    --primary-foreground: 152 30% 14%;
+    --primary: 26.9 98.3% 67.7%;
+    --primary-foreground: 22.7 90.1% 8.8%;
 
-    --secondary: 220 10% 19%;
-    --secondary-foreground: 220 5% 96%;
+    --secondary: 27.2 13.9% 13.1%;
+    --secondary-foreground: 34.6 24.3% 93.7%;
 
-    --muted: 220 10% 19%;
-    --muted-foreground: 220 8% 70%;
+    --muted: 27.2 13.9% 13.1%;
+    --muted-foreground: 31.3 6.6% 64.6%;
 
-    --accent: 220 10% 22%;
-    --accent-foreground: 220 5% 96%;
+    --accent: 27.2 11.9% 17.5%;
+    --accent-foreground: 34.6 24.3% 93.7%;
 
-    --destructive: 15 75% 65%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 7.8 84.1% 68.1%;
+    --destructive-foreground: 22.7 90.1% 8.8%;
 
-    --success: 152 60% 60%;
-    --success-foreground: 152 30% 14%;
+    --success: 146.1 50.3% 61.1%;
+    --success-foreground: 22.7 90.1% 8.8%;
 
-    --warning: 38 80% 65%;
-    --warning-foreground: 220 14% 11%;
+    --warning: 36.5 86% 65%;
+    --warning-foreground: 22.7 90.1% 8.8%;
 
-    --info: 220 65% 65%;
-    --info-foreground: 220 14% 11%;
+    --info: 209.2 68.7% 67.9%;
+    --info-foreground: 22.7 90.1% 8.8%;
 
-    --border: 220 8% 24%;
-    --input: 220 8% 26%;
-    --ring: 152 60% 60%;
+    --border: 27.2 10.7% 17.9%;
+    --input: 27.1 9.1% 26.2%;
+    --ring: 26.9 98.3% 67.7%;
 
     --bank-sg: 0 80% 55%;
     --bank-revolut: 220 90% 60%;
     --bank-boursorama: 195 80% 50%;
 
-    --sidebar-background: 220 14% 11%;
-    --sidebar-foreground: 220 5% 96%;
-    --sidebar-primary: 152 60% 60%;
-    --sidebar-primary-foreground: 152 30% 14%;
-    --sidebar-accent: 220 10% 19%;
-    --sidebar-accent-foreground: 220 5% 96%;
-    --sidebar-border: 220 8% 24%;
-    --sidebar-ring: 152 60% 60%;
+    --sidebar-background: 26.7 26.3% 4.4%;
+    --sidebar-foreground: 34.6 24.3% 93.7%;
+    --sidebar-primary: 26.9 98.3% 67.7%;
+    --sidebar-primary-foreground: 22.7 90.1% 8.8%;
+    --sidebar-accent: 27.2 11.9% 17.5%;
+    --sidebar-accent-foreground: 34.6 24.3% 93.7%;
+    --sidebar-border: 27.2 10.7% 17.9%;
+    --sidebar-ring: 26.9 98.3% 67.7%;
 
-    --fg-mute: 220 8% 70%;
-    --fg-dim: 220 8% 50%;
-    --bg-elev: 220 12% 16%;
-    --bg-subtle: 220 10% 19%;
-    --bg-hover: 220 10% 22%;
-    --bg-inverse: 220 5% 96%;
-    --line: 220 8% 24%;
-    --line-strong: 220 8% 32%;
-    --pos: 152 60% 60%;
-    --pos-soft: 152 60% 60% / 0.18;
-    --neg: 15 75% 65%;
-    --neg-soft: 15 75% 65% / 0.18;
+    --fg-mute: 31.3 6.6% 64.6%;
+    --fg-dim: 30.2 4.8% 45.8%;
+    --fg-onink: 25.4 28.1% 8.4%;
+    --bg-elev: 27.2 15.5% 10.4%;
+    --bg-sunk: 26.7 26.3% 4.4%;
+    --bg-subtle: 27.2 13.9% 13.1%;
+    --bg-hover: 27.2 11.9% 17.5%;
+    --bg-ink: 34.6 27.5% 93.6%;
+    --bg-inverse: 34.6 27.5% 93.6%;
+    --line: 27.2 10.7% 17.9%;
+    --line-soft: 27.2 11.9% 14.1%;
+    --line-strong: 27.1 9.1% 26.2%;
+    --grid: 27.2 11.8% 16%;
+    --scrim: 21.9 51.1% 1.3% / 0.6;
 
-    /* ----- Categorical chart palette (dark) -----
-       Same hues as light, lightness pushed up ~18pt for contrast on dark. */
-    --chart-1: 152 60% 60%;
-    --chart-2: 215 70% 65%;
-    --chart-3:  42 78% 65%;
-    --chart-4:  15 78% 65%;
-    --chart-5: 268 50% 70%;
-    --chart-6: 184 55% 58%;
-    --chart-7:  24 68% 70%;
-    --chart-8: 215 18% 60%;
+    --accent-deep: 26.9 100% 77.8%;
+    --accent-soft: 26.9 98.3% 67.7% / 0.18;
+    --accent-wash: 26.9 98.3% 67.7% / 0.09;
+    --on-accent: 22.7 90.1% 8.8%;
+
+    --pos: 146.1 50.3% 61.1%;
+    --pos-soft: 146.1 50.3% 61.1% / 0.16;
+    --neg: 7.8 84.1% 68.1%;
+    --neg-soft: 7.8 84.1% 68.1% / 0.16;
+    --warn: 36.5 86% 65%;
+    --warn-soft: 36.5 86% 65% / 0.16;
+    --info-soft: 209.2 68.7% 67.9% / 0.16;
+
+    --chart-1:  26.8 94.8% 67.3%;
+    --chart-2: 143.4 39.2% 60.6%;
+    --chart-3:   6.3 80.1% 69.3%;
+    --chart-4: 187.6 51.9% 56.8%;
+    --chart-5: 305.9 38.4% 68.4%;
+    --chart-6:  77.4 34% 58%;
+    --chart-7: 223.4 55.1% 71%;
+    --chart-8:  42.5 50.7% 66.3%;
+    --chart-9:  31.4 16% 60.7%;
+
+    --sh-1: 0 1px 2px hsl(0 0% 0% / 0.4);
+    --sh-2: 0 2px 4px hsl(0 0% 0% / 0.35), 0 8px 22px hsl(0 0% 0% / 0.45);
+    --sh-3: 0 4px 8px hsl(0 0% 0% / 0.4), 0 18px 44px hsl(0 0% 0% / 0.55);
   }
 }
-
 @layer base {
   * {
     @apply border-border;
@@ -190,10 +245,10 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-feature-settings: "ss01", "cv11";
+    font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow-x: hidden;
     max-width: 100vw;
+    text-wrap: pretty;
     transition: background 0.2s ease, color 0.2s ease;
   }
 
@@ -201,13 +256,16 @@
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
-  /* Tabular monospace numbers for amounts */
+  /* Tabular monospace numbers for amounts. `word-spacing` pulls the French
+     thousands separator (a real space) tight against its digits. */
   .num,
   .font-mono {
     font-family: "Geist Mono", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    word-spacing: -0.3em;
   }
+
 }
 
 @layer components {
@@ -221,10 +279,11 @@
   .ft-card-flush { @apply rounded-2xl border bg-card overflow-hidden; border-color: hsl(var(--line)); }
 
   .ft-card-head {
-    @apply flex items-start justify-between gap-4 mb-3;
+    @apply flex items-start justify-between gap-4 mb-4 flex-wrap;
   }
   .ft-card-title {
     @apply text-sm font-semibold tracking-tight;
+    letter-spacing: -0.012em;
   }
   .ft-card-sub {
     @apply text-xs text-muted-foreground mt-0.5;
@@ -241,21 +300,47 @@
     @apply flex items-end justify-between gap-4 flex-wrap;
   }
   .ft-eyebrow {
-    @apply text-[11px] uppercase tracking-[0.1em] font-semibold text-muted-foreground/80;
+    @apply text-[10.5px] uppercase font-semibold;
+    letter-spacing: 0.13em;
+    color: hsl(var(--fg-dim));
   }
+  /* Page titles are the loudest use of the display serif — one per screen. */
   .ft-page-title {
-    @apply text-2xl md:text-3xl font-semibold tracking-tight leading-tight m-0;
-    font-family: "Geist", "Inter", sans-serif;
+    @apply m-0;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(1.75rem, 3.6vw, 2.125rem); /* 28px → 34px */
+    letter-spacing: -0.022em;
+    line-height: 1.08;
   }
   .ft-page-sub {
-    @apply text-sm text-muted-foreground mt-1;
+    @apply text-sm text-muted-foreground mt-1.5;
+    max-width: 62ch;
+  }
+
+  /* =========================================================================
+     Desktop topbar — breadcrumb trail + page-level controls
+     ========================================================================= */
+  .ft-topbar {
+    @apply sticky top-0 z-30 flex items-center justify-between gap-4 h-14 px-4 md:px-8 border-b;
+    background: hsl(var(--background) / 0.88);
+    backdrop-filter: blur(12px);
+    border-color: hsl(var(--line));
+  }
+  .ft-crumbs {
+    @apply flex items-center gap-1.5 text-[13px] min-w-0;
+    color: hsl(var(--fg-dim));
+  }
+  .ft-crumbs .here {
+    @apply font-semibold truncate;
+    color: hsl(var(--foreground));
   }
 
   /* =========================================================================
      Hero net-worth panel
      ========================================================================= */
   .ft-hero {
-    @apply relative overflow-hidden rounded-2xl border bg-card;
+    @apply relative overflow-hidden rounded-3xl border bg-card;
     border-color: hsl(var(--line));
     padding: 24px 24px 0;
   }
@@ -263,7 +348,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(80% 60% at 100% 0%, hsl(var(--primary) / 0.10), transparent 60%);
+    background: radial-gradient(120% 90% at 88% -20%, hsl(var(--accent-wash)), transparent 62%);
     pointer-events: none;
   }
   .ft-hero-eyebrow {
@@ -294,20 +379,22 @@
       transition-duration: 0.001ms !important;
     }
   }
+  /* The hero figure is the one number set in the display serif — it reads as
+     a headline, not a readout, and the cents drop back to a mute weight. */
   .ft-hero-value {
-    font-family: "Geist Mono", "JetBrains Mono", monospace;
-    font-size: clamp(1.875rem, 4.4vw, 2.75rem); /* 30px → 44px */
-    font-weight: 500;
-    letter-spacing: -0.025em;
-    line-height: 1.05;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: clamp(2.375rem, 5.6vw, 3.625rem); /* 38px → 58px */
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 0.98;
     color: hsl(var(--foreground));
   }
   .ft-hero-value .cents {
     color: hsl(var(--muted-foreground));
-    font-size: 0.55em;
+    font-size: 0.52em;
     font-weight: 400;
     letter-spacing: 0;
-    margin-left: -0.08em;
+    margin-left: -0.02em;
     vertical-align: baseline;
   }
   .ft-hero-value.is-negative .cents {
@@ -319,60 +406,85 @@
      KPI tile
      ========================================================================= */
   .ft-kpi {
-    @apply relative overflow-hidden rounded-2xl border bg-card p-4 md:p-5 flex flex-col gap-2;
+    @apply relative overflow-hidden rounded-2xl border bg-card p-4 md:p-[18px] flex flex-col gap-2.5;
     border-color: hsl(var(--line));
-    transition: border-color 0.12s;
+    transition: border-color var(--motion-base), box-shadow var(--motion-base);
   }
-  .ft-kpi:hover { border-color: hsl(var(--line-strong)); }
+  .ft-kpi:hover { border-color: hsl(var(--line-strong)); box-shadow: var(--sh-1); }
   .ft-kpi-icon {
-    @apply h-8 w-8 rounded-lg grid place-items-center;
-    background: hsl(var(--secondary));
+    @apply h-[30px] w-[30px] rounded-[10px] grid place-items-center flex-shrink-0;
+    background: hsl(var(--bg-subtle));
+    color: hsl(var(--fg-mute));
   }
-  .ft-kpi-icon.pos { background: hsl(var(--pos) / 0.12); color: hsl(var(--pos)); }
-  .ft-kpi-icon.neg { background: hsl(var(--neg) / 0.12); color: hsl(var(--neg)); }
-  .ft-kpi-icon.acc { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); }
-  .ft-kpi-icon.warn { background: hsl(var(--warning) / 0.15); color: hsl(var(--warning)); }
+  .ft-kpi-icon.pos { background: hsl(var(--pos-soft)); color: hsl(var(--pos)); }
+  .ft-kpi-icon.neg { background: hsl(var(--neg-soft)); color: hsl(var(--neg)); }
+  .ft-kpi-icon.acc { background: hsl(var(--accent-soft)); color: hsl(var(--accent-deep)); }
+  .ft-kpi-icon.warn { background: hsl(var(--warn-soft)); color: hsl(var(--warn)); }
   .ft-kpi-label {
-    @apply text-xs text-muted-foreground font-medium;
+    @apply text-xs text-muted-foreground font-semibold;
   }
   .ft-kpi-value {
     font-family: "Geist Mono", "JetBrains Mono", monospace;
-    font-size: clamp(0.875rem, 2vw, 1.25rem); /* 14px → 20px */
-    line-height: 1.15;
-    letter-spacing: -0.025em;
+    font-size: clamp(1.125rem, 2.4vw, 1.5625rem); /* 18px → 25px */
+    line-height: 1;
+    letter-spacing: -0.03em;
+    word-spacing: -0.3em;
     font-variant-numeric: tabular-nums;
     @apply font-medium;
+  }
+  .ft-kpi-foot {
+    @apply flex items-center gap-1.5 text-[11.5px];
+    color: hsl(var(--fg-dim));
   }
 
   /* =========================================================================
      Delta chips
      ========================================================================= */
   .ft-delta {
-    @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-medium;
+    @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11.5px] font-medium;
     font-family: "Geist Mono", "JetBrains Mono", monospace;
     font-variant-numeric: tabular-nums;
+    word-spacing: -0.3em;
   }
-  .ft-delta.up { color: hsl(var(--pos)); background: hsl(var(--pos) / 0.12); }
-  .ft-delta.down { color: hsl(var(--neg)); background: hsl(var(--neg) / 0.12); }
-  .ft-delta.flat { color: hsl(var(--muted-foreground)); background: hsl(var(--muted)); }
+  .ft-delta.up { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .ft-delta.down { color: hsl(var(--neg)); background: hsl(var(--neg-soft)); }
+  .ft-delta.flat { color: hsl(var(--muted-foreground)); background: hsl(var(--bg-subtle)); }
+
+  /* =========================================================================
+     Chip — filter pills, metadata badges, suggestion buttons
+     ========================================================================= */
+  .ft-chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border;
+    background: hsl(var(--bg-subtle));
+    border-color: hsl(var(--line));
+    color: hsl(var(--fg-mute));
+    transition: background var(--motion-base), color var(--motion-base);
+  }
+  button.ft-chip:hover { background: hsl(var(--bg-hover)); color: hsl(var(--foreground)); }
+  .ft-chip.active {
+    background: hsl(var(--accent-soft));
+    border-color: transparent;
+    color: hsl(var(--accent-deep));
+  }
+  .ft-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
   /* =========================================================================
      Segmented control
      ========================================================================= */
   .ft-seg {
-    @apply inline-flex p-0.5 rounded-lg border;
-    background: hsl(var(--secondary));
+    @apply inline-flex p-[3px] gap-0.5 rounded-[11px] border;
+    background: hsl(var(--bg-subtle));
     border-color: hsl(var(--line));
   }
   .ft-seg button {
-    @apply px-3 py-1 text-xs font-medium rounded-md text-muted-foreground transition-colors;
+    @apply px-2.5 py-[5px] text-xs font-medium rounded-lg text-muted-foreground transition-colors whitespace-nowrap;
     font-variant-numeric: tabular-nums;
   }
   .ft-seg button:hover { color: hsl(var(--foreground)); }
   .ft-seg button.active {
-    background: hsl(var(--card));
+    background: hsl(var(--bg-elev));
     color: hsl(var(--foreground));
-    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+    box-shadow: var(--sh-1);
   }
 
   /* =========================================================================
@@ -412,16 +524,36 @@
      Tag
      ========================================================================= */
   .ft-tag {
-    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium;
-    background: hsl(var(--secondary));
-    border: 1px solid hsl(var(--line));
-    color: hsl(var(--muted-foreground));
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[7px] text-[11px] font-semibold;
+    background: hsl(var(--bg-subtle));
+    border: 1px solid transparent;
+    color: hsl(var(--fg-mute));
+    letter-spacing: 0.01em;
   }
   .ft-tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .ft-tag.pos { background: hsl(var(--pos) / 0.12); color: hsl(var(--pos)); border-color: transparent; }
-  .ft-tag.neg { background: hsl(var(--neg) / 0.12); color: hsl(var(--neg)); border-color: transparent; }
-  .ft-tag.acc { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); border-color: transparent; }
-  .ft-tag.warn { background: hsl(var(--warning) / 0.18); color: hsl(var(--warning)); border-color: transparent; }
+  .ft-tag.pos { background: hsl(var(--pos-soft)); color: hsl(var(--pos)); }
+  .ft-tag.neg { background: hsl(var(--neg-soft)); color: hsl(var(--neg)); }
+  .ft-tag.acc { background: hsl(var(--accent-soft)); color: hsl(var(--accent-deep)); }
+  .ft-tag.warn { background: hsl(var(--warn-soft)); color: hsl(var(--warn)); }
+  .ft-tag.info { background: hsl(var(--info-soft)); color: hsl(var(--info)); }
+
+  /* =========================================================================
+     Glyph — square account/category avatar
+     ========================================================================= */
+  .ft-glyph {
+    @apply grid place-items-center flex-shrink-0 font-bold;
+    width: 38px; height: 38px;
+    border-radius: 13px;
+    font-size: 12px;
+    letter-spacing: -0.02em;
+  }
+  .ft-glyph.sq {
+    width: 34px; height: 34px;
+    border-radius: 11px;
+    background: hsl(var(--bg-subtle));
+    color: hsl(var(--fg-mute));
+    border: 1px solid hsl(var(--line-soft));
+  }
 
   /* =========================================================================
      List rows
@@ -429,17 +561,32 @@
   .ft-list-row {
     @apply grid items-center gap-3 px-5 md:px-6 py-3 transition-colors;
     grid-template-columns: 36px 1fr auto;
-    border-bottom: 1px solid hsl(var(--line));
+    border-bottom: 1px solid hsl(var(--line-soft));
   }
   .ft-list-row:last-child { border-bottom: none; }
-  .ft-list-row:hover { background: hsl(var(--secondary) / 0.5); }
+  .ft-list-row:hover { background: hsl(var(--bg-subtle)); }
+
+  /* Sticky day divider inside a transaction list. */
+  .ft-daylab {
+    @apply sticky top-0 flex items-center justify-between gap-3 px-5 md:px-6 pt-3.5 pb-1.5 text-[11px] font-bold uppercase;
+    letter-spacing: 0.08em;
+    color: hsl(var(--fg-dim));
+    background: hsl(var(--card));
+  }
+  /* Full-width footer action closing a card list ("show 25 more"). */
+  .ft-row-foot {
+    @apply w-full text-center py-3 px-5 md:px-6 text-[12.5px] font-semibold transition-colors;
+    border-top: 1px solid hsl(var(--line-soft));
+    color: hsl(var(--fg-mute));
+  }
+  .ft-row-foot:hover { background: hsl(var(--bg-subtle)); color: hsl(var(--foreground)); }
 
   /* =========================================================================
      Goal/progress bar
      ========================================================================= */
   .ft-progress-track {
-    @apply h-1.5 rounded-full overflow-hidden;
-    background: hsl(var(--secondary));
+    @apply h-1.5 rounded-full overflow-hidden relative;
+    background: hsl(var(--bg-sunk));
   }
   .ft-progress-fill {
     @apply h-full rounded-full transition-all duration-500;
@@ -450,26 +597,95 @@
      Sidebar nav
      ========================================================================= */
   .ft-nav-item {
-    @apply flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors w-full;
-    color: hsl(var(--muted-foreground));
+    @apply flex items-center gap-[11px] px-2.5 py-2 rounded-[10px] text-[13.5px] font-medium transition-colors w-full text-left;
+    color: hsl(var(--fg-mute));
   }
   .ft-nav-item:hover {
     background: hsl(var(--bg-hover));
     color: hsl(var(--foreground));
   }
+  /* The active item lifts onto the elevated surface — the sidebar itself
+     sits on the sunk one, so "current page" reads as a raised card. */
   .ft-nav-item.active {
-    background: hsl(var(--secondary));
+    background: hsl(var(--bg-elev));
     color: hsl(var(--foreground));
+    box-shadow: var(--sh-1);
+    font-weight: 600;
   }
-  .ft-nav-item.active .ft-nav-icon { color: hsl(var(--primary)); }
+  .ft-nav-item.active .ft-nav-icon { color: hsl(var(--accent-deep)); }
   .ft-nav-icon {
     @apply h-4 w-4 flex-shrink-0;
     color: hsl(var(--fg-dim));
-    transition: color 0.12s;
+    transition: color var(--motion-base);
   }
   .ft-nav-label {
-    @apply text-[10.5px] uppercase tracking-[0.08em] font-semibold px-2.5 pt-2.5 pb-1;
+    @apply text-[10px] uppercase font-bold px-2.5 pt-3 pb-1.5;
+    letter-spacing: 0.11em;
     color: hsl(var(--fg-dim));
+  }
+  /* =========================================================================
+     Brand mark — display serif on ink
+     ========================================================================= */
+  .ft-brand-mark {
+    @apply grid place-items-center flex-shrink-0;
+    width: 32px; height: 32px;
+    border-radius: 11px;
+    background: hsl(var(--bg-ink));
+    color: hsl(var(--fg-onink));
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 17px;
+    line-height: 1;
+    padding-bottom: 2px;
+  }
+  .ft-brand-name {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 19px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  /* =========================================================================
+     Trace FAB — one floating affordance, desktop and mobile
+     ========================================================================= */
+  .ft-fab {
+    @apply fixed grid place-items-center z-40;
+    width: 56px; height: 56px;
+    border-radius: 20px;
+    background: hsl(var(--bg-ink));
+    color: hsl(var(--fg-onink));
+    box-shadow: var(--sh-3);
+    transition: transform var(--motion-base) var(--motion-ease);
+  }
+  .ft-fab:hover, .ft-fab:active { transform: scale(1.06); }
+  .ft-fab .ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 23px;
+    border: 1.5px solid hsl(var(--primary));
+    opacity: 0.35;
+  }
+
+  /* =========================================================================
+     Mobile tab bar — four destinations around a raised centre action
+     ========================================================================= */
+  .ft-tabbar {
+    @apply fixed bottom-0 left-0 right-0 z-50 flex items-start px-1.5 pt-2 border-t md:hidden;
+    background: hsl(var(--background) / 0.86);
+    backdrop-filter: blur(20px);
+    border-color: hsl(var(--line));
+  }
+  .ft-tab {
+    @apply flex-1 flex flex-col items-center gap-1 py-1 text-[10.5px] font-semibold transition-colors;
+    color: hsl(var(--fg-dim));
+    min-height: 48px;
+  }
+  .ft-tab.active { color: hsl(var(--accent-deep)); }
+  .ft-tab-fab {
+    @apply grid place-items-center mb-0.5;
+    width: 50px; height: 34px;
+    border-radius: 12px;
+    background: hsl(var(--primary));
+    color: hsl(var(--on-accent));
   }
 
   .stat-card {
@@ -489,7 +705,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(80% 60% at 100% 0%, hsl(var(--primary) / 0.10), transparent 60%);
+    background: radial-gradient(120% 90% at 88% -20%, hsl(var(--accent-wash)), transparent 62%);
     pointer-events: none;
   }
 

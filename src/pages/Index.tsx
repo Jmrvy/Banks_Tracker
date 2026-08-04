@@ -161,21 +161,23 @@ const Index = () => {
         {/* Budget breaches — full-width so per-category progress rows render legibly */}
         <BudgetAlertsCard />
 
-        {/* Accounts (full width) */}
-        <AccountsListCard />
-
-        {/* Global balance evolution — running balance per recent transaction
-            (replaces the old Recent activity card, same visual design) */}
-        <AggregatedBalanceEvolution />
-
-        {/* Cashflow + categories two-up */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
+        {/* Where the money went, before where it sits: the two charts answer
+            "what happened this period", which is the question the greeting
+            and the KPI row just raised. */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr] gap-4 md:gap-5">
           <CashflowChart startDate={dateRange.start} endDate={dateRange.end} />
           <DistributionChart startDate={dateRange.start} endDate={dateRange.end} />
         </div>
 
-        {/* Savings goals */}
-        <SavingsGoalsCard />
+        {/* Accounts (full width) */}
+        <AccountsListCard />
+
+        {/* Activity and goals close the page two-up — the running ledger on
+            the left, what it is all for on the right. */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr] gap-4 md:gap-5 items-start">
+          <AggregatedBalanceEvolution />
+          <SavingsGoalsCard />
+        </div>
       </div>
 
       <TransactionTypeModal

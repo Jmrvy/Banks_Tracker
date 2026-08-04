@@ -484,22 +484,23 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
     <div className="ft-card-flush">
       {groupedByMonth.map((group) => (
         <div key={group.key}>
-          {/* Month header strip */}
-          <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-line bg-bg-subtle">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          {/* Month header strip — sticks to the top of the scroll so you
+              always know which month the rows under your cursor belong to. */}
+          <div className="ft-daylab">
+            <span>
               {group.label} · {group.items.length}{' '}
               {group.items.length > 1
                 ? t('transactions.transactions', { defaultValue: 'transactions' })
                 : t('transactions.transaction', { defaultValue: 'transaction' })}
-            </div>
-            <div
-              className={`font-mono text-[13px] font-semibold ${
-                group.total >= 0 ? 'text-pos' : ''
+            </span>
+            <span
+              className={`font-mono text-[13px] font-semibold normal-case tracking-normal ${
+                group.total >= 0 ? 'text-pos' : 'text-foreground'
               }`}
             >
               {group.total >= 0 ? '+' : '−'}
               {formatCurrency(Math.abs(group.total))}
-            </div>
+            </span>
           </div>
 
           {/* Rows */}
@@ -520,23 +521,20 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
       {/* Load more footer */}
       {displayedTransactions.length < filteredAndSortedTransactions.length && (
-        <div className="flex flex-col items-center gap-2 py-4 border-t border-line">
-          <div className="text-xs text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => setDisplayCount((prev) => prev + 50)}
+          className="ft-row-foot"
+        >
+          {t('transactions.showMore')}
+          <span className="text-fg-dim font-normal ml-1.5">
             {t('transactions.showingNOfM', {
               defaultValue: 'Showing {{n}} of {{m}} transactions',
               n: displayedTransactions.length,
               m: filteredAndSortedTransactions.length,
             })}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDisplayCount((prev) => prev + 50)}
-            className="h-8 text-xs"
-          >
-            {t('transactions.showMore')}
-          </Button>
-        </div>
+          </span>
+        </button>
       )}
 
       <EditTransactionModal

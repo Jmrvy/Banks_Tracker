@@ -22,8 +22,10 @@ export default defineConfig(({ mode }) => ({
         name: 'Spending Tracker',
         short_name: 'Spending Tracker',
         description: 'Personal finance management application',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        // Paper — the Refonte 2026 page background, so the PWA splash and
+        // OS chrome match the app instead of flashing white.
+        theme_color: '#fcf8f4',
+        background_color: '#fcf8f4',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',

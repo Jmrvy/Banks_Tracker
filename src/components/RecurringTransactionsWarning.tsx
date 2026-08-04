@@ -93,8 +93,8 @@ export const RecurringTransactionsWarning = () => {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'income': return 'text-green-600 dark:text-green-400';
-      case 'expense': return 'text-red-600 dark:text-red-400';
+      case 'income': return 'text-pos';
+      case 'expense': return 'text-neg';
       default: return 'text-foreground';
     }
   };

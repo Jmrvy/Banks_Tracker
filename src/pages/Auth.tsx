@@ -148,25 +148,15 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-3 sm:p-4 relative overflow-hidden">
-      {/* Subtle accent glow */}
-      <div className="pointer-events-none absolute inset-0 opacity-60"
-        style={{ background: 'radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.10), transparent 60%)' }}
-      />
-      <div className="ft-card w-full max-w-md p-6 sm:p-8 relative">
+    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
+      {/* Left — the form. The only column on small screens. */}
+      <div className="grid place-items-center px-5 py-10 sm:px-8">
+      <div className="w-full max-w-[380px]">
         {/* Brand mark */}
-        <div className="flex items-center justify-center gap-2.5 mb-5">
-          <div className="h-9 w-9 rounded-xl bg-foreground text-background dark:bg-primary dark:text-primary-foreground grid place-items-center font-bold text-base tracking-tight">
-            S
-          </div>
-          <div className="leading-tight">
-            <div className="text-base font-semibold tracking-tight">Spending</div>
-            <div className="text-[11px] text-muted-foreground -mt-0.5">Tracker</div>
-          </div>
-        </div>
-        <div className="text-center mb-5">
-          <div className="ft-eyebrow mb-1">{t('auth.welcome')}</div>
-          <h1 className="ft-page-title text-xl sm:text-2xl">{t('auth.welcomeSubtitle')}</h1>
+        <div className="ft-brand-mark !h-11 !w-11 !rounded-[15px] !text-[23px] mb-5">S</div>
+        <div className="mb-6">
+          <div className="ft-eyebrow mb-1.5">{t('auth.welcome')}</div>
+          <h1 className="ft-page-title">{t('auth.welcomeSubtitle')}</h1>
         </div>
         <Tabs defaultValue="signin" className="w-full">
           <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
@@ -255,6 +245,76 @@ export default function Auth() {
             </TabsContent>
         </Tabs>
       </div>
+      </div>
+
+      {/* Right — a labelled product preview, so the empty sign-in screen shows
+          what the app is for. Illustrative figures, never anyone's data;
+          hidden below `lg` where the form should own the viewport. */}
+      <aside
+        aria-label={t('auth.previewEyebrow', { defaultValue: "What you'll see next" })}
+        className="hidden lg:flex flex-col justify-center gap-5 px-14 bg-bg-sunk border-l border-line relative overflow-hidden"
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(90% 70% at 80% 10%, hsl(var(--accent-wash)), transparent 60%)' }}
+        />
+        <div className="relative max-w-[460px] w-full flex flex-col gap-4">
+          <div className="ft-eyebrow">
+            {t('auth.previewEyebrow', { defaultValue: "What you'll see next" })}
+          </div>
+
+          <div className="ft-card p-5 shadow-sh-2">
+            <div className="ft-eyebrow">{t('dashboard.totalNetWorth', { defaultValue: 'Total net worth' })}</div>
+            <div className="ft-hero-value !text-[40px] mt-1.5" aria-hidden>
+              12 480<span className="cents">,00 €</span>
+            </div>
+            <div className="flex items-end gap-[3px] h-14 mt-4" aria-hidden>
+              {[38, 44, 41, 52, 49, 58, 55, 64, 61, 72, 78, 86].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t-[3px] bg-primary/25"
+                  style={{ height: `${h}%` }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="ft-card p-[18px] shadow-sh-2">
+            <div className="flex items-center justify-between mb-3">
+              <b className="text-[13.5px]">{t('navigation.budget')}</b>
+              <span className="ft-tag neg">2</span>
+            </div>
+            {[
+              { label: t('auth.previewCatGroceries', { defaultValue: 'Groceries' }), pct: 90, color: 'hsl(var(--chart-1))' },
+              { label: t('auth.previewCatDining', { defaultValue: 'Dining' }), pct: 125, color: 'hsl(var(--chart-3))' },
+              { label: t('auth.previewCatTransport', { defaultValue: 'Transport' }), pct: 54, color: 'hsl(var(--chart-4))' },
+            ].map((row) => (
+              <div key={row.label} className="flex flex-col gap-1.5 mt-2.5">
+                <div className="flex items-center justify-between text-[12.5px]">
+                  <span className="flex items-center gap-2">
+                    <i className="h-2.5 w-2.5 rounded-[3px]" style={{ background: row.color }} />
+                    {row.label}
+                  </span>
+                  <span className="font-mono text-fg-mute">{row.pct} %</span>
+                </div>
+                <div className="ft-progress-track !h-1">
+                  <div
+                    className="ft-progress-fill"
+                    style={{
+                      width: `${Math.min(100, row.pct)}%`,
+                      background: row.pct > 100 ? 'hsl(var(--neg))' : row.color,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-fg-dim">
+            {t('auth.previewDisclaimer', { defaultValue: 'Illustrative figures — not real account data.' })}
+          </p>
+        </div>
+      </aside>
     </div>
   );
 }

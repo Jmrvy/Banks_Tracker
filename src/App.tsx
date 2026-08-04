@@ -12,6 +12,7 @@ import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { CommandPaletteProvider } from "./contexts/CommandPaletteContext";
 import { FinancialDataProvider } from "@/hooks/useFinancialData";
 import { AppSidebar } from "@/components/AppSidebar";
+import { AppTopbar } from "@/components/AppTopbar";
 import { MobileNavigation } from "@/components/MobileNavigation";
 
 // Eagerly loaded (critical path)
@@ -46,6 +47,7 @@ import { TourProvider } from "@/contexts/TourContext";
 import { TourEngine } from "@/components/tour/TourEngine";
 import { TraceProvider } from "@/contexts/TraceContext";
 import { TraceSurfaces } from "@/components/trace/TraceSurfaces";
+import { TraceFab } from "@/components/trace/TraceFab";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,10 +90,15 @@ function AppRoutes() {
     );
   }
 
+  // The shell (sidebar, topbar, tab bar) only wraps signed-in pages. Auth and
+  // onboarding own the full viewport.
+  const inShell = Boolean(user) && !isOnboardingPage;
+
   return (
     <>
-      {user && !isOnboardingPage && !isMobile && <AppSidebar />}
-      <div className={user && !isOnboardingPage && !isMobile ? "ml-64 min-h-screen" : user && !isOnboardingPage && isMobile ? "pb-20 min-h-screen" : "min-h-screen"}>
+      {inShell && !isMobile && <AppSidebar />}
+      <div className={inShell && !isMobile ? "ml-64 min-h-screen" : inShell && isMobile ? "pb-24 min-h-screen" : "min-h-screen"}>
+        {inShell && !isMobile && <AppTopbar />}
         <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><InlineSpinner /></div>}>
         <Routes>
           {/* OAuth 2.1 consent screen for MCP clients connecting to this app. */}
@@ -212,9 +219,10 @@ function AppRoutes() {
         </Routes>
         </Suspense>
       </div>
-      {user && !isOnboardingPage && isMobile && <MobileNavigation />}
+      {inShell && isMobile && <MobileNavigation />}
       {user && <CommandPalette />}
       {user && <TraceSurfaces />}
+      {inShell && <TraceFab />}
     </>
   );
 }

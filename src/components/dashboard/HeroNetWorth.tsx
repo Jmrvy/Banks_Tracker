@@ -7,14 +7,29 @@ import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { signedGlobalAmount } from "@/lib/reportsEngine";
+import { splitFormattedAmount } from "@/lib/currency";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { projectMonthEndDelta } from "@/lib/projectMonthEndBalance";
 
 /**
- * Fintech-style net worth hero card.
+ * How the hero splits net worth into its three shapes. Ordered liquid →
+ * locked away, which is the order the question "what can I actually spend?"
+ * gets answered in. Credit balances fold into liquid: a card is money you
+ * have already spent out of the same pot.
+ */
+const BUCKETS = [
+  { key: "liquid", types: ["checking", "credit"], swatch: "hsl(var(--chart-1))", labelKey: "dashboard.bucketLiquid", fallback: "Liquid" },
+  { key: "savings", types: ["savings"], swatch: "hsl(var(--chart-2))", labelKey: "dashboard.bucketSavings", fallback: "Savings" },
+  { key: "invest", types: ["investment"], swatch: "hsl(var(--chart-5))", labelKey: "dashboard.bucketInvested", fallback: "Invested" },
+] as const;
+
+/**
+ * Net worth hero card.
  *
- * Big tabular figure on the left, mini area chart of the trailing 90 days on
- * the right. Inspired by the redesign deck's HomeSlide hero panel.
+ * The figure is the one number on the dashboard set in the display serif —
+ * it reads as a headline, with the cents dropped back. The trailing 90 days
+ * run alongside it, and the foot breaks the total into liquid / savings /
+ * invested so the headline is never the only thing on offer.
  */
 export function HeroNetWorth() {
   const { t } = useTranslation();
@@ -104,11 +119,25 @@ export function HeroNetWorth() {
 
   const up = delta30d >= 0;
 
-  // Format the integer/cents split — preserve sign for negative net worth.
+  // Split the *formatted* total so the locale and currency stay whatever the
+  // user picked — the display type only decides how big each half is set.
   const isNegative = total < 0;
-  const absTotal = Math.abs(total);
-  const intPart = Math.floor(absTotal).toLocaleString("en-US");
-  const cents = (absTotal % 1).toFixed(2).slice(2);
+  const { head, tail } = splitFormattedAmount(formatCurrency(total));
+
+  // Balance per bucket, skipping any the user has no accounts for.
+  const buckets = useMemo(
+    () =>
+      BUCKETS.map((bucket) => ({
+        ...bucket,
+        accounts: accounts.filter((a) => (bucket.types as readonly string[]).includes(a.account_type)),
+      }))
+        .filter((bucket) => bucket.accounts.length > 0)
+        .map((bucket) => ({
+          ...bucket,
+          value: bucket.accounts.reduce((sum, a) => sum + a.balance, 0),
+        })),
+    [accounts]
+  );
 
   // Area chart geometry
   const height = 180;
@@ -142,8 +171,8 @@ export function HeroNetWorth() {
               {t("dashboard.totalNetWorth", { defaultValue: "Total net worth" })}
             </div>
             <div className={`ft-hero-value mt-3 break-words ${isNegative ? "is-negative text-destructive" : ""} ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-              {isNegative ? "−" : ""}€{intPart}
-              <span className="cents">.{cents}</span>
+              {head}
+              <span className="cents">{tail}</span>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-[12.5px] text-muted-foreground">
               <span className={`ft-delta ${up ? "up" : "down"} whitespace-nowrap`}>
@@ -179,7 +208,31 @@ export function HeroNetWorth() {
               </div>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-3 border-t border-line text-xs text-muted-foreground">
+          {/* What the headline is made of. */}
+          {buckets.length > 1 && (
+            <div className="flex flex-wrap gap-x-6 gap-y-3 mt-auto pt-4">
+              {buckets.map((bucket) => (
+                <div key={bucket.key} className="flex flex-col gap-0.5 min-w-0">
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-fg-dim">
+                    <i
+                      className="h-2.5 w-2.5 rounded-[3px] flex-shrink-0"
+                      style={{ background: bucket.swatch }}
+                    />
+                    {t(bucket.labelKey, { defaultValue: bucket.fallback })}
+                  </span>
+                  <b
+                    className={`font-mono text-[15px] font-medium tracking-tight ${
+                      isPrivacyMode ? "blur-md select-none" : ""
+                    }`}
+                  >
+                    {formatCurrency(bucket.value)}
+                  </b>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-3 border-t border-line-soft text-xs text-muted-foreground">
             <Info className="h-3 w-3 flex-shrink-0" />
             <span className="truncate min-w-0">
               {t("dashboard.updated", { defaultValue: "Updated" })}{" "}
@@ -190,7 +243,7 @@ export function HeroNetWorth() {
                 minute: "2-digit",
               })}
             </span>
-            <span className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-bg-subtle border border-line text-[11px] flex-shrink-0">
+            <span className="ml-auto ft-chip !py-0.5 text-[11px] flex-shrink-0">
               <Lock className="h-2.5 w-2.5" />
               {t("common.secure", { defaultValue: "Secure" })}
             </span>

@@ -77,10 +77,10 @@ export function AccountsListCard() {
               className="ft-list-row hover:bg-bg-subtle/60"
               style={{ gridTemplateColumns: "36px 1fr auto" }}
             >
-              <div
-                className="h-9 w-9 rounded-lg grid place-items-center text-white font-bold text-[11px] tracking-tight"
-                style={{ background: bg }}
-              >
+              {/* Tinted rather than filled — same treatment as CategoryIcon,
+                  so bank and category badges read as one family and neither
+                  shouts over the balance beside it. */}
+              <div className="ft-glyph !h-9 !w-9" style={{ background: `${bg}1F`, color: bg }}>
                 {initials || "A"}
               </div>
               <div className="min-w-0">
