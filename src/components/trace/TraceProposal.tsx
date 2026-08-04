@@ -7,6 +7,7 @@ import { isNumericCell } from "@/lib/traceFormat";
 import { useTraceApply } from "@/hooks/useTraceApply";
 import { useTrace, type TraceBlock } from "@/contexts/TraceContext";
 import { cn } from "@/lib/utils";
+import { rich } from "@/components/trace/rich";
 
 type Proposal = Extract<TraceBlock, { t: "proposal" }>;
 
@@ -86,8 +87,8 @@ export function TraceProposal({ block, turnId, index }: { block: Proposal; turnI
               ? t("trace.proposalReadOnly", { defaultValue: "Trace suggests · read-only" })
               : t(KIND_LABEL[block.kind], { defaultValue: "Trace proposes" })}
         </div>
-        <div className="mt-2 text-sm font-semibold tracking-tight">{block.title}</div>
-        <div className="text-xs text-muted-foreground mt-0.5">{block.summary}</div>
+        <div className="mt-2 text-sm font-semibold tracking-tight">{rich(block.title)}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{rich(block.summary)}</div>
       </div>
 
       <div className="px-4 py-2.5 flex items-start gap-2 border-y border-line bg-bg-subtle/50 text-xs">
@@ -96,7 +97,7 @@ export function TraceProposal({ block, turnId, index }: { block: Proposal; turnI
           <b className="text-foreground font-medium">
             {t("trace.impact", { defaultValue: "Impact" })}
           </b>{" "}
-          — {block.impact}
+          — {rich(block.impact)}
         </span>
       </div>
 
@@ -132,7 +133,7 @@ export function TraceProposal({ block, turnId, index }: { block: Proposal; turnI
                           : "text-right text-muted-foreground",
                     )}
                   >
-                    {cell}
+                    {rich(cell)}
                   </td>
                 ))}
               </tr>
@@ -144,7 +145,7 @@ export function TraceProposal({ block, turnId, index }: { block: Proposal; turnI
       {block.note && (
         <div className="px-4 py-2.5 flex items-start gap-2 border-t border-line text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-px flex-shrink-0" />
-          <span>{block.note}</span>
+          <span>{rich(block.note)}</span>
         </div>
       )}
 
