@@ -27,18 +27,42 @@ export default defineTool({
     if (!ctx.isAuthenticated()) return unauthenticated();
     const supabase = supabaseForUser(ctx);
 
-    const [{ data: tx, error }, { data: cats }] = await Promise.all([
+    const COLUMNS =
+      "amount, type, category_id, refunded_amount, repaid_amount, include_in_stats, " +
+      "refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee";
+
+    // Paged, and ordered so the paging is stable. This read had neither: an
+    // unbounded select is capped server-side at ~1000 rows, and with no
+    // ORDER BY the rows that survive are whichever the planner emitted
+    // first. A range holding more than a page of transactions therefore
+    // returned confident totals built from an arbitrary subset — different
+    // numbers each run, while the tool description told the model to take
+    // the figures as final. A summary has to see every row or say nothing.
+    const PAGE = 1000;
+    const page = (offset: number) =>
       supabase
         .from("transactions")
-        .select(
-          "amount, type, category_id, refunded_amount, repaid_amount, include_in_stats, " +
-            "refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee",
-        )
+        .select(COLUMNS, offset === 0 ? { count: "exact" } : undefined)
         .gte("transaction_date", from)
-        .lte("transaction_date", to),
+        .lte("transaction_date", to)
+        .order("transaction_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + PAGE - 1);
+
+    const [first, { data: cats }] = await Promise.all([
+      page(0),
       supabase.from("categories").select("id, name"),
     ]);
-    if (error) return fail(error.message);
+    if (first.error) return fail(first.error.message);
+
+    const tx = [...(first.data ?? [])];
+    const total = first.count ?? tx.length;
+    for (let offset = tx.length; tx.length < total && offset < total; offset = tx.length) {
+      const next = await page(offset);
+      if (next.error) return fail(next.error.message);
+      if (!next.data?.length) break;
+      tx.push(...next.data);
+    }
 
     const names = new Map((cats ?? []).map((c) => [c.id, c.name]));
     let income = 0;

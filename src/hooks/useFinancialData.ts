@@ -117,21 +117,62 @@ function useFinancialDataInternal() {
   });
 
   // React Query: transactions
+  //
+  // Paged deliberately. PostgREST caps an unbounded select at the project's
+  // max-rows (1000), and it does it silently — no error, no flag. This query
+  // orders newest-first, so the cap always ate the OLDEST rows: at 1033
+  // transactions the ledger simply began two weeks later than it really did,
+  // and every screen fed by this array (reports, budget, dashboard, exports,
+  // and computeInitialBalance, which reverses today's balances back through
+  // the rows it can see) was quietly answering about a shorter ledger than
+  // the database holds. It was found because Trace, which queries the server
+  // directly, could name a transaction the app could not display.
+  //
+  // Termination is driven by the exact count rather than by "a short page
+  // means the end". A page-size test only works if the page size matches the
+  // server's cap, so lowering that cap would silently resurrect the bug.
   const transactionsQuery = useQuery({
     queryKey: QUERY_KEYS.transactions(user?.id ?? ''),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
+      const PAGE = 1000;
+      // transaction_date is a DATE with heavy ties, and a range over a
+      // non-deterministic order can repeat a row on one page and drop
+      // another. created_at is this codebase's intra-day tiebreaker (the
+      // balance-recalculation functions sort by it); id settles the rest,
+      // since created_at is nullable.
+      const page = (from: number) =>
+        supabase
+          .from('transactions')
+          .select(
+            `
           *,
           account:accounts!transactions_account_id_fkey(name, bank),
           category:categories(id, name, color, icon),
           transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
-        `)
-        .eq('user_id', user!.id)
-        .order('transaction_date', { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(t => ({
+        `,
+            from === 0 ? { count: 'exact' } : undefined,
+          )
+          .eq('user_id', user!.id)
+          .order('transaction_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, from + PAGE - 1);
+
+      const first = await page(0);
+      if (first.error) throw first.error;
+      const rows = [...(first.data ?? [])];
+      const total = first.count ?? rows.length;
+
+      // The guard is the row count, not a `while (true)`: a server that kept
+      // returning full pages would otherwise spin forever.
+      for (let from = rows.length; rows.length < total && from < total; from = rows.length) {
+        const next = await page(from);
+        if (next.error) throw next.error;
+        if (!next.data?.length) break;
+        rows.push(...next.data);
+      }
+
+      return rows.map(t => ({
         ...t,
         transfer_to_account: t.transfer_to_account || undefined,
       })) as Transaction[];
