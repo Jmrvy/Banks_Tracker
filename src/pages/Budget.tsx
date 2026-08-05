@@ -2364,10 +2364,10 @@ const Budget = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
           {/* The pack switches budget status with a segmented control, not
               loose chips — these are mutually exclusive views of one list. */}
-          <Segmented<StatusFilter>
+          <Segmented
             label={t("budget.filterAria", { defaultValue: "Filter by status" })}
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(v) => setStatusFilter(v as StatusFilter)}
             options={filterChips.map((c) => ({ value: c.id, label: c.label, count: c.n }))}
           />
           <div className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-line bg-card min-w-0 sm:min-w-[200px]">
