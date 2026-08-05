@@ -23,6 +23,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { useAccountSeries } from "@/hooks/useAccountSeries";
 import { AccountSparkline } from "@/components/AccountSparkline";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import { NewAccountModal } from "@/components/NewAccountModal";
 import { AccountDetails } from "@/components/AccountDetails";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
@@ -40,6 +41,35 @@ const initialsOf = (name: string) =>
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+/**
+ * How the page groups accounts, top to bottom: what you can spend now, what
+ * you have put aside, what is tied up. Credit sits with checking — a card
+ * balance is money already spent out of the same pot.
+ */
+const TYPE_GROUPS = [
+  {
+    key: "liquid",
+    types: ["checking", "credit"] as const,
+    swatch: "hsl(var(--chart-1))",
+    labelKey: "accounts.checking",
+    fallback: "Checking",
+  },
+  {
+    key: "savings",
+    types: ["savings"] as const,
+    swatch: "hsl(var(--chart-2))",
+    labelKey: "accounts.savings",
+    fallback: "Savings",
+  },
+  {
+    key: "invest",
+    types: ["investment"] as const,
+    swatch: "hsl(var(--chart-5))",
+    labelKey: "accounts.investment",
+    fallback: "Investment",
+  },
+] as const;
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
@@ -94,6 +124,27 @@ const Accounts = () => {
     () => accounts.find((acc) => acc.id === selectedAccountId),
     [accounts, selectedAccountId]
   );
+
+  // The account shown in the overview's right-hand panel. Distinct from
+  // `selectedAccountId`, which swaps the page for the full detail view —
+  // this one only ever changes what the preview is looking at.
+  const [previewAccountId, setPreviewAccountId] = useState<string | null>(null);
+  const previewAccount = useMemo(
+    () => accounts.find((a) => a.id === previewAccountId) ?? accounts[0],
+    [accounts, previewAccountId]
+  );
+  const previewAccent = previewAccount
+    ? BANK_COLORS[previewAccount.bank] || "hsl(var(--primary))"
+    : "hsl(var(--primary))";
+  const previewSeries = previewAccount ? seriesByAccount[previewAccount.id] : undefined;
+  const previewChange = previewSeries?.change30d ?? 0;
+  const previewTransactions = useMemo(() => {
+    if (!previewAccount) return [];
+    return transactions.filter(
+      (tx) =>
+        tx.account_id === previewAccount.id || tx.transfer_to_account_id === previewAccount.id
+    );
+  }, [transactions, previewAccount]);
 
   const fmtBal = (v: number, opts?: { sign?: boolean }) =>
     hideBalances ? "•••••" : (opts?.sign && v >= 0 ? "+" : "") + formatCurrency(v);
@@ -318,169 +369,223 @@ const Accounts = () => {
           </div>
         </div>
 
-        {/* Net-worth hero with composition breakdown */}
-        <div className="ft-card relative overflow-hidden">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-60"
-            style={{
-              background:
-                "radial-gradient(70% 80% at 100% 0%, hsl(var(--primary) / 0.10), transparent 60%)",
-            }}
-          />
-          <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-5 sm:gap-6 lg:gap-9 p-5 sm:p-6 md:p-7">
-            <div className="min-w-0">
-              <div className="ft-hero-eyebrow">
-                <span className="live" />
-                {t("accounts.totalBalance", { defaultValue: "Total balance" })}
+        {/* Three shapes of money, before any individual account. */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+          {TYPE_GROUPS.map((group) => {
+            const list = accounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
+            const total = list.reduce((s, a) => s + a.balance, 0);
+            return (
+              <div key={group.key} className="ft-card p-4 md:p-5">
+                <div className="flex items-center gap-2">
+                  <i className="h-2.5 w-2.5 rounded-[3px] flex-shrink-0" style={{ background: group.swatch }} />
+                  <span className="ft-kpi-label truncate">{t(group.labelKey, { defaultValue: group.fallback })}</span>
+                </div>
+                <div className="font-mono text-[26px] font-medium tracking-[-0.03em] mt-2.5 mb-1 truncate">
+                  {fmtBal(total)}
+                </div>
+                <div className="text-xs text-fg-dim truncate">
+                  {t("accounts.nAccounts", { count: list.length, defaultValue: "{{count}} accounts" })}
+                  {compositionTotal > 0 && ` · ${((Math.max(0, total) / compositionTotal) * 100).toFixed(0)} %`}
+                </div>
               </div>
-              <div
-                className="ft-hero-value mt-3 break-words"
-               
-              >
-                {hideBalances ? "•••••" : formatCurrency(totalBalance)}
-              </div>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-xs text-muted-foreground">
-                {Math.abs(change30dTotal) > 0.01 && (
-                  <span className={`ft-delta ${change30dTotal >= 0 ? "up" : "down"} whitespace-nowrap`}>
-                    {change30dTotal >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                    {fmtBal(Math.abs(change30dTotal))}
-                  </span>
-                )}
-                <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3 sm:gap-4 justify-center min-w-0">
-              {/* Stacked composition bar */}
-              <div className="flex h-3.5 rounded-lg overflow-hidden border border-line bg-bg-subtle">
-                <div
-                  style={{ width: `${(checkingTotal / compositionTotal) * 100}%`, background: "hsl(var(--primary))" }}
-                  title="Checking"
-                />
-                <div
-                  style={{ width: `${(savingsTotal / compositionTotal) * 100}%`, background: "hsl(var(--info))", borderLeft: "2px solid hsl(var(--bg-elev))" }}
-                  title="Savings"
-                />
-                <div
-                  style={{ width: `${(investTotal / compositionTotal) * 100}%`, background: "hsl(var(--warning))", borderLeft: "2px solid hsl(var(--bg-elev))" }}
-                  title="Investment"
-                />
-              </div>
-              {/* Legend */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {[
-                  { label: t("accounts.checking", { defaultValue: "Checking" }), v: checkingTotal, color: "hsl(var(--primary))" },
-                  { label: t("accounts.savings", { defaultValue: "Savings" }), v: savingsTotal, color: "hsl(var(--info))" },
-                  { label: t("accounts.investment", { defaultValue: "Investment" }), v: investTotal, color: "hsl(var(--warning))" },
-                ].map((seg) => (
-                  <div key={seg.label} className="rounded-xl bg-bg-subtle border border-line p-2.5 sm:p-3 min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground font-medium min-w-0">
-                      <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: seg.color }} />
-                      <span className="truncate">{seg.label}</span>
-                    </div>
-                    <div className="font-mono text-sm sm:text-base font-medium mt-1 truncate">{fmtBal(seg.v)}</div>
-                    <div className="font-mono text-[10px] sm:text-[11px] text-fg-dim mt-0.5">
-                      {((seg.v / compositionTotal) * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
 
-        {/* Account cards grid */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="ft-card-title">
-              {t("accounts.yourAccounts", { defaultValue: "Your accounts" })}
-            </h3>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-              <Filter className="h-3.5 w-3.5" />
-              {t("common.filter", { defaultValue: "Filter" })}
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {accounts.map((account) => {
-              const accent = BANK_COLORS[account.bank] || "hsl(var(--primary))";
-              const series = seriesByAccount[account.id];
-              const change = series?.change30d ?? 0;
-              const flat = Math.abs(change) < 0.01;
-              const up = change > 0;
+        {/* Grouped lists on the left, the highlighted account on the right —
+            picking a row is a cheap preview, not a navigation. */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr] gap-4 md:gap-5 items-start">
+          <div className="flex flex-col gap-4 md:gap-5 min-w-0">
+            {TYPE_GROUPS.map((group) => {
+              const list = accounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
+              if (list.length === 0) return null;
+              const total = list.reduce((s, a) => s + a.balance, 0);
               return (
-                <button
-                  key={account.id}
-                  type="button"
-                  className="ft-card p-4 md:p-5 text-left flex flex-col gap-3.5 hover:border-line-strong transition-all hover:shadow-md"
-                  onClick={() => setSelectedAccountId(account.id)}
-                >
-                  {/* Header */}
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="h-9 w-9 rounded-lg grid place-items-center text-white font-bold text-[11px] flex-shrink-0"
-                      style={{ background: accent }}
-                    >
-                      {initialsOf(account.name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-sm truncate tracking-tight">
-                        {account.name}
-                      </div>
-                      <div className="text-[11.5px] text-fg-dim truncate">
-                        {getAccountTypeLabel(account.account_type, t)} · {getBankLabel(account.bank, t)}
+                <div key={group.key} className="ft-card-flush">
+                  <div className="ft-card-head px-5 pt-5 pb-0">
+                    <div>
+                      <h3 className="ft-card-title">{t(group.labelKey, { defaultValue: group.fallback })}</h3>
+                      <div className="ft-card-sub">
+                        {t("accounts.nAccounts", { count: list.length, defaultValue: "{{count}} accounts" })} · {fmtBal(total)}
                       </div>
                     </div>
                   </div>
-
-                  {/* Balance */}
-                  <div className="min-w-0">
-                    <div className="text-[10.5px] uppercase tracking-[0.08em] font-semibold text-fg-dim">
-                      {t("accounts.available", { defaultValue: "Available" })}
-                    </div>
-                    <div
-                      className={`font-mono font-medium tracking-tight mt-0.5 truncate ${
-                        account.balance < 0 ? "text-destructive" : ""
-                      }`}
-                     
-                    >
-                      {fmtBal(account.balance)}
-                    </div>
+                  <div className="flex flex-col">
+                    {list.map((account) => {
+                      const accent = BANK_COLORS[account.bank] || "hsl(var(--primary))";
+                      const series = seriesByAccount[account.id];
+                      const change = series?.change30d ?? 0;
+                      const flat = Math.abs(change) < 0.01;
+                      const active = previewAccountId === account.id;
+                      return (
+                        <button
+                          key={account.id}
+                          type="button"
+                          onClick={() => setPreviewAccountId(account.id)}
+                          onDoubleClick={() => setSelectedAccountId(account.id)}
+                          aria-pressed={active}
+                          className="ft-list-row text-left w-full"
+                          style={{
+                            gridTemplateColumns: "38px minmax(0,1fr) 84px auto",
+                            background: active ? "hsl(var(--accent-wash))" : undefined,
+                          }}
+                        >
+                          <div className="ft-glyph" style={{ background: `${accent}1F`, color: accent }}>
+                            {initialsOf(account.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-[13.5px] truncate">{account.name}</div>
+                            <div className="text-[11.5px] text-fg-dim truncate">
+                              {getBankLabel(account.bank, t)} · {getAccountTypeLabel(account.account_type, t)}
+                            </div>
+                          </div>
+                          <div className="h-[30px] hidden sm:block">
+                            {series && series.series.length > 1 && (
+                              <AccountSparkline series={series.series} color={accent} height={30} fill={false} />
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className={`font-mono text-sm font-medium ${account.balance < 0 ? "text-destructive" : ""}`}>
+                              {fmtBal(account.balance)}
+                            </div>
+                            {!flat && (
+                              <div className="mt-0.5">
+                                <span className={`ft-delta ${change > 0 ? "up" : "down"}`}>
+                                  {change > 0 ? "↑" : "↓"} {fmtBal(Math.abs(change))}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {/* Sparkline */}
-                  {series && series.series.length > 1 && (
-                    <div className="h-[42px]">
-                      <AccountSparkline series={series.series} color={accent} height={42} />
-                    </div>
-                  )}
-
-                  {/* Footer: delta + label */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-line text-xs min-w-0">
-                    <span className={`ft-delta ${flat ? "flat" : up ? "up" : "down"} whitespace-nowrap truncate`}>
-                      {flat ? "—" : up ? "↑" : "↓"} {flat ? t("accounts.noChange", { defaultValue: "no change" }) : fmtBal(Math.abs(change))}
-                    </span>
-                    <span className="text-fg-dim flex-shrink-0">30d</span>
-                  </div>
-                </button>
+                </div>
               );
             })}
 
-            {/* Add card */}
             <button
               type="button"
               onClick={() => setShowNewAccountModal(true)}
-              className="ft-card p-4 md:p-5 text-center flex flex-col items-center justify-center gap-2 border-dashed bg-bg-subtle text-fg-mute hover:text-foreground hover:border-primary transition-colors min-h-[200px]"
+              className="ft-card p-5 flex items-center justify-center gap-2.5 border-dashed bg-bg-subtle text-fg-mute hover:text-foreground hover:border-primary transition-colors"
             >
-              <div className="h-10 w-10 rounded-xl bg-bg-elev border border-line grid place-items-center">
-                <Plus className="h-5 w-5" />
-              </div>
-              <div className="font-semibold text-sm text-foreground">
+              <Plus className="h-4 w-4" />
+              <span className="font-semibold text-[13px]">
                 {t("accounts.linkNewAccount", { defaultValue: "Link a new account" })}
-              </div>
-              <div className="text-[11.5px] text-fg-dim">
-                {t("accounts.linkNewAccountHint", { defaultValue: "Bank, brokerage, or credit card" })}
-              </div>
+              </span>
             </button>
           </div>
+
+          {/* Preview panel */}
+          {previewAccount && (
+            <div className="flex flex-col gap-4 md:gap-5 min-w-0">
+              <div className="ft-card p-5">
+                <div className="ft-card-head !mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="ft-glyph !h-[42px] !w-[42px] !rounded-[14px] !text-[13px]"
+                      style={{ background: `${previewAccent}1F`, color: previewAccent }}
+                    >
+                      {initialsOf(previewAccount.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="ft-card-title truncate">{previewAccount.name}</h3>
+                      <div className="ft-card-sub truncate">
+                        {getBankLabel(previewAccount.bank, t)} · {getAccountTypeLabel(previewAccount.account_type, t)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={`font-mono text-[32px] font-medium tracking-[-0.03em] truncate ${previewAccount.balance < 0 ? "text-destructive" : ""}`}>
+                  {fmtBal(previewAccount.balance)}
+                </div>
+                {Math.abs(previewChange) > 0.01 && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`ft-delta ${previewChange > 0 ? "up" : "down"}`}>
+                      {previewChange > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                      {fmtBal(Math.abs(previewChange))}
+                    </span>
+                    <span className="text-[12.5px] text-muted-foreground">
+                      {t("dashboard.past30Days", { defaultValue: "past 30 days" })}
+                    </span>
+                  </div>
+                )}
+                {previewSeries && previewSeries.series.length > 1 && (
+                  <div className="mt-4 h-[78px]">
+                    <AccountSparkline series={previewSeries.series} color={previewAccent} height={78} fill />
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  className="w-full mt-4 h-9 font-semibold"
+                  onClick={() => setSelectedAccountId(previewAccount.id)}
+                >
+                  {t("accounts.openAccount", { defaultValue: "Open account" })}
+                </Button>
+              </div>
+
+              <div className="ft-card-flush">
+                <div className="ft-card-head px-5 pt-5 pb-0">
+                  <div>
+                    <h3 className="ft-card-title">{t("transactions.recent", { defaultValue: "Recent" })}</h3>
+                    <div className="ft-card-sub">
+                      {t("transactions.nOnThisAccount", {
+                        count: previewTransactions.length,
+                        defaultValue: "{{count}} on this account",
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  {previewTransactions.slice(0, 6).map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="ft-list-row"
+                      style={{ gridTemplateColumns: "34px minmax(0,1fr) auto" }}
+                    >
+                      {tx.category ? (
+                        <CategoryIcon icon={tx.category.icon} color={tx.category.color} size={34} />
+                      ) : (
+                        <div className="ft-glyph sq">
+                          {tx.type === "transfer" ? <ArrowLeft className="h-4 w-4" /> : <Wallet className="h-4 w-4" />}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[13px] truncate">{tx.description}</div>
+                        <div className="text-[11.5px] text-fg-dim truncate">
+                          {tx.category?.name ??
+                            (tx.type === "transfer"
+                              ? t("transactions.transfer", { defaultValue: "Transfer" })
+                              : t("common.uncategorized", { defaultValue: "Uncategorized" }))}
+                        </div>
+                      </div>
+                      <div className={`font-mono text-[13.5px] font-medium ${tx.type === "income" ? "text-pos" : ""}`}>
+                        {tx.type === "income" ? "+" : "−"}
+                        {formatCurrency(tx.amount)}
+                      </div>
+                    </div>
+                  ))}
+                  {previewTransactions.length === 0 && (
+                    <div className="px-5 py-9 text-center text-[13px] text-fg-dim">
+                      {t("transactions.noTransactions", { defaultValue: "No transactions" })}
+                    </div>
+                  )}
+                </div>
+                {previewTransactions.length > 6 && (
+                  <button
+                    type="button"
+                    className="ft-row-foot"
+                    onClick={() => setSelectedAccountId(previewAccount.id)}
+                  >
+                    {t("transactions.seeAllN", {
+                      count: previewTransactions.length,
+                      defaultValue: "See all {{count}}",
+                    })}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Cash on hand panel */}

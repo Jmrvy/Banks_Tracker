@@ -188,7 +188,10 @@
       "caisse_epargne": "Caisse d'Épargne",
       "credit_mutuel": "Crédit Mutuel",
       "other": "Other"
-    }
+    },
+    "nAccounts_one": "{{count}} account",
+    "nAccounts_other": "{{count}} accounts",
+    "openAccount": "Open account"
   },
   "transactions": {
     "title": "Transactions",
@@ -253,7 +256,11 @@
     "unlink": "Unlink",
     "relink": "Link elsewhere",
     "unlinked": "Unlinked",
-    "unlinkedDesc": "The two transactions are separate again, and the category was cleared."
+    "unlinkedDesc": "The two transactions are separate again, and the category was cleared.",
+    "nOnThisAccount_one": "{{count}} on this account",
+    "nOnThisAccount_other": "{{count}} on this account",
+    "seeAllN": "See all {{count}}",
+    "breakdownHint": "Tap a category to filter"
   },
   "categories": {
     "title": "Categories",

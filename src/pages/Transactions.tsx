@@ -10,6 +10,8 @@ import { computePeriodStats } from "@/lib/reportsEngine";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
+import { useTrace } from "@/contexts/TraceContext";
+import { TraceMark } from "@/components/trace/TraceMark";
 
 interface TransactionsLocationState {
   categoryId?: string;
@@ -26,6 +28,7 @@ const Transactions = () => {
   const { transactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { toast } = useToast();
+  const { openDock } = useTrace();
   const location = useLocation();
   const navState = (location.state ?? {}) as TransactionsLocationState;
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
@@ -89,6 +92,32 @@ const Transactions = () => {
       return true;
     };
   }, [filters, preferences.dateType]);
+
+  /**
+   * Where the filtered spend actually goes, biggest first. Drives the
+   * sidebar breakdown; each row doubles as a one-click category filter, so
+   * the list and the breakdown always describe the same set.
+   */
+  const breakdown = useMemo(() => {
+    const byCategory = new Map<string, { id: string; name: string; color: string; total: number }>();
+    for (const tx of transactions.filter(matchesFilters)) {
+      if (tx.type !== "expense" || tx.include_in_stats === false) continue;
+      const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
+      if (net <= 0) continue;
+      const id = tx.category?.id ?? "__none";
+      const existing = byCategory.get(id);
+      if (existing) existing.total += net;
+      else
+        byCategory.set(id, {
+          id,
+          name: tx.category?.name ?? t("common.uncategorized", { defaultValue: "Uncategorized" }),
+          color: tx.category?.color ?? "hsl(var(--fg-dim))",
+          total: net,
+        });
+    }
+    const rows = [...byCategory.values()].sort((a, b) => b.total - a.total);
+    return { rows: rows.slice(0, 7), max: rows[0]?.total ?? 1 };
+  }, [transactions, matchesFilters, t]);
 
   // Totals reflect the active filters so the header stays in sync
   const totals = useMemo(() => {
@@ -224,8 +253,90 @@ const Transactions = () => {
           />
         </div>
 
-        {/* Grouped transaction list */}
-        <TransactionHistory filters={filters} />
+        {/* The ledger, with what it adds up to alongside it. */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 md:gap-5 items-start">
+          <TransactionHistory filters={filters} />
+
+          <aside className="flex flex-col gap-4 md:gap-5 min-w-0">
+            {breakdown.rows.length > 0 && (
+              <div className="ft-card p-5">
+                <div className="ft-card-head !mb-3">
+                  <div>
+                    <h3 className="ft-card-title">
+                      {t("dashboard.distribution", { defaultValue: "Distribution" })}
+                    </h3>
+                    <div className="ft-card-sub">
+                      {t("transactions.breakdownHint", {
+                        defaultValue: "Tap a category to filter",
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  {breakdown.rows.map((row) => {
+                    const active = filters.categoryId === row.id;
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        onClick={() =>
+                          setFilters((f) => ({
+                            ...f,
+                            categoryId: active || row.id === "__none" ? "all" : row.id,
+                          }))
+                        }
+                        disabled={row.id === "__none"}
+                        className="grid grid-cols-[1fr_auto] gap-x-2.5 gap-y-1.5 py-2.5 text-left w-full border-t border-line-soft first:border-t-0 disabled:cursor-default"
+                      >
+                        <span className="flex items-center gap-2 text-[12.5px] font-medium min-w-0">
+                          <i
+                            className="h-2.5 w-2.5 rounded-[3px] flex-shrink-0"
+                            style={{ background: row.color }}
+                          />
+                          <span className={`truncate ${active ? "text-accent-deep font-semibold" : ""}`}>
+                            {row.name}
+                          </span>
+                        </span>
+                        <span className="font-mono text-[12.5px] whitespace-nowrap">
+                          {formatCurrency(row.total)}
+                        </span>
+                        <div className="col-span-2 ft-progress-track !h-1">
+                          <div
+                            className="ft-progress-fill"
+                            style={{
+                              width: `${(row.total / breakdown.max) * 100}%`,
+                              background: row.color,
+                            }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* The copilot, offered where a "why is this so high?" question
+                actually occurs — next to the numbers that prompt it. */}
+            <button
+              type="button"
+              onClick={openDock}
+              className="ft-card p-4 flex items-start gap-3 text-left hover:border-line-strong transition-colors"
+            >
+              <div className="ft-kpi-icon acc">
+                <TraceMark size="sm" plain />
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold text-[13px]">
+                  {t("trace.askTrace", { defaultValue: "Ask Trace" })}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {t("trace.askAboutPage", { defaultValue: "Ask Trace about this page" })}
+                </div>
+              </div>
+            </button>
+          </aside>
+        </div>
       </div>
 
       <NewTransactionModal
