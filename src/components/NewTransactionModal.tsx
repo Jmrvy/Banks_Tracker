@@ -20,9 +20,12 @@ import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 interface NewTransactionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Which type the form opens on. Callers that already know what the user
+   *  is doing (an account's "Transfer" action) skip a click. */
+  defaultType?: 'income' | 'expense' | 'transfer';
 }
 
-export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalProps) => {
+export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense' }: NewTransactionModalProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { formatCurrency, preferences } = useUserPreferences();
@@ -33,7 +36,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
-    type: 'expense' as 'income' | 'expense' | 'transfer',
+    type: defaultType as 'income' | 'expense' | 'transfer',
     account_id: '',
     to_account_id: '',
     category_id: '',
@@ -50,7 +53,7 @@ export const NewTransactionModal = ({ open, onOpenChange }: NewTransactionModalP
     setFormData({
       description: '',
       amount: '',
-      type: 'expense',
+      type: defaultType,
       account_id: '',
       to_account_id: '',
       category_id: '',

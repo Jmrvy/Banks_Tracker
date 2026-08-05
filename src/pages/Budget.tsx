@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -2148,10 +2149,12 @@ const Budget = () => {
           )}
         </div>
 
-        {/* Overview: summary card + trend card */}
-        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] gap-3 md:gap-4">
+        {/* Overview and pace are one card split by a rule, not two cards with
+            a gap: they are the same reading of the period — how much is gone,
+            and whether that is ahead of the clock. */}
+        <div className="ft-card !p-0 overflow-hidden grid grid-cols-1 md:grid-cols-[1.1fr_1.5fr] [&>*+*]:border-t md:[&>*+*]:border-t-0 md:[&>*+*]:border-l [&>*+*]:border-line">
           {/* Summary card */}
-          <div className="ft-card p-4 sm:p-5 flex flex-col">
+          <div className="p-4 sm:p-6 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 {t("budget.overview", { defaultValue: "Overview" })} · {period.label}
@@ -2242,43 +2245,10 @@ const Budget = () => {
             </div>
 
             {/* Auto-budget banner */}
-            {totals.suggestableCount > 0 && (
-              <div className="flex items-center gap-3 mt-4 p-3 rounded-xl bg-primary/[0.07] border border-transparent">
-                <div className="ft-kpi-icon acc !h-9 !w-9">
-                  <Wand2 className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold">
-                    {t("budget.autoBudgetTitle", {
-                      n: totals.suggestableCount,
-                      defaultValue: `${totals.suggestableCount} categor${
-                        totals.suggestableCount === 1 ? "y" : "ies"
-                      } without a budget`,
-                    })}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {t("budget.autoBudgetSub", {
-                      defaultValue: "Apply suggested budgets based on history.",
-                    })}
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={autoBudgetMissing}
-                  disabled={bulkBusy}
-                  className="gap-1.5"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {bulkBusy
-                    ? t("common.working", { defaultValue: "Working…" })
-                    : t("budget.autoBudgetAction", { defaultValue: "Auto-budget" })}
-                </Button>
-              </div>
-            )}
           </div>
 
           {/* Trend card */}
-          <div className="ft-card p-4 sm:p-5">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 {t("budget.spendPace", { defaultValue: "Spending pace" })}
@@ -2328,38 +2298,51 @@ const Budget = () => {
           </div>
         </div>
 
+        {/* Auto-budget — the pack gives this its own full-width band rather
+            than tucking it inside the overview, because it is an action on
+            the whole page, not a footnote to the summary. */}
+        {totals.suggestableCount > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl bg-primary/[0.07] border border-transparent">
+            <div className="ft-kpi-icon acc !h-9 !w-9">
+              <Wand2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">
+                {t("budget.autoBudgetTitle", {
+                  n: totals.suggestableCount,
+                  defaultValue: `${totals.suggestableCount} categories without a budget`,
+                })}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {t("budget.autoBudgetSub", {
+                  defaultValue: "Apply suggested budgets based on history.",
+                })}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={autoBudgetMissing}
+              disabled={bulkBusy}
+              className="gap-1.5 bg-bg-ink text-fg-onink hover:bg-bg-ink hover:brightness-110 flex-shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {bulkBusy
+                ? t("common.working", { defaultValue: "Working…" })
+                : t("budget.autoBudgetAction", { defaultValue: "Auto-budget" })}
+            </Button>
+          </div>
+        )}
+
         {/* Filter chips + search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
-          <div className="flex flex-wrap gap-1.5 -mx-1 px-1 overflow-x-auto sm:overflow-visible">
-            {filterChips.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setStatusFilter(c.id)}
-                className={cn(
-                  "ft-chip flex-shrink-0",
-                  // The selected status keeps its own tone, so "Over" still
-                  // reads as a warning rather than as generic selection.
-                  statusFilter === c.id &&
-                    (c.id === "over"
-                      ? "bg-neg/[0.13] text-neg border-transparent"
-                      : c.id === "warn"
-                      ? "bg-warn/[0.15] text-warn border-transparent"
-                      : "active")
-                )}
-              >
-                {c.label}
-                <span
-                  className={cn(
-                    "tabular-nums text-[11px] font-medium opacity-70",
-                    statusFilter === c.id && "opacity-90"
-                  )}
-                >
-                  {c.n}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* The pack switches budget status with a segmented control, not
+              loose chips — these are mutually exclusive views of one list. */}
+          <Segmented<StatusFilter>
+            label={t("budget.filterAria", { defaultValue: "Filter by status" })}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={filterChips.map((c) => ({ value: c.id, label: c.label, count: c.n }))}
+          />
           <div className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-line bg-card min-w-0 sm:min-w-[200px]">
             <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
             <Input

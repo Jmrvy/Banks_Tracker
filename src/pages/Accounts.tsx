@@ -11,6 +11,7 @@ import {
   MoreVertical,
   Trash2,
   Wallet,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import { useAccountSeries } from "@/hooks/useAccountSeries";
 import { AccountSparkline } from "@/components/AccountSparkline";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { NewAccountModal } from "@/components/NewAccountModal";
+import { NewTransactionModal } from "@/components/NewTransactionModal";
 import { AccountDetails } from "@/components/AccountDetails";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import { BANK_COLORS, getBankLabel, getAccountTypeLabel } from "@/lib/constants";
@@ -81,6 +83,8 @@ const Accounts = () => {
     (location.state as any)?.selectedAccountId || null
   );
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
+  const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -515,13 +519,35 @@ const Accounts = () => {
                     <AccountSparkline series={previewSeries.series} color={previewAccent} height={78} fill />
                   </div>
                 )}
-                <Button
-                  size="sm"
-                  className="w-full mt-4 h-9 font-semibold"
-                  onClick={() => setSelectedAccountId(previewAccount.id)}
-                >
-                  {t("accounts.openAccount", { defaultValue: "Open account" })}
-                </Button>
+                {/* The pack's action row: the two things you do to an
+                    account, then the account itself. */}
+                <div className="flex items-center gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-9 gap-1.5"
+                    onClick={() => setShowNewTransactionModal(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("common.add", { defaultValue: "Add" })}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-9 gap-1.5"
+                    onClick={() => setShowTransferModal(true)}
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    {t("common.transfers", { defaultValue: "Transfer" })}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-9 gap-1.5 font-semibold"
+                    onClick={() => setSelectedAccountId(previewAccount.id)}
+                  >
+                    {t("accounts.openAccount", { defaultValue: "Open account" })}
+                  </Button>
+                </div>
               </div>
 
               <div className="ft-card-flush">
@@ -681,6 +707,15 @@ const Accounts = () => {
       </div>
 
       <NewAccountModal open={showNewAccountModal} onOpenChange={setShowNewAccountModal} />
+      <NewTransactionModal
+        open={showNewTransactionModal}
+        onOpenChange={setShowNewTransactionModal}
+      />
+      <NewTransactionModal
+        open={showTransferModal}
+        onOpenChange={setShowTransferModal}
+        defaultType="transfer"
+      />
     </div>
   );
 };
