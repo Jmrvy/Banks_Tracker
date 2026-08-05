@@ -441,7 +441,20 @@
     "tabs": "Outils d'échéancier",
     "subscriptions": "Récurrents",
     "plans": "Échelonnés",
-    "loans": "Prêts"
+    "loans": "Prêts",
+    "kpiCharges": "Charges récurrentes",
+    "kpiChargesFoot_one": "{{count}} active · 30 prochains jours",
+    "kpiChargesFoot_other": "{{count}} actives · 30 prochains jours",
+    "kpiWeek": "Dans les 7 jours",
+    "kpiWeekFoot_one": "{{count}} échéance",
+    "kpiWeekFoot_other": "{{count}} échéances",
+    "kpiWeekFootLate_one": "{{count}} échéance · {{late}} en retard",
+    "kpiWeekFootLate_other": "{{count}} échéances · {{late}} en retard",
+    "kpiPlans": "Échelonnés en cours",
+    "kpiPlansFoot_one": "{{count}} plan · par mensualité",
+    "kpiPlansFoot_other": "{{count}} plans · par mensualité",
+    "kpiLeft": "Reste après charges",
+    "kpiLeftFoot": "Sur {{amount}} programmés en entrée"
   },
   "recurring": {
     "title": "Transactions Récurrentes",

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CalendarClock, CreditCard, Receipt, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScheduledSummary } from "@/components/scheduled/ScheduledSummary";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 // The three pages render embedded (no outer chrome). Lazy-loaded so the
@@ -91,6 +92,12 @@ const Scheduled = () => {
           </div>
         </div>
 
+        {/* What is scheduled, before which kind of scheduled thing you want
+            to look at. Every figure folds the same occurrence walk the
+            month-end projection uses, so the strip cannot disagree with the
+            panel below it. */}
+        <ScheduledSummary />
+
         {/* The three tools are peer views of scheduled money, so they get the
             design system's segmented control rather than a bespoke tab strip.
             Each keeps its own `data-tour` anchor. */}
@@ -123,8 +130,7 @@ const Scheduled = () => {
         </div>
 
         {/* Active tab body. Each child owns its loading / empty / error
-            states, and its own period summary — this page deliberately does
-            not restate those totals above the panel that computes them. */}
+            states. */}
         <Suspense
           fallback={
             <div className="py-12">

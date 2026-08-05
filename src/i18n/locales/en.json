@@ -441,7 +441,20 @@
     "tabs": "Scheduled tools",
     "subscriptions": "Recurring",
     "plans": "Plans",
-    "loans": "Loans"
+    "loans": "Loans",
+    "kpiCharges": "Recurring charges",
+    "kpiChargesFoot_one": "{{count}} active · next 30 days",
+    "kpiChargesFoot_other": "{{count}} active · next 30 days",
+    "kpiWeek": "Due in 7 days",
+    "kpiWeekFoot_one": "{{count}} due",
+    "kpiWeekFoot_other": "{{count}} due",
+    "kpiWeekFootLate_one": "{{count}} due · {{late}} overdue",
+    "kpiWeekFootLate_other": "{{count}} due · {{late}} overdue",
+    "kpiPlans": "Plans in progress",
+    "kpiPlansFoot_one": "{{count}} plan · per instalment",
+    "kpiPlansFoot_other": "{{count}} plans · per instalment",
+    "kpiLeft": "Left after charges",
+    "kpiLeftFoot": "On {{amount}} scheduled in"
   },
   "recurring": {
     "title": "Recurring Transactions",
