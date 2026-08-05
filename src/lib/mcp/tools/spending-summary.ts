@@ -70,7 +70,11 @@ export default defineTool({
     let transferFees = 0;
     const byCategory = new Map<string, number>();
 
-    for (const raw of (tx ?? []) as EngineTx[]) {
+    // Through `unknown`: PostgREST types a select's rows as a union with its
+    // error shape, which shares no members with EngineTx, so a direct
+    // assertion is rejected. The rows are real here — `first.error` returned
+    // above, and every page's error is checked before it is pushed.
+    for (const raw of tx as unknown as EngineTx[]) {
       // The one place `include_excluded` bites: the shared rule always drops
       // rows flagged out of statistics, so opting them back in means handing
       // it a row that says it counts.
