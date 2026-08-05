@@ -4,5 +4,9 @@
     "strictNullChecks": true,
     "noEmit": true
   },
-  "include": ["src/utils", "src/lib"]
+  // `src/vite-env.d.ts` carries the `vite/client` reference that types
+  // `import.meta.env`. The app config picks it up via its blanket "src"
+  // include; narrowing the ratchet to two directories dropped it, so every
+  // `import.meta.env` read in scope failed here and only here.
+  "include": ["src/utils", "src/lib", "src/vite-env.d.ts"]
 }

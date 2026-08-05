@@ -30,28 +30,51 @@ function advanceDate(date: Date, recurrenceType: RecurringTransaction["recurrenc
   }
 }
 
+export interface RecurringWindowTotals {
+  /** Income-side occurrences, positive. */
+  income: number;
+  /** Expense-side occurrences, positive. */
+  expense: number;
+  /** income − expense. */
+  net: number;
+  /** How many occurrences fell in the window. */
+  occurrences: number;
+  /** How many distinct active recurrences contributed at least one. */
+  rules: number;
+}
+
 /**
- * Sum of signed *future* recurring transaction occurrences from `today`
- * (inclusive) through end-of-month. Income contributes positively, expense
- * negatively. Honours the same effective-amount rules the rest of the app
- * uses (installment_amount / scheduled_debt_payment / rt.amount). Skips
- * completed installments and completed debts.
+ * Walks every active recurrence's occurrences falling in `[start, end]` and
+ * totals them by side.
  *
- * Add this delta to the current balance to get a projected EOM balance.
+ * This is the single rule for "what is scheduled to happen between these two
+ * dates": the month-end projection, the Scheduled page's summary strip and
+ * anything else asking that question all fold the same walk, so two surfaces
+ * can never quote different figures for the same window.
+ *
+ * Honours the effective-amount rules the rest of the app uses
+ * (installment_amount / scheduled_debt_payment / rt.amount), and skips
+ * recurrences whose underlying installment or debt is already settled.
+ *
+ * Only ever looks forward: it starts from `next_due_date`, so occurrences
+ * earlier in a period that have already been paid are not counted.
  */
-export function projectMonthEndDelta(
+export function sumRecurringWindow(
   recurringTransactions: RecurringTransaction[],
   installmentPayments: InstallmentPayment[],
   debts: Debt[],
   scheduledDebtPayments: ScheduledDebtPayment[],
-  today: Date
-): number {
-  const start = new Date(today);
-  start.setHours(0, 0, 0, 0);
-  const end = endOfMonth(start);
-  if (start > end) return 0;
+  start: Date,
+  end: Date
+): RecurringWindowTotals {
+  const empty: RecurringWindowTotals = { income: 0, expense: 0, net: 0, occurrences: 0, rules: 0 };
+  if (start > end) return empty;
 
-  let delta = 0;
+  let income = 0;
+  let expense = 0;
+  let occurrences = 0;
+  let rules = 0;
+
   for (const rt of recurringTransactions) {
     if (!rt.is_active) continue;
     if (!rt.next_due_date) continue;
@@ -73,6 +96,7 @@ export function projectMonthEndDelta(
 
     const cap = 100; // a month's worth of weekly is ~5; cap is generous safety
     let n = 0;
+    let contributed = false;
     while (cursor <= end && n < cap) {
       if (endLimit && cursor > endLimit) break;
       if (cursor >= start) {
@@ -85,11 +109,42 @@ export function projectMonthEndDelta(
           scheduledDebtPayments
         );
         const effectiveType = getRecurringEffectiveType(rt, installmentPayments);
-        delta += effectiveType === "income" ? amt : -amt;
+        if (effectiveType === "income") income += amt;
+        else expense += amt;
+        occurrences++;
+        contributed = true;
       }
       cursor = advanceDate(cursor, rt.recurrence_type);
       n++;
     }
+    if (contributed) rules++;
   }
-  return delta;
+
+  return { income, expense, net: income - expense, occurrences, rules };
+}
+
+/**
+ * Sum of signed *future* recurring transaction occurrences from `today`
+ * (inclusive) through end-of-month. Income contributes positively, expense
+ * negatively.
+ *
+ * Add this delta to the current balance to get a projected EOM balance.
+ */
+export function projectMonthEndDelta(
+  recurringTransactions: RecurringTransaction[],
+  installmentPayments: InstallmentPayment[],
+  debts: Debt[],
+  scheduledDebtPayments: ScheduledDebtPayment[],
+  today: Date
+): number {
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+  return sumRecurringWindow(
+    recurringTransactions,
+    installmentPayments,
+    debts,
+    scheduledDebtPayments,
+    start,
+    endOfMonth(start)
+  ).net;
 }

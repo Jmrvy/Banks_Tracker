@@ -144,6 +144,16 @@ var list_upcoming_default = defineTool5({
   }
 });
 
+// src/lib/mcp/tools/spending-summary.ts
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { z as z3 } from "npm:zod@^3.25.76";
+
+// src/lib/reportsEngine.ts
+import { isWithinInterval } from "npm:date-fns@^3.6.0";
+
+// src/lib/dateUtils.ts
+import { startOfDay, endOfDay } from "npm:date-fns@^3.6.0";
+
 // src/lib/reportsEngine.ts
 var netExpenseAmount = (t) => Number(t.amount) - Number(t.refunded_amount || 0);
 var netIncomeAmount = (t) => Math.max(0, Number(t.amount) - Number(t.repaid_amount || 0));
@@ -164,8 +174,6 @@ var periodContribution = (t) => {
 };
 
 // src/lib/mcp/tools/spending-summary.ts
-import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.0";
-import { z as z3 } from "npm:zod@^3.25.76";
 var round2 = (n) => Math.round(n * 100) / 100;
 var spending_summary_default = defineTool6({
   name: "spending_summary",
@@ -201,7 +209,7 @@ var spending_summary_default = defineTool6({
     let expenses = 0;
     let transferFees = 0;
     const byCategory = /* @__PURE__ */ new Map();
-    for (const raw of tx ?? []) {
+    for (const raw of tx) {
       const t = include_excluded ? { ...raw, include_in_stats: true } : raw;
       const { role, amount } = periodContribution(t);
       if (role === "ignored") continue;

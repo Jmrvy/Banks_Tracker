@@ -381,16 +381,28 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
   const displayedTransactions = filteredAndSortedTransactions.slice(0, displayCount);
 
-  // Group by year-month for the deck-style header strips
+  // Group by DAY, the way the pack does: a ledger is read a day at a time,
+  // and a month strip put a hundred rows under one heading. Today and
+  // yesterday get named rather than dated.
   const groupedByMonth = useMemo(() => {
     const groups: Array<{ key: string; label: string; items: Transaction[]; total: number }> = [];
     const map = new Map<string, { label: string; items: Transaction[] }>();
+    const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const todayKey = dayKey(new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = dayKey(yesterday);
     for (const txn of displayedTransactions) {
       const d = dateOf(txn);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const key = dayKey(d);
       if (!map.has(key)) {
         map.set(key, {
-          label: format(d, 'MMMM yyyy', { locale: dateLocale }),
+          label:
+            key === todayKey
+              ? t('common.today', { defaultValue: 'Today' })
+              : key === yesterdayKey
+              ? t('common.yesterday', { defaultValue: 'Yesterday' })
+              : format(d, 'EEEE d MMMM', { locale: dateLocale }),
           items: [],
         });
       }

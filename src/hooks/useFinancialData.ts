@@ -329,8 +329,17 @@ function useFinancialDataInternal() {
 
     // Si value_date n'est pas fournie, utiliser transaction_date
     // Si include_in_stats n'est pas fourni, utiliser true par défaut
+    //
+    // `repaid_amount` is NOT NULL in the schema with a default; the app's
+    // Transaction type marks it optional-and-nullable because a *read* may
+    // not select it. Spreading a null into the insert therefore fails to
+    // type-check — and would be asking the database to write a null into a
+    // non-nullable column. Omit it instead and let the default apply; the
+    // column is maintained by the repayment flow, never set at creation.
+    const { repaid_amount, ...rest } = transaction;
     const transactionData = {
-      ...transaction,
+      ...rest,
+      ...(repaid_amount == null ? {} : { repaid_amount }),
       value_date: transaction.value_date || transaction.transaction_date,
       include_in_stats: transaction.include_in_stats ?? true,
       user_id: user.id

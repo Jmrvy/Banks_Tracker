@@ -5,6 +5,8 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { getBankLabel, getAccountTypeLabel } from "@/lib/constants";
+import { useAccountSeries } from "@/hooks/useAccountSeries";
+import { AccountSparkline } from "@/components/AccountSparkline";
 
 const BANK_COLORS: Record<string, string> = {
   societe_generale: "#E60028",
@@ -29,9 +31,10 @@ const BANK_COLORS: Record<string, string> = {
  */
 export function AccountsListCard() {
   const { t } = useTranslation();
-  const { accounts } = useFinancialData();
+  const { accounts, transactions } = useFinancialData();
   const { formatCurrency } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
+  const seriesByAccount = useAccountSeries(accounts, transactions, 90);
 
   const total = accounts.reduce((sum, a) => sum + a.balance, 0);
   const sorted = [...accounts]
@@ -69,13 +72,15 @@ export function AccountsListCard() {
             .join("")
             .toUpperCase();
           const bg = BANK_COLORS[account.bank] || "#1E1E1E";
+          const series = seriesByAccount[account.id];
+          const change = series?.change30d ?? 0;
           return (
             <Link
               key={account.id}
               to="/accounts"
               state={{ selectedAccountId: account.id }}
               className="ft-list-row hover:bg-bg-subtle/60"
-              style={{ gridTemplateColumns: "36px 1fr auto" }}
+              style={{ gridTemplateColumns: "36px minmax(0,1fr) 96px auto" }}
             >
               {/* Tinted rather than filled — same treatment as CategoryIcon,
                   so bank and category badges read as one family and neither
@@ -86,8 +91,15 @@ export function AccountsListCard() {
               <div className="min-w-0">
                 <div className="font-medium text-[13.5px] truncate">{account.name}</div>
                 <div className="text-[11.5px] text-fg-dim truncate">
-                  {getAccountTypeLabel(account.account_type, t)} · {getBankLabel(account.bank, t)}
+                  {getBankLabel(account.bank, t)} · {getAccountTypeLabel(account.account_type, t)}
                 </div>
+              </div>
+              {/* The row's shape over 90 days — a balance is a position, and
+                  the position alone never says whether it is going anywhere. */}
+              <div className="h-[30px] hidden sm:block">
+                {series && series.series.length > 1 && (
+                  <AccountSparkline series={series.series} color={bg} height={30} fill={false} />
+                )}
               </div>
               <div className="text-right">
                 <div
@@ -97,6 +109,13 @@ export function AccountsListCard() {
                 >
                   {formatCurrency(account.balance)}
                 </div>
+                {Math.abs(change) > 0.01 && (
+                  <div className="mt-0.5">
+                    <span className={`ft-delta ${change > 0 ? "up" : "down"}`}>
+                      {change > 0 ? "↑" : "↓"} {formatCurrency(Math.abs(change))}
+                    </span>
+                  </div>
+                )}
               </div>
             </Link>
           );

@@ -150,16 +150,17 @@ const Index = () => {
             so a single visible alert spans the full width instead of getting
             stretched to half — fixes the awkward half-width when only one
             of the two children is non-empty. */}
+        {/* What needs attention, paired the way the deck pairs it: what you
+            have overspent beside what is about to leave. Auto-fit so a lone
+            surviving alert spans the row instead of being stretched to half. */}
         <div
-          className="grid gap-3 md:gap-4 [&>*:empty]:hidden empty:hidden"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))" }}
+          className="grid gap-3 md:gap-4 items-start [&>*:empty]:hidden empty:hidden"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))" }}
         >
+          <BudgetAlertsCard />
           <RecurringTransactionsWarning />
           <OverdueDebtPaymentsAlert />
         </div>
-
-        {/* Budget breaches — full-width so per-category progress rows render legibly */}
-        <BudgetAlertsCard />
 
         {/* Where the money went, before where it sits: the two charts answer
             "what happened this period", which is the question the greeting

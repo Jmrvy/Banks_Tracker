@@ -1,7 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, Eye, EyeOff, Moon, Sun } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { useOffline } from "@/hooks/useOffline";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   mainNavigation,
@@ -76,6 +78,7 @@ export function AppTopbar() {
   const location = useLocation();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { theme, setTheme } = useTheme();
+  const { isOnline } = useOffline();
 
   const crumbs = crumbsFor(location.pathname);
   if (crumbs.length === 0) return null;
@@ -114,6 +117,16 @@ export function AppTopbar() {
       </nav>
 
       <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* The pack shows "synced N minutes ago" here. There is no sync
+            timestamp to read, but there IS a real connection state, so the
+            chip reports that instead of inventing a freshness claim. */}
+        <span className="ft-chip hidden md:inline-flex" title={t(isOnline ? "common.online" : "common.offline")}>
+          <i
+            className={cn("h-1.5 w-1.5 rounded-full", isOnline ? "bg-pos" : "bg-fg-dim")}
+            style={isOnline ? { boxShadow: "0 0 0 3.5px hsl(var(--pos-soft))" } : undefined}
+          />
+          {t(isOnline ? "common.online" : "common.offline")}
+        </span>
         <button
           type="button"
           onClick={togglePrivacyMode}

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Plus, Search, Settings as SettingsIcon, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinancialData } from "@/hooks/useFinancialData";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { SidebarResumePill } from "@/components/tour/SidebarResumePill";
@@ -21,6 +22,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { transactions } = useFinancialData();
   const { togglePalette } = useCommandPalette();
   const { openDock } = useTrace();
 
@@ -41,10 +43,23 @@ export function AppSidebar() {
 
   const NavLink = ({ item }: { item: NavigationItem }) => {
     const active = isActive(item.path);
+    // Only the transaction count gets a pill: it is a row count the app
+    // already holds exactly, so it can never disagree with the page it
+    // points at. Counts that would need deriving (budgets over, dues late)
+    // are deliberately left off rather than risk a second, drifting total.
+    const pill = item.path === "/transactions" && transactions.length > 0
+      ? transactions.length.toLocaleString()
+      : null;
     return (
       <Link to={item.path} className={cn("ft-nav-item", active && "active")}>
         <item.icon className="ft-nav-icon" />
         <span className="truncate">{t(item.nameKey)}</span>
+        {item.path === "/trace" && (
+          <span className="ft-tag acc ml-auto flex-shrink-0 !text-[10px]">
+            {t("common.new", { defaultValue: "New" })}
+          </span>
+        )}
+        {pill && <span className="ft-nav-pill">{pill}</span>}
       </Link>
     );
   };
