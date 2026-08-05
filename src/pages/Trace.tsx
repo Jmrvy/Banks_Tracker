@@ -307,7 +307,9 @@ const Trace = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <div className="ft-page">
+      {/* A conversation reads better on a narrower measure than a dashboard,
+          so this page runs tighter than the rest of the app. */}
+      <div className="ft-page max-w-5xl">
         <div className="ft-page-head">
           <div className="flex items-start gap-3">
             <TraceMark size="lg" />
@@ -326,26 +328,29 @@ const Trace = () => {
           </Button>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px] items-start">
           <div className="space-y-4 min-w-0">
             {turns.length === 0 ? (
-              <div className="ft-card p-5 space-y-3">
-                <div className="flex gap-2.5">
-                  <TraceMark />
-                  <div className="min-w-0 flex-1 space-y-2.5">
-                    {greeting.map((block, i) => (
-                      <TraceBlockView key={i} block={block} turnId="__greeting" index={i} />
-                    ))}
-                  </div>
+              <div className="flex gap-2.5">
+                <TraceMark />
+                <div className="min-w-0 flex-1 space-y-2.5">
+                  {greeting.map((block, i) => (
+                    <TraceBlockView key={i} block={block} turnId="__greeting" index={i} />
+                  ))}
                 </div>
               </div>
             ) : (
-              <div className="ft-card p-5">
-                <TraceThread className="max-h-[62vh]" />
-              </div>
+              /* No card around the thread — the bubbles carry their own
+                 surfaces, and nesting them in one more box just added a
+                 frame around a frame. */
+              <TraceThread className="max-h-[62vh]" />
             )}
 
-            <TraceComposer suggestions={suggestions} />
+            {/* The composer follows you down a long thread instead of
+                sitting at the bottom of it. */}
+            <div className="sticky bottom-4 z-10">
+              <TraceComposer suggestions={suggestions} />
+            </div>
 
             {turns.length === 0 && (
               <p className="text-xs text-muted-foreground">

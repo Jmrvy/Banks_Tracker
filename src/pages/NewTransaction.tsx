@@ -154,41 +154,45 @@ const NewTransaction = () => {
 
         <div className="ft-card p-5 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-              {/* Transaction Type Toggle */}
-              <div className="flex gap-1.5 sm:gap-2">
-                <Button
-                  type="button"
-                  variant={formData.type === 'income' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData(prev => ({ ...prev, type: 'income' }))}
-                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
-                >
-                  <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Revenus</span>
-                  <span className="sm:hidden">+</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.type === 'expense' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData(prev => ({ ...prev, type: 'expense' }))}
-                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
-                >
-                  <MinusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Dépense</span>
-                  <span className="sm:hidden">-</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.type === 'transfer' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData(prev => ({ ...prev, type: 'transfer' }))}
-                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm"
-                >
-                  <ArrowRightLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Transfert</span>
-                  <span className="sm:hidden">⇄</span>
-                </Button>
+              {/* Transaction type — a segmented switch, not three buttons
+                  competing with the submit action below. */}
+              <div className="max-w-full overflow-x-auto [scrollbar-width:none]">
+                <div className="ft-seg w-full" role="group" aria-label={t('transactions.type', { defaultValue: 'Type' })}>
+                  {([
+                    { value: 'expense', label: t('common.expense', { defaultValue: 'Expense' }), Icon: MinusCircle },
+                    { value: 'income', label: t('common.income', { defaultValue: 'Income' }), Icon: PlusCircle },
+                    { value: 'transfer', label: t('common.transfers', { defaultValue: 'Transfer' }), Icon: ArrowRightLeft },
+                  ] as const).map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, type: value }))}
+                      aria-pressed={formData.type === value}
+                      className={`flex-1 inline-flex items-center justify-center gap-1.5 ${formData.type === value ? 'active' : ''}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* The amount is what the page is for, so it is the page's
+                  largest element rather than one field among many. */}
+              <div className="rounded-xl bg-bg-subtle border border-line-soft px-4 py-5 sm:py-6">
+                <label htmlFor="amount" className="ft-eyebrow block text-center mb-2">
+                  {t('common.amount', { defaultValue: 'Amount' })}
+                </label>
+                <AmountInput
+                  id="amount"
+                  placeholder="0,00"
+                  value={formData.amount}
+                  onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
+                  required
+                  className={`h-auto border-none bg-transparent shadow-none text-center font-mono text-[38px] sm:text-[44px] font-medium tracking-[-0.04em] focus-visible:ring-0 px-0 ${
+                    formData.type === 'income' ? 'text-pos' : ''
+                  }`}
+                />
               </div>
 
               {/* Description */}
@@ -206,19 +210,6 @@ const NewTransaction = () => {
                   }}
                   required={formData.type !== 'transfer'}
                   className="min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm"
-                />
-              </div>
-
-              {/* Amount */}
-              <div className="space-y-1.5 sm:space-y-2">
-                <Label htmlFor="amount" className="text-xs sm:text-sm">Montant *</Label>
-                <AmountInput
-                  id="amount"
-                  placeholder="0.00"
-                  value={formData.amount}
-                  onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
-                  required
-                  className="h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
 
