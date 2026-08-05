@@ -81,7 +81,10 @@
     "noAccountsAvailable": "No accounts available",
     "transfers": "Transfers",
     "gotIt": "Got it",
-    "previous": "Previous"
+    "previous": "Previous",
+    "new": "New",
+    "online": "Online",
+    "offline": "Offline"
   },
   "navigation": {
     "home": "Home",

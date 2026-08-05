@@ -623,6 +623,17 @@
     letter-spacing: 0.11em;
     color: hsl(var(--fg-dim));
   }
+  /* Trailing count on a nav item. Only ever a number the app already knows
+     exactly — never a derived total that could disagree with its page. */
+  .ft-nav-pill {
+    @apply ml-auto text-[10.5px] px-1.5 py-px rounded-full font-mono flex-shrink-0;
+    background: hsl(var(--bg-subtle));
+    color: hsl(var(--fg-mute));
+  }
+  .ft-nav-item.active .ft-nav-pill {
+    background: hsl(var(--accent-soft));
+    color: hsl(var(--accent-deep));
+  }
   /* =========================================================================
      Brand mark — display serif on ink
      ========================================================================= */

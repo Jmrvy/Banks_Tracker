@@ -81,7 +81,10 @@
     "noAccountsAvailable": "Aucun compte disponible",
     "transfers": "Virements",
     "gotIt": "Compris",
-    "previous": "Précédent"
+    "previous": "Précédent",
+    "new": "Nouveau",
+    "online": "En ligne",
+    "offline": "Hors ligne"
   },
   "navigation": {
     "home": "Accueil",
