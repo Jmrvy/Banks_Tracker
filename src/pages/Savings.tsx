@@ -23,6 +23,7 @@ import { netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
 import { fr } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Segmented } from "@/components/ui/segmented";
 import {
   AreaChart,
   Area,
@@ -32,6 +33,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+
+type SavingsSection = 'goals' | 'history' | 'reimbursements';
 
 const Savings = () => {
   const { transactions, categories, loading, refetch } = useFinancialData();
@@ -51,6 +54,8 @@ const Savings = () => {
 
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  // Which of the three peer views the page is showing.
+  const [section, setSection] = useState<SavingsSection>('goals');
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [selectedReimbursement, setSelectedReimbursement] = useState<InstallmentPayment | null>(null);
   const [openSpecialBudget, setOpenSpecialBudget] = useState<SpecialBudget | null>(null);
@@ -365,15 +370,43 @@ const Savings = () => {
           </div>
         )}
 
-        {/* Transactions List with Running Balance */}
-        <SavingsTransactionsList
-          transactions={allSavingsTransactions}
-          startDate={dateRange.start}
-          endDate={dateRange.end}
+        {/* Goals, history and repayments are peer views of the same money —
+            the deck switches between them rather than stacking all three into
+            one long scroll. Every section is still here, one tap apart. */}
+        <Segmented<SavingsSection>
+          label={t('navigation.savings')}
+          value={section}
+          onChange={setSection}
+          options={[
+            { value: 'goals', label: t('savings.goalsTitle'), count: goals.length },
+            { value: 'history', label: t('transactions.history', { defaultValue: 'History' }) },
+            {
+              value: 'reimbursements',
+              label: t('savings.reimbursementInstallments'),
+              count: reimbursementInstallments.length,
+            },
+          ]}
         />
 
+        {/* Transactions List with Running Balance */}
+        {section === 'history' && (
+          <SavingsTransactionsList
+            transactions={allSavingsTransactions}
+            startDate={dateRange.start}
+            endDate={dateRange.end}
+          />
+        )}
+
         {/* Reimbursement Installments */}
-        {reimbursementInstallments.length > 0 && (
+        {section === 'reimbursements' && (
+          reimbursementInstallments.length === 0 ? (
+            <div className="ft-card p-8 sm:p-12 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 grid place-items-center">
+                <CreditCard className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">{t('savings.reimbursementDesc')}</p>
+            </div>
+          ) : (
           <div>
             <h2 className="ft-eyebrow flex items-center gap-2 mb-2">
               <CreditCard className="h-3.5 w-3.5 text-pos" />
@@ -430,15 +463,12 @@ const Savings = () => {
               })}
             </div>
           </div>
+          )
         )}
 
         {/* Savings Goals */}
+        {section === 'goals' && (
         <div>
-          <h2 className="ft-eyebrow flex items-center gap-2 mb-3">
-            <Target className="h-3.5 w-3.5 text-primary" />
-            {t('savings.goalsTitle')} ({goals.length})
-          </h2>
-
           {goals.length === 0 ? (
             <div className="ft-card p-8 sm:p-12 text-center">
               <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 grid place-items-center">
@@ -574,6 +604,7 @@ const Savings = () => {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <NewSavingsGoalModal
