@@ -1515,7 +1515,13 @@
     "breakdownGross": "Débité",
     "breakdownRefunded": "Remboursé",
     "breakdownOffset": "Revenus déduits",
-    "breakdownNet": "Compté au budget"
+    "breakdownNet": "Compté au budget",
+    "colCategory": "Catégorie",
+    "colConsumption": "Consommation",
+    "colSpent": "Dépensé",
+    "colRemaining": "Restant",
+    "setBudget": "Définir",
+    "outOf": "sur"
   },
   "specialBudgets": {
     "eyebrow": "Enveloppes",
