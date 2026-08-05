@@ -616,112 +616,139 @@ function BudgetCard({
   return (
     <div
       className={cn(
-        "ft-card p-4 sm:p-5 flex flex-col gap-3 transition-shadow",
-        stat.status === "over" && "border-neg/30"
+        "border-t border-line-soft first:border-t-0 transition-colors",
+        stat.status === "over" && "bg-neg/[0.025]"
       )}
     >
-      {/* Header: icon + name + status + edit */}
-      <div className="flex items-center gap-3">
-        <CategoryIcon
-          color={stat.category.color}
-          icon={stat.category.icon}
-          size={42}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-semibold tracking-tight truncate leading-snug">
-            {stat.category.name}
-          </div>
-          <div
-            className={cn("text-xs font-semibold inline-flex items-center gap-1.5 mt-0.5", meta.tone)}
-          >
-            <span className={cn("w-1.5 h-1.5 rounded-full", meta.dotClass)} />
-            {meta.label}
-          </div>
-        </div>
+      {/* One row per category, the way the pack tabulates them: identity,
+          consumption, spent, remaining. Columns past the first three drop out
+          below `lg`, where the row becomes icon / name / remaining. */}
+      <div
+        className="grid items-center gap-3 px-4 sm:px-5 py-3 hover:bg-bg-subtle/60 transition-colors"
+        style={{ gridTemplateColumns: "30px minmax(120px,1.4fr) 1.6fr 108px 104px" }}
+      >
+        <CategoryIcon color={stat.category.color} icon={stat.category.icon} size={30} />
+
         <button
           type="button"
-          onClick={() => onEditBudget(stat)}
-          aria-label={t("budget.editBudget", { defaultValue: "Edit budget" })}
-          title={t("budget.editBudget", { defaultValue: "Edit budget" })}
-          className="h-8 w-8 rounded-lg border border-transparent text-muted-foreground hover:bg-bg-subtle hover:text-foreground hover:border-line grid place-items-center transition-colors"
+          onClick={onToggleExpand}
+          aria-expanded={expanded}
+          className="min-w-0 text-left"
         >
-          <Edit3 className="h-4 w-4" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[13.5px] font-semibold tracking-tight truncate">
+              {stat.category.name}
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-3 w-3 flex-shrink-0 text-fg-dim transition-transform",
+                expanded && "rotate-180"
+              )}
+            />
+          </div>
+          <div className="text-[11.5px] text-fg-dim truncate mt-px">
+            <span className={meta.tone}>{meta.label}</span>
+            {" · "}
+            {t("budget.avgShort", { defaultValue: "avg." })}{" "}
+            {formatCurrency(stat.monthlyAvg)}/{t("budget.month", { defaultValue: "mo" })}
+          </div>
         </button>
-      </div>
 
-      {/* Used / Budget figure + remaining */}
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <span className="text-xl font-bold tabular-nums tracking-tight leading-none">
-            {formatCurrency(used)}
-          </span>
-          <span className="text-sm text-muted-foreground tabular-nums ml-1">
-            {budget != null
-              ? `/ ${formatCurrency(budget)}`
-              : `· ${t("budget.noBudgetShort", { defaultValue: "no budget" })}`}
-          </span>
+        {/* Consumption */}
+        <div className="hidden lg:block min-w-0">
+          {budget != null ? (
+            <>
+              <PaceBar
+                used={used}
+                budget={budget}
+                status={stat.status}
+                elapsedFraction={period.elapsedFraction}
+              />
+              <div className="flex items-center justify-between text-[11px] text-fg-dim tabular-nums mt-1.5">
+                <span>
+                  {Math.round((stat.pct ?? 0) * 100)} %{" "}
+                  {t("budget.ofBudget", { defaultValue: "of budget" })}
+                </span>
+                <span>
+                  {t("budget.dayN", {
+                    n: period.elapsedDays,
+                    total: period.totalDays,
+                    defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
+                  })}
+                </span>
+              </div>
+            </>
+          ) : (
+            <span className="ft-tag">
+              {t("budget.statusNoBudget", { defaultValue: "No budget" })}
+            </span>
+          )}
         </div>
-        {remaining != null ? (
-          <div
-            className={cn(
-              "text-xs font-semibold tabular-nums text-right whitespace-nowrap",
-              remaining < 0 ? "text-neg" : "text-muted-foreground"
-            )}
+
+        {/* Spent */}
+        <div className="hidden lg:block text-right min-w-0">
+          <div className="font-mono text-[13.5px] font-medium tabular-nums truncate">
+            {formatCurrency(used)}
+          </div>
+          <div className="font-mono text-[11px] text-fg-dim tabular-nums truncate">
+            {budget != null
+              ? `${t("budget.outOf", { defaultValue: "of" })} ${formatCurrency(budget)}`
+              : "—"}
+          </div>
+        </div>
+
+        {/* Remaining — or the way to give the category a budget at all. */}
+        <div className="text-right min-w-0 flex items-center justify-end gap-1">
+          {remaining != null ? (
+            <div className="min-w-0">
+              <div
+                className={cn(
+                  "font-mono text-[13.5px] font-medium tabular-nums truncate",
+                  remaining < 0 && "text-neg"
+                )}
+              >
+                {remaining < 0 ? "−" : ""}
+                {formatCurrency(Math.abs(remaining))}
+              </div>
+              <div className="text-[11px] text-fg-dim truncate">
+                {remaining < 0
+                  ? t("budget.over", { defaultValue: "over" })
+                  : t("budget.remaining", { defaultValue: "left" })}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onEditBudget(stat)}
+              className="ft-chip"
+            >
+              {t("budget.setBudget", { defaultValue: "Set" })}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onEditBudget(stat)}
+            aria-label={t("budget.editBudget", { defaultValue: "Edit budget" })}
+            title={t("budget.editBudget", { defaultValue: "Edit budget" })}
+            className="h-7 w-7 flex-shrink-0 rounded-md text-fg-dim hover:bg-bg-hover hover:text-foreground grid place-items-center transition-colors"
           >
-            {remaining >= 0 ? (
-              <>
-                {formatCurrency(remaining)}{" "}
-                <span className="font-medium text-muted-foreground">
-                  {t("budget.remaining", { defaultValue: "left" })}
-                </span>
-              </>
-            ) : (
-              <>
-                −{formatCurrency(Math.abs(remaining))}{" "}
-                <span className="font-medium text-muted-foreground">
-                  {t("budget.over", { defaultValue: "over" })}
-                </span>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="text-xs text-muted-foreground tabular-nums text-right whitespace-nowrap">
-            <span className="font-medium">
-              {t("budget.avgShort", { defaultValue: "avg." })}
-            </span>{" "}
-            {formatCurrency(stat.monthlyAvg)}/
-            {t("budget.month", { defaultValue: "mo" })}
-          </div>
-        )}
+            <Edit3 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
+      {/* Below `lg` the consumption column is hidden, so the bar moves under
+          the row rather than disappearing with it. */}
       {budget != null && (
-        <PaceBar
-          used={used}
-          budget={budget}
-          status={stat.status}
-          elapsedFraction={period.elapsedFraction}
-        />
+        <div className="lg:hidden px-4 sm:px-5 pb-3 -mt-1">
+          <PaceBar
+            used={used}
+            budget={budget}
+            status={stat.status}
+            elapsedFraction={period.elapsedFraction}
+          />
+        </div>
       )}
-
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
-        <span>
-          {budget != null
-            ? `${Math.round((stat.pct ?? 0) * 100)} % ${t("budget.ofBudget", {
-                defaultValue: "of budget",
-              })}`
-            : `${formatCurrency(stat.spent)} ${t("budget.thisPeriod", {
-                defaultValue: "this period",
-              })}`}
-        </span>
-        <span>
-          {t("budget.dayN", {
-            n: period.elapsedDays,
-            total: period.totalDays,
-            defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
-          })}
-        </span>
-      </div>
 
       {/* Apply suggested (inline) */}
       {stat.status === "noBudget" && canApplySuggestion && (
@@ -2366,10 +2393,24 @@ const Budget = () => {
           </div>
         </div>
 
-        {/* Cards grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+        {/* One table, not a grid of cards: the pack tabulates categories so
+            consumption and remaining line up down the page and can be
+            compared at a glance. */}
+        <div className="ft-card-flush">
+          {filtered.length > 0 && (
+            <div
+              className="hidden lg:grid items-center gap-3 px-4 sm:px-5 py-2.5 border-b border-line text-[10.5px] font-bold uppercase text-fg-dim"
+              style={{ gridTemplateColumns: "30px minmax(120px,1.4fr) 1.6fr 108px 104px", letterSpacing: "0.1em" }}
+            >
+              <span />
+              <span>{t("budget.colCategory", { defaultValue: "Category" })}</span>
+              <span>{t("budget.colConsumption", { defaultValue: "Consumption" })}</span>
+              <span className="text-right">{t("budget.colSpent", { defaultValue: "Spent" })}</span>
+              <span className="text-right">{t("budget.colRemaining", { defaultValue: "Remaining" })}</span>
+            </div>
+          )}
           {filtered.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-sm text-muted-foreground">
+            <div className="py-12 text-center text-sm text-muted-foreground">
               {t("budget.emptyFiltered", {
                 defaultValue: "No categories match the current filter.",
               })}

@@ -1519,7 +1519,13 @@
     "breakdownGross": "Charged",
     "breakdownRefunded": "Refunded",
     "breakdownOffset": "Offsetting income",
-    "breakdownNet": "Counted against budget"
+    "breakdownNet": "Counted against budget",
+    "colCategory": "Category",
+    "colConsumption": "Consumption",
+    "colSpent": "Spent",
+    "colRemaining": "Remaining",
+    "setBudget": "Set",
+    "outOf": "of"
   },
   "specialBudgets": {
     "eyebrow": "Envelopes",
