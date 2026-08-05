@@ -2243,8 +2243,8 @@ const Budget = () => {
 
             {/* Auto-budget banner */}
             {totals.suggestableCount > 0 && (
-              <div className="flex items-center gap-3 mt-4 p-3 rounded-lg bg-primary/8 border border-primary/30">
-                <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center flex-shrink-0">
+              <div className="flex items-center gap-3 mt-4 p-3 rounded-xl bg-primary/[0.07] border border-transparent">
+                <div className="ft-kpi-icon acc !h-9 !w-9">
                   <Wand2 className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2337,14 +2337,15 @@ const Budget = () => {
                 type="button"
                 onClick={() => setStatusFilter(c.id)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-semibold whitespace-nowrap transition-colors",
-                  statusFilter === c.id
-                    ? c.id === "over"
-                      ? "bg-neg text-white border-neg"
+                  "ft-chip flex-shrink-0",
+                  // The selected status keeps its own tone, so "Over" still
+                  // reads as a warning rather than as generic selection.
+                  statusFilter === c.id &&
+                    (c.id === "over"
+                      ? "bg-neg/[0.13] text-neg border-transparent"
                       : c.id === "warn"
-                      ? "bg-warning text-white border-warning"
-                      : "bg-foreground text-background border-foreground"
-                    : "bg-card border-line text-muted-foreground hover:text-foreground"
+                      ? "bg-warn/[0.15] text-warn border-transparent"
+                      : "active")
                 )}
               >
                 {c.label}

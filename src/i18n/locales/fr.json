@@ -188,7 +188,10 @@
       "caisse_epargne": "Caisse d'Épargne",
       "credit_mutuel": "Crédit Mutuel",
       "other": "Autre"
-    }
+    },
+    "nAccounts_one": "{{count}} compte",
+    "nAccounts_other": "{{count}} comptes",
+    "openAccount": "Ouvrir le compte"
   },
   "transactions": {
     "title": "Transactions",
@@ -253,7 +256,11 @@
     "unlink": "Délier",
     "relink": "Lier ailleurs",
     "unlinked": "Lien supprimé",
-    "unlinkedDesc": "Les deux transactions sont de nouveau séparées, et la catégorie a été effacée."
+    "unlinkedDesc": "Les deux transactions sont de nouveau séparées, et la catégorie a été effacée.",
+    "nOnThisAccount_one": "{{count}} opération sur ce compte",
+    "nOnThisAccount_other": "{{count}} opérations sur ce compte",
+    "seeAllN": "Voir les {{count}} opérations",
+    "breakdownHint": "Touchez une catégorie pour filtrer"
   },
   "categories": {
     "title": "Catégories",

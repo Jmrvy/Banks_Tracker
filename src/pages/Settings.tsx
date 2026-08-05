@@ -252,12 +252,7 @@ const Settings = () => {
                   key={s.id}
                   type="button"
                   onClick={() => handleScrollTo(s.id)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
-                    active
-                      ? "bg-foreground text-background"
-                      : "border border-line bg-card text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-                  )}
+                  className={cn("ft-chip flex-shrink-0", active && "active")}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {t(s.labelKey, { defaultValue: s.labelDefault })}
@@ -281,14 +276,9 @@ const Settings = () => {
                     type="button"
                     onClick={() => handleScrollTo(s.id)}
                     aria-current={active ? "true" : undefined}
-                    className={cn(
-                      "flex items-center gap-2 px-3 h-9 rounded-md text-[13px] font-medium text-left transition-colors",
-                      active
-                        ? "bg-bg-subtle text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-                    )}
+                    className={cn("ft-nav-item", active && "active")}
                   >
-                    <Icon className={cn("h-3.5 w-3.5 flex-shrink-0", active ? "text-primary" : "")} />
+                    <Icon className="ft-nav-icon" />
                     <span className="truncate">{t(s.labelKey, { defaultValue: s.labelDefault })}</span>
                   </button>
                 );

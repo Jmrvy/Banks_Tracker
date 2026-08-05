@@ -91,13 +91,15 @@ const Scheduled = () => {
           </div>
         </div>
 
-        {/* Tab strip */}
-        <div className="ft-card-flush">
-          <div
-            role="tablist"
-            aria-label={t("scheduled.tabs", { defaultValue: "Scheduled tools" })}
-            className="flex items-stretch gap-1 px-2 py-2 border-b border-line overflow-x-auto"
-          >
+        {/* The three tools are peer views of scheduled money, so they get the
+            design system's segmented control rather than a bespoke tab strip.
+            Each keeps its own `data-tour` anchor. */}
+        <div
+          role="tablist"
+          aria-label={t("scheduled.tabs", { defaultValue: "Scheduled tools" })}
+          className="max-w-full overflow-x-auto [scrollbar-width:none]"
+        >
+          <div className="ft-seg">
             {TABS.map(({ key, Icon, labelKey, labelDefault }) => {
               const isActive = active === key;
               const tourAnchor =
@@ -110,12 +112,7 @@ const Scheduled = () => {
                   aria-selected={isActive}
                   type="button"
                   onClick={() => setTab(key)}
-                  className={cn(
-                    "inline-flex items-center gap-2 h-8 px-3 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                    isActive
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:text-foreground hover:bg-bg-hover"
-                  )}
+                  className={cn("inline-flex items-center gap-1.5", isActive && "active")}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {t(labelKey, { defaultValue: labelDefault })}
@@ -123,24 +120,22 @@ const Scheduled = () => {
               );
             })}
           </div>
-
-          {/* Active tab body — embedded, with a small inset so it sits inside
-              the card surround. Each child is responsible for its own
-              loading/empty/error states. */}
-          <div className="px-4 sm:px-5 md:px-6 py-4 md:py-5">
-            <Suspense
-              fallback={
-                <div className="py-12">
-                  <LoadingSpinner text={t("common.loading")} />
-                </div>
-              }
-            >
-              {active === "subscriptions" && <RecurringTransactions embedded />}
-              {active === "plans" && <InstallmentPayments embedded />}
-              {active === "loans" && <Debts embedded />}
-            </Suspense>
-          </div>
         </div>
+
+        {/* Active tab body. Each child owns its loading / empty / error
+            states, and its own period summary — this page deliberately does
+            not restate those totals above the panel that computes them. */}
+        <Suspense
+          fallback={
+            <div className="py-12">
+              <LoadingSpinner text={t("common.loading")} />
+            </div>
+          }
+        >
+          {active === "subscriptions" && <RecurringTransactions embedded />}
+          {active === "plans" && <InstallmentPayments embedded />}
+          {active === "loans" && <Debts embedded />}
+        </Suspense>
       </div>
     </div>
   );
