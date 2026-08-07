@@ -372,10 +372,10 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
         {/* One control style per screen — the page's segmented switch, with
             the create action sharing its row rather than floating above it. */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Segmented<typeof filter>
+          <Segmented
             label={t('navigation.installmentPayments')}
             value={filter}
-            onChange={setFilter}
+            onChange={(v) => setFilter(v as typeof filter)}
             options={[
               { value: 'active', label: t('installments.active', { defaultValue: 'Active' }), count: activeCount },
               { value: 'completed', label: t('installments.completed', { defaultValue: 'Completed' }), count: completedCount },

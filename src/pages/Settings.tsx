@@ -34,6 +34,7 @@ import { AccountsSection } from "@/components/settings/AccountsSection";
 import { TraceSection } from "@/components/settings/TraceSection";
 import { SettingsRow } from "@/components/settings/SettingsRow";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SectionDef {
   id: string;
@@ -43,6 +44,9 @@ interface SectionDef {
   icon: typeof User;
   /** Hidden when the user has notifications globally disabled, etc. */
   hidden?: boolean;
+  /** `data-tour` anchor for the rail entry. The tour points at the rail rather
+   *  than the panel, because only the open panel is in the DOM. */
+  tourAnchor?: string;
 }
 
 /** The guide's topic tiles. Labels reuse the navigation strings. */
@@ -65,6 +69,7 @@ const Settings = () => {
   const { queueLength, isProcessing } = useOfflineQueue();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -105,12 +110,14 @@ const Settings = () => {
         labelKey: "settings.preferences",
         labelDefault: "Preferences",
         icon: Palette,
+        tourAnchor: "set-prefs",
       },
       {
         id: "notifications",
         labelKey: "settings.notifications",
         labelDefault: "Notifications",
         icon: Bell,
+        tourAnchor: "set-notif",
         hidden: !preferences.enableNotifications,
       },
       {
@@ -136,6 +143,7 @@ const Settings = () => {
         labelKey: "settings.privacySection",
         labelDefault: "Privacy & data",
         icon: ShieldCheck,
+        tourAnchor: "set-privacy",
       },
       {
         id: "device",
@@ -156,38 +164,12 @@ const Settings = () => {
 
   const [activeSection, setActiveSection] = useState<string>(visibleSections[0]?.id ?? "profile");
 
-  // Sync the rail highlight with the current scroll position so the rail
-  // doubles as a navigator while the user scrolls.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) {
-          setActiveSection(visible[0].target.id);
-        }
-      },
-      {
-        rootMargin: "-30% 0px -55% 0px",
-        threshold: [0.1, 0.3, 0.6],
-      }
-    );
-    visibleSections.forEach((s) => {
-      const el = container.querySelector(`#${s.id}`);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, [visibleSections]);
-
-  const handleScrollTo = (id: string) => {
+  // Opening a section scrolls back to the top of the panel column — on a
+  // phone the rail sits above the content, so without this a tap can leave
+  // the user looking at the middle of the section they just opened.
+  const openSection = (id: string) => {
     setActiveSection(id);
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleReviewGuide = () => {
@@ -266,7 +248,9 @@ const Settings = () => {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => handleScrollTo(s.id)}
+                  onClick={() => openSection(s.id)}
+                  data-tour={isMobile ? s.tourAnchor : undefined}
+                  aria-current={active ? "true" : undefined}
                   className={cn("ft-chip flex-shrink-0", active && "active")}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -289,7 +273,8 @@ const Settings = () => {
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => handleScrollTo(s.id)}
+                    onClick={() => openSection(s.id)}
+                    data-tour={isMobile ? undefined : s.tourAnchor}
                     aria-current={active ? "true" : undefined}
                     className={cn("ft-nav-item", active && "active")}
                   >
@@ -313,37 +298,44 @@ const Settings = () => {
 
           {/* Scrollable content column */}
           <div ref={containerRef} className="flex flex-col gap-[18px] min-w-0">
-            <section id="profile" className="scroll-mt-6">
+            {activeSection === "profile" && (
+            <section id="profile">
               <ProfileSection user={user} />
             </section>
+            )}
 
-            <section id="preferences" data-tour="set-prefs" className="scroll-mt-6">
+            {activeSection === "preferences" && (
+            <section id="preferences">
               <PreferencesSection
                 accounts={accounts}
                 preferences={preferences}
                 updatePreferences={updatePreferences}
               />
             </section>
+            )}
 
-            {preferences.enableNotifications && (
-              <section id="notifications" data-tour="set-notif" className="scroll-mt-6">
+            {activeSection === "notifications" && preferences.enableNotifications && (
+              <section id="notifications">
                 <NotificationsSection user={user} />
               </section>
             )}
 
-            <section id="accounts" className="scroll-mt-6">
+            {activeSection === "accounts" && (
+            <section id="accounts">
               <AccountsSection
                 accounts={accounts}
                 refetch={refetch}
                 formatCurrency={formatCurrency}
               />
             </section>
+            )}
 
             {/* Accounts are paired with categories in the design — every
                 category as a colour-dotted chip, plus an add affordance.
                 Creation lives on Transactions, so the chip links there
                 rather than introducing new mutation logic here. */}
-            <section id="categories" className="scroll-mt-6">
+            {activeSection === "categories" && (
+            <section id="categories">
               <div className="ft-card">
                 <div className="ft-card-head">
                   <div>
@@ -374,17 +366,21 @@ const Settings = () => {
                 </div>
               </div>
             </section>
+            )}
 
             {/* Trace copilot — the key that pays for it, the model it runs
                 on, and what it may do, together rather than split across
                 sections. */}
-            <section id="trace" className="scroll-mt-6">
+            {activeSection === "trace" && (
+            <section id="trace">
               <TraceSection />
             </section>
+            )}
 
             {/* New: Privacy & data — consolidates privacy mode, data export,
                 and account deletion in one discoverable place. */}
-            <section id="privacy" data-tour="set-privacy" className="scroll-mt-6">
+            {activeSection === "privacy" && (
+            <section id="privacy">
               <div className="ft-card">
                 <div className="ft-card-head">
                   <div>
@@ -449,10 +445,12 @@ const Settings = () => {
                 </div>
               </div>
             </section>
+            )}
 
             {/* New: Device & sync — surfaces PWA install + offline status,
                 replacing the hidden /install route. */}
-            <section id="device" className="scroll-mt-6">
+            {activeSection === "device" && (
+            <section id="device">
               <div className="ft-card">
                 <div className="ft-card-head">
                   <div>
@@ -559,8 +557,10 @@ const Settings = () => {
                 </div>
               </div>
             </section>
+            )}
 
-            <section id="guide" className="scroll-mt-6">
+            {activeSection === "guide" && (
+            <section id="guide">
               <div className="ft-card">
                 <div className="ft-card-head">
                   <div>
@@ -605,29 +605,8 @@ const Settings = () => {
                 </Button>
               </div>
             </section>
+            )}
 
-            <section id="signout" className="scroll-mt-6">
-              <div className="ft-card">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div>
-                    <h3 className="ft-card-title">
-                      {t("settings.signOutSection", { defaultValue: "Sign out" })}
-                    </h3>
-                    <p className="ft-card-sub mt-0.5">
-                      {t("settings.signOutSectionDesc", { defaultValue: "Sign out of your account" })}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={signOut}
-                    size="sm"
-                    className="h-8 text-sm border-destructive/40 text-destructive hover:bg-destructive/10"
-                  >
-                    {t("auth.signOut")}
-                  </Button>
-                </div>
-              </div>
-            </section>
           </div>
         </div>
       </div>

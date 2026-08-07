@@ -1982,10 +1982,10 @@ const Budget = () => {
           {/* The design carries the period control in the page head, beside
               the page actions — there is no period card. */}
           <div className="flex flex-wrap items-center gap-[9px]">
-            <Segmented<PeriodKey>
+            <Segmented
               label={t("budget.periodAria", { defaultValue: "Period" })}
               value={periodKey}
-              onChange={setPeriodKey}
+              onChange={(v) => setPeriodKey(v as PeriodKey)}
               options={[
                 { value: "1m", label: t("budget.p1m", { defaultValue: "1M" }) },
                 { value: "3m", label: t("budget.p3m", { defaultValue: "3M" }) },
@@ -2323,10 +2323,10 @@ const Budget = () => {
           </div>
           {/* Mutually exclusive views of one list — a segmented control, not
               loose chips. */}
-          <Segmented<StatusFilter>
+          <Segmented
             label={t("budget.filterAria", { defaultValue: "Filter by status" })}
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(v) => setStatusFilter(v as StatusFilter)}
             options={filterChips.map((c) => ({ value: c.id, label: c.label, count: c.n }))}
           />
         </div>

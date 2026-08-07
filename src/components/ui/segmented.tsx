@@ -23,6 +23,13 @@ interface SegmentedProps<T extends string> {
  *
  * Scrolls horizontally rather than wrapping, so a long set of options stays
  * one row on a phone.
+ *
+ * Call it as `<Segmented …>`, never `<Segmented<Foo> …>`. The dev-only
+ * `lovable-tagger` plugin injects `data-lov-*` attributes between the
+ * component name and the type argument, and the result no longer parses —
+ * the page is replaced by an error overlay in `npm run dev` while `vite
+ * build`, tests and CI all stay green. Narrow in the handler instead:
+ * `onChange={(v) => setFoo(v as Foo)}`.
  */
 export function Segmented<T extends string>({
   options,

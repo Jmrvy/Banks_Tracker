@@ -313,10 +313,10 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
             with the primary action sharing its row instead of floating in a
             bar of its own. */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Segmented<RecurringView>
+          <Segmented
             label={t('navigation.recurringTransactions')}
             value={view}
-            onChange={setView}
+            onChange={(v) => setView(v as RecurringView)}
             options={[
               { value: 'calendar', label: t('recurring.viewCalendar', { defaultValue: 'Calendar' }) },
               { value: 'list', label: t('recurring.viewList', { defaultValue: 'List' }) },

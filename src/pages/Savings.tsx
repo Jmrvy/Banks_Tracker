@@ -578,10 +578,10 @@ const Savings = () => {
         {/* Goals, history and repayments are peer views of the same money —
             the deck switches between them rather than stacking all three into
             one long scroll. Every section is still here, one tap apart. */}
-        <Segmented<SavingsSection>
+        <Segmented
           label={t('navigation.savings')}
           value={section}
-          onChange={setSection}
+          onChange={(v) => setSection(v as SavingsSection)}
           options={[
             { value: 'goals', label: t('savings.goalsTitle'), count: goals.length },
             { value: 'history', label: t('transactions.history', { defaultValue: 'History' }) },
