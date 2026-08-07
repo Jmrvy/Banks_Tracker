@@ -86,7 +86,8 @@
     "online": "En ligne",
     "offline": "Hors ligne",
     "month": "Mois",
-    "custom": "Personnalisé"
+    "custom": "Personnalisé",
+    "creating": "Création…"
   },
   "navigation": {
     "home": "Accueil",

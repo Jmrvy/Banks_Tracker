@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, MinusCircle, ArrowRightLeft, Plus } from 'lucide-react';
+import { PlusCircle, MinusCircle, ArrowRightLeft, Plus, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useNavigate } from 'react-router-dom';
@@ -157,7 +157,7 @@ const NewTransaction = () => {
               {/* Transaction type — a segmented switch, not three buttons
                   competing with the submit action below. */}
               <div className="max-w-full overflow-x-auto [scrollbar-width:none]">
-                <div className="ft-seg w-full" role="group" aria-label={t('transactions.type', { defaultValue: 'Type' })}>
+                <div className="ft-seg" role="group" aria-label={t('transactions.type', { defaultValue: 'Type' })}>
                   {([
                     { value: 'expense', label: t('common.expense', { defaultValue: 'Expense' }), Icon: MinusCircle },
                     { value: 'income', label: t('common.income', { defaultValue: 'Income' }), Icon: PlusCircle },
@@ -168,7 +168,7 @@ const NewTransaction = () => {
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, type: value }))}
                       aria-pressed={formData.type === value}
-                      className={`flex-1 inline-flex items-center justify-center gap-1.5 ${formData.type === value ? 'active' : ''}`}
+                      className={`inline-flex items-center justify-center gap-1.5 ${formData.type === value ? 'active' : ''}`}
                     >
                       <Icon className="h-3.5 w-3.5" />
                       {label}
@@ -189,7 +189,11 @@ const NewTransaction = () => {
                   value={formData.amount}
                   onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
                   required
-                  className={`h-auto border-none bg-transparent shadow-none text-center font-mono text-[38px] sm:text-[44px] font-medium tracking-[-0.04em] focus-visible:ring-0 px-0 ${
+                  // `md:text-[44px]` is not redundant: the input's base class
+                  // carries `md:text-sm`, which outranks an unprefixed size
+                  // from the breakpoint up — the figure rendered at 14 px on
+                  // every desktop.
+                  className={`h-auto border-none bg-transparent shadow-none text-center font-mono text-[38px] sm:text-[44px] md:text-[44px] font-medium tracking-[-0.04em] focus-visible:ring-0 px-0 ${
                     formData.type === 'income' ? 'text-pos' : ''
                   }`}
                 />
@@ -372,19 +376,23 @@ const NewTransaction = () => {
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 pt-4">
+              {/* Actions — right-aligned, the submit last, so the eye lands on
+                  it after reading the form rather than before. */}
+              <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/')}
                   disabled={loading}
-                  className="flex-1"
+                  className="min-w-[112px]"
                 >
-                  Annuler
+                  {t('common.cancel', { defaultValue: 'Cancel' })}
                 </Button>
-                <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? 'Création...' : 'Créer'}
+                <Button type="submit" disabled={loading} className="min-w-[136px] gap-1.5">
+                  <Check className="h-4 w-4" />
+                  {loading
+                    ? t('common.creating', { defaultValue: 'Creating…' })
+                    : t('common.create', { defaultValue: 'Create' })}
                 </Button>
               </div>
           </form>

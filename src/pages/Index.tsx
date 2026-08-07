@@ -6,7 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardPeriod } from "@/components/dashboard/DashboardPeriod";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
@@ -95,11 +95,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <DashboardHeader
-        selectedPeriod={selectedPeriod}
-        onPeriodChange={setSelectedPeriod}
-      />
-
       <div className="ft-page">
         {/* Page head */}
         <div className="ft-page-head">
@@ -117,12 +112,16 @@ const Index = () => {
               {t('dashboard.subtitle', { defaultValue: "Here's how your money moved this month." })}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <DashboardPeriod
+              selectedPeriod={selectedPeriod}
+              onPeriodChange={setSelectedPeriod}
+            />
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowQuickPreview(true)}
-              className="gap-1.5 h-8 text-xs"
+              className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-medium"
             >
               <LayoutDashboard className="h-3.5 w-3.5" />
               {t('dashboard.quickPreview')}
