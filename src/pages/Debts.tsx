@@ -27,6 +27,7 @@ import { useDebts, Debt, DebtPayment } from '@/hooks/useDebts';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useTranslation } from 'react-i18next';
+import { ScheduledHeadSlot } from "@/components/scheduled/ScheduledHeadSlot";
 
 
 interface DebtsProps {
@@ -147,7 +148,7 @@ const Debts = ({ embedded = false }: DebtsProps = {}) => {
           </div>
         )}
 
-        {embedded && <div className="flex justify-end mb-3">{newButton}</div>}
+        {embedded && <ScheduledHeadSlot>{newButton}</ScheduledHeadSlot>}
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">

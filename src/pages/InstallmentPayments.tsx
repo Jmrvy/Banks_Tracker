@@ -33,6 +33,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, startOfDay } from "date-fns";
+import { ScheduledHeadSlot } from "@/components/scheduled/ScheduledHeadSlot";
 
 interface InstallmentPaymentsProps {
   /** Strip the outer page chrome when rendered inside the unified
@@ -269,7 +270,7 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
           </div>
         )}
 
-        {embedded && <div className="flex justify-end mb-3">{newButton}</div>}
+        {embedded && <ScheduledHeadSlot>{newButton}</ScheduledHeadSlot>}
 
         <div className="grid grid-cols-3 gap-3 md:gap-4">
           <div className="ft-kpi">

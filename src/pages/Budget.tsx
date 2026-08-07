@@ -324,79 +324,6 @@ function PaceBar({
 }
 
 /**
- * Ring gauge — the centerpiece of the Overview card. SVG-only.
- *
- * The ring stroke colour signals breach: green when below budget, red when
- * actual + projected exceeds it. The "today" mark on the rim is a small
- * white dot outlined in foreground so the user can tell at a glance whether
- * they're ahead of or behind pace, without reading any text.
- */
-function RingGauge({
-  ratio,
-  elapsedFraction,
-  size = 124,
-  stroke = 12,
-}: {
-  ratio: number;
-  elapsedFraction: number;
-  size?: number;
-  stroke?: number;
-}) {
-  const r = (size - stroke) / 2;
-  const c = size / 2;
-  const circ = 2 * Math.PI * r;
-  const clamped = Math.min(ratio, 1);
-  const over = ratio > 1;
-  const tickAngle = -90 + Math.min(elapsedFraction, 1) * 360;
-  const tx = c + r * Math.cos((tickAngle * Math.PI) / 180);
-  const ty = c + r * Math.sin((tickAngle * Math.PI) / 180);
-  return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle
-          cx={c}
-          cy={c}
-          r={r}
-          fill="none"
-          stroke="hsl(var(--bg-subtle))"
-          strokeWidth={stroke}
-        />
-        <circle
-          cx={c}
-          cy={c}
-          r={r}
-          fill="none"
-          stroke={over ? "hsl(var(--neg))" : "hsl(var(--pos))"}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={`${circ * clamped} ${circ}`}
-          transform={`rotate(-90 ${c} ${c})`}
-          style={{ transition: "stroke-dasharray .5s ease" }}
-        />
-        <circle
-          cx={tx}
-          cy={ty}
-          r={3.6}
-          fill="hsl(var(--card))"
-          stroke="hsl(var(--foreground))"
-          strokeWidth={1.6}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-        <div
-          className={cn(
-            "text-2xl font-bold tabular-nums tracking-tight leading-none",
-            over ? "text-neg" : "text-foreground"
-          )}
-        >
-          {Math.round(ratio * 100)}%
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Cumulative spend-vs-budget trend chart.
  *
  * Aggregates the per-category bucket series into a single cumulative spend
@@ -2042,43 +1969,10 @@ const Budget = () => {
               })}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
-              <Download className="h-3.5 w-3.5" />
-              {t("budget.exportCsv", { defaultValue: "Export CSV" })}
-            </Button>
-            <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" />
-              {t("budget.newCategory", { defaultValue: "New category" })}
-            </Button>
-          </div>
-        </div>
-
-        {/* Period bar */}
-        <div className="ft-card p-3 sm:p-4 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 rounded-lg bg-bg-subtle border border-line grid place-items-center text-muted-foreground flex-shrink-0">
-                <CalendarIcon className="h-4.5 w-4.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-base font-semibold tracking-tight truncate">
-                  {period.label}
-                </div>
-                <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
-                  {t("budget.dayN", {
-                    n: period.elapsedDays,
-                    total: period.totalDays,
-                    defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
-                  })}{" "}
-                  · {Math.round(period.elapsedFraction * 100)}%{" "}
-                  {t("budget.elapsed", { defaultValue: "elapsed" })}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Preset segmented control */}
-              <div className="inline-flex p-0.5 gap-0.5 bg-bg-subtle border border-line rounded-md">
+          {/* The period is a property of the page, so its controls sit in the
+              header beside the title rather than in a band of their own. */}
+          <div className="flex flex-wrap items-center gap-2">
+              <div className="ft-seg">
                 {(
                   [
                     ["1m", t("budget.p1m", { defaultValue: "1M" })],
@@ -2093,88 +1987,82 @@ const Budget = () => {
                     key={k}
                     type="button"
                     onClick={() => setPeriodKey(k as PeriodKey)}
-                    className={cn(
-                      "h-7 px-2.5 rounded text-[12px] font-semibold transition-colors",
-                      periodKey === k
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
+                    className={cn(periodKey === k && "active")}
                   >
                     {l}
                   </button>
                 ))}
               </div>
-              {/* Month / Year specific pickers */}
-              <div
+
+              {/* Month / year pickers — a specific period beyond the presets. */}
+              <MonthPicker
+                value={pickedMonth}
+                onChange={(d) => {
+                  if (d) {
+                    setPickedMonth(startOfMonth(d));
+                    setPeriodKey("month");
+                  }
+                }}
+                placeholder={t("budget.pickMonth", { defaultValue: "Pick a month" })}
                 className={cn(
-                  "inline-flex h-8 rounded-md border transition-colors",
-                  periodKey === "month"
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-line bg-card text-muted-foreground hover:bg-bg-subtle hover:text-foreground"
+                  "h-8 w-auto min-w-0 rounded-[10px] px-2.5 text-xs font-medium",
+                  periodKey === "month" && "border-foreground bg-foreground text-background hover:bg-foreground hover:text-background",
                 )}
-              >
-                <MonthPicker
-                  value={pickedMonth}
-                  onChange={(d) => {
-                    if (d) {
-                      setPickedMonth(startOfMonth(d));
-                      setPeriodKey("month");
-                    }
-                  }}
-                  placeholder={t("budget.pickMonth", { defaultValue: "Pick a month" })}
-                  className="h-8 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
-                />
-              </div>
-              <div
+              />
+              <YearPicker
+                value={pickedYear}
+                onChange={(d) => {
+                  if (d) {
+                    setPickedYear(startOfYear(d));
+                    setPeriodKey("year");
+                  }
+                }}
+                placeholder={t("budget.pickYear", { defaultValue: "Pick a year" })}
                 className={cn(
-                  "inline-flex h-8 rounded-md border transition-colors",
-                  periodKey === "year"
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-line bg-card text-muted-foreground hover:bg-bg-subtle hover:text-foreground"
+                  "h-8 w-auto min-w-0 rounded-[10px] px-2.5 text-xs font-medium",
+                  periodKey === "year" && "border-foreground bg-foreground text-background hover:bg-foreground hover:text-background",
                 )}
+              />
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-medium"
               >
-                <YearPicker
-                  value={pickedYear}
-                  onChange={(d) => {
-                    if (d) {
-                      setPickedYear(startOfYear(d));
-                      setPeriodKey("year");
-                    }
-                  }}
-                  placeholder={t("budget.pickYear", { defaultValue: "Pick a year" })}
-                  className="h-8 border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
-                />
-              </div>
-              {/* Projected toggle (only when period is in the future) */}
-              {showProjectedToggle && (
-                <label className="inline-flex items-center gap-2 h-8 px-3 rounded-md border border-line bg-bg-subtle text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-                  <Switch
-                    checked={includeProjected}
-                    onCheckedChange={setIncludeProjected}
-                    className="scale-75 data-[state=checked]:bg-primary"
-                  />
-                  <span>
-                    {t("budget.includeProjectedShort", { defaultValue: "Include projected" })}
-                  </span>
-                </label>
-              )}
-            </div>
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline">
+                  {t("budget.exportCsv", { defaultValue: "Export CSV" })}
+                </span>
+                <span className="xl:hidden">
+                  {t("budget.exportCsvShort", { defaultValue: "CSV" })}
+                </span>
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setNewOpen(true)}
+                className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("budget.newCategory", { defaultValue: "New category" })}
+              </Button>
           </div>
-          {periodKey === "custom" && (
-            <div className="flex flex-wrap items-end gap-2">
-              <DatePill
-                value={customRange.from}
-                onChange={(d) => setCustomRange((r) => ({ ...r, from: d }))}
-                label={t("budget.from", { defaultValue: "From" })}
-              />
-              <DatePill
-                value={customRange.to}
-                onChange={(d) => setCustomRange((r) => ({ ...r, to: d }))}
-                label={t("budget.to", { defaultValue: "To" })}
-              />
-            </div>
-          )}
         </div>
+
+        {periodKey === "custom" && (
+          <div className="flex flex-wrap items-end gap-2">
+            <DatePill
+              value={customRange.from}
+              onChange={(d) => setCustomRange((r) => ({ ...r, from: d }))}
+              label={t("budget.from", { defaultValue: "From" })}
+            />
+            <DatePill
+              value={customRange.to}
+              onChange={(d) => setCustomRange((r) => ({ ...r, to: d }))}
+              label={t("budget.to", { defaultValue: "To" })}
+            />
+          </div>
+        )}
 
         {/* Overview and pace are one card split by a rule, not two cards with
             a gap: they are the same reading of the period — how much is gone,
@@ -2182,42 +2070,78 @@ const Budget = () => {
         <div className="ft-card !p-0 overflow-hidden grid grid-cols-1 md:grid-cols-[1.1fr_1.5fr] [&>*+*]:border-t md:[&>*+*]:border-t-0 md:[&>*+*]:border-l [&>*+*]:border-line">
           {/* Summary card */}
           <div className="p-4 sm:p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-3 mb-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 {t("budget.overview", { defaultValue: "Overview" })} · {period.label}
               </div>
-              <div className="text-[11px] text-muted-foreground/80 tabular-nums">
-                {t("budget.expected", { defaultValue: "expected" })}{" "}
-                {Math.round(period.elapsedFraction * 100)}%
+              <span className="ft-chip tabular-nums">
+                {t("budget.dayN", {
+                  n: period.elapsedDays,
+                  total: period.totalDays,
+                  defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
+                })}
+              </span>
+            </div>
+
+            {/* The headline is the money, not the percentage: the bar below
+                carries the ratio, and the tick on it carries the clock. */}
+            <div className="ft-hero-value text-[clamp(1.75rem,4.4vw,2.5rem)]">
+              {formatCurrency(totals.totalUsed)}
+            </div>
+            <div className="text-sm text-muted-foreground tabular-nums mt-1.5">
+              {t("budget.outOfBudget", {
+                amt: formatCurrency(totals.totalBudget),
+                defaultValue: `of {{amt}} budget`,
+              })}
+            </div>
+
+            <div className="mt-4">
+              <PaceBar
+                used={totals.totalUsed}
+                budget={totals.totalBudget}
+                status={totals.totalBudget <= 0 ? "noBudget" : aheadOfPace ? "over" : "ok"}
+                elapsedFraction={period.elapsedFraction}
+                height={10}
+              />
+              <div className="mt-2 flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground tabular-nums">
+                <span>
+                  {t("budget.pctConsumed", {
+                    pct: Math.round(totals.utilization * 100),
+                    defaultValue: `{{pct}}% of budget used`,
+                  })}
+                </span>
+                <span>
+                  {t("budget.pctElapsed", {
+                    pct: Math.round(period.elapsedFraction * 100),
+                    defaultValue: `{{pct}}% of the period elapsed`,
+                  })}
+                </span>
               </div>
             </div>
-            <div className="flex items-center gap-4 sm:gap-5">
-              <RingGauge
-                ratio={totals.utilization}
-                elapsedFraction={period.elapsedFraction}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight leading-none">
-                  {formatCurrency(totals.totalUsed)}
+
+            {/* Pace verdict, stated in words rather than left to the reader to
+                infer from the bar. */}
+            {totals.totalBudget > 0 && (
+              <div
+                className={cn(
+                  "mt-4 flex items-start gap-2.5 rounded-xl p-3",
+                  aheadOfPace ? "bg-neg/[0.08]" : "bg-pos/[0.08]",
+                )}
+              >
+                <div
+                  className={cn(
+                    "mt-px flex-shrink-0",
+                    aheadOfPace ? "text-neg" : "text-pos",
+                  )}
+                >
+                  {aheadOfPace ? (
+                    <AlertTriangle className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
                 </div>
-                <div className="text-sm text-muted-foreground tabular-nums mt-1">
-                  / {formatCurrency(totals.totalBudget)}{" "}
-                  {t("budget.budget", { defaultValue: "budget" })}
-                </div>
-                {totals.totalBudget > 0 && (
-                  <div
-                    className={cn(
-                      "inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full text-xs font-semibold",
-                      aheadOfPace
-                        ? "bg-neg/10 text-neg"
-                        : "bg-pos/10 text-pos"
-                    )}
-                  >
-                    {aheadOfPace ? (
-                      <AlertTriangle className="h-3 w-3" />
-                    ) : (
-                      <CheckCircle2 className="h-3 w-3" />
-                    )}
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold">
                     {aheadOfPace
                       ? t("budget.overPace", {
                           amt: formatCurrency(paceDelta),
@@ -2228,23 +2152,19 @@ const Budget = () => {
                           defaultValue: `${formatCurrency(Math.abs(paceDelta))} under pace`,
                         })}
                   </div>
-                )}
-                <div className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                  {includeProjected && totals.totalProjected > 0 ? (
-                    <>
-                      {t("budget.includingProjected", {
-                        amt: formatCurrency(totals.totalProjected),
-                        defaultValue: `Including {{amt}} of projected upcoming spend.`,
-                      })}
-                    </>
-                  ) : (
-                    t("budget.actualOnly", {
-                      defaultValue: "Based on actual spend so far.",
-                    })
-                  )}
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    {includeProjected && totals.totalProjected > 0
+                      ? t("budget.includingProjected", {
+                          amt: formatCurrency(totals.totalProjected),
+                          defaultValue: `Including {{amt}} of projected upcoming spend.`,
+                        })
+                      : t("budget.actualOnly", {
+                          defaultValue: "Based on actual spend so far.",
+                        })}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Attention pips → quick filters */}
             <div className="flex flex-wrap gap-2 mt-4">
@@ -2276,10 +2196,22 @@ const Budget = () => {
 
           {/* Trend card */}
           <div className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 mb-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 {t("budget.spendPace", { defaultValue: "Spending pace" })}
               </div>
+              {/* The projected series is a property of this chart, so its
+                  switch lives on the chart rather than in the page header. */}
+              {showProjectedToggle && (
+                <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-[11.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+                  <Switch
+                    checked={includeProjected}
+                    onCheckedChange={setIncludeProjected}
+                    className="scale-75 data-[state=checked]:bg-primary"
+                  />
+                  {t("budget.includeProjectedShort", { defaultValue: "Include projected" })}
+                </label>
+              )}
               <div className="flex gap-3 text-[10.5px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block w-3.5 h-[2.5px] rounded bg-foreground" />
@@ -2360,17 +2292,9 @@ const Budget = () => {
           </div>
         )}
 
-        {/* Filter chips + search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
-          {/* The pack switches budget status with a segmented control, not
-              loose chips — these are mutually exclusive views of one list. */}
-          <Segmented
-            label={t("budget.filterAria", { defaultValue: "Filter by status" })}
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as StatusFilter)}
-            options={filterChips.map((c) => ({ value: c.id, label: c.label, count: c.n }))}
-          />
-          <div className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-line bg-card min-w-0 sm:min-w-[200px]">
+        {/* Search + status filter */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="inline-flex items-center gap-2 h-9 px-3.5 rounded-full border border-line bg-card min-w-0 sm:min-w-[260px]">
             <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
             <Input
               value={search}
@@ -2391,6 +2315,15 @@ const Budget = () => {
               </button>
             )}
           </div>
+          {/* Status is a segmented control, not loose chips — these are
+              mutually exclusive views of one list. */}
+          <Segmented
+            className="sm:ml-auto"
+            label={t("budget.filterAria", { defaultValue: "Filter by status" })}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as StatusFilter)}
+            options={filterChips.map((c) => ({ value: c.id, label: c.label, count: c.n }))}
+          />
         </div>
 
         {/* One table, not a grid of cards: the pack tabulates categories so

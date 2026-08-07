@@ -1,10 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { YearPicker } from "@/components/ui/year-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Segmented } from "@/components/ui/segmented";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -18,6 +17,11 @@ interface PeriodSelectorProps {
   setDateRange: (range: { from: Date; to: Date } | ((prev: { from: Date; to: Date }) => { from: Date; to: Date })) => void;
 }
 
+/**
+ * Period control for the analysis page. Sits inline in the page header rather
+ * than in a card of its own — the range is a property of the page, not a
+ * section of it, so it reads as a header control next to the title.
+ */
 export const PeriodSelector = ({
   periodType,
   setPeriodType,
@@ -35,93 +39,78 @@ export const PeriodSelector = ({
     12, 0, 0, 0
   );
 
+  const pickerClass = "h-8 w-auto min-w-0 rounded-[10px] px-2.5 text-xs font-medium";
+
   return (
-    <Card className="">
-      <CardContent className="p-2 sm:p-4 lg:p-6">
-        <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-          {/* Type selector */}
-          <div className="flex-shrink-0 w-[100px] sm:w-auto">
-            <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Période</label>
-            <Select value={periodType} onValueChange={(value: "month" | "year" | "custom") => setPeriodType(value)}>
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">Mois</SelectItem>
-                <SelectItem value="year">Année</SelectItem>
-                <SelectItem value="custom">Personnalisé</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <Segmented
+        label={t('reports.periodLabel', { defaultValue: 'Period' })}
+        value={periodType}
+        onChange={(value) => setPeriodType(value as "month" | "year" | "custom")}
+        options={[
+          { value: 'month', label: t('common.month', { defaultValue: 'Month' }) },
+          { value: 'year', label: t('common.year', { defaultValue: 'Year' }) },
+          { value: 'custom', label: t('common.custom', { defaultValue: 'Custom' }) },
+        ]}
+      />
 
-          {periodType === "month" && (
-            <div className="flex-1 min-w-[120px]">
-              <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Mois</label>
-              <MonthPicker
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                placeholder="Mois"
+      {periodType === "month" && (
+        <MonthPicker
+          selected={selectedDate}
+          onSelect={(date) => date && setSelectedDate(date)}
+          placeholder={t('common.month', { defaultValue: 'Month' })}
+          className={pickerClass}
+        />
+      )}
+
+      {periodType === "year" && (
+        <YearPicker
+          selected={selectedDate}
+          onSelect={(date) => date && setSelectedDate(date)}
+          placeholder={t('common.year', { defaultValue: 'Year' })}
+          className={pickerClass}
+        />
+      )}
+
+      {periodType === "custom" && (
+        <div className="inline-flex items-center gap-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={pickerClass}>
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                {format(dateRange.from, "dd/MM/yy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateRange.from}
+                onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: fixTimezone(date) }))}
+                initialFocus
+                className="pointer-events-auto"
               />
-            </div>
-          )}
-
-          {periodType === "year" && (
-            <div className="flex-1 min-w-[100px]">
-              <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Année</label>
-              <YearPicker
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                placeholder={t('common.year')}
+            </PopoverContent>
+          </Popover>
+          <span className="text-xs text-fg-dim">→</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={pickerClass}>
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                {format(dateRange.to, "dd/MM/yy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateRange.to}
+                onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: fixTimezone(date) }))}
+                initialFocus
+                className="pointer-events-auto"
               />
-            </div>
-          )}
-
-          {periodType === "custom" && (
-            <>
-              <div className="flex-1 min-w-[90px]">
-                <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Début</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-8 sm:h-9 justify-start text-left text-xs px-2">
-                      <CalendarIcon className="mr-1 h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{format(dateRange.from, "dd/MM/yy")}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateRange.from}
-                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: fixTimezone(date) }))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="flex-1 min-w-[90px]">
-                <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Fin</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-8 sm:h-9 justify-start text-left text-xs px-2">
-                      <CalendarIcon className="mr-1 h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{format(dateRange.to, "dd/MM/yy")}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateRange.to}
-                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: fixTimezone(date) }))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </>
-          )}
+            </PopoverContent>
+          </Popover>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };

@@ -84,7 +84,9 @@
     "previous": "Previous",
     "new": "New",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "month": "Month",
+    "custom": "Custom"
   },
   "navigation": {
     "home": "Home",
@@ -402,7 +404,10 @@
     "noCategoriesOfKind": "None yet.",
     "categoriesSaved": "Savings categories updated",
     "categoriesSavedDesc": "{{count}} categories now feed this page.",
-    "categoriesSaveFailed": "Could not update the categories."
+    "categoriesSaveFailed": "Could not update the categories.",
+    "kpiNetFoot": "{{count}} movements · {{avg}}/mo avg",
+    "kpiCountFoot": "{{count}} movements",
+    "kpiPlansFoot": "{{count}} plans · {{tx}} transactions"
   },
   "debts": {
     "title": "Debts",
@@ -488,7 +493,9 @@
     "cannotPass": "Unable to pass the transaction.",
     "cannotDeleteOrphans": "Unable to delete the orphan transactions.",
     "linked": "The transaction has been linked to the recurrence.",
-    "createdAndLinked": "The transaction has been created and linked."
+    "createdAndLinked": "The transaction has been created and linked.",
+    "calendarView": "Calendar",
+    "listView": "List"
   },
   "installments": {
     "title": "Installment Payments",
@@ -785,7 +792,8 @@
       "date": "Date",
       "description": "Description",
       "fileprefix": "report"
-    }
+    },
+    "periodLabel": "Period"
   },
   "settings": {
     "title": "Settings",
@@ -1525,7 +1533,11 @@
     "colSpent": "Spent",
     "colRemaining": "Remaining",
     "setBudget": "Set",
-    "outOf": "of"
+    "outOf": "of",
+    "outOfBudget": "of {{amt}} budget",
+    "pctConsumed": "{{pct}}% of budget used",
+    "pctElapsed": "{{pct}}% of the period elapsed",
+    "exportCsvShort": "CSV"
   },
   "specialBudgets": {
     "eyebrow": "Envelopes",

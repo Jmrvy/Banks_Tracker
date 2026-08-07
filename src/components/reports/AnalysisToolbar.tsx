@@ -1,6 +1,13 @@
-import { Clock, Calendar, CalendarCheck, Info } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CalendarCheck, CalendarDays, Clock, Layers, SlidersHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -14,34 +21,11 @@ interface AnalysisToolbarProps {
   priorPeriodLabel: string;
 }
 
-const Segmented = <T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: React.ReactNode }[];
-}) => (
-  <div className="inline-flex gap-[1px] rounded-lg border border-line bg-secondary p-[2px]">
-    {options.map(opt => (
-      <button
-        key={opt.value}
-        type="button"
-        onClick={() => onChange(opt.value)}
-        className={cn(
-          "rounded-md px-2.5 py-[5px] text-[12px] font-medium leading-none tabular-nums tracking-[-0.005em] transition-colors",
-          value === opt.value
-            ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        {opt.label}
-      </button>
-    ))}
-  </div>
-);
-
+/**
+ * View options for the analysis page, as chips sitting beside the tab row.
+ * They modify how every panel below reads the same data, so they belong on the
+ * same line as the tabs rather than in a band of their own.
+ */
 export const AnalysisToolbar = ({
   includeUpcoming,
   setIncludeUpcoming,
@@ -52,59 +36,90 @@ export const AnalysisToolbar = ({
   priorPeriodLabel,
 }: AnalysisToolbarProps) => {
   const { t } = useTranslation();
+
+  const conventionLabel = dateType === 'value'
+    ? t('settings.valueDate', { defaultValue: 'Value date' })
+    : t('settings.accountingDate', { defaultValue: 'Accounting date' });
+
+  const compareLabel = compareTo === '3mo'
+    ? t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' })
+    : compareTo === 'yearAgo'
+      ? t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' })
+      : priorPeriodLabel;
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5">
-      <div className="flex items-center gap-2.5">
-        <Clock className="h-3 w-3 text-fg-dim" />
-        <label className="text-[11px] font-medium text-muted-foreground cursor-pointer" htmlFor="incl-upcoming">
-          {t('reports.analysis.includeUpcoming', { defaultValue: 'Include upcoming' })}
-        </label>
-        <Switch id="incl-upcoming" checked={includeUpcoming} onCheckedChange={setIncludeUpcoming} className="scale-75" />
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setIncludeUpcoming(!includeUpcoming)}
+        aria-pressed={includeUpcoming}
+        className={cn("ft-chip", includeUpcoming && "active")}
+      >
+        <Clock className="h-3 w-3" />
+        {t('reports.analysis.includeUpcoming', { defaultValue: 'Include upcoming' })}
+      </button>
 
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1">
-          {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={t('reports.analysis.dateConventionHintLabel', { defaultValue: 'About date conventions' })}
-                className="text-fg-dim hover:text-foreground transition-colors"
-              >
-                <Info className="h-3 w-3" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">
-              {t('reports.analysis.dateConventionHint', {
-                defaultValue:
-                  'Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions.',
-              })}
-            </TooltipContent>
-          </Tooltip>
-        </span>
-        <Segmented
-          value={dateType}
-          onChange={setDateType}
-          options={[
-            { value: 'accounting', label: <span className="inline-flex items-center gap-1.5"><Calendar className="h-3 w-3" />{t('settings.accountingDate', { defaultValue: 'Accounting' })}</span> },
-            { value: 'value', label: <span className="inline-flex items-center gap-1.5"><CalendarCheck className="h-3 w-3" />{t('settings.valueDate', { defaultValue: 'Value' })}</span> },
-          ]}
-        />
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="ft-chip">
+          <SlidersHorizontal className="h-3 w-3" />
+          <span className="hidden sm:inline">
+            {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })} :{' '}
+          </span>
+          {conventionLabel}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[280px]">
+          <DropdownMenuLabel>
+            {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={dateType}
+            onValueChange={(v) => setDateType(v as 'accounting' | 'value')}
+          >
+            <DropdownMenuRadioItem value="accounting" className="gap-2">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {t('settings.accountingDate', { defaultValue: 'Accounting date' })}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="value" className="gap-2">
+              <CalendarCheck className="h-3.5 w-3.5" />
+              {t('settings.valueDate', { defaultValue: 'Value date' })}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <p className="px-2 pb-1.5 pt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            {t('reports.analysis.dateConventionHint', {
+              defaultValue:
+                'Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions.',
+            })}
+          </p>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-muted-foreground">{t('reports.analysis.compareTo', { defaultValue: 'Compare to' })}</span>
-        <Segmented
-          value={compareTo}
-          onChange={setCompareTo}
-          options={[
-            { value: 'prior', label: priorPeriodLabel },
-            { value: '3mo', label: t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' }) },
-            { value: 'yearAgo', label: t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' }) },
-          ]}
-        />
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="ft-chip">
+          <Layers className="h-3 w-3" />
+          <span className="hidden sm:inline">
+            {t('reports.analysis.compareTo', { defaultValue: 'Compare to' })} :{' '}
+          </span>
+          {compareLabel}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>
+            {t('reports.analysis.compareTo', { defaultValue: 'Compare to' })}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={compareTo}
+            onValueChange={(v) => setCompareTo(v as 'prior' | '3mo' | 'yearAgo')}
+          >
+            <DropdownMenuRadioItem value="prior">{priorPeriodLabel}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="3mo">
+              {t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' })}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="yearAgo">
+              {t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' })}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };

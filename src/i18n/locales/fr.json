@@ -84,7 +84,9 @@
     "previous": "Précédent",
     "new": "Nouveau",
     "online": "En ligne",
-    "offline": "Hors ligne"
+    "offline": "Hors ligne",
+    "month": "Mois",
+    "custom": "Personnalisé"
   },
   "navigation": {
     "home": "Accueil",
@@ -402,7 +404,10 @@
     "noCategoriesOfKind": "Aucune pour l'instant.",
     "categoriesSaved": "Catégories d'épargne mises à jour",
     "categoriesSavedDesc": "{{count}} catégories alimentent désormais cette page.",
-    "categoriesSaveFailed": "Impossible de mettre à jour les catégories."
+    "categoriesSaveFailed": "Impossible de mettre à jour les catégories.",
+    "kpiNetFoot": "{{count}} mouvements · {{avg}}/mois en moy.",
+    "kpiCountFoot": "{{count}} mouvements",
+    "kpiPlansFoot": "{{count}} plans · {{tx}} transactions"
   },
   "debts": {
     "title": "Dettes",
@@ -488,7 +493,9 @@
     "cannotPass": "Impossible de passer la transaction.",
     "cannotDeleteOrphans": "Impossible de supprimer les transactions orphelines.",
     "linked": "La transaction a été liée à la récurrence.",
-    "createdAndLinked": "La transaction a été créée et liée."
+    "createdAndLinked": "La transaction a été créée et liée.",
+    "calendarView": "Calendrier",
+    "listView": "Liste"
   },
   "installments": {
     "title": "Paiements Échelonnés",
@@ -785,7 +792,8 @@
       "date": "Date",
       "description": "Description",
       "fileprefix": "rapport"
-    }
+    },
+    "periodLabel": "Période"
   },
   "settings": {
     "title": "Paramètres",
@@ -1521,7 +1529,11 @@
     "colSpent": "Dépensé",
     "colRemaining": "Restant",
     "setBudget": "Définir",
-    "outOf": "sur"
+    "outOf": "sur",
+    "outOfBudget": "sur {{amt}} de budget",
+    "pctConsumed": "{{pct}} % du budget consommé",
+    "pctElapsed": "{{pct}} % de la période écoulée",
+    "exportCsvShort": "CSV"
   },
   "specialBudgets": {
     "eyebrow": "Enveloppes",

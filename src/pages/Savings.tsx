@@ -142,7 +142,11 @@ const Savings = () => {
     const hasReimbursements = reimbursementTransactions.length > 0;
 
     if (!hasInvestments && !hasReimbursements) {
-      return { totalSaved: 0, transactionCount: 0, trendData: [], incomeTotal: 0, expenseTotal: 0, netTotal: 0 };
+      return {
+        totalSaved: 0, transactionCount: 0, trendData: [],
+        incomeTotal: 0, expenseTotal: 0, netTotal: 0,
+        depositCount: 0, withdrawalCount: 0,
+      };
     }
 
     // Net, not gross: a withdrawal since partly repaid was never that big a
@@ -175,7 +179,18 @@ const Savings = () => {
       return { date: format(tx.date, 'dd/MM', { locale: fr }), total: cumulative };
     });
 
-    return { totalSaved: netTotal, transactionCount: periodTransactions.length + reimbursementTransactions.length, trendData, incomeTotal, expenseTotal, netTotal };
+    return {
+      totalSaved: netTotal,
+      transactionCount: periodTransactions.length + reimbursementTransactions.length,
+      trendData,
+      incomeTotal,
+      expenseTotal,
+      netTotal,
+      // Counts behind each side of the row, so a figure can be traced back to
+      // the rows that produced it.
+      depositCount: periodTransactions.filter(tx => tx.type === 'expense').length,
+      withdrawalCount: periodTransactions.filter(tx => tx.type === 'income').length,
+    };
   }, [periodTransactions, investmentCategoryIds, reimbursementTransactions, reimbursementStats.total]);
 
   // Calculate monthly average based on weighted recent months (more weight to recent)
@@ -299,8 +314,10 @@ const Savings = () => {
           </div>
         </div>
 
-        {/* Investment Statistics for Period */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+        {/* Investment statistics for the period. Each figure states the count
+            it was built from underneath it, so the row can be checked by hand
+            against the history below. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
               <div className="ft-kpi-icon acc"><PiggyBank className="h-4 w-4" /></div>
@@ -309,6 +326,13 @@ const Savings = () => {
             <div className={`ft-kpi-value truncate ${investmentStats.netTotal >= 0 ? 'text-pos' : 'text-destructive'}`}>
               {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
             </div>
+            <div className="ft-kpi-foot mt-auto truncate">
+              {t('savings.kpiNetFoot', {
+                count: investmentStats.transactionCount,
+                avg: formatCurrency(allTimeStats.monthlyAverage),
+                defaultValue: '{{count}} movements · {{avg}}/mo avg',
+              })}
+            </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
@@ -316,6 +340,12 @@ const Savings = () => {
               <span className="ft-kpi-label truncate">{t('savings.deposits')}</span>
             </div>
             <div className="ft-kpi-value truncate text-pos">+{formatCurrency(investmentStats.expenseTotal)}</div>
+            <div className="ft-kpi-foot mt-auto truncate">
+              {t('savings.kpiCountFoot', {
+                count: investmentStats.depositCount,
+                defaultValue: '{{count}} movements',
+              })}
+            </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
@@ -323,6 +353,12 @@ const Savings = () => {
               <span className="ft-kpi-label truncate">{t('savings.withdrawals')}</span>
             </div>
             <div className="ft-kpi-value truncate text-destructive">-{formatCurrency(investmentStats.incomeTotal)}</div>
+            <div className="ft-kpi-foot mt-auto truncate">
+              {t('savings.kpiCountFoot', {
+                count: investmentStats.withdrawalCount,
+                defaultValue: '{{count}} movements',
+              })}
+            </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
@@ -330,14 +366,13 @@ const Savings = () => {
               <span className="ft-kpi-label truncate">{t('savings.reimbursements')}</span>
             </div>
             <div className="ft-kpi-value truncate text-pos">+{formatCurrency(reimbursementStats.total)}</div>
-            <div className="text-xs text-muted-foreground">{reimbursementStats.count} tx</div>
-          </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon acc"><Target className="h-4 w-4" /></div>
-              <span className="ft-kpi-label truncate">{t('savings.transactions')}</span>
+            <div className="ft-kpi-foot mt-auto truncate">
+              {t('savings.kpiPlansFoot', {
+                count: reimbursementInstallments.length,
+                tx: reimbursementStats.count,
+                defaultValue: '{{count}} plans · {{tx}} transactions',
+              })}
             </div>
-            <div className="ft-kpi-value">{investmentStats.transactionCount}</div>
           </div>
         </div>
 

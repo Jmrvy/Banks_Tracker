@@ -21,6 +21,7 @@ import { DeleteRecurringDialog } from "@/components/DeleteRecurringDialog";
 import { startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
 import RecurringListCard from "@/components/RecurringListCard";
+import { ScheduledHeadSlot } from "@/components/scheduled/ScheduledHeadSlot";
 
 interface RecurringTransactionsProps {
   /** When true, render only the body + modals, leaving the outer page chrome
@@ -274,9 +275,8 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
     };
   }, [installmentPayments, transactions, debts, debtPayments, scheduledDebtPayments]);
 
-  // The "Add recurring" CTA is shown either inside the page-head (standalone
-  // mode) or as a thin right-aligned bar above the tabs (embedded inside the
-  // unified `/scheduled` page).
+  // The "Add recurring" CTA sits in a page head either way: this page's own
+  // when standalone, the `/scheduled` page's when embedded.
   const newButton = (
     <Button
       onClick={() => setShowNewRecurring(true)}
@@ -306,22 +306,18 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
           </div>
         )}
 
-        {embedded && (
-          /* Embedded: surface the primary CTA above the tabs so the user can
-              still create a new recurring without the page head. */
-          <div className="flex justify-end mb-3">{newButton}</div>
-        )}
+        {embedded && <ScheduledHeadSlot>{newButton}</ScheduledHeadSlot>}
 
         {/* Tabs: Calendar / List */}
         <Tabs defaultValue="calendar" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
-            <TabsTrigger value="calendar" className="text-xs sm:text-sm gap-1.5 sm:gap-2">
-              <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Calendrier</span>
+          <TabsList className="h-9 rounded-[11px] p-[3px]">
+            <TabsTrigger value="calendar" className="gap-1.5 px-2.5 text-xs">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {t('recurring.calendarView', { defaultValue: 'Calendrier' })}
             </TabsTrigger>
-            <TabsTrigger value="list" className="text-xs sm:text-sm gap-1.5 sm:gap-2">
-              <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Liste</span>
+            <TabsTrigger value="list" className="gap-1.5 px-2.5 text-xs">
+              <List className="h-3.5 w-3.5" />
+              {t('recurring.listView', { defaultValue: 'Liste' })}
             </TabsTrigger>
           </TabsList>
 
