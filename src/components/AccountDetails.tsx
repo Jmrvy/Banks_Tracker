@@ -598,7 +598,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
 
       {/* Period Detail Sheet */}
       <Sheet open={!!selectedPeriod} onOpenChange={(open) => !open && setSelectedPeriod(null)}>
-        <SheetContent side="bottom" className="h-[85vh] sm:h-[70vh] rounded-t-xl">
+        <SheetContent side="bottom" className="h-[85vh] sm:h-[70vh]">
           <SheetHeader className="pb-4">
             <div className="flex items-center justify-between">
               <SheetTitle className="capitalize text-base sm:text-lg">

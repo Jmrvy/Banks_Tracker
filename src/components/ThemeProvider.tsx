@@ -10,11 +10,21 @@ type ThemeProviderProps = {
 
 type ThemeProviderState = {
   theme: Theme
+  /** What is actually painted — `theme`, with "system" resolved against the OS. */
+  resolvedTheme: "dark" | "light"
   setTheme: (theme: Theme) => void
 }
 
+const DARK_QUERY = "(prefers-color-scheme: dark)"
+
+const prefersDark = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia(DARK_QUERY).matches
+
 const initialState: ThemeProviderState = {
   theme: "light",
+  resolvedTheme: "light",
   setTheme: () => null,
 }
 
@@ -29,26 +39,32 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
+  // Tracked as state so a "system" preference repaints when the OS flips —
+  // reading matchMedia once during an effect left the class stale forever.
+  const [systemDark, setSystemDark] = useState<boolean>(prefersDark)
+
+  useEffect(() => {
+    if (theme !== "system") return
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+
+    const media = window.matchMedia(DARK_QUERY)
+    const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches)
+
+    setSystemDark(media.matches)
+    media.addEventListener("change", onChange)
+    return () => media.removeEventListener("change", onChange)
+  }, [theme])
+
+  const resolvedTheme: "dark" | "light" =
+    theme === "system" ? (systemDark ? "dark" : "light") : theme
 
   useEffect(() => {
     const root = window.document.documentElement
 
     root.classList.remove("light", "dark")
-
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
-
-      root.classList.add(systemTheme)
-      root.setAttribute("data-theme", systemTheme)
-      return
-    }
-
-    root.classList.add(theme)
-    root.setAttribute("data-theme", theme)
-  }, [theme])
+    root.classList.add(resolvedTheme)
+    root.setAttribute("data-theme", resolvedTheme)
+  }, [resolvedTheme])
 
   const handleSetTheme = useCallback((theme: Theme) => {
     localStorage.setItem(storageKey, theme)
@@ -57,8 +73,9 @@ export function ThemeProvider({
 
   const value = useMemo(() => ({
     theme,
+    resolvedTheme,
     setTheme: handleSetTheme,
-  }), [theme, handleSetTheme])
+  }), [theme, resolvedTheme, handleSetTheme])
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>

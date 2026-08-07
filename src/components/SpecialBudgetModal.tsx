@@ -181,7 +181,7 @@ export const SpecialBudgetModal = ({
               className="h-[46px] w-[46px] rounded-[13px] flex-shrink-0 grid place-items-center transition-colors"
               style={{ background: palette.tint, color: palette.ink }}
             >
-              <Icon className="h-6 w-6" strokeWidth={1.8} />
+              <Icon className="h-6 w-6" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-lg font-semibold tracking-tight">
@@ -404,7 +404,7 @@ export const SpecialBudgetModal = ({
                       }
                       aria-label={key}
                     >
-                      <IconOpt className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                      <IconOpt className="h-[18px] w-[18px]" />
                     </button>
                   );
                 })}

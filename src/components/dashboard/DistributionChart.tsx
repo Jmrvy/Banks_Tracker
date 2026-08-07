@@ -5,15 +5,28 @@ import { useFinancialData } from "@/hooks/useFinancialData";
 import { useSpecialBudgets } from "@/hooks/useSpecialBudgets";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { CHART_COLORS, TOOLTIP_CLASS } from "@/lib/chartConfig";
+import { TOOLTIP_CLASS } from "@/lib/chartConfig";
 import { getTxDate } from "@/lib/dateUtils";
 import { getSpecialBudgetIcon } from "@/lib/specialBudgetUtils";
-import { CategoryIcon } from "@/components/CategoryIcon";
 
 interface DistributionChartProps {
   startDate: Date;
   endDate: Date;
 }
+
+/**
+ * Colour for a slice with nothing of its own — an uncategorised expense, or
+ * a special budget saved without one. `--chart-9` is the ramp's neutral
+ * stone, so "no colour" reads as absence rather than as a loud category, and
+ * it follows the theme instead of being a fixed sRGB value.
+ */
+const UNCLASSIFIED_COLOR = "hsl(var(--chart-9))";
+
+/** Donut geometry, straight off the design: 158px disc, 20px ring. */
+const DONUT_SIZE = 158;
+const DONUT_THICKNESS = 20;
+const DONUT_OUTER = "100%";
+const DONUT_INNER = `${(((DONUT_SIZE - DONUT_THICKNESS * 2) / DONUT_SIZE) * 100).toFixed(1)}%`;
 
 /**
  * Spending by category — donut + ranked list.
@@ -66,12 +79,12 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
       let specialBudgetIcon: ReturnType<typeof getSpecialBudgetIcon> | null;
       if (sb) {
         name = sb.name;
-        color = sb.color || CHART_COLORS[0];
+        color = sb.color || UNCLASSIFIED_COLOR;
         icon = null;
         specialBudgetIcon = getSpecialBudgetIcon(sb.icon);
       } else {
         name = tx.category?.name || t("common.uncategorized", { defaultValue: "Uncategorized" });
-        color = tx.category?.color || CHART_COLORS[0];
+        color = tx.category?.color || UNCLASSIFIED_COLOR;
         icon = tx.category?.icon ?? null;
         specialBudgetIcon = null;
       }
@@ -124,9 +137,11 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
     );
   };
 
+  const activeItem = activeName ? items.find((x) => x.name === activeName) ?? null : null;
+
   if (items.length === 0) {
     return (
-      <div className="ft-card p-5 md:p-6 flex flex-col">
+      <div className="ft-card flex flex-col">
         <div className="ft-card-head">
           <div>
             <h3 className="ft-card-title">
@@ -142,14 +157,14 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
   }
 
   return (
-    <div className="ft-card p-5 md:p-6 flex flex-col">
+    <div className="ft-card flex flex-col">
       <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">
             {t("dashboard.distribution", { defaultValue: "Spending by category" })}
           </h3>
           <p className="ft-card-sub">
-            <span className={`font-mono ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
+            <span className={`font-mono ${isPrivacyMode ? "ft-priv" : ""}`}>
               {formatCurrency(total)}
             </span>
             {" "}
@@ -158,19 +173,26 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[200px_minmax(0,1fr)] gap-4 sm:gap-5 items-center">
-        {/* Donut with total in the center — fixed-width column avoids the
-            CSS-grid `auto` + `w-full` chicken-and-egg that collapsed to 0. */}
-        <div className="relative w-[180px] sm:w-[200px] h-[180px] sm:h-[200px] mx-auto">
+      <div className="flex flex-wrap items-start gap-5">
+        {/* Donut. The centre is the readout: it holds the period total until
+            a slice is hovered, then swaps to that slice's figure and name —
+            so the ring never needs a legend of its own. */}
+        <div
+          className="relative mx-auto sm:mx-0 flex-shrink-0"
+          style={{ width: DONUT_SIZE, height: DONUT_SIZE }}
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            {/* Zero margin so the ring's outer edge really is size/2 — the
+                default 5px inset would shrink the 20px band to 18.7px. */}
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <Pie
                 data={items}
                 cx="50%"
                 cy="50%"
-                innerRadius="62%"
-                outerRadius="92%"
-                paddingAngle={2}
+                innerRadius={DONUT_INNER}
+                outerRadius={DONUT_OUTER}
+                paddingAngle={0.6}
+                cornerRadius={DONUT_THICKNESS / 2}
                 dataKey="value"
                 onMouseEnter={(_, idx) => setActiveName(items[idx]?.name ?? null)}
                 onMouseLeave={() => setActiveName(null)}
@@ -179,73 +201,67 @@ export function DistributionChart({ startDate, endDate }: DistributionChartProps
                   <Cell
                     key={entry.name}
                     fill={entry.color}
-                    opacity={activeName && activeName !== entry.name ? 0.35 : 1}
-                    style={{ transition: "opacity 0.2s ease-out", cursor: "pointer" }}
+                    opacity={activeName && activeName !== entry.name ? 0.3 : 1}
+                    style={{ transition: "opacity 0.15s ease-out", cursor: "pointer" }}
                   />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 50, outline: "none" }} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-            <div className="text-[10.5px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
-              {t("common.expenses", { defaultValue: "Expenses" })}
-            </div>
-            <div className={`font-mono text-lg font-medium tracking-tight mt-0.5 truncate max-w-full ${isPrivacyMode ? "blur-md select-none" : ""}`}>
-              {formatCurrency(total)}
+          <div className="absolute inset-0 grid place-items-center pointer-events-none text-center px-4">
+            <div>
+              <div
+                className={`font-mono font-medium tracking-[-0.03em] ${
+                  activeItem ? "text-[17px]" : "text-[20px]"
+                } ${isPrivacyMode ? "ft-priv" : ""}`}
+              >
+                {formatCurrency(activeItem ? activeItem.value : total)}
+              </div>
+              <div className="text-[10.5px] font-semibold text-fg-mute mt-0.5 truncate max-w-full">
+                {activeItem
+                  ? activeItem.name
+                  : t("dashboard.thisPeriod", { defaultValue: "this period" })}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Ranked list */}
-        <div className="flex flex-col min-w-0">
+        {/* Ranked list — flat swatch, name, amount. The bar variant belongs
+            to the Transactions page; on Accueil the ring already carries the
+            proportions. */}
+        <div className="flex flex-col min-w-0 flex-1 basis-[180px]">
           {top.map((item) => {
-            const pct = total > 0 ? (item.value / total) * 100 : 0;
             const isActive = activeName === item.name;
             return (
               <div
                 key={item.name}
                 onMouseEnter={() => setActiveName(item.name)}
                 onMouseLeave={() => setActiveName(null)}
-                className={`grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 py-2 border-b border-line last:border-b-0 transition-colors ${
+                className={`ft-catrow border-t border-line-soft first:border-t-0 transition-colors ${
                   isActive ? "bg-bg-subtle/60" : ""
                 }`}
+                style={{ paddingTop: 6, paddingBottom: 6 }}
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  {item.specialBudgetIcon ? (
-                    <span
-                      aria-hidden
-                      className="inline-flex items-center justify-center rounded-lg flex-shrink-0"
-                      style={{ width: 20, height: 20, background: `${item.color}1F`, color: item.color }}
-                    >
-                      <item.specialBudgetIcon style={{ width: 12, height: 12 }} strokeWidth={2} />
-                    </span>
-                  ) : (
-                    <CategoryIcon icon={item.icon} color={item.color} size={20} />
-                  )}
-                  <span className="text-[13px] font-medium truncate">{item.name}</span>
-                </div>
-                <div className={`font-mono text-[13px] font-medium whitespace-nowrap ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
+                <span className="flex items-center gap-2 min-w-0 text-[12.5px] font-[550]">
+                  <i className="ft-swatch" style={{ background: item.color }} />
+                  <span className="truncate">{item.name}</span>
+                </span>
+                <span className={`font-mono text-[12.5px] whitespace-nowrap ${isPrivacyMode ? "ft-priv" : ""}`}>
                   {formatCurrency(item.value)}
-                </div>
-                <div className="col-span-2 ft-progress-track">
-                  <div
-                    className="ft-progress-fill"
-                    style={{ width: `${pct}%`, background: item.color }}
-                  />
-                </div>
+                </span>
               </div>
             );
           })}
           {otherCount > 0 && (
-            <div className="flex items-center justify-between text-[11.5px] text-fg-dim mt-2 pt-2 border-t border-line">
+            <div className="flex items-center justify-between text-[11.5px] text-fg-dim mt-2 pt-2 border-t border-line-soft">
               <span>
                 {t("dashboard.othersMore", {
                   defaultValue: "+ {{count}} more",
                   count: otherCount,
                 })}
               </span>
-              <span className={`font-mono ${isPrivacyMode ? "blur-sm select-none" : ""}`}>
+              <span className={`font-mono ${isPrivacyMode ? "ft-priv" : ""}`}>
                 {formatCurrency(otherValue)}
               </span>
             </div>

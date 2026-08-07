@@ -133,7 +133,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
   }) => {
     const Tag = block ? "div" : "span";
     return (
-      <Tag className={`transition-all duration-300 ${!isRevealed ? 'blur-md select-none' : ''} ${className}`}>
+      <Tag className={`transition-all duration-300 ${!isRevealed ? 'ft-priv' : ''} ${className}`}>
         {amount}
       </Tag>
     );
@@ -197,11 +197,10 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
               </div>
             )}
           </div>
-          <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl grid place-items-center flex-shrink-0 mb-6 ${isPositive ? "bg-pos/12 text-pos" : "bg-neg/12 text-destructive"}`}>
+          <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl grid place-items-center flex-shrink-0 ${isPositive ? "bg-pos/12 text-pos" : "bg-neg/12 text-destructive"}`}>
             {isPositive ? <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" /> : <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />}
           </div>
         </div>
-        <div className="h-6" />
       </div>
 
       {/* Monthly summary KPIs */}

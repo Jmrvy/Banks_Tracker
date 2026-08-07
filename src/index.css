@@ -12,6 +12,13 @@
    and `hsl(var(--token) / 0.12)`. Keeping the storage format means the
    colour system changes without touching a single consumer.
 
+   ── TOKEN FORMAT, READ THIS BEFORE ADDING A CALL SITE ──
+   Every colour token in this file holds HSL *components* ("28.2 74.6% 54.7%"
+   or "28.2 74.6% 54.7% / 0.16"), never a finished colour. Consume them as
+   `hsl(var(--token))`. Writing `background: var(--primary)` renders
+   transparent. The non-colour tokens (--r-*, --sh-*, --motion-*) are full
+   values and are consumed bare: `border-radius: var(--r-md)`.
+
    Type: Instrument Sans (UI) · Instrument Serif (display) · Geist Mono
    (every figure). Light + dark.
    ========================================================================= */
@@ -23,10 +30,10 @@
     --background: 34.6 53.1% 97.1%;   /* paper            */
     --foreground: 23.9 28.3% 11.5%;   /* espresso ink     */
 
-    --card: 0 0% 100%;
+    --card: 54.9 100% 99.7%;
     --card-foreground: 23.9 28.3% 11.5%;
 
-    --popover: 0 0% 100%;
+    --popover: 54.9 100% 99.7%;
     --popover-foreground: 23.9 28.3% 11.5%;
 
     /* Primary accent — apricot (OKLCH hue 58, chroma 0.145) */
@@ -79,7 +86,7 @@
     --fg-mute: 26.1 8.5% 36.9%;
     --fg-dim: 28.6 6% 55.1%;
     --fg-onink: 34.6 34.7% 94.9%;
-    --bg-elev: 0 0% 100%;
+    --bg-elev: 54.9 100% 99.7%;
     --bg-sunk: 33.5 34.5% 93.6%;
     --bg-subtle: 34.6 36.7% 94.6%;
     --bg-hover: 33.5 32.7% 91.9%;
@@ -125,12 +132,13 @@
     --r-md: 15px;
     --r-lg: 20px;
     --r-xl: 28px;
+    --r-pill: 999px;
     --radius: 15px;
 
     /* ----- Elevation ----- */
-    --sh-1: 0 1px 2px hsl(26 30% 20% / 0.05);
-    --sh-2: 0 2px 4px hsl(26 30% 20% / 0.04), 0 8px 22px hsl(26 30% 20% / 0.06);
-    --sh-3: 0 4px 8px hsl(26 30% 20% / 0.05), 0 18px 44px hsl(26 30% 20% / 0.10);
+    --sh-1: 0 1px 2px hsl(26.7 30.5% 17.2% / 0.05);
+    --sh-2: 0 2px 4px hsl(26.7 30.5% 17.2% / 0.04), 0 8px 22px hsl(26.7 30.5% 17.2% / 0.06);
+    --sh-3: 0 4px 8px hsl(26.7 30.5% 17.2% / 0.05), 0 18px 44px hsl(26.7 30.5% 17.2% / 0.10);
 
     /* ----- Motion language ----- */
     --motion-fast: 120ms;
@@ -233,7 +241,33 @@
     --sh-2: 0 2px 4px hsl(0 0% 0% / 0.35), 0 8px 22px hsl(0 0% 0% / 0.45);
     --sh-3: 0 4px 8px hsl(0 0% 0% / 0.4), 0 18px 44px hsl(0 0% 0% / 0.55);
   }
+
+  /* ---------- Authoring axes & aliases (theme-independent) ----------
+     --accent-h / --accent-c record the OKLCH axes the apricot ramp was
+     swept on. They are documentation for the next palette revision, not
+     something to compute with: the colours above are the baked sRGB
+     result and are what every call site reads.
+     --c1…--c9 are the design's names for the categorical ramp; they
+     forward to --chart-N and hold HSL components like everything else,
+     so consume them as hsl(var(--c1)). */
+  :root {
+    --accent-h: 58;
+    --accent-c: 0.145;
+    --sp: 4px;
+    --density: 1;
+
+    --c1: var(--chart-1);
+    --c2: var(--chart-2);
+    --c3: var(--chart-3);
+    --c4: var(--chart-4);
+    --c5: var(--chart-5);
+    --c6: var(--chart-6);
+    --c7: var(--chart-7);
+    --c8: var(--chart-8);
+    --c9: var(--chart-9);
+  }
 }
+
 @layer base {
   * {
     @apply border-border;
@@ -246,10 +280,49 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    /* The design's base tier is 14px, not the browser's 16px. Every `text-*`
+       utility is rem-based (root-relative), so this only moves unclassed and
+       inherited text — dialog copy, list items, Radix defaults. */
+    font-size: 14px;
+    line-height: 1.5;
     overflow-x: hidden;
     max-width: 100vw;
     text-wrap: pretty;
     transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  /* Links carry the deep apricot and invert on hover: colour moves to the
+     body ink and the underline appears.
+
+     Scoped to *unstyled* anchors. The design's navigation is built from
+     <button>, so a bare `a` rule was safe there; ours is built from react-router
+     <Link>, which renders an <a>. Unscoped, this painted the sidebar brand
+     apricot and underlined every nav row, the sidebar CTA and each mobile menu
+     row on hover. Every component link in this app carries a className, and a
+     prose link does not — so `:not([class])` is exactly the seam between the
+     two, and content links still get the treatment the design intends. */
+  a:not([class]) {
+    color: hsl(var(--accent-deep));
+    text-decoration: none;
+    text-underline-offset: 3px;
+  }
+  a:not([class]):hover {
+    color: hsl(var(--foreground));
+    text-decoration: underline;
+  }
+
+  /* Every Lucide glyph draws at 1.6, not the library default of 2 — roughly
+     a quarter less ink, and a large part of why the system reads like paper.
+     lucide-react stamps `.lucide` on every icon it renders.
+
+     A CSS declaration always outranks an SVG presentation attribute, so a
+     `strokeWidth` prop no longer has any effect. The selector is kept at a
+     single class so a utility wins on source order instead: a glyph that
+     genuinely needs a heavier stroke asks with `className="[stroke-width:3]"`.
+     `lucide` is safelisted in tailwind.config.ts — it is never written in
+     JSX, so without that this rule is pruned as an unused candidate. */
+  .lucide {
+    stroke-width: 1.6;
   }
 
   .safe-area-inset-bottom {
@@ -270,34 +343,79 @@
 
 @layer components {
   /* =========================================================================
-     Fintech card — flat, bordered, elevated by background contrast
+     Fintech card — flat, bordered, elevated by background contrast.
+     One inset (22px) for the whole system; the flush variant hands padding
+     to its children, the sunk variant drops a level for nested panels.
      ========================================================================= */
   .ft-card {
     @apply rounded-2xl border bg-card text-card-foreground;
     border-color: hsl(var(--line));
+    padding: calc(22px * var(--density));
   }
-  .ft-card-flush { @apply rounded-2xl border bg-card overflow-hidden; border-color: hsl(var(--line)); }
+  .ft-card-flush,
+  .ft-card.flush {
+    @apply rounded-2xl border bg-card overflow-hidden;
+    border-color: hsl(var(--line));
+    padding: 0;
+  }
+  /* Nested/secondary panel: a step below the card that contains it. */
+  .ft-card-sunk,
+  .ft-card.sunk {
+    background: hsl(var(--bg-subtle));
+    border-color: hsl(var(--line-soft));
+  }
 
   .ft-card-head {
-    @apply flex items-start justify-between gap-4 mb-4 flex-wrap;
+    @apply flex items-start justify-between gap-[14px] mb-4 flex-wrap;
+  }
+  /* A flush card still owes its header the card inset. */
+  .ft-card-flush > .ft-card-head,
+  .ft-card.flush > .ft-card-head {
+    padding: calc(20px * var(--density)) calc(22px * var(--density)) 0;
+    margin-bottom: 14px;
+  }
+  /* Body padding for a section inside a flush card. */
+  .ft-sect-p {
+    padding: 0 calc(22px * var(--density)) calc(18px * var(--density));
   }
   .ft-card-title {
-    @apply text-sm font-semibold tracking-tight;
+    font-size: 14.5px;
+    font-weight: 650;
     letter-spacing: -0.012em;
+    line-height: 1.25;
+    margin: 0;
   }
   .ft-card-sub {
-    @apply text-xs text-muted-foreground mt-0.5;
+    font-size: 12px;
+    margin-top: 2px;
+    color: hsl(var(--fg-mute));
+  }
+
+  /* Envelope / tile — the inner card. Smaller radius and inset than
+     .ft-card so a tile nested in a card doesn't repeat its corner. */
+  .ft-env {
+    @apply flex flex-col text-left;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--r-md);
+    border: 1px solid hsl(var(--line));
+    background: hsl(var(--bg-elev));
+    transition: border-color var(--motion-base), box-shadow var(--motion-base);
+  }
+  .ft-env:hover {
+    border-color: hsl(var(--line-strong));
+    box-shadow: var(--sh-1);
   }
 
   /* =========================================================================
      Page chrome
      ========================================================================= */
   .ft-page {
-    @apply mx-auto w-full px-4 md:px-8 pb-20 md:pb-12 pt-4 md:pt-6 flex flex-col gap-5 md:gap-6;
-    max-width: 1320px;
+    @apply mx-auto w-full px-4 md:px-[30px] pb-4 md:pb-[72px] pt-4 md:pt-[26px] flex flex-col gap-3.5 md:gap-5;
+    max-width: 1360px;
   }
   .ft-page-head {
-    @apply flex items-end justify-between gap-4 flex-wrap;
+    @apply flex items-end justify-between gap-6 flex-wrap;
   }
   .ft-eyebrow {
     @apply text-[10.5px] uppercase font-semibold;
@@ -314,21 +432,21 @@
     line-height: 1.08;
   }
   .ft-page-sub {
-    @apply text-sm text-muted-foreground mt-1.5;
+    @apply text-[13.5px] text-muted-foreground mt-[5px];
     max-width: 62ch;
   }
 
   /* =========================================================================
-     Desktop topbar — breadcrumb trail + page-level controls
+     Desktop topbar — breadcrumb trail + page-level controls.
+     Opaque: the only frosted surface in the system is the mobile tab bar.
      ========================================================================= */
   .ft-topbar {
-    @apply sticky top-0 z-30 flex items-center justify-between gap-4 h-14 px-4 md:px-8 border-b;
-    background: hsl(var(--background) / 0.88);
-    backdrop-filter: blur(12px);
+    @apply sticky top-0 z-30 flex items-center justify-between gap-4 h-[60px] px-4 md:px-[30px] border-b;
+    background: hsl(var(--background));
     border-color: hsl(var(--line));
   }
   .ft-crumbs {
-    @apply flex items-center gap-1.5 text-[13px] min-w-0;
+    @apply flex items-center gap-[7px] text-[13px] min-w-0;
     color: hsl(var(--fg-dim));
   }
   .ft-crumbs .here {
@@ -337,12 +455,26 @@
   }
 
   /* =========================================================================
+     Layout grids — the design collapses every multi-column page layout at
+     one width, 1180px, which is `wide:` in tailwind.config.ts.
+     ========================================================================= */
+  .ft-g2  { display: grid; grid-template-columns: 1.55fr 1fr;            gap: calc(18px * var(--density)); }
+  .ft-g2e { display: grid; grid-template-columns: 1fr 1fr;               gap: calc(18px * var(--density)); }
+  .ft-g3  { display: grid; grid-template-columns: repeat(3, 1fr);        gap: calc(16px * var(--density)); }
+  .ft-g4  { display: grid; grid-template-columns: repeat(4, 1fr);        gap: calc(14px * var(--density)); }
+  .ft-g2s { display: grid; grid-template-columns: minmax(0, 1fr) 300px;  gap: calc(18px * var(--density)); }
+  @media (max-width: 1179px) {
+    .ft-g2, .ft-g2e, .ft-g3, .ft-g2s { grid-template-columns: 1fr; }
+    .ft-g4 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* =========================================================================
      Hero net-worth panel
      ========================================================================= */
   .ft-hero {
     @apply relative overflow-hidden rounded-3xl border bg-card;
     border-color: hsl(var(--line));
-    padding: 24px 24px 0;
+    padding: 26px 28px;
   }
   .ft-hero::before {
     content: "";
@@ -351,23 +483,42 @@
     background: radial-gradient(120% 90% at 88% -20%, hsl(var(--accent-wash)), transparent 62%);
     pointer-events: none;
   }
-  .ft-hero-eyebrow {
-    @apply text-[11px] uppercase tracking-[0.1em] font-semibold text-muted-foreground flex items-center gap-2;
+  /* Inner split: figure column then meta column. Stacks with the rest of
+     the page at 1180px — never earlier, or the serif figure is crushed. */
+  .ft-hero-grid {
+    @apply relative grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
   }
+  @media (min-width: 1180px) {
+    .ft-hero-grid {
+      grid-template-columns: minmax(280px, 1fr) 1.7fr;
+      gap: 34px;
+    }
+  }
+  .ft-hero-eyebrow {
+    @apply ft-eyebrow flex items-center gap-2;
+  }
+  /* Live status dot — 6px core, 3.5px --pos-soft halo, a slow 2.4s breath.
+     Standalone class; the descendant selector is kept so existing
+     `<span className="live" />` markup inside a hero eyebrow still works. */
+  .ft-live,
   .ft-hero-eyebrow .live {
-    width: 7px; height: 7px;
+    width: 6px; height: 6px;
     border-radius: 50%;
+    flex-shrink: 0;
     background: hsl(var(--pos));
-    box-shadow: 0 0 0 4px hsl(var(--pos) / 0.18);
-    animation: ft-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 0 3.5px hsl(var(--pos-soft));
+    animation: ft-pulse 2.4s ease-in-out infinite;
   }
   @keyframes ft-pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    50% { opacity: 0.35; }
   }
   /* Honor the OS-level reduced-motion preference — the pulsing live-dot is
      decorative and must not run when the user has asked for less motion. */
   @media (prefers-reduced-motion: reduce) {
+    .ft-live,
     .ft-hero-eyebrow .live {
       animation: none;
     }
@@ -380,14 +531,19 @@
     }
   }
   /* The hero figure is the one number set in the display serif — it reads as
-     a headline, not a readout, and the cents drop back to a mute weight. */
+     a headline, not a readout, and the cents drop back to a mute weight.
+     Two fixed sizes with a hard step at the layout breakpoint, exactly as
+     the design specifies; the clamp only protects sub-420px phones. */
   .ft-hero-value {
     font-family: "Instrument Serif", Georgia, serif;
-    font-size: clamp(2.375rem, 5.6vw, 3.625rem); /* 38px → 58px */
+    font-size: clamp(2.375rem, 9vw, 2.875rem); /* 38px → 46px */
     font-weight: 400;
     letter-spacing: -0.03em;
     line-height: 0.98;
     color: hsl(var(--foreground));
+  }
+  @media (min-width: 1180px) {
+    .ft-hero-value { font-size: 58px; }
   }
   .ft-hero-value .cents {
     color: hsl(var(--muted-foreground));
@@ -401,16 +557,42 @@
     color: inherit;
     opacity: 1;
   }
+  .ft-hero-foot {
+    @apply flex items-center flex-wrap mt-auto;
+    gap: 18px;
+    padding-top: 20px;
+  }
+  .ft-hero-stat {
+    @apply flex flex-col;
+    gap: 2px;
+  }
+  .ft-hero-stat-value {
+    font-family: "Geist Mono", "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    word-spacing: -0.3em;
+  }
 
   /* =========================================================================
      KPI tile
      ========================================================================= */
   .ft-kpi {
-    @apply relative overflow-hidden rounded-2xl border bg-card p-4 md:p-[18px] flex flex-col gap-2.5;
+    @apply relative overflow-hidden rounded-2xl border bg-card flex flex-col text-left;
+    padding: calc(17px * var(--density)) calc(18px * var(--density));
+    gap: 9px;
     border-color: hsl(var(--line));
     transition: border-color var(--motion-base), box-shadow var(--motion-base);
   }
-  .ft-kpi:hover { border-color: hsl(var(--line-strong)); box-shadow: var(--sh-1); }
+  /* The lift is an affordance, not decoration: only a KPI you can drill
+     into raises its border. Static read-only tiles stay flat. */
+  button.ft-kpi:not(:disabled):hover,
+  a.ft-kpi:hover,
+  .ft-kpi[role="button"]:hover {
+    border-color: hsl(var(--line-strong));
+    box-shadow: var(--sh-1);
+  }
   .ft-kpi-icon {
     @apply h-[30px] w-[30px] rounded-[10px] grid place-items-center flex-shrink-0;
     background: hsl(var(--bg-subtle));
@@ -421,27 +603,30 @@
   .ft-kpi-icon.acc { background: hsl(var(--accent-soft)); color: hsl(var(--accent-deep)); }
   .ft-kpi-icon.warn { background: hsl(var(--warn-soft)); color: hsl(var(--warn)); }
   .ft-kpi-label {
-    @apply text-xs text-muted-foreground font-semibold;
+    font-size: 12px;
+    font-weight: 600;
+    color: hsl(var(--fg-mute));
   }
   .ft-kpi-value {
     font-family: "Geist Mono", "JetBrains Mono", monospace;
-    font-size: clamp(1.125rem, 2.4vw, 1.5625rem); /* 18px → 25px */
+    font-size: clamp(1.25rem, 2.4vw, 1.5625rem); /* 20px → 25px */
     line-height: 1;
     letter-spacing: -0.03em;
     word-spacing: -0.3em;
     font-variant-numeric: tabular-nums;
-    @apply font-medium;
+    font-weight: 500;
   }
   .ft-kpi-foot {
-    @apply flex items-center gap-1.5 text-[11.5px];
+    @apply flex items-center gap-[7px] text-[11.5px];
     color: hsl(var(--fg-dim));
   }
 
   /* =========================================================================
-     Delta chips
+     Delta chips — a tight badge, never a capsule. Percent only; the
+     absolute figure belongs beside it in mute text.
      ========================================================================= */
   .ft-delta {
-    @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11.5px] font-medium;
+    @apply inline-flex items-center gap-[3px] px-1.5 py-0.5 rounded-[6px] text-[11.5px] font-medium;
     font-family: "Geist Mono", "JetBrains Mono", monospace;
     font-variant-numeric: tabular-nums;
     word-spacing: -0.3em;
@@ -454,7 +639,9 @@
      Chip — filter pills, metadata badges, suggestion buttons
      ========================================================================= */
   .ft-chip {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border;
+    @apply inline-flex items-center gap-1.5 px-[11px] py-1 rounded-full whitespace-nowrap border;
+    font-size: 12px;
+    font-weight: 550;
     background: hsl(var(--bg-subtle));
     border-color: hsl(var(--line));
     color: hsl(var(--fg-mute));
@@ -469,7 +656,8 @@
   .ft-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
   /* =========================================================================
-     Segmented control
+     Segmented control — the active pill's radius is the container's radius
+     minus its 3px padding, so its corners sit inside the track's arc.
      ========================================================================= */
   .ft-seg {
     @apply inline-flex p-[3px] gap-0.5 rounded-[11px] border;
@@ -477,7 +665,9 @@
     border-color: hsl(var(--line));
   }
   .ft-seg button {
-    @apply px-2.5 py-[5px] text-xs font-medium rounded-lg text-muted-foreground transition-colors whitespace-nowrap;
+    @apply px-[11px] py-[5px] rounded-[8px] text-muted-foreground transition-colors whitespace-nowrap;
+    font-size: 12px;
+    font-weight: 550;
     font-variant-numeric: tabular-nums;
   }
   .ft-seg button:hover { color: hsl(var(--foreground)); }
@@ -521,12 +711,12 @@
   .ft-tbl .num { text-align: right; font-family: "Geist Mono", monospace; }
 
   /* =========================================================================
-     Tag
+     Tag — no border: the design's tag is a fill, and a transparent border
+     would push it 2px wider than its 2px/8px inset.
      ========================================================================= */
   .ft-tag {
-    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[7px] text-[11px] font-semibold;
+    @apply inline-flex items-center gap-[5px] px-2 py-0.5 rounded-[7px] text-[11px] font-semibold;
     background: hsl(var(--bg-subtle));
-    border: 1px solid transparent;
     color: hsl(var(--fg-mute));
     letter-spacing: 0.01em;
   }
@@ -536,6 +726,19 @@
   .ft-tag.acc { background: hsl(var(--accent-soft)); color: hsl(var(--accent-deep)); }
   .ft-tag.warn { background: hsl(var(--warn-soft)); color: hsl(var(--warn)); }
   .ft-tag.info { background: hsl(var(--info-soft)); color: hsl(var(--info)); }
+
+  /* =========================================================================
+     Keycap
+     ========================================================================= */
+  .ft-kbd {
+    @apply inline-flex items-center justify-center font-mono;
+    font-size: 10px;
+    padding: 2px 5px;
+    border: 1px solid hsl(var(--line-strong));
+    border-radius: 5px;
+    background: hsl(var(--bg-elev));
+    color: hsl(var(--fg-dim));
+  }
 
   /* =========================================================================
      Glyph — square account/category avatar
@@ -554,50 +757,189 @@
     color: hsl(var(--fg-mute));
     border: 1px solid hsl(var(--line-soft));
   }
+  /* User avatar — accent-tinted initials. */
+  .ft-avatar {
+    @apply grid place-items-center flex-shrink-0 font-bold;
+    width: 32px; height: 32px;
+    border-radius: 11px;
+    font-size: 12.5px;
+    background: hsl(var(--accent-soft));
+    color: hsl(var(--accent-deep));
+  }
 
   /* =========================================================================
-     List rows
+     List rows — three column shapes, one typographic vocabulary.
+     The 22px inset matches .ft-card so a card's rows line up with its head.
      ========================================================================= */
   .ft-list-row {
-    @apply grid items-center gap-3 px-5 md:px-6 py-3 transition-colors;
-    grid-template-columns: 36px 1fr auto;
+    @apply grid items-center gap-[13px] py-3 transition-colors w-full text-left;
+    padding-left: calc(22px * var(--density));
+    padding-right: calc(22px * var(--density));
+    grid-template-columns: 34px 1fr auto;
     border-bottom: 1px solid hsl(var(--line-soft));
   }
   .ft-list-row:last-child { border-bottom: none; }
   .ft-list-row:hover { background: hsl(var(--bg-subtle)); }
+  /* Account row: 38px glyph, then a fixed numeric column so balances and
+     their sub-amounts align down a column instead of running ragged. */
+  .ft-list-row.acct { grid-template-columns: 38px 1fr 96px auto; }
+  .ft-list-row.tx { grid-template-columns: 34px 1fr auto; }
+  .ft-list-row.plain { grid-template-columns: 1fr auto; }
+
+  /* Row typography — three roles, fixed once so identical-looking rows on
+     different screens actually match. */
+  .ft-row-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.008em;
+  }
+  .ft-row-sub {
+    font-size: 11.5px;
+    margin-top: 1px;
+    color: hsl(var(--fg-dim));
+  }
+  .ft-row-amt,
+  .ft-row-amount {
+    font-family: "Geist Mono", "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: right;
+    letter-spacing: -0.02em;
+    word-spacing: -0.3em;
+  }
+  .ft-row-amt.sub,
+  .ft-row-amt-sub,
+  .ft-row-amount.sub,
+  .ft-row-amount-sub {
+    font-size: 11px;
+    font-weight: 400;
+    margin-top: 1px;
+    color: hsl(var(--fg-mute));
+  }
 
   /* Sticky day divider inside a transaction list. */
   .ft-daylab {
-    @apply sticky top-0 flex items-center justify-between gap-3 px-5 md:px-6 pt-3.5 pb-1.5 text-[11px] font-bold uppercase;
+    @apply sticky top-0 flex items-center justify-between gap-3 pt-3.5 pb-1.5 text-[11px] font-bold uppercase;
+    padding-left: calc(22px * var(--density));
+    padding-right: calc(22px * var(--density));
     letter-spacing: 0.08em;
     color: hsl(var(--fg-dim));
     background: hsl(var(--card));
   }
   /* Full-width footer action closing a card list ("show 25 more"). */
   .ft-row-foot {
-    @apply w-full text-center py-3 px-5 md:px-6 text-[12.5px] font-semibold transition-colors;
+    @apply w-full text-center py-3 text-[12.5px] font-semibold transition-colors;
+    padding-left: calc(22px * var(--density));
+    padding-right: calc(22px * var(--density));
     border-top: 1px solid hsl(var(--line-soft));
     color: hsl(var(--fg-mute));
   }
   .ft-row-foot:hover { background: hsl(var(--bg-subtle)); color: hsl(var(--foreground)); }
 
+  /* Category breakdown row — label/value pair over a thin bar. */
+  .ft-catrow {
+    @apply grid items-center w-full text-left;
+    grid-template-columns: 1fr auto;
+    gap: 5px 10px;
+    padding: 9px 0;
+  }
+  .ft-catrow + .ft-catrow { border-top: 1px solid hsl(var(--line-soft)); }
+
   /* =========================================================================
-     Goal/progress bar
+     Budget table — five columns on desktop, three once it collapses.
+     ========================================================================= */
+  .ft-bud,
+  .ft-bud-head {
+    display: grid;
+    grid-template-columns: 32px minmax(140px, 1.5fr) 1.6fr 108px 96px;
+    gap: 14px;
+    width: 100%;
+    text-align: left;
+    padding-left: calc(22px * var(--density));
+    padding-right: calc(22px * var(--density));
+  }
+  .ft-bud {
+    align-items: center;
+    padding-top: 13px;
+    padding-bottom: 13px;
+    border-top: 1px solid hsl(var(--line-soft));
+    transition: background var(--motion-base);
+  }
+  .ft-bud:hover { background: hsl(var(--bg-subtle)); }
+  .ft-bud-head {
+    padding-top: 9px;
+    padding-bottom: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: hsl(var(--fg-dim));
+    border-bottom: 1px solid hsl(var(--line));
+  }
+  @media (max-width: 1179px) {
+    .ft-bud, .ft-bud-head { grid-template-columns: 32px 1fr 96px; }
+    .ft-bud > .ft-hide-sm, .ft-bud-head > .ft-hide-sm { display: none; }
+  }
+
+  /* =========================================================================
+     Bars & gauges — one track, three heights, one pace mark.
+     The mark overhangs the track by 2px top and bottom so it reads as a
+     rule laid over the fill, not a gap in it.
      ========================================================================= */
   .ft-progress-track {
-    @apply h-1.5 rounded-full overflow-hidden relative;
+    @apply relative overflow-hidden;
+    height: 6px;
+    border-radius: 3px;
     background: hsl(var(--bg-sunk));
   }
+  .ft-progress-track.thin { height: 4px; }
+  .ft-progress-track.tall { height: 9px; border-radius: 5px; }
   .ft-progress-fill {
-    @apply h-full rounded-full transition-all duration-500;
+    display: block;
+    height: 100%;
+    border-radius: 3px;
     background: hsl(var(--primary));
+    transition: width 500ms var(--motion-ease);
+  }
+  .ft-progress-track.tall .ft-progress-fill { border-radius: 5px; }
+  /* Bleeds past the track top and bottom so the clip leaves a full-height
+     rule laid over the fill, not a gap in it. */
+  .ft-progress-mark {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 1.5px;
+    border-radius: 1px;
+    background: hsl(var(--foreground));
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  /* Chart legend — 9px rounded square, never a dot. */
+  .ft-swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .ft-legend {
+    @apply flex flex-wrap;
+    gap: 14px;
+    font-size: 11.5px;
+    color: hsl(var(--fg-mute));
+  }
+  .ft-legend > span {
+    @apply inline-flex items-center;
+    gap: 6px;
   }
 
   /* =========================================================================
      Sidebar nav
      ========================================================================= */
   .ft-nav-item {
-    @apply flex items-center gap-[11px] px-2.5 py-2 rounded-[10px] text-[13.5px] font-medium transition-colors w-full text-left;
+    @apply flex items-center gap-[11px] px-2.5 py-2 rounded-[10px] text-[13.5px] transition-colors w-full text-left;
+    font-weight: 550;
     color: hsl(var(--fg-mute));
   }
   .ft-nav-item:hover {
@@ -634,6 +976,19 @@
     background: hsl(var(--accent-soft));
     color: hsl(var(--accent-deep));
   }
+  /* Sidebar search trigger. */
+  .ft-searchbtn {
+    @apply flex items-center gap-2 w-full text-left rounded-[11px] border;
+    padding: 9px 11px;
+    font-size: 12.5px;
+    background: hsl(var(--bg-elev));
+    border-color: hsl(var(--line));
+    color: hsl(var(--fg-dim));
+    transition: border-color var(--motion-base), color var(--motion-base);
+  }
+  .ft-searchbtn:hover { border-color: hsl(var(--line-strong)); color: hsl(var(--fg-mute)); }
+  .ft-searchbtn .ft-kbd { margin-left: auto; }
+
   /* =========================================================================
      Brand mark — display serif on ink
      ========================================================================= */
@@ -654,6 +1009,112 @@
     line-height: 1.05;
     letter-spacing: -0.02em;
   }
+
+  /* =========================================================================
+     Forms — 40px control, flush accent halo on focus.
+     The design has exactly one focus treatment: the border turns accent and
+     a soft 3px --accent-soft glow sits directly against it. No offset ring.
+     ========================================================================= */
+  .ft-field { @apply flex flex-col; gap: 6px; }
+  .ft-field > label {
+    font-size: 12px;
+    font-weight: 600;
+    color: hsl(var(--fg-mute));
+  }
+  .ft-input {
+    @apply w-full;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: var(--r-sm);
+    border: 1px solid hsl(var(--line-strong));
+    background: hsl(var(--bg-elev));
+    font-size: 14px;
+    transition: border-color var(--motion-base), box-shadow var(--motion-base);
+  }
+  .ft-input::placeholder { color: hsl(var(--fg-dim)); }
+  /* Apply .ft-focus to any control that should adopt the system focus, or
+     copy the declarations into a `focus-visible:` utility string. */
+  .ft-focus,
+  .ft-input:focus,
+  .ft-input:focus-visible,
+  .ft-focusable:focus-visible {
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--accent-soft));
+  }
+  /* Inline text affordance inside a card — same colour language as <a>,
+     with a visible keyboard focus since call sites are often spans. */
+  .ft-link {
+    color: hsl(var(--accent-deep));
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color var(--motion-base);
+  }
+  .ft-link:hover { color: hsl(var(--foreground)); text-decoration: underline; }
+  .ft-link:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* =========================================================================
+     Trace copilot surface
+     ========================================================================= */
+  .ft-tr-msg { @apply flex items-start; gap: 13px; }
+  .ft-tr-msg.me { flex-direction: row-reverse; }
+  .ft-tr-body { @apply flex flex-col flex-1 min-w-0; gap: 14px; }
+  .ft-tr-avatar {
+    @apply grid place-items-center flex-shrink-0;
+    width: 30px; height: 30px;
+    border-radius: 11px;
+    background: hsl(var(--primary));
+    color: hsl(var(--on-accent));
+  }
+  .ft-tr-avatar.me {
+    background: hsl(var(--bg-subtle));
+    color: hsl(var(--fg-mute));
+    border: 1px solid hsl(var(--line));
+  }
+  /* The tucked corner points at the speaker: top-left for Trace, top-right
+     for the user. */
+  .ft-tr-bubble {
+    padding: 13px 16px;
+    font-size: 14px;
+    border-radius: var(--r-md);
+    border-top-left-radius: 5px;
+    background: hsl(var(--bg-subtle));
+    border: 1px solid hsl(var(--line-soft));
+  }
+  .ft-tr-bubble.me {
+    background: hsl(var(--accent-soft));
+    border-color: transparent;
+    border-radius: var(--r-md);
+    border-top-right-radius: 5px;
+    color: hsl(var(--accent-deep));
+    font-weight: 550;
+  }
+  .ft-tr-ask {
+    @apply flex items-center;
+    gap: 10px;
+    padding: 7px 8px 7px 18px;
+    border-radius: var(--r-pill);
+    background: hsl(var(--bg-elev));
+    border: 1px solid hsl(var(--line-strong));
+    box-shadow: var(--sh-2);
+  }
+  /* The field inside the pill is chrome-less — the pill *is* the input.
+     A shadcn <Input> needs `border-0 bg-transparent shadow-none h-auto px-0`
+     to let this through, since utilities outrank the components layer. */
+  .ft-tr-ask input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    outline: none;
+    box-shadow: none;
+    font-size: 14.5px;
+  }
+  .ft-tr-sug { @apply flex flex-wrap; gap: 8px; }
 
   /* =========================================================================
      Trace FAB — one floating affordance, desktop and mobile
@@ -677,10 +1138,14 @@
   }
 
   /* =========================================================================
-     Mobile tab bar — four destinations around a raised centre action
+     Mobile tab bar — four destinations around a raised centre action.
+     88px is load-bearing: the mobile Trace FAB sits at bottom-104px, i.e.
+     16px above this bar. Without the minimum the bar is 56px on any device
+     reporting a zero safe-area inset and the FAB floats free of it.
      ========================================================================= */
   .ft-tabbar {
-    @apply fixed bottom-0 left-0 right-0 z-50 flex items-start px-1.5 pt-2 border-t md:hidden;
+    @apply fixed bottom-0 left-0 right-0 z-50 flex items-start px-1.5 pt-[9px] border-t md:hidden;
+    min-height: 88px;
     background: hsl(var(--background) / 0.86);
     backdrop-filter: blur(20px);
     border-color: hsl(var(--line));
@@ -699,39 +1164,117 @@
     color: hsl(var(--on-accent));
   }
 
-  .stat-card {
-    @apply rounded-2xl p-3 sm:p-4 border bg-card transition-colors;
-    border-color: hsl(var(--line));
+  /* =========================================================================
+     Bottom sheet — one radius, one grab handle, one title face
+     ========================================================================= */
+  .ft-sheet {
+    border-top-left-radius: 26px;
+    border-top-right-radius: 26px;
+    box-shadow: var(--sh-3);
   }
-  .stat-card:hover {
-    border-color: hsl(var(--line-strong));
-    background: hsl(var(--bg-hover));
+  .ft-sheet-grab {
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: hsl(var(--line-strong));
+    margin: 9px auto 4px;
+    flex-shrink: 0;
   }
+  .ft-sheet-head {
+    @apply flex items-center justify-between flex-shrink-0;
+    gap: 12px;
+    padding: 8px 20px 12px;
+    border-bottom: 1px solid hsl(var(--line-soft));
+  }
+  .ft-sheet-title {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-weight: 400;
+    font-size: 21px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  .ft-sheet-body {
+    @apply flex flex-col overflow-y-auto;
+    gap: 14px;
+    padding: 16px 20px 34px;
+    scrollbar-width: none;
+  }
+  .ft-sheet-body::-webkit-scrollbar { display: none; }
 
-  .hero-card {
-    @apply rounded-2xl sm:rounded-3xl overflow-hidden border bg-card relative;
-    border-color: hsl(var(--line));
+  /* =========================================================================
+     Empty / placeholder states
+     ========================================================================= */
+  .ft-empty {
+    @apply flex flex-col items-center text-center;
+    gap: 10px;
+    padding: 44px 20px;
+    color: hsl(var(--fg-dim));
   }
-  .hero-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(120% 90% at 88% -20%, hsl(var(--accent-wash)), transparent 62%);
-    pointer-events: none;
+  .ft-empty-title {
+    font-weight: 600;
+    color: hsl(var(--fg-mute));
   }
-
-  .icon-badge { @apply flex items-center justify-center rounded-xl transition-colors; }
-  .icon-badge-sm { @apply h-8 w-8 sm:h-9 sm:w-9; }
-  .icon-badge-md { @apply h-10 w-10 sm:h-11 sm:w-11; }
-  .icon-badge-lg { @apply h-12 w-12 sm:h-14 sm:w-14; }
-
-  .section-header {
-    @apply text-[10px] sm:text-xs uppercase tracking-widest font-semibold text-muted-foreground;
-    letter-spacing: 0.08em;
+  /* Reserved / unavailable region — deliberately not a loading skeleton. */
+  .ft-ph {
+    @apply grid place-items-center;
+    background: hsl(var(--bg-subtle));
+    border: 1px dashed hsl(var(--line-strong));
+    border-radius: var(--r-md);
+    color: hsl(var(--fg-dim));
+    font-family: "Geist Mono", "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .ft-divider {
+    height: 1px;
+    border: none;
+    margin: 0;
+    background: hsl(var(--line));
   }
 }
 
 @layer utilities {
+  /* ----- Typographic roles (design: .num .ser .mute .dim .pos .neg) ----- */
+  .ft-num {
+    font-family: "Geist Mono", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    word-spacing: -0.3em;
+  }
+  .ft-ser {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+  .ft-mute { color: hsl(var(--fg-mute)); }
+  .ft-dim { color: hsl(var(--fg-dim)); }
+  .ft-pos { color: hsl(var(--pos)); }
+  .ft-neg { color: hsl(var(--neg)); }
+
+  /* ----- Layout shorthands (design: .row .col .spread .grow .trunc) ----- */
+  .ft-row { display: flex; align-items: center; gap: 8px; }
+  .ft-col { display: flex; flex-direction: column; }
+  .ft-spread { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .ft-grow { flex: 1; min-width: 0; }
+  .ft-trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Privacy mask — 6px, not Tailwind's 12px `blur-md`, plus the opacity
+     dial-back and pointer-events guard that make a masked figure recede
+     instead of smearing (and stop it being a click target). */
+  .ft-priv {
+    filter: blur(6px);
+    opacity: 0.75;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Edge-to-edge horizontal scrollers on mobile. */
+  .ft-noscroll,
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .ft-noscroll::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .ft-edge-bleed { margin-inline: -16px; padding-inline: 16px; }
+
   /* Mobile-optimized text sizes */
   .text-responsive-xs { @apply text-xs sm:text-sm; }
   .text-responsive-sm { @apply text-sm sm:text-base; }

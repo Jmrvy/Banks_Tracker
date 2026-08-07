@@ -2,19 +2,19 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
-import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, MinusCircle, ArrowRightLeft, Plus, Check } from 'lucide-react';
+import { PlusCircle, MinusCircle, ArrowRightLeft, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useNavigate } from 'react-router-dom';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
+import { BANK_COLORS } from '@/lib/constants';
 
 const NewTransaction = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { formatCurrency, preferences } = useUserPreferences();
@@ -136,27 +136,45 @@ const NewTransaction = () => {
     }
   };
 
+  // The serif currency mark beside the amount. Derived from the user's
+  // currency preference rather than hardcoded, since EUR/USD/GBP are all
+  // supported.
+  const currencySymbol = useMemo(() => {
+    try {
+      return (
+        // Locale follows the UI, not the euro. Pinned to fr-FR this rendered
+        // "$US" / "£GB" beside the amount field for anyone not on euros.
+        new Intl.NumberFormat(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { style: 'currency', currency: preferences.currency })
+          .formatToParts(0)
+          .find((part) => part.type === 'currency')?.value ?? ''
+      );
+    } catch {
+      return '';
+    }
+  }, [preferences.currency]);
+
   const selectedAccount = accounts.find(acc => acc.id === formData.account_id);
   const selectedToAccount = accounts.find(acc => acc.id === formData.to_account_id);
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <div className="ft-page max-w-2xl">
+      <div className="ft-page max-w-[760px]">
         {/* Page head */}
         <div className="ft-page-head">
           <div>
-            <div className="ft-eyebrow">{t('navigation.transactions')}</div>
+            <div className="ft-eyebrow">{t('navigation.entry', { defaultValue: 'Entry' })}</div>
             <h1 className="ft-page-title">{t('newTransaction.title', { defaultValue: 'New transaction' })}</h1>
             <div className="ft-page-sub">{t('newTransaction.subtitle', { defaultValue: 'Add expense, income, or transfer' })}</div>
           </div>
         </div>
 
-        <div className="ft-card p-5 sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        <div className="ft-card p-[26px]">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               {/* Transaction type — a segmented switch, not three buttons
-                  competing with the submit action below. */}
-              <div className="max-w-full overflow-x-auto [scrollbar-width:none]">
+                  competing with the submit action below. The segment hugs
+                  its three labels rather than stretching the card. */}
+              <div className="max-w-full overflow-x-auto no-scrollbar">
                 <div className="ft-seg" role="group" aria-label={t('transactions.type', { defaultValue: 'Type' })}>
                   {([
                     { value: 'expense', label: t('common.expense', { defaultValue: 'Expense' }), Icon: MinusCircle },
@@ -178,97 +196,125 @@ const NewTransaction = () => {
               </div>
 
               {/* The amount is what the page is for, so it is the page's
-                  largest element rather than one field among many. */}
-              <div className="rounded-xl bg-bg-subtle border border-line-soft px-4 py-5 sm:py-6">
+                  largest element rather than one field among many. The mono
+                  figure is paired with the serif currency mark, the same
+                  pairing the hero uses. */}
+              <div className="rounded-xl bg-bg-subtle border border-line-soft px-5 py-[22px]">
                 <label htmlFor="amount" className="ft-eyebrow block text-center mb-2">
                   {t('common.amount', { defaultValue: 'Amount' })}
                 </label>
-                <AmountInput
-                  id="amount"
-                  placeholder="0,00"
-                  value={formData.amount}
-                  onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
-                  required
-                  // `md:text-[44px]` is not redundant: the input's base class
-                  // carries `md:text-sm`, which outranks an unprefixed size
-                  // from the breakpoint up — the figure rendered at 14 px on
-                  // every desktop.
-                  className={`h-auto border-none bg-transparent shadow-none text-center font-mono text-[38px] sm:text-[44px] md:text-[44px] font-medium tracking-[-0.04em] focus-visible:ring-0 px-0 ${
-                    formData.type === 'income' ? 'text-pos' : ''
-                  }`}
-                />
+                <div className="flex items-baseline justify-center gap-1.5">
+                  <AmountInput
+                    id="amount"
+                    placeholder="0,00"
+                    value={formData.amount}
+                    onChange={(value) => setFormData(prev => ({ ...prev, amount: value }))}
+                    required
+                    style={{ width: `${Math.max(4, formData.amount.length || 4)}ch` }}
+                    className={`h-auto w-auto border-none bg-transparent shadow-none text-right font-mono text-[38px] sm:text-[44px] md:text-[44px] font-medium tracking-[-0.04em] focus-visible:ring-0 px-0 ${
+                      formData.type === 'income' ? 'text-pos' : ''
+                    }`}
+                  />
+                  <span className="font-display text-[30px] leading-none text-fg-mute" aria-hidden>
+                    {currencySymbol}
+                  </span>
+                </div>
               </div>
 
-              {/* Description */}
-              <div className="space-y-1.5 sm:space-y-2">
-                <Label htmlFor="description" className="text-xs sm:text-sm">
-                  Description {formData.type !== 'transfer' && '*'}
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder={formData.type === 'transfer' ? "Description (optionnelle)..." : "Description..."}
-                  value={formData.description}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({ ...prev, description: val }));
-                  }}
-                  required={formData.type !== 'transfer'}
-                  className="min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm"
-                />
+              {/* Description sits beside the accounting date — the design
+                  pairs them in one equal two-column row. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="ft-field">
+                  <label htmlFor="description">
+                    {t('common.description', { defaultValue: 'Description' })}
+                    {formData.type !== 'transfer' && ' *'}
+                  </label>
+                  <Input
+                    id="description"
+                    placeholder={t('newTransaction.descriptionPlaceholder', { defaultValue: 'e.g. Monoprix Bastille' })}
+                    value={formData.description}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({ ...prev, description: val }));
+                    }}
+                    required={formData.type !== 'transfer'}
+                    className="h-10 text-[14px]"
+                  />
+                </div>
+
+                <div className="ft-field">
+                  <label>{t('transactions.accountingDate', { defaultValue: 'Accounting date' })} *</label>
+                  <DatePicker
+                    date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+                    onDateChange={(date) => {
+                      const newDate = date ? date.toISOString().split('T')[0] : '';
+                      setFormData(prev => ({
+                        ...prev,
+                        transaction_date: newDate,
+                        value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
+                      }));
+                    }}
+                    placeholder={t('common.selectAccountingDate', { defaultValue: 'Accounting date' })}
+                  />
+                </div>
               </div>
 
-              {/* Account Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="account">Compte *</Label>
-              <Select 
-                  value={formData.account_id} 
-                  onValueChange={(value) => {
-                    setFormData(prev => {
-                      const fromAccount = accounts.find(acc => acc.id === value);
-                      const toAccount = accounts.find(acc => acc.id === prev.to_account_id);
-                      const aliases = preferences?.accountAliases || {};
-                      const getAlias = (acc: any) => aliases[acc.id] || acc.name;
-                      const autoDescription = prev.type === 'transfer' && fromAccount && toAccount 
-                        ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
-                        : prev.description;
-                      return { ...prev, account_id: value, description: autoDescription };
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('common.selectAccount')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.length === 0 ? (
-                      <SelectItem value="no-accounts" disabled>
-                        Aucun compte disponible
-                      </SelectItem>
-                    ) : (
-                      accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{account.name}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {account.bank.replace(/_/g, ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {selectedAccount && (
-                  <div className="text-sm text-muted-foreground">
-                    Solde actuel: {formatCurrency(selectedAccount.balance)}
+              {/* Account — a visible chip per account, so the choice costs
+                  one tap and the colour coding is on screen. */}
+              {/* The <Select> this replaced was addressable by htmlFor; a group
+                  of chips is not, so the label names the group instead —
+                  otherwise each chip is announced with no context. */}
+              <div className="ft-field" role="group" aria-labelledby="new-tx-account-label">
+                <label id="new-tx-account-label">{t('newTransaction.account', { defaultValue: 'Account' })} *</label>
+                {accounts.length === 0 ? (
+                  <p className="text-[13px] text-muted-foreground">
+                    {t('common.noAccountsAvailable', { defaultValue: 'No account available' })}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {accounts.map((account) => (
+                      <button
+                        key={account.id}
+                        type="button"
+                        aria-pressed={formData.account_id === account.id}
+                        onClick={() => {
+                          setFormData(prev => {
+                            const fromAccount = accounts.find(acc => acc.id === account.id);
+                            const toAccount = accounts.find(acc => acc.id === prev.to_account_id);
+                            const aliases = preferences?.accountAliases || {};
+                            const getAlias = (acc: any) => aliases[acc.id] || acc.name;
+                            const autoDescription = prev.type === 'transfer' && fromAccount && toAccount
+                              ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                              : prev.description;
+                            return { ...prev, account_id: account.id, description: autoDescription };
+                          });
+                        }}
+                        className={`ft-chip ${formData.account_id === account.id ? 'active' : ''}`}
+                      >
+                        <i
+                          className="dot"
+                          style={{ background: BANK_COLORS[account.bank] ?? BANK_COLORS.other }}
+                          aria-hidden
+                        />
+                        {account.name}
+                      </button>
+                    ))}
                   </div>
+                )}
+                {selectedAccount && (
+                  <p className="text-[12px] text-fg-mute">
+                    {t('common.balance', { defaultValue: 'Balance' })}: {formatCurrency(selectedAccount.balance)}
+                  </p>
                 )}
               </div>
 
               {/* Destination Account Selection (Transfer only) */}
               {formData.type === 'transfer' && (
-                <div className="space-y-2">
-                  <Label htmlFor="to_account">Compte de destination *</Label>
-                  <Select 
+                <div className="ft-field">
+                  <label htmlFor="to_account">
+                    {t('newTransaction.destinationAccount', { defaultValue: 'Destination account' })} *
+                  </label>
+                  <Select
                     value={formData.to_account_id} 
                     onValueChange={(value) => {
                       setFormData(prev => {
@@ -284,7 +330,11 @@ const NewTransaction = () => {
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner le compte de destination" />
+                      <SelectValue
+                        placeholder={t('common.selectDestinationAccount', {
+                          defaultValue: 'Select the destination account',
+                        })}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
@@ -300,98 +350,86 @@ const NewTransaction = () => {
                     </SelectContent>
                   </Select>
                   {selectedToAccount && (
-                    <div className="text-sm text-muted-foreground">
-                      Solde actuel: {formatCurrency(selectedToAccount.balance)}
-                    </div>
+                    <p className="text-[12px] text-fg-mute">
+                      {t('common.balance', { defaultValue: 'Balance' })}: {formatCurrency(selectedToAccount.balance)}
+                    </p>
                   )}
                 </div>
               )}
 
               {/* Transfer Fee (Transfer only) */}
               {formData.type === 'transfer' && (
-                <div className="space-y-2">
-                  <Label htmlFor="transfer_fee">Frais de transfert (optionnel)</Label>
+                <div className="ft-field">
+                  <label htmlFor="transfer_fee">
+                    {t('newTransaction.transferFee', { defaultValue: 'Transfer fee' })}
+                    {' '}
+                    <span className="font-normal">
+                      ({t('common.optional', { defaultValue: 'optional' })})
+                    </span>
+                  </label>
                   <AmountInput
                     id="transfer_fee"
                     placeholder="0.00"
                     value={formData.transfer_fee}
                     onChange={(value) => setFormData(prev => ({ ...prev, transfer_fee: value }))}
+                    className="h-10 text-[14px] md:text-[14px]"
                   />
                 </div>
               )}
 
-              {/* Category Selection (Not for transfers) */}
+              {/* Category — chips, so the colour that makes a category
+                  recognisable is on screen instead of behind a menu. */}
               {formData.type !== 'transfer' && (
-                <div className="space-y-2">
-                  <Label htmlFor="category">Catégorie</Label>
-                  <Select 
-                    value={formData.category_id} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.selectCategoryOptional')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="ft-field" role="group" aria-labelledby="new-tx-category-label">
+                  <label id="new-tx-category-label">{t('common.category', { defaultValue: 'Category' })}</label>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        aria-pressed={formData.category_id === category.id}
+                        onClick={() =>
+                          setFormData(prev => ({
+                            ...prev,
+                            category_id: prev.category_id === category.id ? '' : category.id,
+                          }))
+                        }
+                        className={`ft-chip ${formData.category_id === category.id ? 'active' : ''}`}
+                      >
+                        <i className="dot" style={{ background: category.color }} aria-hidden />
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Transaction Dates */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label className="text-xs sm:text-sm">Date Comptable *</Label>
-                  <DatePicker
-                    date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
-                    onDateChange={(date) => {
-                      const newDate = date ? date.toISOString().split('T')[0] : '';
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        transaction_date: newDate,
-                        value_date: prev.value_date === prev.transaction_date ? newDate : prev.value_date
-                      }));
-                    }}
-                    placeholder="Date comptable"
-                  />
-                </div>
-                
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label className="text-xs sm:text-sm">Date Valeur *</Label>
-                  <DatePicker
-                    date={formData.value_date ? new Date(formData.value_date) : undefined}
-                    onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
-                    placeholder="Date valeur"
-                  />
-                </div>
+              {/* Value date — the app tracks both conventions; the design
+                  only has one, so the second gets its own band. */}
+              <div className="ft-field">
+                <label>{t('transactions.valueDate', { defaultValue: 'Value date' })} *</label>
+                <DatePicker
+                  date={formData.value_date ? new Date(formData.value_date) : undefined}
+                  onDateChange={(date) => setFormData(prev => ({ ...prev, value_date: date ? date.toISOString().split('T')[0] : '' }))}
+                  placeholder={t('common.selectValueDate', { defaultValue: 'Value date' })}
+                />
               </div>
 
-              {/* Actions — right-aligned, the submit last, so the eye lands on
-                  it after reading the form rather than before. */}
-              <div className="flex justify-end gap-2 pt-4">
+              {/* Actions — right-aligned at intrinsic width, so Cancel does
+                  not carry the same weight as Save. */}
+              <div className="flex justify-end gap-2.5 pt-1">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/')}
                   disabled={loading}
-                  className="min-w-[112px]"
                 >
                   {t('common.cancel', { defaultValue: 'Cancel' })}
                 </Button>
-                <Button type="submit" disabled={loading} className="min-w-[136px] gap-1.5">
-                  <Check className="h-4 w-4" />
+                <Button type="submit" disabled={loading}>
+                  <Check className="h-[15px] w-[15px] mr-1.5" />
                   {loading
-                    ? t('common.creating', { defaultValue: 'Creating…' })
+                    ? t('newTransaction.creating', { defaultValue: 'Creating…' })
                     : t('common.create', { defaultValue: 'Create' })}
                 </Button>
               </div>

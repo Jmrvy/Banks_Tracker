@@ -5,10 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useCommandPalette } from "@/contexts/CommandPaletteContext";
-import { LanguageSelector } from "@/components/LanguageSelector";
 import { SidebarResumePill } from "@/components/tour/SidebarResumePill";
-import { TraceMark } from "@/components/trace/TraceMark";
-import { useTrace } from "@/contexts/TraceContext";
 import {
   mainNavigation,
   accountsGroup,
@@ -24,7 +21,6 @@ export function AppSidebar() {
   const { user } = useAuth();
   const { transactions } = useFinancialData();
   const { togglePalette } = useCommandPalette();
-  const { openDock } = useTrace();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -67,11 +63,11 @@ export function AppSidebar() {
   return (
     <aside
       data-tour="nav"
-      className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-line flex flex-col gap-4 px-3 pt-5 pb-3 overflow-y-auto"
+      className="fixed left-0 top-0 h-screen w-[250px] bg-sidebar border-r border-line flex flex-col gap-4 px-3 pt-5 pb-3 overflow-y-auto"
     >
       {/* Brand — the display serif's smallest appearance, and the only place
           the app signs its own name. */}
-      <Link to="/" className="flex items-center gap-2.5 px-2 pb-1">
+      <Link to="/" className="flex items-center gap-2.5 px-2 pt-0.5 pb-1">
         <span className="ft-brand-mark">S</span>
         <span className="min-w-0">
           <span className="ft-brand-name block truncate">Spending Tracker</span>
@@ -84,35 +80,15 @@ export function AppSidebar() {
       {/* Search shortcut — opens the global command palette directly through
           context, not via a synthetic keyboard event (which was fragile and
           relied on the document listener still being attached). */}
-      <div className="flex flex-col gap-1.5">
-        <button
-          data-tour="search"
-          onClick={togglePalette}
-          className="flex items-center gap-2 w-full px-2.5 py-2.5 rounded-md text-[12.5px] text-fg-dim bg-bg-elev border border-line hover:border-line-strong hover:text-fg-mute transition-colors text-left"
-        >
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1">{t("common.searchPlaceholder")}</span>
-          <kbd className="text-[10px] font-mono bg-bg-elev border border-line-strong text-fg-dim px-1.5 py-px rounded-[5px]">
-            ⌘K
-          </kbd>
-        </button>
+      <button data-tour="search" onClick={togglePalette} className="ft-searchbtn">
+        <Search className="h-[15px] w-[15px] flex-shrink-0" />
+        <span className="flex-1 truncate">{t("common.searchPlaceholder")}</span>
+        <span className="ft-kbd">⌘K</span>
+      </button>
 
-        {/* Ask Trace about the page currently open. Distinct from the
-            palette: the palette is deterministic search, this is the
-            copilot scoped to what the user is looking at. */}
-        <button
-          onClick={openDock}
-          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-[12.5px] text-fg-dim bg-bg-elev border border-line hover:border-line-strong hover:text-fg-mute transition-colors text-left"
-        >
-          <TraceMark size="sm" plain />
-          <span className="flex-1 truncate">
-            {t("trace.askAboutPage", { defaultValue: "Ask Trace about this page" })}
-          </span>
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex flex-col">
+      {/* Navigation — three grouped clusters, 16px apart, exactly as the
+          design separates them. */}
+      <nav className="flex flex-col gap-4">
         <div className="flex flex-col gap-px">
           {mainNavigation.map((item) => (
             <NavLink key={item.path} item={item} />
@@ -139,20 +115,17 @@ export function AppSidebar() {
       <Link
         to="/new-transaction"
         data-tour="new-tx"
-        className="flex items-center justify-center gap-2 h-[38px] rounded-md bg-primary text-on-accent text-[13px] font-bold hover:brightness-105 active:translate-y-px transition-all"
+        className="mt-3.5 flex items-center justify-center gap-[7px] h-[34px] rounded-md bg-primary text-on-accent text-[13px] font-[650] hover:brightness-105 active:translate-y-px transition-all"
       >
-        <Plus className="h-4 w-4" />
+        <Plus className="h-[15px] w-[15px]" />
         {t("transactions.newTransaction")}
       </Link>
 
       <SidebarResumePill />
 
-      {/* Footer — settings, language, and the account this data belongs to. */}
-      <div className="mt-auto pt-2.5 border-t border-line flex flex-col gap-1">
-        <div className="px-0.5 pb-1">
-          <LanguageSelector />
-        </div>
-
+      {/* Footer — settings and the account this data belongs to. Language
+          lives in Settings → Preferences, where the design keeps it. */}
+      <div className="mt-auto pt-2.5 border-t border-line flex flex-col">
         <Link
           to={settingsItem.path}
           className={cn("ft-nav-item", isActive(settingsItem.path) && "active")}
@@ -165,16 +138,14 @@ export function AppSidebar() {
           type="button"
           onClick={() => navigate("/settings")}
           aria-label={t("navigation.manageProfile")}
-          className="group flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors w-full hover:bg-bg-hover"
+          className="group flex items-center gap-2.5 p-2 rounded-[12px] text-left transition-colors w-full hover:bg-bg-hover"
         >
-          <div className="h-8 w-8 rounded-[11px] bg-primary/[0.16] text-accent-deep grid place-items-center text-xs font-bold flex-shrink-0">
-            {initials || "JM"}
-          </div>
+          <span className="ft-avatar">{initials || "JM"}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-foreground truncate">{displayName}</p>
+            <p className="text-[13px] font-[650] text-foreground truncate">{displayName}</p>
             <p className="text-[11px] text-fg-dim truncate">{user?.email}</p>
           </div>
-          <MoreHorizontal className="h-4 w-4 text-fg-dim group-hover:text-foreground flex-shrink-0" />
+          <MoreHorizontal className="h-[15px] w-[15px] text-fg-dim group-hover:text-foreground flex-shrink-0" />
         </button>
       </div>
     </aside>

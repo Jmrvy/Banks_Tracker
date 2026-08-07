@@ -10,8 +10,21 @@ import { Database, Edit3, Save, Trash2, X, RefreshCw, History } from "lucide-rea
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { BANK_IDS, getBankLabel } from "@/lib/constants";
+import { BANK_COLORS, BANK_IDS, getBankLabel } from "@/lib/constants";
 import type { Account } from "@/hooks/useFinancialData";
+
+/** The row glyph's tint. Falls back to the neutral bank colour. */
+const accountTint = (bank: string) => BANK_COLORS[bank] ?? BANK_COLORS.other;
+
+/** Short code for the glyph — the design shows a two-letter account mark. */
+const accountInitials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase() || "—";
 
 interface RecalcHistoryEntry {
   run_id: string;
@@ -200,12 +213,12 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
 
   return (
     <>
-      <div className="ft-card p-5 sm:p-6">
+      <div className="ft-card">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
-                <Database className="h-3.5 w-3.5" />
+              <div className="ft-kpi-icon acc">
+                <Database className="h-[15px] w-[15px]" />
               </div>
               <h3 className="ft-card-title text-base">{t('settings.myAccounts')}</h3>
             </div>
@@ -214,20 +227,28 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
           <div className="flex gap-1.5 flex-shrink-0">
             <Button size="sm" variant="outline" onClick={openHistory} className="h-8 text-xs gap-1.5">
               <History className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Historique</span>
+              <span className="hidden sm:inline">{t('transactions.history')}</span>
             </Button>
             <Button size="sm" variant="outline" onClick={recalculateBalances} disabled={recalculating} className="h-8 text-xs gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${recalculating ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{recalculating ? 'Recalcul...' : 'Recalculer'}</span>
-              <span className="sm:hidden">{recalculating ? '...' : 'Recalc'}</span>
+              <span className="hidden sm:inline">
+                {recalculating
+                  ? t('accounts.recalculating', { defaultValue: 'Recalculating…' })
+                  : t('accounts.recalculate', { defaultValue: 'Recalculate' })}
+              </span>
+              <span className="sm:hidden">
+                {recalculating ? '…' : t('accounts.recalculateShort', { defaultValue: 'Recalc' })}
+              </span>
             </Button>
           </div>
         </div>
+        {/* Flat, `--line-soft`-divided rows — the design never nests a box
+            inside a card. The colour glyph carries the bank's brand tint. */}
         <div>
-          <div className="space-y-2 sm:space-y-3">
+          <div className="flex flex-col">
             {accounts.map((account) => (
-              <div key={account.id} className="p-3 border rounded-lg bg-muted/30 dark:bg-muted/20">
-                <div className="flex items-start justify-between gap-3">
+              <div key={account.id} className="border-t border-line-soft py-2.5">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     {editingAccount === account.id ? (
                       <div className="grid gap-2 sm:grid-cols-3">
@@ -255,42 +276,54 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                         <AmountInput
                           value={editingValues.initial_balance}
                           onChange={(value) => setEditingValues(prev => ({ ...prev, initial_balance: value }))}
-                          placeholder="Solde initial"
+                          placeholder={t('accounts.initialBalance', { defaultValue: 'Initial balance' })}
                           className="h-8 sm:h-10 text-xs sm:text-sm"
                         />
                       </div>
                     ) : (
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{account.name}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-xs text-muted-foreground capitalize">
+                      <div className="flex items-center gap-[11px] min-w-0">
+                        <div
+                          className="w-[30px] h-[30px] rounded-[10px] grid place-items-center text-[11px] font-bold tracking-[-0.02em] flex-shrink-0"
+                          style={{
+                            background: `color-mix(in oklab, ${accountTint(account.bank)} 15%, transparent)`,
+                            color: accountTint(account.bank),
+                          }}
+                          aria-hidden
+                        >
+                          {accountInitials(account.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-foreground truncate">
+                            {account.name}
+                          </p>
+                          <div className="text-[11.5px] text-fg-dim mt-px truncate">
                             {getBankLabel(account.bank, t)}
-                          </p>
-                          <span className="text-xs text-muted-foreground">•</span>
-                          <p className="text-xs font-semibold text-foreground">
-                            {formatCurrency(Number(account.balance))}
-                          </p>
+                            {' · '}
+                            <span className="font-mono tabular-nums">
+                              {formatCurrency(Number(account.balance))}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0">
+                  <div className="flex gap-1 flex-shrink-0">
                     {editingAccount === account.id ? (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => saveAccount(account.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
-                          <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <Button size="sm" variant="ghost" onClick={() => saveAccount(account.id)} aria-label={t('common.save')} className="h-8 w-8 p-0">
+                          <Save className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingAccount(null)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
-                          <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <Button size="sm" variant="ghost" onClick={() => setEditingAccount(null)} aria-label={t('common.cancel')} className="h-8 w-8 p-0">
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </>
                     ) : (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => startEditing(account)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
-                          <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <Button size="sm" variant="ghost" onClick={() => startEditing(account)} aria-label={t('common.edit')} className="h-8 w-8 p-0">
+                          <Edit3 className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleDelete(account.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(account.id)} aria-label={t('common.delete')} className="h-8 w-8 p-0">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </>
                     )}

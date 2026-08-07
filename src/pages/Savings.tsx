@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard, SlidersHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { PiggyBank, Plus, TrendingUp, TrendingDown, Target, Calendar, CreditCard, SlidersHorizontal, User } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useSavingsGoals, SavingsGoal } from "@/hooks/useSavingsGoals";
@@ -13,14 +12,15 @@ import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal"
 import { SpecialBudgetModal } from "@/components/SpecialBudgetModal";
 import { Wallet } from "lucide-react";
 import { usePeriod } from "@/contexts/PeriodContext";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { NewSavingsGoalModal } from "@/components/NewSavingsGoalModal";
 import { EditSavingsGoalModal } from "@/components/EditSavingsGoalModal";
 import { ReimbursementDetailModal } from "@/components/ReimbursementDetailModal";
 import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
 import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
-import { netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
-import { fr } from "date-fns/locale";
+import { netIncomeAmount, netExpenseAmount, type EngineTx } from "@/lib/reportsEngine";
+import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Segmented } from "@/components/ui/segmented";
@@ -49,8 +49,21 @@ const Savings = () => {
     return m;
   }, [specialBudgets]);
   const { installmentPayments, loading: installmentsLoading } = useInstallmentPayments();
-  const { dateRange, periodLabel } = usePeriod();
-  const { t } = useTranslation();
+  const { dateRange, periodLabel, selectedPeriod, setSelectedPeriod } = usePeriod();
+  const { isPrivacyMode } = usePrivacy();
+  const { t, i18n } = useTranslation();
+  // Month names and day/month order follow the UI language — pinned to `fr`,
+  // the axis read "janv./févr." to English users.
+  const dateLocale = i18n.language === "fr" ? fr : enUS;
+
+  // Same period presets the dashboard head offers, so the two heads switch
+  // the same global window with the same control.
+  const periods = [
+    { label: "1M", value: "1m" as const },
+    { label: "3M", value: "3m" as const },
+    { label: "YTD", value: "ytd" as const },
+    { label: "1Y", value: "1y" as const },
+  ];
 
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
@@ -142,11 +155,7 @@ const Savings = () => {
     const hasReimbursements = reimbursementTransactions.length > 0;
 
     if (!hasInvestments && !hasReimbursements) {
-      return {
-        totalSaved: 0, transactionCount: 0, trendData: [],
-        incomeTotal: 0, expenseTotal: 0, netTotal: 0,
-        depositCount: 0, withdrawalCount: 0,
-      };
+      return { totalSaved: 0, transactionCount: 0, trendData: [], incomeTotal: 0, expenseTotal: 0, netTotal: 0 };
     }
 
     // Net, not gross: a withdrawal since partly repaid was never that big a
@@ -176,21 +185,10 @@ const Savings = () => {
     let cumulative = 0;
     const trendData = allSavingsTransactions.map(tx => {
       cumulative += tx.amount;
-      return { date: format(tx.date, 'dd/MM', { locale: fr }), total: cumulative };
+      return { date: format(tx.date, 'dd/MM', { locale: dateLocale }), total: cumulative };
     });
 
-    return {
-      totalSaved: netTotal,
-      transactionCount: periodTransactions.length + reimbursementTransactions.length,
-      trendData,
-      incomeTotal,
-      expenseTotal,
-      netTotal,
-      // Counts behind each side of the row, so a figure can be traced back to
-      // the rows that produced it.
-      depositCount: periodTransactions.filter(tx => tx.type === 'expense').length,
-      withdrawalCount: periodTransactions.filter(tx => tx.type === 'income').length,
-    };
+    return { totalSaved: netTotal, transactionCount: periodTransactions.length + reimbursementTransactions.length, trendData, incomeTotal, expenseTotal, netTotal };
   }, [periodTransactions, investmentCategoryIds, reimbursementTransactions, reimbursementStats.total]);
 
   // Calculate monthly average based on weighted recent months (more weight to recent)
@@ -237,6 +235,34 @@ const Savings = () => {
     return { monthlyAverage: weightedAverage };
   }, [transactions, investmentCategoryIds, isInvestment]);
 
+  // Presentation-level folds of figures the page already holds — nothing new
+  // is computed, the same rows are simply grouped by month for the breakdown
+  // panel and summed for the context row.
+  const monthlyFlows = useMemo(() => {
+    const byMonth = new Map<string, { label: string; deposits: number; withdrawals: number }>();
+    for (const tx of periodTransactions) {
+      const d = getTxDate(tx, preferences.dateType);
+      const key = format(d, 'yyyy-MM');
+      const entry = byMonth.get(key) ?? { label: format(d, 'MMM', { locale: dateLocale }), deposits: 0, withdrawals: 0 };
+      if (tx.type === 'expense') entry.deposits += netExpenseAmount(tx as EngineTx);
+      else if (tx.type === 'income') entry.withdrawals += netIncomeAmount(tx as EngineTx);
+      byMonth.set(key, entry);
+    }
+    const rows = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
+    const peak = rows.reduce((m, r) => Math.max(m, r.deposits, r.withdrawals), 0) || 1;
+    return { rows, peak };
+  }, [periodTransactions, preferences.dateType]);
+
+  const goalTotals = useMemo(() => ({
+    current: goals.reduce((s, g) => s + g.current_amount, 0),
+    target: goals.reduce((s, g) => s + g.target_amount, 0),
+  }), [goals]);
+
+  const reimbursementRemaining = useMemo(
+    () => reimbursementInstallments.reduce((s, ip) => s + ip.remaining_amount, 0),
+    [reimbursementInstallments],
+  );
+
   const calculateProjection = (goal: SavingsGoal) => {
     const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;
     const remainingAmount = goal.target_amount - goal.current_amount;
@@ -278,20 +304,32 @@ const Savings = () => {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
       <div className="ft-page">
-        {/* Page head */}
+        {/* Page head — the period switch leads the action row, as in the
+            design, rather than sitting in the subtitle as a read-only badge. */}
         <div className="ft-page-head">
           <div>
             <div className="ft-eyebrow">{t('navigation.savings')}</div>
             <h1 className="ft-page-title">{t('savings.pageTitle')}</h1>
-            <div className="ft-page-sub flex items-center gap-2">
-              <span>{t('savings.pageSubtitle')}</span>
-              <Badge variant="secondary" className="flex items-center gap-1 text-[11px] h-5">
-                <Calendar className="h-3 w-3" />
-                <span className="capitalize">{periodLabel}</span>
-              </Badge>
-            </div>
+            <div className="ft-page-sub">{t('savings.pageSubtitle')}</div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[9px] flex-wrap">
+            <div className="ft-seg" role="group" aria-label={t('reports.period', { defaultValue: 'Period' })}>
+              {periods.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  className={selectedPeriod === p.value ? "active" : ""}
+                  aria-pressed={selectedPeriod === p.value}
+                  onClick={() => setSelectedPeriod(p.value)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <span className="ft-chip capitalize">
+              <Calendar className="h-3 w-3" />
+              {periodLabel}
+            </span>
             <Button
               onClick={() => setShowCategoriesModal(true)}
               size="sm"
@@ -314,23 +352,25 @@ const Savings = () => {
           </div>
         </div>
 
-        {/* Investment statistics for the period. Each figure states the count
-            it was built from underneath it, so the row can be checked by hand
-            against the history below. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+        {/* Investment statistics for the period — four across, the widest row
+            the system has, every tile carrying its context in a foot line. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
               <div className="ft-kpi-icon acc"><PiggyBank className="h-4 w-4" /></div>
               <span className="ft-kpi-label truncate">{t('savings.netSavings')}</span>
             </div>
-            <div className={`ft-kpi-value truncate ${investmentStats.netTotal >= 0 ? 'text-pos' : 'text-destructive'}`}>
+            <div className={cn(
+              'ft-kpi-value truncate',
+              investmentStats.netTotal >= 0 ? 'text-pos' : 'text-neg',
+              isPrivacyMode && 'blur-md select-none',
+            )}>
               {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
             </div>
-            <div className="ft-kpi-foot mt-auto truncate">
+            <div className="ft-kpi-foot truncate">
               {t('savings.kpiNetFoot', {
-                count: investmentStats.transactionCount,
-                avg: formatCurrency(allTimeStats.monthlyAverage),
-                defaultValue: '{{count}} movements · {{avg}}/mo avg',
+                defaultValue: '{{n}} movements this period',
+                n: investmentStats.transactionCount,
               })}
             </div>
           </div>
@@ -339,68 +379,198 @@ const Savings = () => {
               <div className="ft-kpi-icon pos"><TrendingDown className="h-4 w-4" /></div>
               <span className="ft-kpi-label truncate">{t('savings.deposits')}</span>
             </div>
-            <div className="ft-kpi-value truncate text-pos">+{formatCurrency(investmentStats.expenseTotal)}</div>
-            <div className="ft-kpi-foot mt-auto truncate">
-              {t('savings.kpiCountFoot', {
-                count: investmentStats.depositCount,
-                defaultValue: '{{count}} movements',
+            <div className={cn('ft-kpi-value truncate text-pos', isPrivacyMode && 'blur-md select-none')}>
+              +{formatCurrency(investmentStats.expenseTotal)}
+            </div>
+            <div className="ft-kpi-foot truncate">
+              {t('savings.kpiMonthlyAvgFoot', {
+                defaultValue: 'avg. {{amount}}/month',
+                amount: formatCurrency(allTimeStats.monthlyAverage),
               })}
             </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
-              <div className="ft-kpi-icon neg"><TrendingUp className="h-4 w-4" /></div>
+              <div className="ft-kpi-icon"><TrendingUp className="h-4 w-4 text-muted-foreground" /></div>
               <span className="ft-kpi-label truncate">{t('savings.withdrawals')}</span>
             </div>
-            <div className="ft-kpi-value truncate text-destructive">-{formatCurrency(investmentStats.incomeTotal)}</div>
-            <div className="ft-kpi-foot mt-auto truncate">
-              {t('savings.kpiCountFoot', {
-                count: investmentStats.withdrawalCount,
-                defaultValue: '{{count}} movements',
-              })}
+            <div className={cn('ft-kpi-value truncate text-neg', isPrivacyMode && 'blur-md select-none')}>
+              -{formatCurrency(investmentStats.incomeTotal)}
             </div>
+            <div className="ft-kpi-foot truncate capitalize">{periodLabel}</div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
               <div className="ft-kpi-icon pos"><CreditCard className="h-4 w-4" /></div>
               <span className="ft-kpi-label truncate">{t('savings.reimbursements')}</span>
             </div>
-            <div className="ft-kpi-value truncate text-pos">+{formatCurrency(reimbursementStats.total)}</div>
-            <div className="ft-kpi-foot mt-auto truncate">
-              {t('savings.kpiPlansFoot', {
-                count: reimbursementInstallments.length,
-                tx: reimbursementStats.count,
-                defaultValue: '{{count}} plans · {{tx}} transactions',
+            <div className={cn('ft-kpi-value truncate text-pos', isPrivacyMode && 'blur-md select-none')}>
+              +{formatCurrency(reimbursementStats.total)}
+            </div>
+            <div className="ft-kpi-foot truncate">
+              {t('savings.kpiReimbFoot', {
+                defaultValue: '{{n}} plans · {{amount}} remaining',
+                n: reimbursementInstallments.length,
+                amount: formatCurrency(reimbursementRemaining),
               })}
             </div>
           </div>
         </div>
 
-        {/* Evolution Chart */}
+        {/* Context row — three categorical figures the KPI strip doesn't
+            carry: what the goals hold, the running monthly pace, and what the
+            reimbursement plans still owe. */}
+        <div className="ft-g3">
+          <div className="ft-card p-5">
+            <div className="flex items-center gap-2">
+              <i className="ft-swatch" style={{ background: 'hsl(var(--chart-2))' }} />
+              <span className="ft-kpi-label">{t('savings.goalsTitle')}</span>
+            </div>
+            <div className={cn(
+              'font-mono text-[26px] font-medium tracking-[-0.03em] leading-none mt-2.5 mb-1',
+              isPrivacyMode && 'blur-md select-none',
+            )}>
+              {formatCurrency(goalTotals.current)}
+            </div>
+            <div className="text-[12px] text-fg-dim">
+              {t('savings.ofTarget', {
+                defaultValue: 'of {{amount}} targeted',
+                amount: formatCurrency(goalTotals.target),
+              })}
+            </div>
+          </div>
+          <div className="ft-card p-5">
+            <div className="flex items-center gap-2">
+              <i className="ft-swatch" style={{ background: 'hsl(var(--chart-1))' }} />
+              <span className="ft-kpi-label">
+                {t('savings.monthlyAverage', { defaultValue: 'Monthly average' })}
+              </span>
+            </div>
+            <div className={cn(
+              'font-mono text-[26px] font-medium tracking-[-0.03em] leading-none mt-2.5 mb-1',
+              isPrivacyMode && 'blur-md select-none',
+            )}>
+              {formatCurrency(allTimeStats.monthlyAverage)}
+            </div>
+            <div className="text-[12px] text-fg-dim">
+              {t('savings.monthlyAverageSub', { defaultValue: 'Weighted over the last 6 months' })}
+            </div>
+          </div>
+          <div className="ft-card p-5">
+            <div className="flex items-center gap-2">
+              <i className="ft-swatch" style={{ background: 'hsl(var(--chart-4))' }} />
+              <span className="ft-kpi-label">{t('savings.reimbursements')}</span>
+            </div>
+            <div className={cn(
+              'font-mono text-[26px] font-medium tracking-[-0.03em] leading-none mt-2.5 mb-1',
+              isPrivacyMode && 'blur-md select-none',
+            )}>
+              {formatCurrency(reimbursementRemaining)}
+            </div>
+            <div className="text-[12px] text-fg-dim">
+              {t('savings.reimbRemainingSub', {
+                defaultValue: 'still to come back across {{n}} plans',
+                n: reimbursementInstallments.length,
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Charts never sit alone at full page width in this system: the
+            cumulative curve pairs with the month-by-month breakdown. */}
         {investmentStats.trendData.length > 0 && (
-          <div className="ft-card p-5 sm:p-6">
-            <h3 className="ft-card-title text-base sm:text-lg mb-3">
-              {t('savings.evolutionTitle')}
-            </h3>
-            <div className="h-48 sm:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={investmentStats.trendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--line))" opacity={0.5} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--line))',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                    }}
-                  />
-                  <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+          <div className="ft-g2 [&>*]:min-w-0">
+            <div className="ft-card">
+              <div className="ft-card-head">
+                <div>
+                  <h3 className="ft-card-title">{t('savings.evolutionTitle')}</h3>
+                  <p className="ft-card-sub">
+                    {t('savings.evolutionSub', { defaultValue: 'Cumulative savings over the period' })}
+                  </p>
+                </div>
+              </div>
+              <div className="h-48 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={investmentStats.trendData}>
+                    <CartesianGrid stroke="hsl(var(--grid))" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--fg-dim))' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-dim))' }} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      labelStyle={{ color: 'hsl(var(--fg-onink))', opacity: 0.65 }}
+                      itemStyle={{ color: 'hsl(var(--fg-onink))' }}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--bg-ink))',
+                        color: 'hsl(var(--fg-onink))',
+                        border: 'none',
+                        borderRadius: '10px',
+                        boxShadow: 'var(--sh-2)',
+                      }}
+                    />
+                    {/* Moss, not apricot: the accent is reserved for actions. */}
+                    <Area type="monotone" dataKey="total" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2) / 0.26)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="ft-card">
+              <div className="ft-card-head">
+                <div>
+                  <h3 className="ft-card-title">
+                    {t('savings.monthlyBreakdown', { defaultValue: 'Monthly breakdown' })}
+                  </h3>
+                  <p className="ft-card-sub">
+                    {t('savings.monthlyBreakdownSub', { defaultValue: 'Deposits and withdrawals over the period' })}
+                  </p>
+                </div>
+                <div className="ft-legend">
+                  <span>
+                    <i className="ft-swatch" style={{ background: 'hsl(var(--chart-2))' }} />
+                    {t('savings.deposits')}
+                  </span>
+                  <span>
+                    <i className="ft-swatch bg-neg" />
+                    {t('savings.withdrawals')}
+                  </span>
+                </div>
+              </div>
+              {monthlyFlows.rows.length === 0 ? (
+                <div className="ft-empty py-8">
+                  <p className="text-sm text-muted-foreground">
+                    {t('savings.noMovements', { defaultValue: 'No savings movements in this period.' })}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-[11px] mt-1.5">
+                  {monthlyFlows.rows.map((m, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="w-[54px] text-[12px] font-semibold text-fg-dim capitalize flex-shrink-0">
+                        {m.label}
+                      </span>
+                      <div className="flex-1 flex gap-[3px] min-w-0">
+                        <div
+                          className="h-[9px] rounded-[5px]"
+                          style={{ width: `${(m.deposits / monthlyFlows.peak) * 100}%`, background: 'hsl(var(--chart-2))' }}
+                        />
+                        {m.withdrawals > 0 && (
+                          <div
+                            className="h-[9px] rounded-[5px] bg-neg"
+                            style={{ width: `${(m.withdrawals / monthlyFlows.peak) * 100}%` }}
+                          />
+                        )}
+                      </div>
+                      <span className={cn(
+                        'font-mono text-[12.5px] font-medium text-right w-[78px] flex-shrink-0',
+                        isPrivacyMode && 'blur-md select-none',
+                      )}>
+                        {m.deposits - m.withdrawals >= 0 ? '+' : ''}
+                        {formatCurrency(m.deposits - m.withdrawals)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -442,57 +612,67 @@ const Savings = () => {
               <p className="text-sm text-muted-foreground">{t('savings.reimbursementDesc')}</p>
             </div>
           ) : (
-          <div>
-            <h2 className="ft-eyebrow flex items-center gap-2 mb-2">
-              <CreditCard className="h-3.5 w-3.5 text-pos" />
-              {t('savings.reimbursementInstallments')} ({reimbursementInstallments.length})
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              {t('savings.reimbursementDesc')}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          /* One flush card of scannable rows — the design compresses a plan to
+             a single line rather than repeating it across a tall tile. */
+          <div className="ft-card-flush">
+            <div className="ft-card-head">
+              <div>
+                <h3 className="ft-card-title">{t('savings.reimbursementInstallments')}</h3>
+                <p className="ft-card-sub">{t('savings.reimbursementDesc')}</p>
+              </div>
+            </div>
+            <div>
               {reimbursementInstallments.map((installment) => {
                 const progress = installment.total_amount > 0 ? Math.min(100, Math.round(((installment.total_amount - installment.remaining_amount) / installment.total_amount) * 1000) / 10) : 0;
-                const amountReceived = installment.total_amount - installment.remaining_amount;
+                const doneCount = installment.installment_amount > 0
+                  ? Math.round((installment.total_amount - installment.remaining_amount) / installment.installment_amount)
+                  : 0;
+                const totalCount = installment.installment_amount > 0
+                  ? Math.ceil(installment.total_amount / installment.installment_amount)
+                  : 0;
 
                 return (
                   <button
                     key={installment.id}
                     type="button"
-                    className="ft-card p-4 sm:p-5 text-left flex flex-col gap-2.5 hover:border-line-strong transition-colors"
+                    className="ft-list-row md:grid-cols-[34px_1fr_160px_110px_auto]"
                     onClick={() => setSelectedReimbursement(installment)}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">{installment.description}</h3>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium mt-1 ${installment.is_active ? 'bg-pos/12 text-pos' : 'bg-bg-subtle text-muted-foreground'}`}>
-                          {installment.is_active ? t('savings.inProgress') : t('savings.completed')}
-                        </span>
-                      </div>
-                      <span className="font-mono text-xs text-muted-foreground">{Math.min(progress, 100).toFixed(0)}%</span>
+                    <div className="ft-glyph sq">
+                      <User className="h-4 w-4" />
                     </div>
-                    <div className="ft-progress-track">
-                      <div className="ft-progress-fill bg-pos" style={{ width: `${Math.min(progress, 100)}%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="font-mono font-medium text-pos">+{formatCurrency(amountReceived)}</span>
-                      <span className="font-mono text-muted-foreground">/ {formatCurrency(installment.total_amount)}</span>
-                    </div>
-                    <div className="flex justify-between text-[11px] text-fg-dim">
-                      <span>{t('savings.monthly')}: <span className="font-mono">{formatCurrency(installment.installment_amount)}</span></span>
-                      <span>{t('savings.remaining')}: <span className="font-mono">{formatCurrency(installment.remaining_amount)}</span></span>
-                    </div>
-                    {installment.is_active && (
-                      <div className="flex justify-between text-[11px] text-fg-dim pt-2 border-t border-line">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {format(parseLocalDate(installment.next_payment_date), 'dd/MM/yyyy', { locale: fr })}
-                        </span>
-                        {installment.installment_amount > 0 && (
-                          <span>~{Math.ceil(installment.remaining_amount / installment.installment_amount)} {t('savings.installments', { defaultValue: 'left' })}</span>
+                    <div className="min-w-0">
+                      <div className="ft-row-title truncate">{installment.description}</div>
+                      <div className="ft-row-sub truncate">
+                        {t('savings.monthly')} {formatCurrency(installment.installment_amount)}
+                        {installment.is_active && (
+                          <>
+                            {' · '}
+                            {format(parseLocalDate(installment.next_payment_date), 'dd/MM/yyyy', { locale: dateLocale })}
+                          </>
                         )}
                       </div>
-                    )}
+                    </div>
+                    <div className="hidden md:block ft-progress-track">
+                      <div className="ft-progress-fill bg-pos" style={{ width: `${Math.min(progress, 100)}%` }} />
+                    </div>
+                    <span className="hidden md:block font-mono text-[12.5px] text-fg-dim">
+                      {t('savings.doneOfTotal', {
+                        defaultValue: '{{done}}/{{total}} instalments',
+                        done: doneCount,
+                        total: totalCount,
+                      })}
+                    </span>
+                    {/* Amount and status share the trailing cell so the row
+                        still collapses to glyph / name / value on a phone. */}
+                    <div className="flex items-center gap-2.5 justify-end">
+                      <span className={cn('ft-row-amt text-pos', isPrivacyMode && 'blur-md select-none')}>
+                        {formatCurrency(installment.remaining_amount)}
+                      </span>
+                      <span className={cn('ft-tag flex-shrink-0', installment.is_active && 'pos')}>
+                        {installment.is_active ? t('savings.inProgress') : t('savings.completed')}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -518,122 +698,181 @@ const Savings = () => {
               </Button>
             </div>
           ) : (
-            <div data-tour="goal-card" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div data-tour="goal-card" className="ft-g3 sm:grid-cols-2 wide:grid-cols-3">
               {goals.map((goal) => {
                 const projection = calculateProjection(goal);
                 const progressPct = Math.min(projection.progress, 100);
                 const isComplete = goal.current_amount >= goal.target_amount;
                 const goalColor = goal.color || 'hsl(var(--primary))';
+                const remaining = Math.max(0, goal.target_amount - goal.current_amount);
+                const linkedBudget = specialBudgetByGoalId.get(goal.id);
+                // The status pill is always present in the design; "behind"
+                // reads warn, everything else pos.
+                const behind = !isComplete && projection.onTrack === false;
 
                 return (
-                  <button
+                  <div
                     key={goal.id}
-                    type="button"
-                    className="ft-card p-4 sm:p-5 text-left flex flex-col gap-3 hover:border-line-strong transition-colors"
-                    onClick={() => setSelectedGoal(goal)}
+                    className="ft-card p-5 text-left flex flex-col hover:border-line-strong transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-base truncate">{goal.name}</h3>
-                          {isComplete && (
-                            <span className="ft-tag pos">{t('savings.goalReached')}</span>
-                          )}
+                    {/* Head: tinted colour tile, name, scope, status */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-[11px] min-w-0">
+                        <div
+                          className="h-[38px] w-[38px] rounded-[13px] grid place-items-center flex-shrink-0"
+                          style={{
+                            background: `color-mix(in oklab, ${goalColor} 16%, transparent)`,
+                            color: goalColor,
+                          }}
+                        >
+                          <Target className="h-[18px] w-[18px]" />
                         </div>
-                        {goal.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                            {goal.description}
-                          </p>
-                        )}
-                      </div>
-                      <div
-                        className="h-2.5 w-2.5 rounded-sm flex-shrink-0 mt-1"
-                        style={{ backgroundColor: goalColor }}
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-baseline justify-between text-xs">
-                        <span className="text-muted-foreground">{t('savings.progress')}</span>
-                        <span className="font-mono font-medium">{progressPct.toFixed(0)}%</span>
-                      </div>
-                      <div className="ft-progress-track">
-                        <div className="ft-progress-fill" style={{ width: `${progressPct}%`, background: goalColor }} />
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="font-mono font-medium">{formatCurrency(goal.current_amount)}</span>
-                        <span className="font-mono text-muted-foreground">/ {formatCurrency(goal.target_amount)}</span>
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const linkedBudget = specialBudgetByGoalId.get(goal.id);
-                      return (
-                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-line pt-2 -mb-1">
-                          <span className="inline-flex items-center gap-1.5 truncate">
-                            <Wallet className="h-3 w-3 flex-shrink-0" />
-                            {linkedBudget
-                              ? t('specialBudgets.linkedBudget', {
-                                  defaultValue: 'Budget: {{n}}',
-                                  n: linkedBudget.name,
+                        <div className="min-w-0">
+                          <div className="text-[14.5px] font-[650] truncate">{goal.name}</div>
+                          <div className="ft-card-sub truncate">
+                            {goal.target_date
+                              ? t('savings.dueOn', {
+                                  defaultValue: 'due {{date}}',
+                                  date: format(parseLocalDate(goal.target_date), 'dd/MM/yyyy', { locale: dateLocale }),
                                 })
-                              : t('specialBudgets.noLinkedBudget', {
-                                  defaultValue: 'No linked special budget',
-                                })}
-                          </span>
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            className="ft-link text-[11px] flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (linkedBudget) setOpenSpecialBudget(linkedBudget);
-                              else setNewSpecialBudgetForGoal(goal.id);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (linkedBudget) setOpenSpecialBudget(linkedBudget);
-                                else setNewSpecialBudgetForGoal(goal.id);
-                              }
-                            }}
-                          >
-                            {linkedBudget
-                              ? t('specialBudgets.open', { defaultValue: 'Open' })
-                              : t('specialBudgets.add', { defaultValue: 'Add' })}
-                          </span>
+                              : goal.description || t('savings.noDeadline', { defaultValue: 'no deadline' })}
+                          </div>
                         </div>
-                      );
-                    })()}
+                      </div>
+                      <span className={cn('ft-tag flex-shrink-0', isComplete ? 'pos' : behind ? 'warn' : 'pos')}>
+                        {isComplete
+                          ? t('savings.goalReached')
+                          : behind
+                          ? t('savings.behind')
+                          : t('savings.onTrack')}
+                      </span>
+                    </div>
 
+                    {/* Headline figure */}
+                    <div className="flex items-baseline gap-2 flex-wrap mt-4">
+                      <span className={cn(
+                        'font-mono text-[25px] font-medium tracking-[-0.03em] leading-none',
+                        isPrivacyMode && 'blur-md select-none',
+                      )}>
+                        {formatCurrency(goal.current_amount)}
+                      </span>
+                      <span className={cn('text-fg-mute text-[12.5px]', isPrivacyMode && 'blur-md select-none')}>
+                        {t('savings.outOfTarget', {
+                          defaultValue: 'of {{amount}}',
+                          amount: formatCurrency(goal.target_amount),
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="ft-progress-track tall mt-3.5">
+                      <div className="ft-progress-fill" style={{ width: `${progressPct}%`, background: goalColor }} />
+                    </div>
+                    <div className="flex justify-between gap-2 text-[11.5px] text-fg-dim mt-[7px]">
+                      <span>{progressPct.toFixed(0)}%</span>
+                      <span className={cn(isPrivacyMode && 'blur-md select-none')}>
+                        {t('savings.amountRemaining', {
+                          defaultValue: '{{amount}} to go',
+                          amount: formatCurrency(remaining),
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Projection table — a sunk panel of label/value rows,
+                        the last one coloured by whether the pace holds. */}
                     {!isComplete && (
-                      <div className="flex flex-col gap-1 pt-3 border-t border-line">
-                        {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {t('savings.monthsToGoal', { count: projection.monthsToGoal })}
+                      <div className="ft-card ft-card-sunk mt-4 p-0 text-[12px] overflow-hidden">
+                        {goal.target_date && projection.monthlyRequired > 0 && (
+                          <div className="flex items-center justify-between gap-2 px-[13px] py-[9px]">
+                            <span className="text-fg-mute">
+                              {t('savings.requiredToHold', { defaultValue: 'Needed to hit the date' })}
                             </span>
-                            {projection.onTrack !== null && (
-                              <span className={`ft-tag ${projection.onTrack ? 'pos' : 'neg'}`}>
-                                {projection.onTrack ? t('savings.onTrack') : t('savings.behind')}
-                              </span>
-                            )}
+                            <b className={cn('font-mono font-medium', isPrivacyMode && 'blur-md select-none')}>
+                              {t('savings.perMonth', {
+                                defaultValue: '{{amount}} / month',
+                                amount: formatCurrency(projection.monthlyRequired),
+                              })}
+                            </b>
                           </div>
                         )}
-                        {goal.target_date && projection.remainingDays !== null && projection.remainingDays > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {t('savings.daysRemaining', { count: projection.remainingDays })}
+                        <div className="flex items-center justify-between gap-2 px-[13px] py-[9px] border-t border-line-soft first:border-t-0">
+                          <span className="text-fg-mute">
+                            {t('savings.currentPace', { defaultValue: 'Your current pace' })}
+                          </span>
+                          <b className={cn('font-mono font-medium', isPrivacyMode && 'blur-md select-none')}>
+                            {t('savings.perMonth', {
+                              defaultValue: '{{amount}} / month',
+                              amount: formatCurrency(allTimeStats.monthlyAverage),
+                            })}
+                          </b>
+                        </div>
+                        {projection.remainingDays !== null && projection.remainingDays > 0 && (
+                          <div className="flex items-center justify-between gap-2 px-[13px] py-[9px] border-t border-line-soft">
+                            <span className="text-fg-mute">
+                              {t('savings.daysLeftLabel', { defaultValue: 'Days remaining' })}
                             </span>
-                            <span className={`font-mono ${projection.onTrack ? 'text-pos' : 'text-destructive'}`}>
-                              {t('savings.monthlyRequired', { amount: formatCurrency(projection.monthlyRequired) })}
+                            <b className="font-mono font-medium">
+                              {t('savings.nDays', { defaultValue: '{{n}} d', n: projection.remainingDays })}
+                            </b>
+                          </div>
+                        )}
+                        {projection.monthsToGoal !== null && projection.monthsToGoal > 0 && (
+                          <div className="flex items-center justify-between gap-2 px-[13px] py-[9px] border-t border-line-soft">
+                            <span className="text-fg-mute">
+                              {t('savings.projectionAtPace', { defaultValue: 'Projection at your pace' })}
                             </span>
+                            <b className={cn('font-mono font-medium', behind ? 'text-warn' : 'text-pos')}>
+                              {t('savings.nMonths', { defaultValue: '~{{n}} months', n: projection.monthsToGoal })}
+                            </b>
                           </div>
                         )}
                       </div>
                     )}
-                  </button>
+
+                    {/* Linked special budget */}
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-fg-dim border-t border-line-soft mt-4 pt-3">
+                      <span className="inline-flex items-center gap-1.5 truncate">
+                        <Wallet className="h-3 w-3 flex-shrink-0" />
+                        {linkedBudget
+                          ? t('specialBudgets.linkedBudget', {
+                              defaultValue: 'Budget: {{n}}',
+                              n: linkedBudget.name,
+                            })
+                          : t('specialBudgets.noLinkedBudget', {
+                              defaultValue: 'No linked special budget',
+                            })}
+                      </span>
+                      <button
+                        type="button"
+                        className="ft-link text-[11px] flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (linkedBudget) setOpenSpecialBudget(linkedBudget);
+                          else setNewSpecialBudgetForGoal(goal.id);
+                        }}
+                      >
+                        {linkedBudget
+                          ? t('specialBudgets.open', { defaultValue: 'Open' })
+                          : t('specialBudgets.add', { defaultValue: 'Add' })}
+                      </button>
+                    </div>
+
+                    {/* Actions — the design's primary + overflow pair. */}
+                    <div className="flex items-center gap-2 mt-3.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-8 gap-1.5"
+                        onClick={() => setSelectedGoal(goal)}
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        {/* This opens EditSavingsGoalModal — which also holds
+                            delete — so "Add funds" undersold it, and once the
+                            card stopped being a button it was the only way in. */}
+                        {t('savings.manageGoal', { defaultValue: 'Manage goal' })}
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

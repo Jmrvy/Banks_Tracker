@@ -16,6 +16,7 @@ import {
   ArrowDownRight,
   ArrowRightLeft,
   Pencil,
+  Search,
   Trash2,
   RotateCcw,
 } from "lucide-react";
@@ -30,7 +31,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { BANK_COLORS } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/categoryIcons";
 
 interface TransactionRowProps {
@@ -87,31 +87,32 @@ const TransactionRow = React.memo(
         ? 'bg-primary/12 text-primary'
         : 'bg-bg-subtle text-muted-foreground border border-line';
 
-    const bankColor = BANK_COLORS[transaction.account?.bank || 'other'] || '#6B7280';
-
     return (
       <div
         onClick={() => onView(transaction)}
-        className="grid items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-3 border-b border-line last:border-b-0 hover:bg-bg-subtle/60 transition-colors cursor-pointer group"
-        style={{ gridTemplateColumns: '4px 32px minmax(0, 1fr) auto auto' }}
+        /* The pack's transaction row: 34px glyph, title + meta, amount. The
+           hover action column is app-only, so it is the one extra track and
+           only exists where it is actually rendered. */
+        className="ft-list-row cursor-pointer group grid-cols-[34px_minmax(0,1fr)_auto] md:grid-cols-[34px_minmax(0,1fr)_auto_auto]"
       >
-        {/* Bank stripe */}
-        <div className="h-7 w-1 rounded-full" style={{ background: bankColor }} />
-
         {/* Type/category icon */}
         <div
-          className={`h-8 w-8 rounded-lg grid place-items-center flex-shrink-0 ${
+          className={`h-[34px] w-[34px] rounded-[11px] grid place-items-center flex-shrink-0 ${
             tintColor ? '' : iconBgClass
           }`}
-          style={tintColor ? { background: `${tintColor}1F`, color: tintColor } : undefined}
+          style={
+            tintColor
+              ? { background: `color-mix(in oklab, ${tintColor} 15%, transparent)`, color: tintColor }
+              : undefined
+          }
         >
-          <Icon className="h-3.5 w-3.5" />
+          <Icon className="h-4 w-4" />
         </div>
 
         {/* Merchant + meta */}
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="font-medium text-[13px] truncate">{transaction.description}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="ft-row-title truncate">{transaction.description}</p>
             {transaction.refund_of_transaction_id && (
               <Tooltip>
                 <TooltipTrigger>
@@ -177,24 +178,25 @@ const TransactionRow = React.memo(
               </Tooltip>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap min-w-0">
+          {/* One dim meta line, joined by middots — the pack's `.rw-s`, not a
+              stack of pills. The category keeps a colour dot for the read. */}
+          <div className="ft-row-sub flex items-center gap-1.5 min-w-0">
             {transaction.category && (
-              <span
-                className="ft-tag truncate max-w-[140px]"
-                style={{
-                  background: `${transaction.category.color}1f`,
-                  color: transaction.category.color,
-                  borderColor: 'transparent',
-                }}
-              >
-                <span className="dot flex-shrink-0" style={{ background: transaction.category.color }} />
-                <span className="truncate">{transaction.category.name}</span>
-              </span>
+              <>
+                <i
+                  className="h-[7px] w-[7px] rounded-full flex-shrink-0"
+                  style={{ background: transaction.category.color }}
+                />
+                <span className="truncate max-w-[140px] flex-shrink-0">
+                  {transaction.category.name}
+                </span>
+                <span aria-hidden="true" className="flex-shrink-0">·</span>
+              </>
             )}
             {transaction.special_budget_id && (
               <Tooltip>
-                <TooltipTrigger>
-                  <span className="ft-tag acc text-[10px]">
+                <TooltipTrigger className="flex-shrink-0">
+                  <span className="ft-tag acc !text-[10px]">
                     {t('specialBudgets.tagShort', { defaultValue: 'Special' })}
                   </span>
                 </TooltipTrigger>
@@ -208,7 +210,7 @@ const TransactionRow = React.memo(
                 </TooltipContent>
               </Tooltip>
             )}
-            <span className="text-[11.5px] text-fg-dim truncate min-w-0 flex-1">
+            <span className="truncate min-w-0 flex-1">
               {transaction.account?.name}
               {transaction.type === 'transfer' && transaction.transfer_to_account && (
                 <> → {transaction.transfer_to_account.name}</>
@@ -222,7 +224,7 @@ const TransactionRow = React.memo(
         {/* Amount */}
         <div className="text-right whitespace-nowrap">
           <span
-            className={`font-mono text-sm font-semibold ${
+            className={`ft-row-amt ${
               isFullyRefunded || isFullyRepaid
                 ? 'text-muted-foreground line-through'
                 : transaction.type === 'income'
@@ -236,24 +238,24 @@ const TransactionRow = React.memo(
             {formatCurrency(Math.abs(displayAmount))}
           </span>
           {isPartiallyRefunded && (
-            <div className="font-mono text-[10px] text-muted-foreground line-through">
+            <div className="ft-row-amt sub line-through">
               −{formatCurrency(transaction.amount)}
             </div>
           )}
           {isPartiallyRepaid && (
-            <div className="font-mono text-[10px] text-muted-foreground line-through">
+            <div className="ft-row-amt sub line-through">
               +{formatCurrency(transaction.amount)}
             </div>
           )}
           {transferFee > 0 && (
-            <div className="font-mono text-[10px] text-warning">
+            <div className="ft-row-amt sub !text-warning">
               +{formatCurrency(transferFee)} {t('transactions.fee', { defaultValue: 'fee' })}
             </div>
           )}
         </div>
 
         {/* Action buttons (desktop hover) */}
-        <div className="hidden md:flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="hidden md:flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           {transaction.type === 'expense' && refundedAmount < transaction.amount && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -261,6 +263,7 @@ const TransactionRow = React.memo(
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
+                  aria-label={t('transactions.addRefund')}
                   onClick={(e) => {
                     e.stopPropagation();
                     onRefund(transaction);
@@ -276,6 +279,7 @@ const TransactionRow = React.memo(
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label={t('common.edit', { defaultValue: 'Edit' })}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(transaction);
@@ -287,6 +291,7 @@ const TransactionRow = React.memo(
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label={t('common.delete', { defaultValue: 'Delete' })}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(transaction);
@@ -457,13 +462,8 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
     return (
       <div className="ft-card-flush">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="grid items-center gap-3 px-5 py-3 border-b border-line last:border-b-0"
-            style={{ gridTemplateColumns: '4px 32px 1fr auto' }}
-          >
-            <div className="animate-pulse w-1 h-7 rounded-full bg-bg-subtle" />
-            <div className="animate-pulse w-8 h-8 rounded-lg bg-bg-subtle" />
+          <div key={i} className="ft-list-row tx">
+            <div className="animate-pulse w-[34px] h-[34px] rounded-[11px] bg-bg-subtle" />
             <div className="space-y-2">
               <div className="animate-pulse h-3.5 bg-bg-subtle rounded w-32" />
               <div className="animate-pulse h-3 bg-bg-subtle rounded w-20" />
@@ -477,17 +477,20 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
 
   if (filteredAndSortedTransactions.length === 0) {
     return (
-      <div className="ft-card p-10 sm:p-14 text-center">
-        <p className="text-sm text-foreground font-medium">
-          {transactions.length === 0
-            ? t('transactions.empty', { defaultValue: 'No transactions yet' })
-            : t('transactions.noResults', { defaultValue: 'No results for these filters' })}
-        </p>
-        <p className="text-xs text-muted-foreground mt-1.5">
-          {transactions.length === 0
-            ? t('transactions.emptyHint', { defaultValue: 'Create your first transaction to get started' })
-            : t('transactions.tryAdjust', { defaultValue: 'Try adjusting your search criteria' })}
-        </p>
+      <div className="ft-card-flush">
+        <div className="ft-empty">
+          <Search className="h-[26px] w-[26px]" />
+          <p className="ft-empty-title">
+            {transactions.length === 0
+              ? t('transactions.empty', { defaultValue: 'No transactions yet' })
+              : t('transactions.noResults', { defaultValue: 'No results for these filters' })}
+          </p>
+          <p className="text-[12.5px]">
+            {transactions.length === 0
+              ? t('transactions.emptyHint', { defaultValue: 'Create your first transaction to get started' })
+              : t('transactions.tryAdjust', { defaultValue: 'Try adjusting your search criteria' })}
+          </p>
+        </div>
       </div>
     );
   }
@@ -505,11 +508,9 @@ export const TransactionHistory = ({ filters }: TransactionHistoryProps) => {
                 ? t('transactions.transactions', { defaultValue: 'transactions' })
                 : t('transactions.transaction', { defaultValue: 'transaction' })}
             </span>
-            <span
-              className={`font-mono text-[13px] font-semibold normal-case tracking-normal ${
-                group.total >= 0 ? 'text-pos' : 'text-foreground'
-              }`}
-            >
+            {/* The pack keeps the day total quiet: same 11px as the label,
+                sign in the text rather than in a colour. */}
+            <span className="ft-num normal-case tracking-normal">
               {group.total >= 0 ? '+' : '−'}
               {formatCurrency(Math.abs(group.total))}
             </span>

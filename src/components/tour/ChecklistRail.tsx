@@ -126,7 +126,7 @@ export function ChecklistRail() {
       <Sheet open={!state.railDismissed} onOpenChange={setRailOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl p-0 flex flex-col"
+          className="p-0 flex flex-col"
           style={{ height: "75vh", maxHeight: "75vh" }}
           aria-describedby={undefined}
         >

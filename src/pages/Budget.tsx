@@ -3,20 +3,17 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
   CalendarIcon,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Download,
-  Edit3,
   Minus,
   Plus,
   Search,
   Sparkles,
-  Trash2,
+  Target,
   Wand2,
   X,
 } from "lucide-react";
@@ -63,7 +60,7 @@ import {
   paletteForColor,
   SPECIAL_BUDGET_STATUS_META,
 } from "@/lib/specialBudgetUtils";
-import { Plane as PlaneEmptyIcon, Wallet as WalletIcon } from "lucide-react";
+import { Plane as PlaneEmptyIcon } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveDebtForRecurring } from "@/lib/recurringAmount";
 import { cn } from "@/lib/utils";
@@ -120,6 +117,14 @@ interface CategoryStats {
   buckets: number[];
   projectedBuckets: number[];
   topDrivers: Driver[];
+  /** How many transactions landed on the category in the period. */
+  txCount: number;
+  /**
+   * Trailing six calendar months of net spend, newest first — the same
+   * series `historyByCategory` already built for `monthlyAvg`, carried
+   * through so the expanded panel can chart it without recomputing.
+   */
+  history: number[];
 }
 
 interface PeriodBuckets {
@@ -235,80 +240,51 @@ function statusOf(used: number, periodBudget: number | null, elapsed: number): S
 // =============================================================================
 
 /**
- * Pace bar. Track + fill clamped to 100 %; when the row is over-budget the
- * fill paints the entire track and a hatched "overrun" strip sticks out to
- * the right. A small tick marks today's elapsed share of the period.
+ * Pace bar — the design's one bar primitive: a `--bg-sunk` track at 6px
+ * (9px with `tall`), a fill clamped to the track, and a 1.5px rule at the
+ * elapsed share of the period so ahead-of-pace reads without any text.
  *
- * Status colour drives the fill tone; 'ok' rows are muted on purpose so the
- * dashboard reads quiet when everything is on track and loud only when not.
+ * The fill only spends a status colour on a row that is actually in
+ * trouble: `--neg` when over, `--warn` when close, otherwise the category's
+ * own colour, so a healthy list reads as a colour-coded ledger rather than
+ * a wall of green.
  */
 function PaceBar({
   used,
   budget,
   status,
   elapsedFraction,
-  height = 8,
+  color,
+  tall = false,
   showTick = true,
 }: {
   used: number;
   budget: number;
   status: Status;
   elapsedFraction: number;
-  height?: number;
+  color?: string;
+  tall?: boolean;
   showTick?: boolean;
 }) {
   const { t } = useTranslation();
   const ratio = budget > 0 ? used / budget : 0;
-  const fillPct = Math.min(ratio, 1) * 100;
-  const over = ratio > 1;
-  // Overrun "spike" — purely a visual signal that the row is past
-  // budget. We size it in pixels (not % of bar width) and cap it at
-  // 16px so it never overflows the card's right padding. Larger
-  // overshoots are already conveyed by the status pill / colour /
-  // remaining figure; the spike just adds a quick at-a-glance cue.
-  const overWidthPx = over ? Math.min(Math.ceil((ratio - 1) * 24), 16) : 0;
-  const calm = status === "ok" || status === "noBudget";
-  const colorClass =
+  const fillPct = Math.min(Math.max(ratio, 0), 1) * 100;
+  const fill =
     status === "over"
-      ? "bg-neg"
+      ? "hsl(var(--neg))"
       : status === "warn"
-      ? "bg-warning"
-      : status === "ok"
-      ? "bg-pos"
-      : "bg-muted-foreground/40";
+      ? "hsl(var(--warn))"
+      : color || "hsl(var(--primary))";
   const elapsedPctLabel = Math.round(Math.min(elapsedFraction, 1) * 100);
   return (
-    <div
-      className="relative w-full rounded-full bg-bg-subtle overflow-visible"
-      style={{ height }}
-    >
-      <div
-        className={cn("absolute left-0 top-0 bottom-0 rounded-full transition-all", colorClass)}
-        style={{ width: `${fillPct}%`, opacity: calm ? 0.6 : 1 }}
-      />
-      {over && overWidthPx > 0 && (
-        <div
-          // Overrun "spike" — rendered INSIDE the bar's right end so it
-          // can never overflow the card padding regardless of the
-          // overshoot magnitude. The hatched pattern overlays the solid
-          // fill, signalling the row is past budget without competing
-          // with the status pill or remaining figure.
-          className="absolute right-0 top-0 bottom-0 rounded-r-full ring-1 ring-card/50"
-          style={{
-            width: `${overWidthPx}px`,
-            background:
-              status === "over"
-                ? "repeating-linear-gradient(135deg, #ffffff 0 2px, transparent 2px 5px)"
-                : "repeating-linear-gradient(135deg, #ffffff 0 2px, transparent 2px 5px)",
-          }}
-        />
-      )}
+    <div className={cn("ft-progress-track w-full", tall && "tall")}>
+      <span className="ft-progress-fill" style={{ width: `${fillPct}%`, background: fill }} />
       {showTick && budget > 0 && (
-        <div
+        <span
           // Today marker. The position reflects the elapsed share of
           // the period; comparing the fill's right edge to this tick
           // tells the user whether they're ahead of or behind pace.
-          className="absolute -top-1 -bottom-1 w-0.5 -ml-px rounded-sm bg-card ring-[1.5px] ring-foreground/30 cursor-help"
+          className="ft-progress-mark cursor-help"
           style={{ left: `${Math.min(elapsedFraction, 1) * 100}%` }}
           title={t("budget.todayTickTooltip", {
             pct: elapsedPctLabel,
@@ -327,12 +303,13 @@ function PaceBar({
  * Cumulative spend-vs-budget trend chart.
  *
  * Aggregates the per-category bucket series into a single cumulative spend
- * curve. Renders:
- *  - a soft area fill under the actual curve
- *  - the actual cumulative line (solid foreground)
- *  - the projection segment as a softer dashed line continuing from today
- *  - a dashed horizontal "budget" reference line
- *  - a vertical tick at the elapsed bucket with a dot at today's cumulative
+ * curve. Renders, exactly as the design's pace chart does:
+ *  - five `--grid` rules across the plot
+ *  - a dashed `--fg-dim` horizontal "budget" reference line
+ *  - an accent area fill at 16 % under the actual curve
+ *  - the actual cumulative line in accent
+ *  - the projection continuing from today as a softer accent dash
+ *  - a hollow end marker on the card surface at today's cumulative
  */
 function TrendChart({
   stats,
@@ -401,17 +378,26 @@ function TrendChart({
 
   return (
     <svg
-      className="block w-full"
+      className="block w-full overflow-visible"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       style={{ height: 168 }}
     >
-      <defs>
-        <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="hsl(var(--foreground))" stopOpacity="0.10" />
-          <stop offset="100%" stopColor="hsl(var(--foreground))" stopOpacity="0" />
-        </linearGradient>
-      </defs>
+      {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+        const gy = padT + f * (H - padT - padB);
+        return (
+          <line
+            key={f}
+            x1={padL}
+            x2={W - padR}
+            y1={gy}
+            y2={gy}
+            stroke="hsl(var(--grid))"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        );
+      })}
       {totalBudget > 0 && (
         <>
           <line
@@ -419,56 +405,56 @@ function TrendChart({
             x2={W - padR}
             y1={budgetY}
             y2={budgetY}
-            stroke="hsl(var(--muted-foreground))"
-            strokeWidth={1.2}
+            stroke="hsl(var(--fg-dim))"
+            strokeWidth={1.4}
             strokeDasharray="4 4"
-            opacity={0.55}
+            vectorEffect="non-scaling-stroke"
           />
           <text
             x={W - padR}
             y={Math.max(padT + 8, budgetY - 6)}
             textAnchor="end"
             fontSize={10}
-            fontFamily="ui-monospace, SFMono-Regular, monospace"
-            fill="hsl(var(--muted-foreground))"
+            fontFamily="Geist Mono, ui-monospace, monospace"
+            fill="hsl(var(--fg-dim))"
           >
             {formatCurrency(totalBudget)}
           </text>
         </>
       )}
-      {areaPath && <path d={areaPath} fill="url(#trendFill)" />}
+      {areaPath && <path d={areaPath} fill="hsl(var(--primary))" opacity={0.16} />}
       {projPath && (
         <path
           d={projPath}
           fill="none"
-          stroke="hsl(var(--muted-foreground))"
-          strokeWidth={1.8}
-          strokeDasharray="2 3"
+          stroke="hsl(var(--primary))"
+          strokeWidth={2}
+          strokeDasharray="5 4"
           opacity={0.55}
           strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
         />
       )}
       {actualPath && (
         <path
           d={actualPath}
           fill="none"
-          stroke="hsl(var(--foreground))"
+          stroke="hsl(var(--primary))"
           strokeWidth={2.2}
           strokeLinejoin="round"
           strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
         />
       )}
-      <line
-        x1={paceX}
-        x2={paceX}
-        y1={padT}
-        y2={H - padB}
-        stroke="hsl(var(--muted-foreground))"
-        strokeWidth={0.8}
-        strokeDasharray="2 3"
-        opacity={0.6}
+      <circle
+        cx={paceX}
+        cy={y(lastA)}
+        r={3.2}
+        fill="hsl(var(--card))"
+        stroke="hsl(var(--primary))"
+        strokeWidth={2.2}
+        vectorEffect="non-scaling-stroke"
       />
-      <circle cx={paceX} cy={y(lastA)} r={3.6} fill="hsl(var(--foreground))" />
     </svg>
   );
 }
@@ -489,6 +475,8 @@ interface BudgetCardProps {
   onNavigateToTransactions: (categoryId: string) => void;
   applySuggestion: (id: string, suggested: number) => void;
   showSuggestion: (s: CategoryStats) => boolean;
+  /** Inline cap editor in the expanded panel — the same write as the sheet. */
+  onSaveBudget: (categoryId: string, monthlyBudget: number) => Promise<void>;
   busyId: string | null;
   formatCurrency: (n: number) => string;
   t: (k: string, opts?: Record<string, unknown>) => string;
@@ -506,6 +494,7 @@ function BudgetCard({
   onNavigateToTransactions,
   applySuggestion,
   showSuggestion,
+  onSaveBudget,
   busyId,
   formatCurrency,
   t,
@@ -514,75 +503,56 @@ function BudgetCard({
   const budget = stat.periodBudget;
   const remaining =
     budget != null ? budget - used : null;
-
-  const statusMeta: Record<Status, { label: string; tone: string; dotClass: string }> = {
-    over: {
-      label: t("budget.statusOver", { defaultValue: "Over budget" }),
-      tone: "text-neg",
-      dotClass: "bg-neg",
-    },
-    warn: {
-      label: t("budget.statusWarn", { defaultValue: "Approaching limit" }),
-      tone: "text-warning",
-      dotClass: "bg-warning",
-    },
-    ok: {
-      label: t("budget.statusOk", { defaultValue: "On track" }),
-      tone: "text-pos",
-      dotClass: "bg-pos",
-    },
-    noBudget: {
-      label: t("budget.statusNoBudget", { defaultValue: "No budget" }),
-      tone: "text-muted-foreground",
-      dotClass: "bg-muted-foreground/40",
-    },
-  };
-  const meta = statusMeta[stat.status];
   const canApplySuggestion = showSuggestion(stat);
 
   return (
-    <div
-      className={cn(
-        "border-t border-line-soft first:border-t-0 transition-colors",
-        stat.status === "over" && "bg-neg/[0.025]"
-      )}
-    >
-      {/* One row per category, the way the pack tabulates them: identity,
-          consumption, spent, remaining. Columns past the first three drop out
-          below `lg`, where the row becomes icon / name / remaining. */}
+    <div className="transition-colors">
+      {/* One row per category, the way the design tabulates them: identity,
+          consumption, spent, remaining. The whole row is the disclosure —
+          the chevron beside the name is the only affordance. Columns past
+          the first two drop out at 1180px, where the row becomes
+          icon / name / remaining. */}
       <div
-        className="grid items-center gap-3 px-4 sm:px-5 py-3 hover:bg-bg-subtle/60 transition-colors"
-        style={{ gridTemplateColumns: "30px minmax(120px,1.4fr) 1.6fr 108px 104px" }}
+        className="ft-bud cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={onToggleExpand}
+        onKeyDown={(e) => {
+          // Only the row itself — never a key pressed on the nested "Set"
+          // control, which would otherwise activate both.
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleExpand();
+          }
+        }}
       >
         <CategoryIcon color={stat.category.color} icon={stat.category.icon} size={30} />
 
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          aria-expanded={expanded}
-          className="min-w-0 text-left"
-        >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[13.5px] font-semibold tracking-tight truncate">
-              {stat.category.name}
-            </span>
+        <div className="min-w-0">
+          <div className="ft-row-title flex items-center gap-2 min-w-0">
+            <span className="truncate">{stat.category.name}</span>
             <ChevronDown
               className={cn(
-                "h-3 w-3 flex-shrink-0 text-fg-dim transition-transform",
+                "h-[13px] w-[13px] flex-shrink-0 text-fg-dim transition-transform",
                 expanded && "rotate-180"
               )}
             />
           </div>
-          <div className="text-[11.5px] text-fg-dim truncate mt-px">
-            <span className={meta.tone}>{meta.label}</span>
+          <div className="ft-row-sub truncate">
+            {t("budget.opCount", {
+              count: stat.txCount,
+              defaultValue: `${stat.txCount} operations`,
+            })}
             {" · "}
             {t("budget.avgShort", { defaultValue: "avg." })}{" "}
             {formatCurrency(stat.monthlyAvg)}/{t("budget.month", { defaultValue: "mo" })}
           </div>
-        </button>
+        </div>
 
         {/* Consumption */}
-        <div className="hidden lg:block min-w-0">
+        <div className="ft-hide-sm min-w-0">
           {budget != null ? (
             <>
               <PaceBar
@@ -590,19 +560,19 @@ function BudgetCard({
                 budget={budget}
                 status={stat.status}
                 elapsedFraction={period.elapsedFraction}
+                color={stat.category.color}
               />
-              <div className="flex items-center justify-between text-[11px] text-fg-dim tabular-nums mt-1.5">
+              <div className="flex items-center justify-between gap-2 text-[11px] text-fg-dim font-mono mt-[5px]">
                 <span>
                   {Math.round((stat.pct ?? 0) * 100)} %{" "}
                   {t("budget.ofBudget", { defaultValue: "of budget" })}
                 </span>
-                <span>
-                  {t("budget.dayN", {
-                    n: period.elapsedDays,
-                    total: period.totalDays,
-                    defaultValue: `day ${period.elapsedDays} / ${period.totalDays}`,
-                  })}
-                </span>
+                {stat.projected > 0 && (
+                  <span className="whitespace-nowrap">
+                    {t("budget.projectedShort", { defaultValue: "projected" })}{" "}
+                    {formatCurrency(stat.spent + stat.projected)}
+                  </span>
+                )}
               </div>
             </>
           ) : (
@@ -613,7 +583,7 @@ function BudgetCard({
         </div>
 
         {/* Spent */}
-        <div className="hidden lg:block text-right min-w-0">
+        <div className="ft-hide-sm text-right min-w-0">
           <div className="font-mono text-[13.5px] font-medium tabular-nums truncate">
             {formatCurrency(used)}
           </div>
@@ -624,17 +594,18 @@ function BudgetCard({
           </div>
         </div>
 
-        {/* Remaining — or the way to give the category a budget at all. */}
-        <div className="text-right min-w-0 flex items-center justify-end gap-1">
+        {/* Remaining — or the way to give the category a budget at all.
+            The colour and the "over" label carry the sign; the figure is
+            printed absolute, as the design prints it. */}
+        <div className="text-right min-w-0">
           {remaining != null ? (
-            <div className="min-w-0">
+            <>
               <div
                 className={cn(
                   "font-mono text-[13.5px] font-medium tabular-nums truncate",
                   remaining < 0 && "text-neg"
                 )}
               >
-                {remaining < 0 ? "−" : ""}
                 {formatCurrency(Math.abs(remaining))}
               </div>
               <div className="text-[11px] text-fg-dim truncate">
@@ -642,69 +613,151 @@ function BudgetCard({
                   ? t("budget.over", { defaultValue: "over" })
                   : t("budget.remaining", { defaultValue: "left" })}
               </div>
-            </div>
+            </>
           ) : (
-            <button
-              type="button"
-              onClick={() => onEditBudget(stat)}
-              className="ft-chip"
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditBudget(stat);
+              }}
+              className="h-[29px] px-2.5 text-xs rounded-[9px] border-line-strong bg-bg-elev"
             >
               {t("budget.setBudget", { defaultValue: "Set" })}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={() => onEditBudget(stat)}
-            aria-label={t("budget.editBudget", { defaultValue: "Edit budget" })}
-            title={t("budget.editBudget", { defaultValue: "Edit budget" })}
-            className="h-7 w-7 flex-shrink-0 rounded-md text-fg-dim hover:bg-bg-hover hover:text-foreground grid place-items-center transition-colors"
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-          </button>
         </div>
       </div>
 
-      {/* Below `lg` the consumption column is hidden, so the bar moves under
-          the row rather than disappearing with it. */}
+      {/* Below the collapse breakpoint the consumption column is hidden, so
+          the bar moves under the row rather than disappearing with it. */}
       {budget != null && (
-        <div className="lg:hidden px-4 sm:px-5 pb-3 -mt-1">
+        <div className="wide:hidden px-[22px] pb-3 -mt-1">
           <PaceBar
             used={used}
             budget={budget}
             status={stat.status}
             elapsedFraction={period.elapsedFraction}
+            color={stat.category.color}
           />
         </div>
       )}
 
-      {/* Apply suggested (inline) */}
-      {stat.status === "noBudget" && canApplySuggestion && (
-        <button
-          type="button"
-          onClick={() => applySuggestion(stat.category.id, stat.suggested)}
-          disabled={busyId === stat.category.id}
-          className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-bg-subtle border border-line text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
-        >
-          <span className="flex items-center gap-2 min-w-0">
-            <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-            <span className="text-muted-foreground truncate">
-              {t("budget.applySuggestion", { defaultValue: "Apply suggested" })}
-            </span>
-          </span>
-          <span className="tabular-nums font-semibold text-foreground whitespace-nowrap">
-            {formatCurrency(stat.suggested)}
-          </span>
-        </button>
-      )}
-
-      {/* Expanded detail */}
+      {/* Expanded detail — the design's three-column panel, dropped onto the
+          sunk surface and indented so it lines up under the category name:
+          six months of history, the period's biggest spends, and the cap
+          editor. */}
       {expanded && (
-        <div className="border-t border-line/60 pt-3 flex flex-col gap-3">
+        <div className="bg-bg-subtle border-t border-line-soft pt-1 pb-5 pl-[22px] pr-[22px] wide:pl-[68px]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 mt-3.5">
+            {/* Six trailing months. `history` is newest-first, so it is read
+                back to front to run left-to-right in time. */}
+            <div>
+              <div className="ft-eyebrow mb-2">
+                {t("budget.last6Months", { defaultValue: "Last 6 months" })}
+              </div>
+              {(() => {
+                const series = [...stat.history].reverse();
+                const peak = Math.max(...series.map((v) => Math.max(0, v)), 0);
+                return (
+                  <>
+                    <div className="flex items-end gap-[5px] h-[54px]">
+                      {series.map((v, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 min-w-0"
+                          style={{
+                            height: `${peak > 0 ? Math.max(3, (Math.max(0, v) / peak) * 100) : 3}%`,
+                            background:
+                              i === series.length - 1
+                                ? stat.category.color
+                                : `color-mix(in oklab, ${stat.category.color} 30%, transparent)`,
+                            borderRadius: "4px 4px 2px 2px",
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-[10px] text-fg-dim mt-[5px]">
+                      {series.map((_, i) => (
+                        <span key={i}>
+                          {format(subMonths(new Date(), series.length - i), "MMM")}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Biggest spends of the period. */}
+            <div>
+              <div className="ft-eyebrow mb-2">
+                {t("budget.topSpends", { defaultValue: "Top spends" })}
+              </div>
+              <div className="flex flex-col gap-[7px]">
+                {stat.topDrivers.slice(0, 3).map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between gap-3 text-[12.5px]"
+                  >
+                    <span className="truncate">{d.description}</span>
+                    <span className="font-mono whitespace-nowrap">
+                      {formatCurrency(d.amount)}
+                    </span>
+                  </div>
+                ))}
+                {stat.topDrivers.length === 0 && (
+                  <span className="text-[12.5px] text-fg-dim">
+                    {t("budget.nothingThisPeriod", {
+                      defaultValue: "Nothing in the period shown.",
+                    })}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Cap editor — the design edits the budget in place rather than
+                sending the user to a side sheet. */}
+            <div>
+              <div className="ft-eyebrow mb-2">
+                {t("budget.adjustCap", { defaultValue: "Adjust the cap" })}
+              </div>
+              <CapEditor
+                key={stat.category.id}
+                initial={
+                  stat.category.budget != null
+                    ? Number(stat.category.budget)
+                    : stat.suggested || 0
+                }
+                onSave={(v) => onSaveBudget(stat.category.id, v)}
+                t={t}
+              />
+              {canApplySuggestion && (
+                <div className="text-[11.5px] text-fg-dim mt-[7px]">
+                  {t("budget.suggestedFromHistory", {
+                    defaultValue: "Suggested from history:",
+                  })}{" "}
+                  <b className="font-mono">{formatCurrency(stat.suggested)}</b>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="ft-link disabled:opacity-50"
+                    disabled={busyId === stat.category.id}
+                    onClick={() => applySuggestion(stat.category.id, stat.suggested)}
+                  >
+                    {t("budget.applyShort", { defaultValue: "apply" })}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* What was taken off, when anything was. Otherwise `spent` is a
               lone figure and there is no way to tell a category that cost
               540 from one that cost 700 and got 160 back. */}
           {(stat.refunded > 0 || stat.offsetIncome > 0) && (
-            <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
+            <div className="rounded-lg bg-bg-elev border border-line-soft px-3 py-2 flex flex-col gap-1 mt-3.5">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground">
                   {t("budget.breakdownGross", { defaultValue: "Charged" })}
@@ -736,136 +789,86 @@ function BudgetCard({
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            <DetailStat
-              label={t("budget.statSpent", { defaultValue: "Spent" })}
-              value={formatCurrency(stat.spent)}
-            />
-            <DetailStat
-              label={t("budget.statProjected", { defaultValue: "Projected" })}
-              value={formatCurrency(stat.projected)}
-              muted={stat.projected === 0}
-            />
-            <DetailStat
-              label={t("budget.statAvg", { defaultValue: "Avg / mo (6mo)" })}
-              value={formatCurrency(stat.monthlyAvg)}
-              muted={stat.monthlyAvg === 0}
-            />
-            <DetailStat
-              label={t("budget.statPrev", { defaultValue: "Prev period" })}
-              value={formatCurrency(stat.prevSpent)}
-              muted={stat.prevSpent === 0}
-            />
-          </div>
-
-          {stat.status === "over" && stat.topDrivers.length > 0 && (
-            <div>
-              <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-2">
-                {t("budget.topDrivers", { defaultValue: "Top drivers · 5 biggest" })}
-              </div>
-              <div>
-                {stat.topDrivers.map((d, i) => (
-                  <div
-                    key={d.id}
-                    className={cn(
-                      "flex items-center gap-3 py-1.5",
-                      i > 0 && "border-t border-line/40"
-                    )}
-                  >
-                    <span className="text-sm font-medium flex-1 truncate">{d.description}</span>
-                    <span className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">
-                      {format(d.date, "d MMM")}
-                    </span>
-                    <span className="text-sm tabular-nums font-semibold text-neg whitespace-nowrap">
-                      {formatCurrency(d.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => onEditBudget(stat)}
-            >
-              <Edit3 className="h-3 w-3 mr-1.5" />
-              {t("budget.editBudget", { defaultValue: "Edit budget" })}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs"
+          {/* One quiet trailing line rather than a four-button bar. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3.5 text-[11.5px]">
+            <button
+              type="button"
+              className="ft-link"
               onClick={() => onNavigateToTransactions(stat.category.id)}
             >
               {t("budget.viewTransactions", { defaultValue: "View transactions" })}
-              <ChevronRight className="h-3 w-3 ml-1" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs text-muted-foreground"
+            </button>
+            <button
+              type="button"
+              className="text-fg-dim hover:text-foreground transition-colors"
+              onClick={() => onEditBudget(stat)}
+            >
+              {t("budget.editBudget", { defaultValue: "Edit budget" })}
+            </button>
+            <button
+              type="button"
+              className="text-fg-dim hover:text-foreground transition-colors"
               onClick={() => onEditCategory(stat.category)}
             >
               {t("budget.editCategory", { defaultValue: "Edit category" })}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs text-neg/70 hover:text-neg hover:bg-neg/10"
+            </button>
+            <button
+              type="button"
+              className="text-fg-dim hover:text-neg transition-colors"
               onClick={() => onDelete(stat.category.id)}
             >
-              <Trash2 className="h-3 w-3 mr-1.5" />
               {t("common.delete", { defaultValue: "Delete" })}
-            </Button>
+            </button>
           </div>
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={onToggleExpand}
-        className={cn(
-          "flex items-center justify-center gap-1.5 w-full py-1.5 rounded-md text-xs font-semibold text-muted-foreground border border-dashed border-line hover:bg-bg-subtle hover:text-foreground transition-colors",
-          expanded && "border-transparent"
-        )}
-      >
-        {expanded
-          ? t("budget.collapse", { defaultValue: "Hide details" })
-          : t("budget.expand", { defaultValue: "Details & transactions" })}
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
-        />
-      </button>
     </div>
   );
 }
 
-function DetailStat({
-  label,
-  value,
-  muted = false,
+/**
+ * Inline cap editor. Mounted fresh each time a row is expanded (keyed on the
+ * category), so it always opens on the row's current cap without needing to
+ * mirror it in an effect.
+ */
+function CapEditor({
+  initial,
+  onSave,
+  t,
 }: {
-  label: string;
-  value: string;
-  muted?: boolean;
+  initial: number;
+  onSave: (monthlyBudget: number) => Promise<void>;
+  t: (k: string, opts?: Record<string, unknown>) => string;
 }) {
+  const [val, setVal] = useState<string>(String(initial));
+  const [saving, setSaving] = useState(false);
   return (
-    <div>
-      <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={cn(
-          "text-sm font-semibold tabular-nums mt-0.5",
-          muted && "text-muted-foreground/70 font-medium"
-        )}
+    <div className="flex items-center gap-2">
+      <Input
+        type="number"
+        inputMode="numeric"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        aria-label={t("budget.monthlyBudget", { defaultValue: "Monthly budget" })}
+        className="h-[34px] rounded-md border-line-strong bg-bg-elev text-[13px] tabular-nums"
+      />
+      <Button
+        size="sm"
+        disabled={saving}
+        className="h-[29px] px-2.5 text-xs rounded-[9px] flex-shrink-0"
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onSave(Math.max(0, Number(val) || 0));
+          } finally {
+            setSaving(false);
+          }
+        }}
       >
-        {value}
-      </div>
+        {saving
+          ? t("common.saving", { defaultValue: "Saving…" })
+          : t("common.save", { defaultValue: "Save" })}
+      </Button>
     </div>
   );
 }
@@ -926,7 +929,7 @@ function BudgetEditSheet({
         className={cn(
           "p-0 flex flex-col gap-0",
           isMobile
-            ? "max-h-[90vh] rounded-t-2xl border-t border-line"
+            ? "max-h-[90vh] border-t border-line"
             : "w-[420px] sm:max-w-[420px]"
         )}
       >
@@ -1076,14 +1079,19 @@ function ContextCell({ label, value }: { label: string; value: string }) {
 // Attention pip + date pill
 // =============================================================================
 
+/**
+ * Status count — the design's tinted `.tag`, not a bordered control: the
+ * tone itself carries the meaning, so there is no dot and no border. It
+ * doubles as the quick filter for that status.
+ */
 function AttentionPip({
-  toneClass,
+  tone,
   count,
   label,
   onClick,
   active,
 }: {
-  toneClass: string;
+  tone: "" | "neg" | "warn";
   count: number;
   label: string;
   onClick: () => void;
@@ -1093,16 +1101,10 @@ function AttentionPip({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-2 h-8 px-3 rounded-md border text-xs font-semibold transition-colors",
-        active
-          ? "bg-foreground text-background border-foreground"
-          : "bg-bg-subtle border-line text-foreground hover:bg-bg-hover"
-      )}
+      aria-pressed={active}
+      className={cn("ft-tag", tone, active && "ring-1 ring-inset ring-foreground/25")}
     >
-      <span className={cn("w-2 h-2 rounded-full", toneClass)} />
-      <span className="tabular-nums">{count}</span>
-      <span className="font-medium">{label}</span>
+      {`${count} ${label}`}
     </button>
   );
 }
@@ -1659,6 +1661,8 @@ const Budget = () => {
         buckets,
         projectedBuckets,
         topDrivers,
+        txCount: driversInPeriod.length,
+        history,
       };
     });
   }, [categories, transactions, dateOf, period, periodNets, projectedByCategory, historyByCategory, today]);
@@ -1936,18 +1940,24 @@ const Budget = () => {
   const aheadOfPace = paceDelta > 0;
   const showProjectedToggle = period.to >= today;
 
-  const filterChips: { id: StatusFilter; label: string; n: number }[] = (
-    [
-      { id: "all" as StatusFilter, label: t("budget.filterAll", { defaultValue: "All" }), n: stats.length },
-      { id: "over" as StatusFilter, label: t("budget.filterOver", { defaultValue: "Over" }), n: totals.overCount },
-      { id: "warn" as StatusFilter, label: t("budget.filterWarn", { defaultValue: "Close" }), n: totals.warnCount },
-      {
-        id: "noBudget" as StatusFilter,
-        label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
-        n: totals.noBudgetCount,
-      },
-    ]
-  ).filter((c) => c.id === "all" || c.n > 0);
+  // All four options always render with their counts, so the control does
+  // not reflow as data changes.
+  const filterChips: { id: StatusFilter; label: string; n: number }[] = [
+    { id: "all" as StatusFilter, label: t("budget.filterAll", { defaultValue: "All" }), n: stats.length },
+    { id: "over" as StatusFilter, label: t("budget.filterOver", { defaultValue: "Over" }), n: totals.overCount },
+    { id: "warn" as StatusFilter, label: t("budget.filterWarn", { defaultValue: "Close" }), n: totals.warnCount },
+    {
+      id: "noBudget" as StatusFilter,
+      label: t("budget.filterNoBudget", { defaultValue: "No budget" }),
+      n: totals.noBudgetCount,
+    },
+  ];
+
+  // Named, with their suggested caps, so "Auto-budget" is reviewable.
+  const suggestablePreview = stats
+    .filter((s) => s.status === "noBudget" && s.suggested > 0)
+    .map((s) => `${s.category.name} ${formatCurrency(s.suggested)}`)
+    .join(" · ");
 
   // ---------------------------------------------------------------------
   // Render
@@ -1969,112 +1979,104 @@ const Budget = () => {
               })}
             </div>
           </div>
-          {/* The period is a property of the page, so its controls sit in the
-              header beside the title rather than in a band of their own. */}
-          <div className="flex flex-wrap items-center gap-2">
-              <div className="ft-seg">
-                {(
-                  [
-                    ["1m", t("budget.p1m", { defaultValue: "1M" })],
-                    ["3m", t("budget.p3m", { defaultValue: "3M" })],
-                    ["6m", t("budget.p6m", { defaultValue: "6M" })],
-                    ["ytd", t("budget.pYtd", { defaultValue: "YTD" })],
-                    ["1y", t("budget.p1y", { defaultValue: "1Y" })],
-                    ["custom", t("budget.pCustom", { defaultValue: "Custom" })],
-                  ] as const
-                ).map(([k, l]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setPeriodKey(k as PeriodKey)}
-                    className={cn(periodKey === k && "active")}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-
-              {/* Month / year pickers — a specific period beyond the presets. */}
-              <MonthPicker
-                value={pickedMonth}
-                onChange={(d) => {
-                  if (d) {
-                    setPickedMonth(startOfMonth(d));
-                    setPeriodKey("month");
-                  }
-                }}
-                placeholder={t("budget.pickMonth", { defaultValue: "Pick a month" })}
-                className={cn(
-                  "h-8 w-auto min-w-0 rounded-[10px] px-2.5 text-xs font-medium",
-                  periodKey === "month" && "border-foreground bg-foreground text-background hover:bg-foreground hover:text-background",
-                )}
-              />
-              <YearPicker
-                value={pickedYear}
-                onChange={(d) => {
-                  if (d) {
-                    setPickedYear(startOfYear(d));
-                    setPeriodKey("year");
-                  }
-                }}
-                placeholder={t("budget.pickYear", { defaultValue: "Pick a year" })}
-                className={cn(
-                  "h-8 w-auto min-w-0 rounded-[10px] px-2.5 text-xs font-medium",
-                  periodKey === "year" && "border-foreground bg-foreground text-background hover:bg-foreground hover:text-background",
-                )}
-              />
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportCSV}
-                className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-medium"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden xl:inline">
-                  {t("budget.exportCsv", { defaultValue: "Export CSV" })}
-                </span>
-                <span className="xl:hidden">
-                  {t("budget.exportCsvShort", { defaultValue: "CSV" })}
-                </span>
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setNewOpen(true)}
-                className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t("budget.newCategory", { defaultValue: "New category" })}
-              </Button>
+          {/* The design carries the period control in the page head, beside
+              the page actions — there is no period card. */}
+          <div className="flex flex-wrap items-center gap-[9px]">
+            <Segmented
+              label={t("budget.periodAria", { defaultValue: "Period" })}
+              value={periodKey}
+              onChange={(v) => setPeriodKey(v as PeriodKey)}
+              options={[
+                { value: "1m", label: t("budget.p1m", { defaultValue: "1M" }) },
+                { value: "3m", label: t("budget.p3m", { defaultValue: "3M" }) },
+                { value: "6m", label: t("budget.p6m", { defaultValue: "6M" }) },
+                { value: "ytd", label: t("budget.pYtd", { defaultValue: "YTD" }) },
+                { value: "1y", label: t("budget.p1y", { defaultValue: "1Y" }) },
+                { value: "custom", label: t("budget.pCustom", { defaultValue: "Custom" }) },
+              ]}
+            />
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" />
+              {t("budget.exportCsv", { defaultValue: "Export CSV" })}
+            </Button>
+            <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              {t("budget.newCategory", { defaultValue: "New category" })}
+            </Button>
           </div>
         </div>
 
-        {periodKey === "custom" && (
-          <div className="flex flex-wrap items-end gap-2">
-            <DatePill
-              value={customRange.from}
-              onChange={(d) => setCustomRange((r) => ({ ...r, from: d }))}
-              label={t("budget.from", { defaultValue: "From" })}
-            />
-            <DatePill
-              value={customRange.to}
-              onChange={(d) => setCustomRange((r) => ({ ...r, to: d }))}
-              label={t("budget.to", { defaultValue: "To" })}
+        {/* Month / year / custom-range pickers — features the design's
+            prototype stubbed out. Demoted to a borderless strip so the
+            page's first surface is still the overview card. */}
+        <div className="flex flex-wrap items-center gap-2 -mt-1">
+          <div
+            className={cn(
+              "inline-flex h-[34px] rounded-md border transition-colors",
+              periodKey === "month"
+                ? "border-foreground bg-foreground text-background"
+                : "border-line bg-card text-muted-foreground hover:bg-bg-subtle hover:text-foreground"
+            )}
+          >
+            <MonthPicker
+              value={pickedMonth}
+              onChange={(d) => {
+                if (d) {
+                  setPickedMonth(startOfMonth(d));
+                  setPeriodKey("month");
+                }
+              }}
+              placeholder={t("budget.pickMonth", { defaultValue: "Pick a month" })}
+              className="h-[34px] border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
             />
           </div>
-        )}
+          <div
+            className={cn(
+              "inline-flex h-[34px] rounded-md border transition-colors",
+              periodKey === "year"
+                ? "border-foreground bg-foreground text-background"
+                : "border-line bg-card text-muted-foreground hover:bg-bg-subtle hover:text-foreground"
+            )}
+          >
+            <YearPicker
+              value={pickedYear}
+              onChange={(d) => {
+                if (d) {
+                  setPickedYear(startOfYear(d));
+                  setPeriodKey("year");
+                }
+              }}
+              placeholder={t("budget.pickYear", { defaultValue: "Pick a year" })}
+              className="h-[34px] border-0 bg-transparent px-3 text-xs font-medium hover:bg-transparent"
+            />
+          </div>
+          {periodKey === "custom" && (
+            <>
+              <DatePill
+                value={customRange.from}
+                onChange={(d) => setCustomRange((r) => ({ ...r, from: d }))}
+                label={t("budget.from", { defaultValue: "From" })}
+              />
+              <DatePill
+                value={customRange.to}
+                onChange={(d) => setCustomRange((r) => ({ ...r, to: d }))}
+                label={t("budget.to", { defaultValue: "To" })}
+              />
+            </>
+          )}
+        </div>
 
         {/* Overview and pace are one card split by a rule, not two cards with
             a gap: they are the same reading of the period — how much is gone,
             and whether that is ahead of the clock. */}
-        <div className="ft-card !p-0 overflow-hidden grid grid-cols-1 md:grid-cols-[1.1fr_1.5fr] [&>*+*]:border-t md:[&>*+*]:border-t-0 md:[&>*+*]:border-l [&>*+*]:border-line">
+        <div className="ft-card !p-0 overflow-hidden grid grid-cols-1 wide:grid-cols-[1.1fr_1.5fr] [&>*+*]:border-t wide:[&>*+*]:border-t-0 wide:[&>*+*]:border-l [&>*+*]:border-line">
           {/* Summary card */}
           <div className="p-4 sm:p-6 flex flex-col">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            <div className="flex items-center justify-between gap-3">
+              <span className="ft-eyebrow">
                 {t("budget.overview", { defaultValue: "Overview" })} · {period.label}
-              </div>
-              <span className="ft-chip tabular-nums">
+              </span>
+              <span className="ft-chip flex-shrink-0">
                 {t("budget.dayN", {
                   n: period.elapsedDays,
                   total: period.totalDays,
@@ -2083,65 +2085,69 @@ const Budget = () => {
               </span>
             </div>
 
-            {/* The headline is the money, not the percentage: the bar below
-                carries the ratio, and the tick on it carries the clock. */}
-            <div className="ft-hero-value text-[clamp(1.75rem,4.4vw,2.5rem)]">
-              {formatCurrency(totals.totalUsed)}
-            </div>
-            <div className="text-sm text-muted-foreground tabular-nums mt-1.5">
-              {t("budget.outOfBudget", {
-                amt: formatCurrency(totals.totalBudget),
-                defaultValue: `of {{amt}} budget`,
-              })}
-            </div>
-
-            <div className="mt-4">
-              <PaceBar
-                used={totals.totalUsed}
-                budget={totals.totalBudget}
-                status={totals.totalBudget <= 0 ? "noBudget" : aheadOfPace ? "over" : "ok"}
-                elapsedFraction={period.elapsedFraction}
-                height={10}
-              />
-              <div className="mt-2 flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground tabular-nums">
-                <span>
-                  {t("budget.pctConsumed", {
-                    pct: Math.round(totals.utilization * 100),
-                    defaultValue: `{{pct}}% of budget used`,
-                  })}
-                </span>
-                <span>
-                  {t("budget.pctElapsed", {
-                    pct: Math.round(period.elapsedFraction * 100),
-                    defaultValue: `{{pct}}% of the period elapsed`,
-                  })}
-                </span>
+            <div className="mt-3.5 mb-1">
+              <div
+                className="font-mono font-medium tabular-nums whitespace-nowrap text-[26px] sm:text-[34px] leading-none"
+                style={{ letterSpacing: "-.03em" }}
+              >
+                {formatCurrency(totals.totalUsed)}
+              </div>
+              <div className="text-[13.5px] text-fg-mute mt-0.5">
+                {t("budget.outOfBudget", {
+                  amt: formatCurrency(totals.totalBudget),
+                  defaultValue: `of ${formatCurrency(totals.totalBudget)} budget`,
+                })}
               </div>
             </div>
 
-            {/* Pace verdict, stated in words rather than left to the reader to
-                infer from the bar. */}
+            {/* The period read left-to-right: one tall bar with a rule at the
+                elapsed fraction, so ahead-of-pace is a glance, not a figure. */}
+            <div className="ft-progress-track tall w-full mt-3.5">
+              <span
+                className="ft-progress-fill"
+                style={{
+                  width: `${Math.min(Math.max(totals.utilization, 0), 1) * 100}%`,
+                  background:
+                    totals.utilization > 1 ? "hsl(var(--neg))" : "hsl(var(--primary))",
+                }}
+              />
+              {totals.totalBudget > 0 && (
+                <span
+                  className="ft-progress-mark"
+                  style={{ left: `${Math.min(period.elapsedFraction, 1) * 100}%` }}
+                  aria-hidden
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3 text-[11.5px] text-fg-dim mt-[7px]">
+              <span>
+                {Math.round(totals.utilization * 100)}%{" "}
+                {t("budget.ofBudgetConsumed", { defaultValue: "of budget used" })}
+              </span>
+              <span>
+                {Math.round(period.elapsedFraction * 100)}%{" "}
+                {t("budget.periodElapsed", { defaultValue: "of the period elapsed" })}
+              </span>
+            </div>
+
+            {/* Verdict — a sunk callout, not a pill: the headline says how far
+                off pace, the line under it says what that is made of. */}
             {totals.totalBudget > 0 && (
-              <div
-                className={cn(
-                  "mt-4 flex items-start gap-2.5 rounded-xl p-3",
-                  aheadOfPace ? "bg-neg/[0.08]" : "bg-pos/[0.08]",
-                )}
-              >
+              <div className="mt-[18px] p-3.5 rounded-2xl border border-line-soft bg-bg-subtle flex items-start gap-[11px]">
                 <div
                   className={cn(
-                    "mt-px flex-shrink-0",
-                    aheadOfPace ? "text-neg" : "text-pos",
+                    "ft-kpi-icon h-[26px] w-[26px] rounded-[9px]",
+                    aheadOfPace ? "neg" : "pos"
                   )}
                 >
                   {aheadOfPace ? (
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="h-[13px] w-[13px]" />
                   ) : (
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 className="h-[13px] w-[13px]" />
                   )}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold">
+                <div className="text-[12.5px] min-w-0">
+                  <b>
                     {aheadOfPace
                       ? t("budget.overPace", {
                           amt: formatCurrency(paceDelta),
@@ -2151,8 +2157,8 @@ const Budget = () => {
                           amt: formatCurrency(Math.abs(paceDelta)),
                           defaultValue: `${formatCurrency(Math.abs(paceDelta))} under pace`,
                         })}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  </b>
+                  <div className="text-fg-mute mt-0.5">
                     {includeProjected && totals.totalProjected > 0
                       ? t("budget.includingProjected", {
                           amt: formatCurrency(totals.totalProjected),
@@ -2166,44 +2172,48 @@ const Budget = () => {
               </div>
             )}
 
-            {/* Attention pips → quick filters */}
-            <div className="flex flex-wrap gap-2 mt-4">
+            {/* Status counts → quick filters */}
+            <div className="flex flex-wrap gap-[7px] mt-4">
               <AttentionPip
-                toneClass="bg-neg"
+                tone="neg"
                 count={totals.overCount}
                 label={t("budget.pipOver", { defaultValue: "over" })}
                 onClick={() => setStatusFilter("over")}
                 active={statusFilter === "over"}
               />
               <AttentionPip
-                toneClass="bg-warning"
+                tone="warn"
                 count={totals.warnCount}
                 label={t("budget.pipWarn", { defaultValue: "close" })}
                 onClick={() => setStatusFilter("warn")}
                 active={statusFilter === "warn"}
               />
               <AttentionPip
-                toneClass="bg-muted-foreground/40"
+                tone=""
                 count={totals.noBudgetCount}
                 label={t("budget.pipNoBudget", { defaultValue: "no budget" })}
                 onClick={() => setStatusFilter("noBudget")}
                 active={statusFilter === "noBudget"}
               />
             </div>
-
-            {/* Auto-budget banner */}
           </div>
 
-          {/* Trend card */}
+          {/* Trend card — the switch sits on the chart it governs, and the
+              legend under the chart it names. */}
           <div className="p-4 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 mb-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                {t("budget.spendPace", { defaultValue: "Spending pace" })}
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <h3 className="ft-card-title">
+                  {t("budget.spendPace", { defaultValue: "Spending pace" })}
+                </h3>
+                <div className="ft-card-sub">
+                  {t("budget.paceSub", {
+                    defaultValue: "Cumulative spend over the period",
+                  })}
+                </div>
               </div>
-              {/* The projected series is a property of this chart, so its
-                  switch lives on the chart rather than in the page header. */}
               {showProjectedToggle && (
-                <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-[11.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <label className="flex items-center gap-2 text-xs font-semibold text-fg-mute cursor-pointer whitespace-nowrap flex-shrink-0">
                   <Switch
                     checked={includeProjected}
                     onCheckedChange={setIncludeProjected}
@@ -2212,30 +2222,6 @@ const Budget = () => {
                   {t("budget.includeProjectedShort", { defaultValue: "Include projected" })}
                 </label>
               )}
-              <div className="flex gap-3 text-[10.5px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="inline-block w-3.5 h-[2.5px] rounded bg-foreground" />
-                  {t("budget.legendActual", { defaultValue: "actual" })}
-                </span>
-                {includeProjected && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block w-3.5 h-0 border-t-[1.5px] border-dashed border-muted-foreground"
-                      style={{ opacity: 0.55 }}
-                    />
-                    {t("budget.legendProjected", { defaultValue: "projected" })}
-                  </span>
-                )}
-                {totals.totalBudget > 0 && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block w-3.5 h-0 border-t-[1.5px] border-dashed border-muted-foreground"
-                      style={{ opacity: 0.55 }}
-                    />
-                    {t("budget.legendBudget", { defaultValue: "budget" })}
-                  </span>
-                )}
-              </div>
             </div>
             <TrendChart
               stats={stats}
@@ -2243,16 +2229,29 @@ const Budget = () => {
               period={period}
               formatCurrency={formatCurrency}
             />
-            <div className="flex justify-between mt-2 text-[10.5px] text-muted-foreground tabular-nums">
+            <div className="ft-legend mt-3">
               <span>
-                {t("budget.cumulativeSpend", {
-                  defaultValue: "cumulative spend over the period",
-                })}
+                <span className="ft-swatch" style={{ background: "hsl(var(--primary))" }} />
+                {t("budget.legendActual", { defaultValue: "actual" })}
               </span>
-              <span>
-                {Math.round(totals.utilization * 100)}%{" "}
-                {t("budget.ofBudgetCompact", { defaultValue: "of budget" })}
-              </span>
+              {includeProjected && (
+                <span>
+                  <span
+                    className="ft-swatch"
+                    style={{ background: "hsl(var(--primary))", opacity: 0.3 }}
+                  />
+                  {t("budget.legendProjected", { defaultValue: "projected" })}
+                </span>
+              )}
+              {totals.totalBudget > 0 && (
+                <span>
+                  <span
+                    className="inline-block w-[14px] border-t-[1.5px] border-dashed"
+                    style={{ borderColor: "hsl(var(--fg-dim))" }}
+                  />
+                  {t("budget.legendBudget", { defaultValue: "budget" })}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -2261,21 +2260,27 @@ const Budget = () => {
             than tucking it inside the overview, because it is an action on
             the whole page, not a footnote to the summary. */}
         {totals.suggestableCount > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl bg-primary/[0.07] border border-transparent">
-            <div className="ft-kpi-icon acc !h-9 !w-9">
-              <Wand2 className="h-4 w-4" />
+          <div
+            className="flex flex-col sm:flex-row sm:items-center gap-[14px] p-4 rounded-2xl border border-transparent"
+            style={{ background: "hsl(var(--accent-wash))" }}
+          >
+            <div className="ft-kpi-icon acc">
+              <Wand2 className="h-[15px] w-[15px]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold">
+              <div className="text-[13.5px] font-[650]">
                 {t("budget.autoBudgetTitle", {
                   n: totals.suggestableCount,
                   defaultValue: `${totals.suggestableCount} categories without a budget`,
                 })}
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
+              {/* Naming the categories and their caps is what makes the
+                  action reviewable before it fires. */}
+              <div className="text-[12.5px] text-fg-mute mt-0.5">
                 {t("budget.autoBudgetSub", {
                   defaultValue: "Apply suggested budgets based on history.",
                 })}
+                {suggestablePreview ? ` — ${suggestablePreview}` : ""}
               </div>
             </div>
             <Button
@@ -2292,33 +2297,33 @@ const Budget = () => {
           </div>
         )}
 
-        {/* Search + status filter */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <div className="inline-flex items-center gap-2 h-9 px-3.5 rounded-full border border-line bg-card min-w-0 sm:min-w-[260px]">
-            <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        {/* Search then status, adjacent — one control group, not two ends of
+            the page. */}
+        <div className="flex flex-wrap items-center gap-[9px]">
+          <div className="inline-flex items-center gap-2 h-[34px] px-3 rounded-md border border-line-strong bg-bg-elev w-[260px] max-w-full">
+            <Search className="h-3.5 w-3.5 text-fg-dim flex-shrink-0" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("budget.searchPlaceholder", {
                 defaultValue: "Search a category…",
               })}
-              className="border-0 bg-transparent h-full text-sm p-0 focus-visible:ring-0"
+              className="border-0 bg-transparent shadow-none h-full text-[13px] p-0 focus-visible:ring-0"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch("")}
                 aria-label={t("common.clear", { defaultValue: "Clear" })}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-fg-dim hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          {/* Status is a segmented control, not loose chips — these are
-              mutually exclusive views of one list. */}
+          {/* Mutually exclusive views of one list — a segmented control, not
+              loose chips. */}
           <Segmented
-            className="sm:ml-auto"
             label={t("budget.filterAria", { defaultValue: "Filter by status" })}
             value={statusFilter}
             onChange={(v) => setStatusFilter(v as StatusFilter)}
@@ -2331,22 +2336,28 @@ const Budget = () => {
             compared at a glance. */}
         <div className="ft-card-flush">
           {filtered.length > 0 && (
-            <div
-              className="hidden lg:grid items-center gap-3 px-4 sm:px-5 py-2.5 border-b border-line text-[10.5px] font-bold uppercase text-fg-dim"
-              style={{ gridTemplateColumns: "30px minmax(120px,1.4fr) 1.6fr 108px 104px", letterSpacing: "0.1em" }}
-            >
+            <div className="ft-bud-head">
               <span />
               <span>{t("budget.colCategory", { defaultValue: "Category" })}</span>
-              <span>{t("budget.colConsumption", { defaultValue: "Consumption" })}</span>
-              <span className="text-right">{t("budget.colSpent", { defaultValue: "Spent" })}</span>
-              <span className="text-right">{t("budget.colRemaining", { defaultValue: "Remaining" })}</span>
+              <span className="ft-hide-sm">
+                {t("budget.colConsumption", { defaultValue: "Consumption" })}
+              </span>
+              <span className="ft-hide-sm text-right">
+                {t("budget.colSpent", { defaultValue: "Spent" })}
+              </span>
+              <span className="text-right">
+                {t("budget.colRemaining", { defaultValue: "Remaining" })}
+              </span>
             </div>
           )}
           {filtered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              {t("budget.emptyFiltered", {
-                defaultValue: "No categories match the current filter.",
-              })}
+            <div className="ft-empty">
+              <Target className="h-[26px] w-[26px]" />
+              <span className="ft-empty-title">
+                {t("budget.emptyFiltered", {
+                  defaultValue: "No categories match the current filter.",
+                })}
+              </span>
             </div>
           ) : (
             filtered.map((s) => (
@@ -2368,6 +2379,7 @@ const Budget = () => {
                 onNavigateToTransactions={navigateToTransactions}
                 applySuggestion={applySuggestion}
                 showSuggestion={showSuggestion}
+                onSaveBudget={saveBudget}
                 busyId={busyId}
                 formatCurrency={formatCurrency}
                 t={t}
@@ -2564,22 +2576,20 @@ function SpecialBudgetsSection({
   }, [active, transactions, today]);
 
   return (
-    <section className="mt-8 pt-6 border-t border-line">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-        <div>
-          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
-            <WalletIcon className="h-3 w-3" />
-            {t("specialBudgets.eyebrow", { defaultValue: "Envelopes" })}
-          </div>
-          <h2 className="text-base sm:text-lg font-bold tracking-tight mt-1">
+    <section>
+      {/* Sections are separated by the page's own gap — the design draws no
+          rule between them. */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3.5">
+        <div className="min-w-0">
+          <h2 className="ft-card-title text-base">
             {t("specialBudgets.sectionTitle", { defaultValue: "Special budgets" })}
           </h2>
-          <p className="text-[12px] text-muted-foreground mt-1 max-w-[56ch]">
+          <div className="ft-card-sub">
             {t("specialBudgets.sectionSubtitle", {
               defaultValue:
                 "Trips & events — linked transactions stay out of category budgets and are tracked here.",
             })}
-          </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {closedCount > 0 && (
@@ -2621,10 +2631,10 @@ function SpecialBudgetsSection({
             <span className="font-mono">{formatCurrency(aggregate.committed)}</span>{" "}
             {t("specialBudgets.aggCommitted", { defaultValue: "committed" })}
           </span>
-          <div className="flex-1 min-w-[80px] h-1.5 rounded-full bg-bg-subtle overflow-hidden">
-            <div
-              className="h-full bg-foreground/80"
-              style={{ width: `${aggregate.pct}%` }}
+          <div className="ft-progress-track thin flex-1 min-w-[80px]">
+            <span
+              className="ft-progress-fill"
+              style={{ width: `${aggregate.pct}%`, background: "hsl(var(--foreground))" }}
             />
           </div>
         </div>
@@ -2649,7 +2659,7 @@ function SpecialBudgetsSection({
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {visible.map((b) => (
             <SpecialBudgetCard
               key={b.id}
@@ -2705,11 +2715,6 @@ function SpecialBudgetCard({
   const Icon = getSpecialBudgetIcon(budget.icon);
   const muted = budget.status === "closed" || budget.status === "planned";
   const fillPct = Math.min(c.ratio, 1) * 100;
-  // When over, split the bar in two: solid portion = share of spend that
-  // stayed within budget; hatched portion = the overshoot share. Both sit
-  // inside the track so the visual reads cleanly (no floating stub past
-  // the right edge).
-  const withinPct = c.over && c.ratio > 0 ? (1 / c.ratio) * 100 : 0;
   const showTick = c.elapsedFrac != null && !c.over;
   const statusCls = SPECIAL_BUDGET_STATUS_META[budget.status].cls;
 
@@ -2765,41 +2770,29 @@ function SpecialBudgetCard({
     <button
       type="button"
       onClick={() => onOpen(budget)}
-      className={cn(
-        "relative overflow-hidden bg-card border border-line rounded-2xl text-left p-4 sm:p-[18px] flex flex-col gap-3 transition-all",
-        "hover:border-line-strong hover:shadow-sm",
-        c.over && "border-neg/40",
-        budget.status === "closed" && "opacity-80"
-      )}
+      className={cn("ft-env", budget.status === "closed" && "opacity-80")}
     >
-      {/* Colored edge */}
-      <span
-        className="absolute top-0 left-0 bottom-0 w-[3px]"
-        style={{ background: palette.color }}
-        aria-hidden
-      />
-
-      {/* Top row: icon + identity + status pill */}
-      <div className="flex items-center gap-3">
-        <div
-          className="h-10 w-10 rounded-xl flex-shrink-0 grid place-items-center"
-          style={{ background: palette.tint, color: palette.ink }}
-        >
-          <Icon className="h-[21px] w-[21px]" strokeWidth={1.8} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-semibold tracking-tight truncate">{budget.name}</div>
-          <div className="inline-flex items-center gap-1.5 mt-0.5 text-[11.5px] text-muted-foreground font-mono">
-            <CalendarIcon className="h-3 w-3 opacity-80" />
-            {formatSpecialBudgetRange(budget.start_date, budget.end_date, locale)}
+      {/* Top row: tinted tile + identity + status tag */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-[11px] min-w-0">
+          <div
+            className="h-9 w-9 rounded-[12px] flex-shrink-0 grid place-items-center"
+            style={{ background: palette.tint, color: palette.ink }}
+          >
+            <Icon className="h-[17px] w-[17px]" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[14px] font-[650] truncate">{budget.name}</div>
+            <div className="ft-row-sub truncate">
+              {formatSpecialBudgetRange(budget.start_date, budget.end_date, locale)}
+            </div>
           </div>
         </div>
         <span
           className={cn(
-            "text-[10.5px] uppercase tracking-[0.05em] font-semibold px-2 py-[3px] rounded-full whitespace-nowrap",
-            statusCls === "active" && "bg-pos/12 text-pos",
-            statusCls === "planned" && "bg-primary/12 text-primary",
-            statusCls === "closed" && "bg-bg-subtle text-muted-foreground border border-line"
+            "ft-tag flex-shrink-0 whitespace-nowrap",
+            c.over && "neg",
+            !c.over && statusCls === "planned" && "acc"
           )}
         >
           {t(`specialBudgets.status${budget.status[0].toUpperCase()}${budget.status.slice(1)}`, {
@@ -2808,96 +2801,69 @@ function SpecialBudgetCard({
         </span>
       </div>
 
-      {/* Money row */}
-      <div className="flex items-baseline gap-1.5">
-        <span
-          className={cn(
-            "font-mono text-[20px] font-bold tracking-tight",
-            c.over && "text-neg"
-          )}
-        >
-          {formatCurrency(c.spent)}
-        </span>
-        <span className="text-[12.5px] text-muted-foreground font-mono">
-          / {formatCurrency(c.total)}
-        </span>
-      </div>
+      <div>
+        {/* Money row */}
+        <div className="flex items-baseline gap-[7px] mb-[7px]">
+          <span className={cn("font-mono text-[19px] font-medium", c.over && "text-neg")}>
+            {formatCurrency(c.spent)}
+          </span>
+          <span className="text-[12px] text-fg-mute">
+            {t("budget.outOfBudget", {
+              amt: formatCurrency(c.total),
+              defaultValue: `of ${formatCurrency(c.total)} budget`,
+            })}
+          </span>
+        </div>
 
-      {/* Pace bar with today tick + over hatch */}
-      <div className="relative h-[9px] rounded-full bg-bg-subtle overflow-hidden">
-        {c.over ? (
-          <>
-            <div
-              className="absolute left-0 top-0 bottom-0"
-              style={{ width: `${withinPct}%`, background: "hsl(var(--neg))" }}
-            />
-            <div
-              className="absolute top-0 bottom-0 right-0"
-              style={{
-                left: `${withinPct}%`,
-                background:
-                  "repeating-linear-gradient(135deg, hsl(var(--neg)) 0 4px, hsl(var(--neg) / 0.32) 4px 8px)",
-              }}
-              aria-hidden
-            />
-          </>
-        ) : (
-          <div
-            className="absolute left-0 top-0 bottom-0 transition-all"
+        {/* Pace bar with the trip's own today tick */}
+        <div className="ft-progress-track tall">
+          <span
+            className="ft-progress-fill"
             style={{
               width: `${fillPct}%`,
-              background: palette.color,
+              background: c.over ? "hsl(var(--neg))" : palette.color,
               opacity: muted ? 0.55 : 1,
             }}
           />
-        )}
-        {showTick && (
-          <div
-            className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-foreground/85"
-            style={{ left: `${Math.min(c.elapsedFrac ?? 0, 1) * 100}%` }}
-            title={t("budget.today", { defaultValue: "Today" })}
-            aria-hidden
-          />
-        )}
-      </div>
+          {showTick && (
+            <span
+              className="ft-progress-mark"
+              style={{ left: `${Math.min(c.elapsedFrac ?? 0, 1) * 100}%` }}
+              title={t("budget.today", { defaultValue: "Today" })}
+              aria-hidden
+            />
+          )}
+        </div>
 
-      {/* Meta row: guidance + remaining */}
-      <div className="flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground">
-        <span className="font-mono truncate flex-1 min-w-0">
-          {guidance}
-          {c.hot && (
-            <span className="text-warning font-semibold ml-1.5">
-              · {t("specialBudgets.hotPace", { defaultValue: "high pace" })}
-            </span>
-          )}
-        </span>
-        <span
-          className={cn(
-            "font-mono font-semibold whitespace-nowrap flex-shrink-0",
-            c.remaining < 0 && "text-neg"
-          )}
-        >
-          {c.remaining >= 0 ? (
-            <>
-              {formatCurrency(c.remaining)}{" "}
-              <span className="text-muted-foreground font-medium">
-                {t("specialBudgets.remainingShort", { defaultValue: "left" })}
+        {/* Meta row: used share + guidance, then remaining */}
+        <div className="flex items-center justify-between gap-3 text-[11.5px] text-fg-dim mt-1.5">
+          <span className="truncate flex-1 min-w-0">
+            {Math.round(c.ratio * 100)}%{" "}
+            {t("specialBudgets.used", { defaultValue: "used" })}
+            {guidance ? ` · ${guidance}` : ""}
+            {c.hot && (
+              <span className="text-warn font-semibold ml-1.5">
+                · {t("specialBudgets.hotPace", { defaultValue: "high pace" })}
               </span>
-            </>
-          ) : (
-            <>
-              −{formatCurrency(Math.abs(c.remaining))}{" "}
-              <span className="text-muted-foreground font-medium">
-                {t("specialBudgets.overShort", { defaultValue: "over" })}
-              </span>
-            </>
-          )}
-        </span>
+            )}
+          </span>
+          <span
+            className={cn("whitespace-nowrap flex-shrink-0", c.remaining < 0 && "text-neg")}
+          >
+            {c.remaining >= 0
+              ? `${formatCurrency(c.remaining)} ${t("specialBudgets.remainingShort", {
+                  defaultValue: "left",
+                })}`
+              : `${formatCurrency(Math.abs(c.remaining))} ${t("specialBudgets.overShort", {
+                  defaultValue: "over",
+                })}`}
+          </span>
+        </div>
       </div>
 
       {/* Optional savings-goal footer */}
       {goalName && (
-        <div className="flex items-center gap-2 text-[11.5px] pt-2 border-t border-line">
+        <div className="flex items-center gap-2 text-[11.5px] pt-2 border-t border-line-soft">
           <span
             className="inline-block h-2 w-2 rounded-full flex-shrink-0"
             style={{ background: palette.color }}

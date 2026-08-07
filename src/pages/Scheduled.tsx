@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CalendarClock, CreditCard, Receipt, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScheduledSummary } from "@/components/scheduled/ScheduledSummary";
-import { SCHEDULED_HEAD_SLOT_ID } from "@/components/scheduled/ScheduledHeadSlot";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 // The three pages render embedded (no outer chrome). Lazy-loaded so the
@@ -91,9 +90,6 @@ const Scheduled = () => {
               })}
             </div>
           </div>
-          {/* The active tool posts its primary action here — see
-              `ScheduledHeadSlot`. */}
-          <div id={SCHEDULED_HEAD_SLOT_ID} className="flex items-center gap-2" />
         </div>
 
         {/* What is scheduled, before which kind of scheduled thing you want

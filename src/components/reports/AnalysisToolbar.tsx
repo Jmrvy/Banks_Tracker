@@ -1,13 +1,6 @@
-import { CalendarCheck, CalendarDays, Clock, Layers, SlidersHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Clock, Layers, SlidersHorizontal } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Segmented } from "@/components/ui/segmented";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -22,10 +15,16 @@ interface AnalysisToolbarProps {
 }
 
 /**
- * View options for the analysis page, as chips sitting beside the tab row.
- * They modify how every panel below reads the same data, so they belong on the
- * same line as the tabs rather than in a band of their own.
+ * View modifiers sit on the tab row as filter chips, flushed right — they
+ * change how the tabs below read, so they belong beside them rather than in a
+ * band of their own. Each chip opens a small popover holding a segmented
+ * control; the include-upcoming chip is itself the toggle.
  */
+
+// The shared control is full-bleed by default (it is normally a page-level
+// band); inside a popover it must stay within the panel's inset.
+const POPOVER_SEG = "mx-0 px-0";
+
 export const AnalysisToolbar = ({
   includeUpcoming,
   setIncludeUpcoming,
@@ -37,7 +36,7 @@ export const AnalysisToolbar = ({
 }: AnalysisToolbarProps) => {
   const { t } = useTranslation();
 
-  const conventionLabel = dateType === 'value'
+  const dateTypeLabel = dateType === 'value'
     ? t('settings.valueDate', { defaultValue: 'Value date' })
     : t('settings.accountingDate', { defaultValue: 'Accounting date' });
 
@@ -48,78 +47,65 @@ export const AnalysisToolbar = ({
       : priorPeriodLabel;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       <button
         type="button"
         onClick={() => setIncludeUpcoming(!includeUpcoming)}
         aria-pressed={includeUpcoming}
-        className={cn("ft-chip", includeUpcoming && "active")}
+        className={cn("ft-chip ft-focusable", includeUpcoming && "active")}
       >
-        <Clock className="h-3 w-3" />
+        <Clock className="h-[13px] w-[13px]" aria-hidden />
         {t('reports.analysis.includeUpcoming', { defaultValue: 'Include upcoming' })}
       </button>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="ft-chip">
-          <SlidersHorizontal className="h-3 w-3" />
-          <span className="hidden sm:inline">
-            {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })} :{' '}
-          </span>
-          {conventionLabel}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[280px]">
-          <DropdownMenuLabel>
-            {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
-          </DropdownMenuLabel>
-          <DropdownMenuRadioGroup
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="ft-chip ft-focusable">
+            <SlidersHorizontal className="h-[13px] w-[13px]" aria-hidden />
+            {t('reports.analysis.dateConventionChip', { value: dateTypeLabel, defaultValue: 'Convention: {{value}}' })}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[300px] p-3.5">
+          <Segmented
             value={dateType}
-            onValueChange={(v) => setDateType(v as 'accounting' | 'value')}
-          >
-            <DropdownMenuRadioItem value="accounting" className="gap-2">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {t('settings.accountingDate', { defaultValue: 'Accounting date' })}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="value" className="gap-2">
-              <CalendarCheck className="h-3.5 w-3.5" />
-              {t('settings.valueDate', { defaultValue: 'Value date' })}
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <p className="px-2 pb-1.5 pt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            onChange={setDateType}
+            className={POPOVER_SEG}
+            label={t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
+            options={[
+              { value: 'accounting', label: t('settings.accountingDate', { defaultValue: 'Accounting date' }) },
+              { value: 'value', label: t('settings.valueDate', { defaultValue: 'Value date' }) },
+            ]}
+          />
+          <p className="mt-3 text-[11.5px] leading-relaxed text-fg-dim">
             {t('reports.analysis.dateConventionHint', {
               defaultValue:
                 'Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions.',
             })}
           </p>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverContent>
+      </Popover>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="ft-chip">
-          <Layers className="h-3 w-3" />
-          <span className="hidden sm:inline">
-            {t('reports.analysis.compareTo', { defaultValue: 'Compare to' })} :{' '}
-          </span>
-          {compareLabel}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>
-            {t('reports.analysis.compareTo', { defaultValue: 'Compare to' })}
-          </DropdownMenuLabel>
-          <DropdownMenuRadioGroup
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="ft-chip ft-focusable">
+            <Layers className="h-[13px] w-[13px]" aria-hidden />
+            {t('reports.analysis.compareToChip', { value: compareLabel, defaultValue: 'Compare to: {{value}}' })}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[300px] p-3.5">
+          <Segmented
             value={compareTo}
-            onValueChange={(v) => setCompareTo(v as 'prior' | '3mo' | 'yearAgo')}
-          >
-            <DropdownMenuRadioItem value="prior">{priorPeriodLabel}</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="3mo">
-              {t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' })}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="yearAgo">
-              {t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' })}
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+            onChange={setCompareTo}
+            className={POPOVER_SEG}
+            label={t('reports.analysis.compareTo', { defaultValue: 'Compare to' })}
+            options={[
+              { value: 'prior', label: priorPeriodLabel },
+              { value: '3mo', label: t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' }) },
+              { value: 'yearAgo', label: t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' }) },
+            ]}
+          />
+        </PopoverContent>
+      </Popover>
+    </>
   );
 };

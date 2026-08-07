@@ -22,11 +22,11 @@ function Figure({ b }: { b: Extract<TraceBlock, { t: "figure" }> }) {
   const DeltaIcon =
     b.delta?.dir === "flat" ? Minus : sign === "−" || sign === "-" ? ArrowDownRight : ArrowUpRight;
   return (
-    <div className="rounded-xl border border-line bg-bg-subtle/50 px-4 py-3.5">
-      <div className="text-[10.5px] uppercase tracking-[0.09em] font-semibold text-muted-foreground">
-        {rich(b.label)}
-      </div>
-      <div className="mt-1.5 text-2xl sm:text-[28px] font-semibold tracking-tight tabular-nums leading-none">
+    <div className="rounded-xl border border-line bg-card p-[18px]">
+      <div className="ft-eyebrow">{rich(b.label)}</div>
+      {/* Every figure in the system is mono — this is the loudest one Trace
+          renders, so it must not fall back to the UI sans. */}
+      <div className="mt-1.5 font-mono text-2xl sm:text-[28px] font-medium tracking-[-0.03em] tabular-nums leading-none">
         {b.value}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
@@ -107,19 +107,24 @@ function Notes({ b }: { b: Extract<TraceBlock, { t: "list" }> }) {
       {b.items.map((item, i) => {
         const Icon = NOTE_ICON[item.tone];
         return (
-          <div key={i} className="flex gap-2.5 rounded-xl border border-line bg-card px-3 py-2.5">
+          /* An aside recedes: the sunk fill and the softer hairline, so it
+             reads as a distinct object on a card-coloured surface. */
+          <div
+            key={i}
+            className="flex gap-[11px] rounded-xl border border-line-soft bg-bg-subtle p-3.5"
+          >
             <Icon
               className={cn(
-                "h-3.5 w-3.5 mt-0.5 flex-shrink-0",
+                "h-[15px] w-[15px] mt-px flex-shrink-0",
                 item.tone === "pos" && "text-pos",
                 item.tone === "neg" && "text-neg",
                 item.tone === "warn" && "text-warning",
-                item.tone === "info" && "text-muted-foreground",
+                item.tone === "info" && "text-fg-dim",
               )}
             />
-            <div className="min-w-0">
-              <div className="text-xs font-medium">{rich(item.title)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{rich(item.body)}</div>
+            <div className="min-w-0 text-[13px]">
+              <div className="font-semibold">{rich(item.title)}</div>
+              <div className="text-muted-foreground mt-0.5">{rich(item.body)}</div>
             </div>
           </div>
         );
@@ -272,7 +277,10 @@ export function TraceBlockView({
 }) {
   switch (block.t) {
     case "text":
-      return <p className="text-sm leading-relaxed text-muted-foreground">{rich(block.v)}</p>;
+      /* Trace's prose is a speech surface, not loose body copy — the tucked
+         top-left corner points back at the avatar. The other block types
+         carry their own surfaces and sit beside it. */
+      return <div className="ft-tr-bubble leading-relaxed">{rich(block.v)}</div>;
     case "figure":
       return <Figure b={block} />;
     case "table":

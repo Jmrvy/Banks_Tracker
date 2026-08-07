@@ -1,16 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Segmented } from "@/components/ui/segmented";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { Download } from "lucide-react";
+import { Book } from "lucide-react";
 import { useReportsData, type ScheduledDebtPaymentInfo } from "@/hooks/useReportsData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
 import { supabase } from "@/integrations/supabase/client";
 import { PeriodSelector } from "@/components/reports/PeriodSelector";
-import { AnalysisKpis } from "@/components/reports/AnalysisKpis";
+import { AnalysisHero } from "@/components/reports/AnalysisHero";
 import { AnalysisToolbar } from "@/components/reports/AnalysisToolbar";
 import { OverTimeTab } from "@/components/reports/OverTimeTab";
 import { FlowsTab } from "@/components/reports/FlowsTab";
@@ -37,7 +36,6 @@ const Reports = () => {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [tab, setTab] = useState<'overtime' | 'flows' | 'coming'>('overtime');
 
   // Page-level toolbar state (hoisted out of tabs)
   const [includeUpcoming, setIncludeUpcoming] = useState(false);
@@ -241,14 +239,13 @@ const Reports = () => {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12 overflow-x-hidden">
       <div className="ft-page w-full overflow-hidden">
-        {/* Page head */}
+        {/* Page head — nav group in the eyebrow, page name as the title. */}
         <div className="ft-page-head">
           <div>
-            <div className="ft-eyebrow">{t('navigation.analyse')}</div>
-            <h1 className="ft-page-title">
-              {t('reports.analysis.title', { defaultValue: 'Financial overview' })}
-            </h1>
+            <div className="ft-eyebrow">{t('navigation.tools')}</div>
+            <h1 className="ft-page-title">{t('navigation.analyse')}</h1>
             <div className="ft-page-sub">
+              {t('reports.analysis.title', { defaultValue: 'Financial overview' })} ·{' '}
               {t('reports.analysis.subtitle', {
                 count: accounts.length,
                 txCount: filteredTransactions.length,
@@ -257,7 +254,7 @@ const Reports = () => {
               · {period.label}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <PeriodSelector
               periodType={periodType}
               setPeriodType={setPeriodType}
@@ -268,45 +265,44 @@ const Reports = () => {
             />
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setShowExportModal(true)}
-              className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-medium"
+              className="h-[29px] rounded-[9px] px-2.5 gap-1.5 text-[12px] font-550 border-line-strong [&_svg]:size-[14px]"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Book />
               <span className="hidden sm:inline">{t('reports.generateReport', { defaultValue: 'Generate report' })}</span>
               <span className="sm:hidden">{t('reports.generate', { defaultValue: 'Generate' })}</span>
             </Button>
           </div>
         </div>
 
-        {/* The four headline figures of the period. */}
-        <AnalysisKpis
+        {/* Four peer KPIs: money in / money out / net / savings rate. */}
+        <AnalysisHero
           stats={effectiveStats}
           priorStats={comparisonStats}
-          period={period}
           priorPeriodLabel={comparisonLabel}
           sparkline={sparklineData}
-          dateType={dateType}
           onIncomeClick={() => setShowIncomeModal(true)}
           onExpensesClick={() => setShowExpensesModal(true)}
         />
 
         {/* 3-tab structure: Over time / Flows (in+out) / What's coming.
-            View options sit on the same line — they re-read every panel below. */}
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="space-y-3 w-full">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div data-tour="reports-tabs">
-              <Segmented
-                label={t('reports.analysis.title', { defaultValue: 'Financial overview' })}
-                value={tab}
-                onChange={(v) => setTab(v as typeof tab)}
-                options={[
-                  { value: 'overtime', label: t('reports.analysis.tabOverTime', { defaultValue: 'Over time' }) },
-                  { value: 'flows', label: t('reports.analysis.tabFlows', { defaultValue: 'Flows' }) },
-                  { value: 'coming', label: t('reports.analysis.tabComing', { defaultValue: "What's coming" }) },
-                ]}
-              />
-            </div>
+            The view modifiers ride the same row, flushed right. */}
+        <Tabs defaultValue="overtime" className="w-full flex flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5">
+            <TabsList data-tour="reports-tabs" className="ft-seg h-auto rounded-[11px] p-[3px] gap-0.5">
+              <TabsTrigger value="overtime" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabOverTime', { defaultValue: 'Over time' })}
+              </TabsTrigger>
+              <TabsTrigger value="flows" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabFlows', { defaultValue: 'Flows' })}
+              </TabsTrigger>
+              <TabsTrigger value="coming" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabComing', { defaultValue: "What's coming" })}
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="flex-1" />
+
             <AnalysisToolbar
               includeUpcoming={includeUpcoming}
               setIncludeUpcoming={setIncludeUpcoming}
@@ -318,7 +314,7 @@ const Reports = () => {
             />
           </div>
 
-          <TabsContent value="overtime" className="mt-3">
+          <TabsContent value="overtime" className="mt-0">
             <OverTimeTab
               balanceEvolutionData={balanceEvolutionData}
               stats={effectiveStats}
@@ -328,7 +324,7 @@ const Reports = () => {
             />
           </TabsContent>
 
-          <TabsContent value="flows" className="mt-3">
+          <TabsContent value="flows" className="mt-0">
             <FlowsTab
               stats={effectiveStats}
               comparisonStats={comparisonStats}
@@ -345,7 +341,7 @@ const Reports = () => {
           </TabsContent>
 
 
-          <TabsContent value="coming" className="mt-3">
+          <TabsContent value="coming" className="mt-0">
             <ComingTab recurringData={recurringData} period={period} />
           </TabsContent>
         </Tabs>

@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Repeat, Calendar, Pause, Play, Plus, List, CalendarDays } from "lucide-react";
+import { Segmented } from "@/components/ui/segmented";
+import { Repeat, Calendar, Pause, Play, Plus, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
@@ -21,7 +21,6 @@ import { DeleteRecurringDialog } from "@/components/DeleteRecurringDialog";
 import { startOfDay } from "date-fns";
 import { parseLocalDate } from "@/lib/dateUtils";
 import RecurringListCard from "@/components/RecurringListCard";
-import { ScheduledHeadSlot } from "@/components/scheduled/ScheduledHeadSlot";
 
 interface RecurringTransactionsProps {
   /** When true, render only the body + modals, leaving the outer page chrome
@@ -30,10 +29,13 @@ interface RecurringTransactionsProps {
   embedded?: boolean;
 }
 
+type RecurringView = 'calendar' | 'list';
+
 const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps = {}) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [view, setView] = useState<RecurringView>('calendar');
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
@@ -275,8 +277,9 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
     };
   }, [installmentPayments, transactions, debts, debtPayments, scheduledDebtPayments]);
 
-  // The "Add recurring" CTA sits in a page head either way: this page's own
-  // when standalone, the `/scheduled` page's when embedded.
+  // The "Add recurring" CTA lives in the page head when standalone; embedded
+  // inside `/scheduled` it shares the segmented control's row rather than
+  // getting a bar of its own (the design never stacks a lone action bar).
   const newButton = (
     <Button
       onClick={() => setShowNewRecurring(true)}
@@ -306,23 +309,25 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
           </div>
         )}
 
-        {embedded && <ScheduledHeadSlot>{newButton}</ScheduledHeadSlot>}
+        {/* One control style per screen: the design's inline segmented switch,
+            with the primary action sharing its row instead of floating in a
+            bar of its own. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <Segmented
+            label={t('navigation.recurringTransactions')}
+            value={view}
+            onChange={(v) => setView(v as RecurringView)}
+            options={[
+              { value: 'calendar', label: t('recurring.viewCalendar', { defaultValue: 'Calendar' }) },
+              { value: 'list', label: t('recurring.viewList', { defaultValue: 'List' }) },
+            ]}
+          />
+          {embedded && newButton}
+        </div>
 
-        {/* Tabs: Calendar / List */}
-        <Tabs defaultValue="calendar" className="w-full">
-          <TabsList className="h-9 rounded-[11px] p-[3px]">
-            <TabsTrigger value="calendar" className="gap-1.5 px-2.5 text-xs">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {t('recurring.calendarView', { defaultValue: 'Calendrier' })}
-            </TabsTrigger>
-            <TabsTrigger value="list" className="gap-1.5 px-2.5 text-xs">
-              <List className="h-3.5 w-3.5" />
-              {t('recurring.listView', { defaultValue: 'Liste' })}
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Calendar View */}
-          <TabsContent value="calendar" className="mt-4">
+        {/* Calendar View */}
+        {view === 'calendar' && (
+          <div>
             {loading ? (
               <div className="ft-card p-6">
                 <div className="animate-pulse space-y-4" role="status">
@@ -340,18 +345,22 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                   <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 sm:mb-4 grid place-items-center">
                       <CalendarDays className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-base sm:text-lg font-medium mb-2">Aucune récurrente</h3>
+                    <h3 className="ft-empty-title mb-2">
+                      {t('recurring.empty', { defaultValue: 'No recurring transactions' })}
+                    </h3>
                     <p className="text-muted-foreground text-xs sm:text-sm mb-4">
-                      Créez votre première transaction récurrente.
+                      {t('recurring.emptyHint', { defaultValue: 'Create your first recurring transaction.' })}
                     </p>
                   <Button onClick={() => setShowNewRecurring(true)} size="sm" className="h-8 text-sm gap-1.5">
                     <Plus className="h-3.5 w-3.5" />
-                    Créer une Récurrente
+                    {t('recurring.createFirst', { defaultValue: 'Create a recurring transaction' })}
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+              /* Design's `.g2s` split: fluid main column + a fixed 300px rail,
+                 both collapsing at 1180px like every other two-column page. */
+              <div className="ft-g2s">
                 <RecurringCalendar
                   transactions={recurringTransactions}
                   actualTransactions={transactions}
@@ -367,39 +376,41 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                   onRecordPayment={(id) => setRecordPaymentForId(id)}
                   onManageDebtPayment={(debtId) => setManagingDebtId(debtId)}
                 />
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-[18px]">
                   {/* At-a-glance stats — moved here from the top of the page */}
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <div className="ft-kpi-icon pos h-6 w-6"><Play className="h-3 w-3" /></div>
-                        <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">{t('recurring.active', { defaultValue: 'Active' })}</span>
+                        <span className="ft-eyebrow truncate">{t('recurring.active', { defaultValue: 'Active' })}</span>
                       </div>
-                      <div className="font-mono text-lg sm:text-xl font-medium tracking-tight leading-none">{activeTransactions.length}</div>
+                      <div className="font-mono text-xl font-medium tracking-[-0.03em] leading-none">{activeTransactions.length}</div>
                     </div>
                     <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <div className="ft-kpi-icon h-6 w-6"><Pause className="h-3 w-3 text-muted-foreground" /></div>
-                        <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">{t('recurring.inactive', { defaultValue: 'Inactive' })}</span>
+                        <span className="ft-eyebrow truncate">{t('recurring.inactive', { defaultValue: 'Inactive' })}</span>
                       </div>
-                      <div className="font-mono text-lg sm:text-xl font-medium tracking-tight leading-none">{inactiveTransactions.length}</div>
+                      <div className="font-mono text-xl font-medium tracking-[-0.03em] leading-none">{inactiveTransactions.length}</div>
                     </div>
                     <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <div className="ft-kpi-icon warn h-6 w-6"><Calendar className="h-3 w-3" /></div>
-                        <span className="text-[10.5px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">{t('recurring.next7d', { defaultValue: '7 days' })}</span>
+                        <span className="ft-eyebrow truncate">{t('recurring.next7d', { defaultValue: '7 days' })}</span>
                       </div>
-                      <div className="font-mono text-lg sm:text-xl font-medium tracking-tight leading-none">{dueInSevenDaysCount}</div>
+                      <div className="font-mono text-xl font-medium tracking-[-0.03em] leading-none">{dueInSevenDaysCount}</div>
                     </div>
                   </div>
                   <RecurringMonthlySummary />
                 </div>
               </div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          {/* List View - Klarna-style */}
-          <TabsContent value="list" className="mt-4 space-y-4 md:max-w-3xl md:mx-auto">
+        {/* List View — one flush ledger surface, not a stack of tiles. */}
+        {view === 'list' && (
+          <div className="space-y-4">
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
@@ -414,97 +425,71 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                   <div className="h-14 w-14 rounded-2xl bg-bg-subtle mx-auto mb-3 sm:mb-4 grid place-items-center">
                       <Repeat className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-base sm:text-lg font-medium mb-2">Aucune récurrente</h3>
+                    <h3 className="ft-empty-title mb-2">
+                      {t('recurring.empty', { defaultValue: 'No recurring transactions' })}
+                    </h3>
                     <p className="text-muted-foreground text-xs sm:text-sm mb-4">
-                      Créez votre première transaction récurrente.
+                      {t('recurring.emptyHint', { defaultValue: 'Create your first recurring transaction.' })}
                     </p>
                   <Button onClick={() => setShowNewRecurring(true)} size="sm" className="h-8 text-sm gap-1.5">
                     <Plus className="h-3.5 w-3.5" />
-                    Créer une Récurrente
+                    {t('recurring.createFirst', { defaultValue: 'Create a recurring transaction' })}
                   </Button>
                 </div>
               </div>
             ) : (
-              <>
-                {/* Active transactions */}
-                {activeTransactions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                      <h3 className="text-sm sm:text-base font-bold">
-                        Actives
-                      </h3>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
-                        {activeTransactions.length} transaction{activeTransactions.length > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {activeTransactions.map(recurring => {
-                        const props = getListCardProps(recurring);
-                        return (
-                          <RecurringListCard
-                            key={recurring.id}
-                            recurring={recurring}
-                            isExpanded={expandedListId === recurring.id}
-                            onToggleExpand={() => setExpandedListId(expandedListId === recurring.id ? null : recurring.id)}
-                            installmentInfo={props.installmentInfo}
-                            debtInfo={props.debtInfo}
-                            listDisplayAmount={props.listDisplayAmount}
-                            hasOverdueDebtPayment={props.hasOverdueDebtPayment}
-                            installmentPaymentHistory={props.installmentPaymentHistory}
-                            debtPaymentHistory={props.debtPaymentHistory}
-                            formatCurrency={formatCurrency}
-                            onEdit={handleEditAttempt}
-                            onToggleActive={handleToggleActive}
-                            onDelete={handleDelete}
-                            onOpenDebt={setManagingDebtId}
-                          />
-                        );
+              /* One flush card carrying the whole ledger: head with the count
+                 line + create action, then hairline-separated rows. */
+              <div className="ft-card-flush">
+                <div className="ft-card-head">
+                  <div>
+                    <h3 className="ft-card-title">{t('navigation.recurringTransactions')}</h3>
+                    <p className="ft-card-sub">
+                      {t('recurring.listCount', {
+                        defaultValue: '{{total}} in total · {{active}} active',
+                        total: recurringTransactions.length,
+                        active: activeTransactions.length,
                       })}
-                    </div>
+                    </p>
                   </div>
-                )}
-
-                {/* Inactive transactions */}
-                {inactiveTransactions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                      <h3 className="text-sm sm:text-base font-bold text-muted-foreground">
-                        Inactives
-                      </h3>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
-                        {inactiveTransactions.length} transaction{inactiveTransactions.length > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {inactiveTransactions.map(recurring => {
-                        const props = getListCardProps(recurring);
-                        return (
-                          <RecurringListCard
-                            key={recurring.id}
-                            recurring={recurring}
-                            isExpanded={expandedListId === recurring.id}
-                            onToggleExpand={() => setExpandedListId(expandedListId === recurring.id ? null : recurring.id)}
-                            installmentInfo={props.installmentInfo}
-                            debtInfo={props.debtInfo}
-                            listDisplayAmount={props.listDisplayAmount}
-                            hasOverdueDebtPayment={props.hasOverdueDebtPayment}
-                            installmentPaymentHistory={props.installmentPaymentHistory}
-                            debtPaymentHistory={props.debtPaymentHistory}
-                            formatCurrency={formatCurrency}
-                            onEdit={handleEditAttempt}
-                            onToggleActive={handleToggleActive}
-                            onDelete={handleDelete}
-                            onOpenDebt={setManagingDebtId}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
+                  <Button
+                    onClick={() => setShowNewRecurring(true)}
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 gap-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t('common.add', { defaultValue: 'Add' })}
+                  </Button>
+                </div>
+                <div className="[&>*:last-child_.ft-list-row]:border-b-0">
+                  {[...activeTransactions, ...inactiveTransactions].map(recurring => {
+                    const props = getListCardProps(recurring);
+                    return (
+                      <RecurringListCard
+                        key={recurring.id}
+                        recurring={recurring}
+                        isExpanded={expandedListId === recurring.id}
+                        onToggleExpand={() => setExpandedListId(expandedListId === recurring.id ? null : recurring.id)}
+                        installmentInfo={props.installmentInfo}
+                        debtInfo={props.debtInfo}
+                        listDisplayAmount={props.listDisplayAmount}
+                        hasOverdueDebtPayment={props.hasOverdueDebtPayment}
+                        installmentPaymentHistory={props.installmentPaymentHistory}
+                        debtPaymentHistory={props.debtPaymentHistory}
+                        formatCurrency={formatCurrency}
+                        onEdit={handleEditAttempt}
+                        onToggleActive={handleToggleActive}
+                        onDelete={handleDelete}
+                        onOpenDebt={setManagingDebtId}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
 
       <NewRecurringTransactionModal

@@ -9,7 +9,7 @@ import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.25.0";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.25.0";
 
 // src/lib/mcp/supabase.ts
-import { createClient } from "npm:@supabase/supabase-js@^2.57.4";
+import { createClient } from "npm:@supabase/supabase-js@2.78.0";
 function supabaseForUser(ctx) {
   return createClient(
     process.env.SUPABASE_URL,

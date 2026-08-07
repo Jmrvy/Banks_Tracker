@@ -97,7 +97,7 @@ function AppRoutes() {
   return (
     <>
       {inShell && !isMobile && <AppSidebar />}
-      <div className={inShell && !isMobile ? "ml-64 min-h-screen" : inShell && isMobile ? "pb-24 min-h-screen" : "min-h-screen"}>
+      <div className={inShell && !isMobile ? "ml-[250px] min-h-screen" : inShell && isMobile ? "pb-24 min-h-screen" : "min-h-screen"}>
         {inShell && !isMobile && <AppTopbar />}
         <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><InlineSpinner /></div>}>
         <Routes>
