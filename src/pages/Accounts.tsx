@@ -5,9 +5,9 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowDown,
+  ChevronRight,
   Eye,
   EyeOff,
-  Filter,
   MoreVertical,
   Trash2,
   Wallet,
@@ -142,6 +142,7 @@ const Accounts = () => {
     : "hsl(var(--primary))";
   const previewSeries = previewAccount ? seriesByAccount[previewAccount.id] : undefined;
   const previewChange = previewSeries?.change30d ?? 0;
+  const previewChangePct = previewSeries?.changePct ?? 0;
   const previewTransactions = useMemo(() => {
     if (!previewAccount) return [];
     return transactions.filter(
@@ -192,8 +193,11 @@ const Accounts = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div
-              className="h-12 w-12 rounded-xl grid place-items-center text-white font-bold text-sm flex-shrink-0"
-              style={{ background: accent }}
+              className="ft-glyph !h-12 !w-12 !rounded-[16px] !text-[14px]"
+              style={{
+                background: `color-mix(in oklab, ${accent} 15%, transparent)`,
+                color: accent,
+              }}
             >
               {initialsOf(selectedAccount.name)}
             </div>
@@ -210,12 +214,22 @@ const Accounts = () => {
                 size="sm"
                 onClick={() => setHideBalances(!hideBalances)}
                 className="h-8 w-8 p-0"
+                aria-label={
+                  hideBalances
+                    ? t("common.showAmounts", { defaultValue: "Show amounts" })
+                    : t("common.hideAmounts", { defaultValue: "Hide amounts" })
+                }
               >
                 {hideBalances ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    aria-label={t("common.moreActions", { defaultValue: "More actions" })}
+                  >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -252,7 +266,7 @@ const Accounts = () => {
           />
 
           {/* Mini-stats hero strip */}
-          <div className="ft-card relative overflow-hidden">
+          <div className="ft-card p-0 relative overflow-hidden">
             <div
               className="pointer-events-none absolute inset-0 opacity-50"
               style={{ background: `radial-gradient(60% 80% at 0% 0%, ${accent}22, transparent 60%)` }}
@@ -263,56 +277,51 @@ const Accounts = () => {
                   <span className="live" />
                   {t("accounts.availableBalance", { defaultValue: "Available balance" })}
                 </div>
-                <div
-                  className="ft-hero-value mt-3 break-words"
-                 
-                >
+                <div className="ft-hero-value mt-3 break-words">
                   {hideBalances ? "•••••" : formatCurrency(selectedAccount.balance)}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-xs text-muted-foreground">
+                {/* The chip carries the percentage only; the absolute figure
+                    sits beside it in mute text, the way the system does it. */}
+                <div className="flex flex-wrap items-center gap-x-[9px] gap-y-1 mt-3 text-[12.5px] text-muted-foreground">
                   {accountSeries && (
                     <span className={`ft-delta ${change30d >= 0 ? "up" : "down"} whitespace-nowrap`}>
                       {change30d >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                      {fmtBal(Math.abs(change30d))}
-                      <span className="opacity-70 ml-1">({changePct.toFixed(1)}%)</span>
+                      {changePct > 0 ? "+" : ""}
+                      {changePct.toFixed(1)} %
                     </span>
                   )}
-                  <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
+                  <span className="whitespace-nowrap">
+                    {fmtBal(change30d, { sign: true })}{" "}
+                    {t("dashboard.past30Days", { defaultValue: "past 30 days" })}
+                  </span>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 md:gap-5 md:border-l md:border-line md:pl-6 self-center min-w-0">
-                <div className="min-w-0">
-                  <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">
+              <div className="grid grid-cols-3 gap-3 md:gap-[18px] md:border-l md:border-line md:pl-6 self-center min-w-0">
+                <div className="ft-hero-stat min-w-0">
+                  <span className="ft-eyebrow truncate">
                     {t("common.income", { defaultValue: "Income" })}
-                  </div>
-                  <div
-                    className="font-mono font-medium tracking-tight mt-1 text-pos truncate"
-                   
-                  >
+                  </span>
+                  <span className="ft-hero-stat-value text-pos truncate">
                     +{fmtBal(periodIncome)}
-                  </div>
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">
+                <div className="ft-hero-stat min-w-0">
+                  <span className="ft-eyebrow truncate">
                     {t("common.expenses", { defaultValue: "Spent" })}
-                  </div>
-                  <div
-                    className="font-mono font-medium tracking-tight mt-1 text-destructive truncate"
-                   
-                  >
+                  </span>
+                  <span className="ft-hero-stat-value text-destructive truncate">
                     −{fmtBal(periodExpense)}
-                  </div>
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[10.5px] sm:text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground truncate">
+                <div className="ft-hero-stat min-w-0">
+                  <span className="ft-eyebrow truncate">
                     {t("dashboard.net", { defaultValue: "Net" })}
-                  </div>
-                  <div
-                    className={`font-mono font-medium tracking-tight mt-1 truncate ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}
-                   
+                  </span>
+                  <span
+                    className={`ft-hero-stat-value truncate ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}
                   >
                     {fmtBal(periodNet, { sign: true })}
-                  </div>
+                  </span>
                 </div>
               </div>
             </div>
@@ -351,6 +360,11 @@ const Accounts = () => {
               size="sm"
               onClick={() => setHideBalances(!hideBalances)}
               className="h-8 px-3 gap-1.5"
+              aria-label={
+                hideBalances
+                  ? t("common.showAmounts", { defaultValue: "Show amounts" })
+                  : t("common.hideAmounts", { defaultValue: "Hide amounts" })
+              }
             >
               {hideBalances ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">
@@ -364,6 +378,7 @@ const Accounts = () => {
               onClick={() => setShowNewAccountModal(true)}
               size="sm"
               className="h-8 px-3 gap-1.5 font-semibold"
+              aria-label={t("accounts.linkAccount", { defaultValue: "Link account" })}
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">
@@ -374,20 +389,20 @@ const Accounts = () => {
         </div>
 
         {/* Three shapes of money, before any individual account. */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+        <div className="ft-g3">
           {TYPE_GROUPS.map((group) => {
             const list = accounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
             const total = list.reduce((s, a) => s + a.balance, 0);
             return (
-              <div key={group.key} className="ft-card p-4 md:p-5">
+              <div key={group.key} className="ft-card p-5">
                 <div className="flex items-center gap-2">
-                  <i className="h-2.5 w-2.5 rounded-[3px] flex-shrink-0" style={{ background: group.swatch }} />
+                  <i className="ft-swatch !h-2.5 !w-2.5" style={{ background: group.swatch }} />
                   <span className="ft-kpi-label truncate">{t(group.labelKey, { defaultValue: group.fallback })}</span>
                 </div>
-                <div className="font-mono text-[26px] font-medium tracking-[-0.03em] mt-2.5 mb-1 truncate">
+                <div className="font-mono text-[27px] font-medium tracking-[-0.03em] mt-2.5 mb-1 truncate">
                   {fmtBal(total)}
                 </div>
-                <div className="text-xs text-fg-dim truncate">
+                <div className="text-[12px] text-fg-dim truncate">
                   {t("accounts.nAccounts", { count: list.length, defaultValue: "{{count}} accounts" })}
                   {compositionTotal > 0 && ` · ${((Math.max(0, total) / compositionTotal) * 100).toFixed(0)} %`}
                 </div>
@@ -398,15 +413,15 @@ const Accounts = () => {
 
         {/* Grouped lists on the left, the highlighted account on the right —
             picking a row is a cheap preview, not a navigation. */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr] gap-4 md:gap-5 items-start">
-          <div className="flex flex-col gap-4 md:gap-5 min-w-0">
+        <div className="ft-g2 items-start">
+          <div className="flex flex-col gap-[18px] min-w-0">
             {TYPE_GROUPS.map((group) => {
               const list = accounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
               if (list.length === 0) return null;
               const total = list.reduce((s, a) => s + a.balance, 0);
               return (
                 <div key={group.key} className="ft-card-flush">
-                  <div className="ft-card-head px-5 pt-5 pb-0">
+                  <div className="ft-card-head">
                     <div>
                       <h3 className="ft-card-title">{t(group.labelKey, { defaultValue: group.fallback })}</h3>
                       <div className="ft-card-sub">
@@ -419,6 +434,7 @@ const Accounts = () => {
                       const accent = BANK_COLORS[account.bank] || "hsl(var(--primary))";
                       const series = seriesByAccount[account.id];
                       const change = series?.change30d ?? 0;
+                      const changePct = series?.changePct ?? 0;
                       const flat = Math.abs(change) < 0.01;
                       const active = previewAccountId === account.id;
                       return (
@@ -428,18 +444,25 @@ const Accounts = () => {
                           onClick={() => setPreviewAccountId(account.id)}
                           onDoubleClick={() => setSelectedAccountId(account.id)}
                           aria-pressed={active}
-                          className="ft-list-row text-left w-full"
-                          style={{
-                            gridTemplateColumns: "38px minmax(0,1fr) 84px auto",
-                            background: active ? "hsl(var(--accent-wash))" : undefined,
-                          }}
+                          /* Four tracks only where the sparkline cell is
+                             actually rendered — a `display:none` grid item is
+                             not placed, so declaring it below `sm` dropped the
+                             balance into the 96px chart column. */
+                          className="ft-list-row text-left w-full grid-cols-[38px_minmax(0,1fr)_auto] sm:grid-cols-[38px_minmax(0,1fr)_96px_auto]"
+                          style={{ background: active ? "hsl(var(--accent-wash))" : undefined }}
                         >
-                          <div className="ft-glyph" style={{ background: `${accent}1F`, color: accent }}>
+                          <div
+                            className="ft-glyph"
+                            style={{
+                              background: `color-mix(in oklab, ${accent} 15%, transparent)`,
+                              color: accent,
+                            }}
+                          >
                             {initialsOf(account.name)}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-semibold text-[13.5px] truncate">{account.name}</div>
-                            <div className="text-[11.5px] text-fg-dim truncate">
+                            <div className="ft-row-title truncate">{account.name}</div>
+                            <div className="ft-row-sub truncate">
                               {getBankLabel(account.bank, t)} · {getAccountTypeLabel(account.account_type, t)}
                             </div>
                           </div>
@@ -448,14 +471,20 @@ const Accounts = () => {
                               <AccountSparkline series={series.series} color={accent} height={30} fill={false} />
                             )}
                           </div>
-                          <div className="text-right">
-                            <div className={`font-mono text-sm font-medium ${account.balance < 0 ? "text-destructive" : ""}`}>
+                          <div>
+                            <div className={`ft-row-amt ${account.balance < 0 ? "text-destructive" : ""}`}>
                               {fmtBal(account.balance)}
                             </div>
                             {!flat && (
-                              <div className="mt-0.5">
+                              <div className="ft-row-amt sub mt-0.5">
                                 <span className={`ft-delta ${change > 0 ? "up" : "down"}`}>
-                                  {change > 0 ? "↑" : "↓"} {fmtBal(Math.abs(change))}
+                                  {change > 0 ? (
+                                    <ArrowUp className="h-3 w-3" />
+                                  ) : (
+                                    <ArrowDown className="h-3 w-3" />
+                                  )}
+                                  {changePct > 0 ? "+" : ""}
+                                  {changePct.toFixed(1)} %
                                 </span>
                               </div>
                             )}
@@ -482,13 +511,16 @@ const Accounts = () => {
 
           {/* Preview panel */}
           {previewAccount && (
-            <div className="flex flex-col gap-4 md:gap-5 min-w-0">
-              <div className="ft-card p-5">
-                <div className="ft-card-head !mb-4">
+            <div className="flex flex-col gap-[18px] min-w-0">
+              <div className="ft-card">
+                <div className="ft-card-head !mb-4 flex-nowrap">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className="ft-glyph !h-[42px] !w-[42px] !rounded-[14px] !text-[13px]"
-                      style={{ background: `${previewAccent}1F`, color: previewAccent }}
+                      style={{
+                        background: `color-mix(in oklab, ${previewAccent} 15%, transparent)`,
+                        color: previewAccent,
+                      }}
                     >
                       {initialsOf(previewAccount.name)}
                     </div>
@@ -499,17 +531,50 @@ const Accounts = () => {
                       </div>
                     </div>
                   </div>
+                  {/* Per-account overflow, the way the pack's preview head has
+                      it — the same actions the full detail view offers. */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-[29px] w-[29px] flex-shrink-0 rounded-[9px]"
+                        aria-label={t("common.moreActions", { defaultValue: "More actions" })}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[240px]">
+                      <DropdownMenuItem onSelect={() => setSelectedAccountId(previewAccount.id)}>
+                        {t("accounts.openAccount", { defaultValue: "Open account" })}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={accounts.length <= 1}
+                        className="text-destructive focus:text-destructive data-[disabled]:text-muted-foreground"
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          if (accounts.length <= 1) return;
+                          setShowDeleteModal(true);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        {t("accounts.delete", { defaultValue: "Delete account" })}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className={`font-mono text-[32px] font-medium tracking-[-0.03em] truncate ${previewAccount.balance < 0 ? "text-destructive" : ""}`}>
                   {fmtBal(previewAccount.balance)}
                 </div>
                 {Math.abs(previewChange) > 0.01 && (
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex flex-wrap items-center gap-x-[9px] gap-y-1 mt-[7px]">
                     <span className={`ft-delta ${previewChange > 0 ? "up" : "down"}`}>
                       {previewChange > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                      {fmtBal(Math.abs(previewChange))}
+                      {previewChangePct > 0 ? "+" : ""}
+                      {previewChangePct.toFixed(1)} %
                     </span>
                     <span className="text-[12.5px] text-muted-foreground">
+                      {fmtBal(previewChange, { sign: true })}{" "}
                       {t("dashboard.past30Days", { defaultValue: "past 30 days" })}
                     </span>
                   </div>
@@ -519,13 +584,13 @@ const Accounts = () => {
                     <AccountSparkline series={previewSeries.series} color={previewAccent} height={78} fill />
                   </div>
                 )}
-                {/* The pack's action row: the two things you do to an
-                    account, then the account itself. */}
+                {/* The pack's action row: two 29px text buttons, then a
+                    29px icon slot — not three full-height buttons. */}
                 <div className="flex items-center gap-2 mt-4">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-9 gap-1.5"
+                    className="flex-1 h-[29px] px-2.5 gap-1.5 rounded-[9px] text-[12px] font-[550]"
                     onClick={() => setShowNewTransactionModal(true)}
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -534,24 +599,27 @@ const Accounts = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-9 gap-1.5"
+                    className="flex-1 h-[29px] px-2.5 gap-1.5 rounded-[9px] text-[12px] font-[550]"
                     onClick={() => setShowTransferModal(true)}
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5" />
                     {t("common.transfers", { defaultValue: "Transfer" })}
                   </Button>
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="h-9 gap-1.5 font-semibold"
+                    className="h-[29px] w-[29px] p-0 rounded-[9px] flex-shrink-0"
+                    aria-label={t("accounts.openAccount", { defaultValue: "Open account" })}
+                    title={t("accounts.openAccount", { defaultValue: "Open account" })}
                     onClick={() => setSelectedAccountId(previewAccount.id)}
                   >
-                    {t("accounts.openAccount", { defaultValue: "Open account" })}
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
 
               <div className="ft-card-flush">
-                <div className="ft-card-head px-5 pt-5 pb-0">
+                <div className="ft-card-head">
                   <div>
                     <h3 className="ft-card-title">{t("transactions.recent", { defaultValue: "Recent" })}</h3>
                     <div className="ft-card-sub">
@@ -564,36 +632,38 @@ const Accounts = () => {
                 </div>
                 <div className="flex flex-col">
                   {previewTransactions.slice(0, 6).map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="ft-list-row"
-                      style={{ gridTemplateColumns: "34px minmax(0,1fr) auto" }}
-                    >
+                    <div key={tx.id} className="ft-list-row tx">
                       {tx.category ? (
                         <CategoryIcon icon={tx.category.icon} color={tx.category.color} size={34} />
                       ) : (
                         <div className="ft-glyph sq">
-                          {tx.type === "transfer" ? <ArrowLeft className="h-4 w-4" /> : <Wallet className="h-4 w-4" />}
+                          {tx.type === "transfer" ? (
+                            <ArrowRightLeft className="h-4 w-4" />
+                          ) : (
+                            <Wallet className="h-4 w-4" />
+                          )}
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="font-semibold text-[13px] truncate">{tx.description}</div>
-                        <div className="text-[11.5px] text-fg-dim truncate">
+                        <div className="ft-row-title truncate">{tx.description}</div>
+                        <div className="ft-row-sub truncate">
                           {tx.category?.name ??
                             (tx.type === "transfer"
                               ? t("transactions.transfer", { defaultValue: "Transfer" })
                               : t("common.uncategorized", { defaultValue: "Uncategorized" }))}
                         </div>
                       </div>
-                      <div className={`font-mono text-[13.5px] font-medium ${tx.type === "income" ? "text-pos" : ""}`}>
+                      <div className={`ft-row-amt ${tx.type === "income" ? "text-pos" : ""}`}>
                         {tx.type === "income" ? "+" : "−"}
                         {formatCurrency(tx.amount)}
                       </div>
                     </div>
                   ))}
                   {previewTransactions.length === 0 && (
-                    <div className="px-5 py-9 text-center text-[13px] text-fg-dim">
-                      {t("transactions.noTransactions", { defaultValue: "No transactions" })}
+                    <div className="ft-empty">
+                      <div className="ft-empty-title">
+                        {t("transactions.noTransactions", { defaultValue: "No transactions" })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -616,7 +686,7 @@ const Accounts = () => {
 
         {/* Cash on hand panel */}
         {compositionTotal > 0 && (
-          <div className="ft-card p-5 md:p-6">
+          <div className="ft-card">
             <div className="ft-card-head">
               <div>
                 <h3 className="ft-card-title">
@@ -683,20 +753,18 @@ const Accounts = () => {
                     })}
                   </span>
                 </div>
-                <div className="relative h-2 mt-3 rounded-full bg-bg-subtle overflow-visible">
+                <div className="ft-progress-track tall !overflow-visible mt-3">
                   <div
-                    className="h-full rounded-full"
+                    className="ft-progress-fill"
                     style={{
                       width: `${Math.min(100, (efMonths / efTargetMonths) * 100)}%`,
                       background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--pos)))",
                     }}
                   />
-                  <div
-                    className="absolute -top-1 w-0.5 h-4 bg-foreground rounded-sm"
-                    style={{ left: "100%", transform: "translateX(-1px)" }}
-                  >
-                    <div className="absolute top-5 left-0 -translate-x-1/2 text-[10px] font-mono text-muted-foreground">
-                      {efTargetMonths}mo
+                  <div className="ft-progress-mark" style={{ left: "100%", transform: "translateX(-1px)" }}>
+                    <div className="absolute top-4 left-0 -translate-x-1/2 text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                      {efTargetMonths}
+                      {t("accounts.monthsShort", { defaultValue: "mo" })}
                     </div>
                   </div>
                 </div>
@@ -716,6 +784,14 @@ const Accounts = () => {
         onOpenChange={setShowTransferModal}
         defaultType="transfer"
       />
+      {previewAccount && (
+        <DeleteAccountModal
+          open={showDeleteModal}
+          onOpenChange={setShowDeleteModal}
+          account={previewAccount}
+          onDeleted={() => setPreviewAccountId(null)}
+        />
+      )}
     </div>
   );
 };

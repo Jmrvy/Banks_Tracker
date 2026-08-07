@@ -47,19 +47,19 @@ export const ProfileSection = ({ user }: ProfileSectionProps) => {
   };
 
   return (
-    <div className="ft-card p-5 sm:p-6">
+    <div className="ft-card">
       <div className="ft-card-head">
         <div>
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
-              <User className="h-3.5 w-3.5" />
+            <div className="ft-kpi-icon acc">
+              <User className="h-[15px] w-[15px]" />
             </div>
             <h3 className="ft-card-title text-base">{t('settings.profile')}</h3>
           </div>
           <p className="ft-card-sub mt-1">{t('settings.modifyInfo')}</p>
         </div>
       </div>
-      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 mt-4">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="fullName" className="text-xs">{t('settings.fullName')}</Label>
           <Input

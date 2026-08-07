@@ -132,25 +132,28 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
   return (
     <>
       {/* Filter bar — single ft-card containing search + segmented type + filter buttons */}
-      <div className="ft-card p-3 sm:p-3.5 md:p-4 flex flex-col gap-2.5 sm:gap-3">
-        <div className="flex flex-col md:flex-row md:flex-wrap gap-2 items-stretch md:items-center">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <div className="ft-card p-4 flex flex-col gap-[13px]">
+        <div className="flex flex-col md:flex-row md:flex-wrap gap-2.5 items-stretch md:items-center">
+          {/* Search — the design's chrome-less field inside a 38px shell, so
+              the icon, the input and the clear affordance share one border. */}
+          <div className="flex-1 min-w-[180px] flex items-center gap-[9px] h-[38px] pl-[13px] pr-1.5 rounded-[11px] border border-line-strong bg-bg-subtle transition-[border-color,box-shadow] focus-within:border-primary focus-within:shadow-[0_0_0_3px_hsl(var(--accent-soft))]">
+            <Search className="h-[15px] w-[15px] text-fg-dim flex-shrink-0" />
             <Input
               placeholder={t('transactions.searchPlaceholder', {
                 defaultValue: 'Search merchant, amount, note…',
               })}
               value={filters.searchText}
               onChange={(e) => updateFilter('searchText', e.target.value)}
-              className="pl-8 pr-7 h-9 text-sm"
+              className="flex-1 min-w-0 h-auto border-0 bg-transparent shadow-none px-0 py-0 text-[13.5px] placeholder:text-fg-dim focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             {filters.searchText && (
               <button
+                type="button"
                 onClick={() => updateFilter('searchText', '')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-bg-hover transition-colors"
+                aria-label={t('common.clear', { defaultValue: 'Clear' })}
+                className="h-[29px] w-[29px] grid place-items-center flex-shrink-0 rounded-[9px] text-fg-mute hover:bg-bg-hover hover:text-foreground transition-colors"
               >
-                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -181,10 +184,10 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               updateFilter('refund', refundFilter === 'refunded' ? 'all' : 'refunded')
             }
             aria-pressed={refundFilter === 'refunded'}
-            className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border text-xs font-medium transition-colors flex-shrink-0 ${
+            className={`h-[29px] px-2.5 inline-flex items-center justify-center gap-1.5 rounded-[9px] border text-[12px] font-[550] transition-colors flex-shrink-0 ${
               refundFilter === 'refunded'
-                ? 'border-primary text-primary bg-primary/5'
-                : 'border-line text-muted-foreground hover:text-foreground hover:bg-bg-hover'
+                ? 'border-transparent bg-accent-soft text-accent-deep'
+                : 'border-line-strong bg-bg-elev text-foreground hover:bg-bg-hover'
             }`}
           >
             <Undo2 className="h-3.5 w-3.5" />
@@ -197,7 +200,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               variant="outline"
               size="sm"
               onClick={() => setIsOpen(true)}
-              className={`h-9 px-3 gap-1.5 text-xs ${advancedFiltersCount > 0 ? "border-primary text-primary" : ""}`}
+              className={`h-[29px] px-2.5 gap-1.5 rounded-[9px] text-[12px] font-[550] ${advancedFiltersCount > 0 ? "border-primary text-primary" : ""}`}
             >
               <Filter className="h-3.5 w-3.5" />
               <span>{t("transactions.advancedFilters", { defaultValue: "Advanced filter" })}</span>
@@ -212,7 +215,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+                className="h-[29px] px-2.5 rounded-[9px] text-[12px] font-[550] text-muted-foreground hover:text-foreground"
               >
                 {t("transactions.clearAll", { defaultValue: "Clear all" })}
               </Button>
@@ -222,14 +225,15 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
 
         {/* Active filter chips — quick visual recap of what's currently applied */}
         {advancedFiltersCount > 0 && (
-          <div className="flex flex-wrap gap-1.5 items-center pt-1">
+          <div className="flex flex-wrap gap-[7px] items-center">
             {categoryFilterLabel && (
-              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+              <span className="ft-chip active pr-1.5">
                 <Tag className="h-3 w-3" />
                 <span className="truncate max-w-[140px]">{categoryFilterLabel}</span>
                 <button
                   type="button"
                   onClick={() => updateFilter("categoryId", "all")}
+                  aria-label={t('common.remove', { defaultValue: 'Remove' })}
                   className="p-0.5 rounded hover:bg-foreground/10"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -237,12 +241,13 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               </span>
             )}
             {accountFilterLabel && (
-              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+              <span className="ft-chip active pr-1.5">
                 <Wallet className="h-3 w-3" />
                 <span className="truncate max-w-[140px]">{accountFilterLabel}</span>
                 <button
                   type="button"
                   onClick={() => updateFilter("accountId", "all")}
+                  aria-label={t('common.remove', { defaultValue: 'Remove' })}
                   className="p-0.5 rounded hover:bg-foreground/10"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -250,12 +255,13 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               </span>
             )}
             {dateFilterLabel && (
-              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+              <span className="ft-chip active pr-1.5">
                 <History className="h-3 w-3" />
                 <span className="truncate max-w-[180px]">{dateFilterLabel}</span>
                 <button
                   type="button"
                   onClick={() => onFiltersChange({ ...filters, dateFrom: "", dateTo: "" })}
+                  aria-label={t('common.remove', { defaultValue: 'Remove' })}
                   className="p-0.5 rounded hover:bg-foreground/10"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -263,12 +269,13 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               </span>
             )}
             {refundFilterLabel && (
-              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+              <span className="ft-chip active pr-1.5">
                 <Undo2 className="h-3 w-3" />
                 <span className="truncate max-w-[140px]">{refundFilterLabel}</span>
                 <button
                   type="button"
                   onClick={() => updateFilter("refund", "all")}
+                  aria-label={t('common.remove', { defaultValue: 'Remove' })}
                   className="p-0.5 rounded hover:bg-foreground/10"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -276,7 +283,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
               </span>
             )}
             {(filters.amountMin || filters.amountMax) && (
-              <span className="ft-tag acc gap-1.5 pl-2 pr-1 py-0.5">
+              <span className="ft-chip active pr-1.5">
                 <DollarSign className="h-3 w-3" />
                 <span className="truncate max-w-[140px]">
                   {filters.amountMin || "0"}€ – {filters.amountMax || "∞"}€
@@ -284,6 +291,7 @@ export const TransactionSearch = ({ filters, onFiltersChange, activeFiltersCount
                 <button
                   type="button"
                   onClick={() => onFiltersChange({ ...filters, amountMin: "", amountMax: "" })}
+                  aria-label={t('common.remove', { defaultValue: 'Remove' })}
                   className="p-0.5 rounded hover:bg-foreground/10"
                 >
                   <X className="h-2.5 w-2.5" />

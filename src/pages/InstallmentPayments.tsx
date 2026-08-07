@@ -11,8 +11,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { Segmented } from "@/components/ui/segmented";
+import { cn } from "@/lib/utils";
 import {
   useInstallmentPayments,
   InstallmentPayment,
@@ -30,7 +30,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, startOfDay } from "date-fns";
 
@@ -110,6 +109,14 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
     return true;
   });
 
+  // Presentation-level folds of data already on the page — used by the
+  // segmented control's counts and by each KPI's foot line.
+  const activeCount = installmentPayments.filter((p) => p.is_active).length;
+  const completedCount = installmentPayments.filter((p) => !p.is_active).length;
+  const activeInstalmentLoad = installmentPayments
+    .filter((p) => p.is_active)
+    .reduce((sum, p) => sum + p.installment_amount, 0);
+
   const renderPaymentCard = (payment: InstallmentPayment) => {
     const paid = payment.total_amount - payment.remaining_amount;
     const progress = payment.total_amount > 0
@@ -125,98 +132,134 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
     const totalCount = payment.remaining_amount <= 0 ? paidCount : rawTotalCount;
     const isHighlighted = highlightId === payment.id;
 
+    // Direction carries the colour: money coming back is `pos`, money going
+    // out is the accent — never a raw palette hue, which would not follow the
+    // accent token into dark mode.
+    const incoming = payment.payment_type === 'reimbursement';
+    const toneVar = incoming ? 'hsl(var(--pos))' : 'hsl(var(--primary))';
+    const ticks = Math.max(0, Math.min(totalCount, 24));
+
     return (
       <button
         key={payment.id}
         ref={isHighlighted ? highlightRef : undefined}
         type="button"
         onClick={() => navigate(`/installment-payments/${payment.id}`)}
-        className={`ft-card w-full text-left p-3 sm:p-4 transition-all duration-300 hover:bg-muted/30 ${
-          !payment.is_active ? 'opacity-70' : ''
-        } ${isHighlighted ? 'ring-2 ring-primary/50 shadow-lg shadow-primary/10' : ''}`}
+        className={cn(
+          'ft-card w-full text-left p-5 flex flex-col transition-colors hover:border-line-strong',
+          !payment.is_active && 'opacity-70',
+          isHighlighted && 'ring-2 ring-primary/50 shadow-sh-2',
+        )}
       >
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Head: name, direction, completion tag */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[14.5px] font-[650] truncate">{payment.description}</div>
+            <div className="ft-card-sub truncate">
+              {incoming
+                ? t('installments.youReceive', { defaultValue: 'You receive' })
+                : t('installments.youPay', { defaultValue: 'You pay' })}
+              {' · '}
+              {t('installments.nInstalments', {
+                defaultValue: '{{n}} instalments',
+                n: totalCount,
+              })}
+            </div>
+          </div>
+          <span className={cn('ft-tag flex-shrink-0', incoming ? 'pos' : 'acc')}>
+            {paidCount}/{totalCount}
+          </span>
+        </div>
+
+        {/* Headline: what is left, against the whole */}
+        <div className="flex items-baseline gap-2 flex-wrap mt-4">
+          <span className="font-mono text-[25px] font-medium tracking-[-0.03em] leading-none">
+            {formatCurrency(payment.remaining_amount)}
+          </span>
+          <span className="text-fg-mute text-[12.5px]">
+            {t('installments.remainingOf', {
+              defaultValue: 'remaining of {{total}}',
+              total: formatCurrency(payment.total_amount),
+            })}
+          </span>
+        </div>
+
+        <div className="ft-progress-track tall mt-3.5">
           <div
-            className={`flex-shrink-0 w-10 sm:w-12 h-10 sm:h-12 rounded-xl flex items-center justify-center ${
-              !payment.is_active
-                ? 'bg-muted/30'
-                : payment.payment_type === 'reimbursement'
-                ? 'bg-success/10'
-                : 'bg-orange-500/10'
-            }`}
-          >
-            <CreditCard
-              className={`h-4 w-4 sm:h-5 sm:w-5 ${
-                !payment.is_active
-                  ? 'text-muted-foreground'
-                  : payment.payment_type === 'reimbursement'
-                  ? 'text-success'
-                  : 'text-orange-500'
-              }`}
-            />
-          </div>
+            className="ft-progress-fill"
+            style={{ width: `${Math.min(100, progress)}%`, background: toneVar }}
+          />
+        </div>
 
-          <div className="flex-1 min-w-0">
-            <p
-              className={`text-sm sm:text-base font-semibold truncate ${
-                !payment.is_active ? 'text-muted-foreground' : ''
-              }`}
-            >
-              {payment.description}
-            </p>
-            <div className="flex items-center gap-1 mt-0.5 truncate">
-              {payment.is_active ? (
-                <>
-                  <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                    {daysUntil < 0
-                      ? t('installments.overdue', { defaultValue: 'Overdue' })
-                      : daysUntil === 0
-                      ? t('installments.today', { defaultValue: 'Today' })
-                      : daysUntil === 1
-                      ? t('installments.tomorrow', { defaultValue: 'Tomorrow' })
-                      : `${daysUntil}j`}
-                  </span>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                    · {getFrequencyLabel(payment.frequency)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-3 w-3 text-success flex-shrink-0" />
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">
-                    {t('installments.completed', { defaultValue: 'Completed' })}
-                  </span>
-                </>
-              )}
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-              {paidCount}/{totalCount} ·{' '}
-              {formatCurrency(payment.installment_amount)}/
-              {payment.frequency === 'weekly'
-                ? t('installments.wk', { defaultValue: 'wk' })
-                : payment.frequency === 'quarterly'
-                ? t('installments.qtr', { defaultValue: 'qtr' })
-                : t('installments.mo', { defaultValue: 'mo' })}
-            </p>
-            <Progress value={progress} className="h-1 mt-1.5" />
-          </div>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-            <div className="text-right">
-              <span
-                className={`text-xs sm:text-base font-bold whitespace-nowrap ${
-                  !payment.is_active ? 'text-muted-foreground' : 'text-orange-500'
-                }`}
-              >
-                {formatCurrency(payment.remaining_amount)}
+        <div className="flex justify-between gap-2 text-[11.5px] text-fg-dim mt-[7px]">
+          <span>
+            {t('installments.pctSettled', {
+              defaultValue: '{{pct}}% settled',
+              pct: Math.round(progress),
+            })}
+          </span>
+          <span className="truncate">
+            {payment.is_active ? (
+              t('installments.nextOn', {
+                defaultValue: 'Next: {{date}}',
+                date: nextDue.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }),
+              })
+            ) : (
+              <span className="inline-flex items-center gap-1 text-pos">
+                <CheckCircle2 className="h-3 w-3" />
+                {t('installments.completed', { defaultValue: 'Completed' })}
               </span>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                {t('installments.remaining', { defaultValue: 'remaining' })}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            )}
+          </span>
+        </div>
+
+        <hr className="my-4 border-0 border-t border-line-soft" />
+
+        <div className="flex items-center justify-between gap-2 text-[12.5px]">
+          <span className="text-fg-mute">
+            {t('installments.monthlyAmount', { defaultValue: 'Instalment' })}
+          </span>
+          <b className="font-mono font-medium tracking-[-0.02em]">
+            {formatCurrency(payment.installment_amount)}/
+            {payment.frequency === 'weekly'
+              ? t('installments.wk', { defaultValue: 'wk' })
+              : payment.frequency === 'quarterly'
+              ? t('installments.qtr', { defaultValue: 'qtr' })
+              : t('installments.mo', { defaultValue: 'mo' })}
+          </b>
+        </div>
+
+        {/* One tick per instalment — the plan's shape at a glance. */}
+        {ticks > 0 && (
+          <div className="flex gap-1 mt-3.5" aria-hidden="true">
+            {Array.from({ length: ticks }).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 h-1.5 rounded-[3px]"
+                style={{ background: i < paidCount ? toneVar : 'hsl(var(--bg-sunk))' }}
+              />
+            ))}
           </div>
+        )}
+
+        {/* Foot: schedule context + the affordance the whole card carries. */}
+        <div className="flex items-center justify-between gap-2 mt-4 text-[11.5px] text-fg-dim">
+          <span className="inline-flex items-center gap-1.5 truncate">
+            <Clock className="h-3 w-3 flex-shrink-0" />
+            {payment.is_active
+              ? daysUntil < 0
+                ? t('installments.overdue', { defaultValue: 'Overdue' })
+                : daysUntil === 0
+                ? t('installments.today', { defaultValue: 'Today' })
+                : daysUntil === 1
+                ? t('installments.tomorrow', { defaultValue: 'Tomorrow' })
+                : t('installments.inNDays', { defaultValue: 'In {{n}} days', n: daysUntil })
+              : getFrequencyLabel(payment.frequency)}
+          </span>
+          <span className="inline-flex items-center gap-1 text-accent-deep font-[550] flex-shrink-0">
+            {t('installments.openPlan', { defaultValue: 'Open plan' })}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </span>
         </div>
       </button>
     );
@@ -269,8 +312,6 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
           </div>
         )}
 
-        {embedded && <div className="flex justify-end mb-3">{newButton}</div>}
-
         <div className="grid grid-cols-3 gap-3 md:gap-4">
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
@@ -288,6 +329,12 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                   .reduce((sum, p) => sum + p.remaining_amount, 0)
               )}
             </div>
+            <div className="ft-kpi-foot">
+              {t('installments.nPlans', {
+                defaultValue: '{{n}} plans',
+                n: activeCount,
+              })}
+            </div>
           </div>
           <div className="ft-kpi">
             <div className="flex items-center gap-2.5">
@@ -298,8 +345,12 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                 {t('installments.active', { defaultValue: 'Active' })}
               </span>
             </div>
-            <div className="ft-kpi-value">
-              {installmentPayments.filter((p) => p.is_active).length}
+            <div className="ft-kpi-value">{activeCount}</div>
+            <div className="ft-kpi-foot">
+              {t('installments.monthlyLoad', {
+                defaultValue: '{{amount}} per instalment cycle',
+                amount: formatCurrency(activeInstalmentLoad),
+              })}
             </div>
           </div>
           <div className="ft-kpi">
@@ -311,31 +362,28 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                 {t('installments.completed', { defaultValue: 'Completed' })}
               </span>
             </div>
-            <div className="ft-kpi-value">
-              {installmentPayments.filter((p) => !p.is_active).length}
+            <div className="ft-kpi-value">{completedCount}</div>
+            <div className="ft-kpi-foot">
+              {t('installments.settledInFull', { defaultValue: 'settled in full' })}
             </div>
           </div>
         </div>
 
-        <Tabs
-          value={filter}
-          onValueChange={(v) => setFilter(v as typeof filter)}
-          className="w-full"
-        >
-          <TabsList className="grid w-full max-w-md grid-cols-3 h-9 sm:h-10">
-            <TabsTrigger value="active" className="text-[11px] sm:text-sm px-1 sm:px-3">
-              {t('installments.active', { defaultValue: 'Active' })} (
-              {installmentPayments.filter((p) => p.is_active).length})
-            </TabsTrigger>
-            <TabsTrigger value="completed" className="text-[11px] sm:text-sm px-1 sm:px-3">
-              {t('installments.completed', { defaultValue: 'Completed' })} (
-              {installmentPayments.filter((p) => !p.is_active).length})
-            </TabsTrigger>
-            <TabsTrigger value="all" className="text-[11px] sm:text-sm px-1 sm:px-3">
-              {t('common.all', { defaultValue: 'All' })} ({installmentPayments.length})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* One control style per screen — the page's segmented switch, with
+            the create action sharing its row rather than floating above it. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <Segmented<typeof filter>
+            label={t('navigation.installmentPayments')}
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'active', label: t('installments.active', { defaultValue: 'Active' }), count: activeCount },
+              { value: 'completed', label: t('installments.completed', { defaultValue: 'Completed' }), count: completedCount },
+              { value: 'all', label: t('common.all', { defaultValue: 'All' }), count: installmentPayments.length },
+            ]}
+          />
+          {embedded && newButton}
+        </div>
 
         {filteredPayments.length === 0 ? (
           <div className="ft-card p-8 sm:p-12 text-center">
@@ -360,7 +408,11 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">{filteredPayments.map(renderPaymentCard)}</div>
+          /* Design's `.g3` deck: three plan cards abreast, collapsing to one
+             column at the system's single 1180px breakpoint. */
+          <div className="ft-g3 sm:grid-cols-2 wide:grid-cols-3">
+            {filteredPayments.map(renderPaymentCard)}
+          </div>
         )}
       </div>
 
@@ -381,7 +433,7 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                     n: orphanedTransactions.length,
                   })}
                 </p>
-                <div className="max-h-[250px] overflow-y-auto rounded-md border bg-muted/50 divide-y">
+                <div className="max-h-[250px] overflow-y-auto rounded-md border border-line bg-bg-subtle divide-y divide-line-soft">
                   {orphanedTransactions.map((tx) => {
                     const accountName = accounts.find((a) => a.id === tx.account_id)?.name;
                     return (
@@ -402,7 +454,7 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                         </div>
                         <span
                           className={`font-medium whitespace-nowrap ${
-                            tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'
+                            tx.type === 'income' ? 'text-pos' : 'text-neg'
                           }`}
                         >
                           {tx.type === 'income' ? '+' : '−'}

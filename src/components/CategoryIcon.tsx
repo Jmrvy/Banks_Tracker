@@ -39,7 +39,10 @@ export function CategoryIcon({ icon, color, size = 24, className }: CategoryIcon
         color,
       }}
     >
-      <Icon style={{ width: iconSize, height: iconSize }} strokeWidth={2} />
+      {/* No strokeWidth: the system draws every Lucide glyph at 1.6 via the
+          `.lucide` base rule, which outranks the SVG presentation attribute.
+          Passing one here read as a setting but did nothing. */}
+      <Icon style={{ width: iconSize, height: iconSize }} />
     </span>
   );
 }

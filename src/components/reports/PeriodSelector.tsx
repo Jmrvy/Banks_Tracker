@@ -1,13 +1,13 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { YearPicker } from "@/components/ui/year-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Segmented } from "@/components/ui/segmented";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface PeriodSelectorProps {
   periodType: "month" | "year" | "custom";
@@ -17,6 +17,16 @@ interface PeriodSelectorProps {
   dateRange: { from: Date; to: Date };
   setDateRange: (range: { from: Date; to: Date } | ((prev: { from: Date; to: Date }) => { from: Date; to: Date })) => void;
 }
+
+/**
+ * The period control belongs on the page head beside the report action, not in
+ * a card band of its own — so it renders as a segmented pill plus whichever
+ * picker the selected granularity needs. State and handlers are untouched.
+ */
+
+// Matches `.btn.sm`: 29px tall, 10px inset, 12px face, 9px corner.
+const TRIGGER_CLS =
+  "h-[29px] w-auto rounded-[9px] px-2.5 text-[12px] font-550 border-line-strong gap-1.5 [&_svg]:size-[13px] [&_svg]:mr-0";
 
 export const PeriodSelector = ({
   periodType,
@@ -35,93 +45,91 @@ export const PeriodSelector = ({
     12, 0, 0, 0
   );
 
+  const options: { value: "month" | "year" | "custom"; label: string }[] = [
+    { value: "month", label: t('reports.analysis.periodMonth', { defaultValue: 'Month' }) },
+    { value: "year", label: t('common.year', { defaultValue: 'Year' }) },
+    { value: "custom", label: t('reports.custom', { defaultValue: 'Custom' }) },
+  ];
+
   return (
-    <Card className="">
-      <CardContent className="p-2 sm:p-4 lg:p-6">
-        <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-          {/* Type selector */}
-          <div className="flex-shrink-0 w-[100px] sm:w-auto">
-            <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Période</label>
-            <Select value={periodType} onValueChange={(value: "month" | "year" | "custom") => setPeriodType(value)}>
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">Mois</SelectItem>
-                <SelectItem value="year">Année</SelectItem>
-                <SelectItem value="custom">Personnalisé</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Inline beside the report action, so the control keeps its own width
+          instead of the shared component's page-level full bleed. */}
+      <Segmented
+        options={options}
+        value={periodType}
+        onChange={setPeriodType}
+        className="mx-0 px-0"
+        label={t('reports.period', { defaultValue: 'Period' })}
+      />
 
-          {periodType === "month" && (
-            <div className="flex-1 min-w-[120px]">
-              <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Mois</label>
-              <MonthPicker
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                placeholder="Mois"
+      {periodType === "month" && (
+        <MonthPicker
+          selected={selectedDate}
+          onSelect={(date) => date && setSelectedDate(date)}
+          placeholder={t('reports.analysis.periodMonth', { defaultValue: 'Month' })}
+          className={TRIGGER_CLS}
+        />
+      )}
+
+      {periodType === "year" && (
+        <YearPicker
+          selected={selectedDate}
+          onSelect={(date) => date && setSelectedDate(date)}
+          placeholder={t('common.year')}
+          className={TRIGGER_CLS}
+        />
+      )}
+
+      {periodType === "custom" && (
+        <div className="flex items-center gap-1.5">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                aria-label={t('common.selectStartDate', { defaultValue: 'Select start date' })}
+                className={cn(TRIGGER_CLS, "justify-start font-normal")}
+              >
+                <CalendarIcon className="flex-shrink-0" />
+                <span className="truncate">{format(dateRange.from, "dd/MM/yy")}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateRange.from}
+                onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: fixTimezone(date) }))}
+                initialFocus
+                className="pointer-events-auto"
               />
-            </div>
-          )}
+            </PopoverContent>
+          </Popover>
 
-          {periodType === "year" && (
-            <div className="flex-1 min-w-[100px]">
-              <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Année</label>
-              <YearPicker
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                placeholder={t('common.year')}
+          <span aria-hidden className="text-fg-dim text-[12px]">–</span>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                aria-label={t('common.selectEndDate', { defaultValue: 'Select end date' })}
+                className={cn(TRIGGER_CLS, "justify-start font-normal")}
+              >
+                <CalendarIcon className="flex-shrink-0" />
+                <span className="truncate">{format(dateRange.to, "dd/MM/yy")}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateRange.to}
+                onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: fixTimezone(date) }))}
+                initialFocus
+                className="pointer-events-auto"
               />
-            </div>
-          )}
-
-          {periodType === "custom" && (
-            <>
-              <div className="flex-1 min-w-[90px]">
-                <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Début</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-8 sm:h-9 justify-start text-left text-xs px-2">
-                      <CalendarIcon className="mr-1 h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{format(dateRange.from, "dd/MM/yy")}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateRange.from}
-                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: fixTimezone(date) }))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="flex-1 min-w-[90px]">
-                <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Fin</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-8 sm:h-9 justify-start text-left text-xs px-2">
-                      <CalendarIcon className="mr-1 h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{format(dateRange.to, "dd/MM/yy")}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateRange.to}
-                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: fixTimezone(date) }))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </>
-          )}
+            </PopoverContent>
+          </Popover>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };

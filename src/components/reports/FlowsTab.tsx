@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, ArrowRight, Wallet } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowRight, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Delta } from "./analysisPrimitives";
 import type { ReportsStats, RecurringData } from "@/hooks/useReportsData";
 import type { Transaction } from "@/hooks/useFinancialData";
 import type { CategoryData } from "@/hooks/useReportsData";
@@ -36,7 +36,7 @@ const CompareStrip = ({
   const netPrior = inPrior - outPrior;
   const netDelta = netNow - netPrior;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line rounded-xl border border-line bg-card">
+    <div className="ft-card grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line-soft p-0">
       <Row label={t('reports.analysis.moneyIn', { defaultValue: 'Money in' })}
         nowValue={`+${formatCurrency(inNow)}`} priorValue={`+${formatCurrency(inPrior)}`}
         delta={inDelta} positiveIsGood comparisonLabel={comparisonLabel} tone="pos" />
@@ -58,25 +58,20 @@ const Row = ({ label, nowValue, priorValue, delta, positiveIsGood, comparisonLab
   tone: 'pos' | 'neg';
 }) => {
   const { t } = useTranslation();
-  const good = (delta > 0 && positiveIsGood) || (delta < 0 && !positiveIsGood);
-  const cls = Math.abs(delta) < 0.5 ? "bg-secondary text-muted-foreground"
-    : good ? "bg-[hsl(var(--pos)/0.12)] text-[hsl(var(--pos))]" : "bg-[hsl(var(--neg)/0.12)] text-[hsl(var(--neg))]";
   return (
-    <div className="p-3.5">
-      <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
-      <div className={cn("font-mono text-lg font-medium tabular-nums tracking-[-0.02em] mt-0.5",
+    <div className="p-[17px_18px] flex flex-col gap-[9px]">
+      <div className="ft-kpi-label">{label}</div>
+      <div className={cn("ft-num text-[20px] font-medium leading-none tracking-[-0.03em]",
         tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
         {nowValue}
       </div>
-      <div className="mt-1.5 flex items-center gap-1.5 text-[10.5px]">
-        <span className={cn("inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium tabular-nums", cls)}>
-          {Math.abs(delta) < 0.5 ? '=' : (delta > 0 ? '▲' : '▼')} {Math.abs(delta).toFixed(1)}%
-        </span>
-        <span className="text-muted-foreground font-mono">
+      <div className="ft-kpi-foot">
+        <Delta value={delta} positiveIsGood={positiveIsGood} />
+        <span className="ft-trunc">
           {t('reports.analysis.vs', { defaultValue: 'vs' })} {priorValue}
         </span>
       </div>
-      <div className="text-[10px] uppercase tracking-[0.04em] text-fg-dim mt-1 font-mono">{comparisonLabel}</div>
+      <div className="ft-eyebrow">{comparisonLabel}</div>
     </div>
   );
 };
@@ -243,7 +238,7 @@ export const FlowsTab = ({
 
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3.5">
       <CompareStrip
         inNow={stats.income}
         inPrior={comparisonStats.income}
@@ -252,133 +247,134 @@ export const FlowsTab = ({
         comparisonLabel={comparisonLabel}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="ft-g2e">
         {/* Money in */}
-        <Card>
-          <CardHeader className="pb-2 px-4 pt-4 flex flex-row items-start justify-between gap-2">
-            <div>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-[hsl(var(--pos)/0.12)] text-[hsl(var(--pos))]">
-                  <TrendingUp className="h-3.5 w-3.5" />
+        <div className="ft-card">
+          <div className="ft-card-head">
+            <div className="min-w-0">
+              <h3 className="ft-card-title flex items-center gap-2">
+                <span className="ft-kpi-icon pos h-6 w-6 rounded-[8px]" aria-hidden>
+                  <ArrowDown className="h-3.5 w-3.5" />
                 </span>
                 {t('reports.analysis.moneyIn', { defaultValue: 'Money in' })}
-              </CardTitle>
-              <CardDescription className="text-[10.5px] mt-0.5">
+              </h3>
+              <div className="ft-card-sub">
                 {incomeCount} {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
                 {includeUpcoming && projectedIncomeCount > 0 && (
-                  <> · <span className="text-fg-dim">{projectedIncomeCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
+                  <> · <span className="ft-dim">{projectedIncomeCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
                 )}
-              </CardDescription>
+              </div>
             </div>
             {onIncomeClick && (
-              <button type="button" onClick={onIncomeClick}
-                className="text-[10.5px] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+              <button type="button" onClick={onIncomeClick} className="ft-chip">
                 {t('reports.analysis.viewAll', { defaultValue: 'View all' })}
                 <ArrowRight className="h-3 w-3" />
               </button>
             )}
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-1.5">
+          </div>
+          <div className="flex flex-col">
             {topIncome.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">
+              <p className="ft-empty text-[12.5px]">
                 {t('reports.analysis.noData', { defaultValue: 'No data' })}
               </p>
             ) : topIncome.map(c => {
               const total = c.amount + c.projected;
+              const pct = totalIncome > 0 ? (total / totalIncome) * 100 : 0;
               return (
-                <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2 w-2 rounded-full flex-shrink-0 bg-[hsl(var(--pos))]" />
-                    <span className="truncate">{c.name}</span>
+                <div key={c.name} className="ft-catrow">
+                  <span className="ft-row min-w-0">
+                    <i className="ft-swatch bg-[hsl(var(--pos))]" aria-hidden />
+                    <span className="ft-trunc text-[12.5px] font-550">{c.name}</span>
                     {c.projected > 0 && (
-                      <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
+                      <span className="ft-tag">
                         +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
                       </span>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="font-mono text-fg-dim text-[10px] tabular-nums">
-                      {totalIncome > 0 ? ((total / totalIncome) * 100).toFixed(0) : 0}%
-                    </span>
-                    <span className="font-mono font-medium text-[hsl(var(--pos))] tabular-nums">
+                  </span>
+                  <span className="flex items-baseline gap-2 flex-shrink-0">
+                    <span className="ft-num ft-dim text-[10.5px]">{pct.toFixed(0)}%</span>
+                    <span className="ft-num text-[12.5px] font-medium text-[hsl(var(--pos))]">
                       +{formatCurrency(total)}
                     </span>
+                  </span>
+                  <div className="ft-progress-track thin col-span-2">
+                    <i className="ft-progress-fill bg-[hsl(var(--pos))]" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
                   </div>
                 </div>
               );
             })}
-          </CardContent>
-
-        </Card>
+          </div>
+        </div>
 
         {/* Money out */}
-        <Card>
-          <CardHeader className="pb-2 px-4 pt-4 flex flex-row items-start justify-between gap-2">
-            <div>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-[hsl(var(--neg)/0.12)] text-[hsl(var(--neg))]">
-                  <TrendingDown className="h-3.5 w-3.5" />
+        <div className="ft-card">
+          <div className="ft-card-head">
+            <div className="min-w-0">
+              <h3 className="ft-card-title flex items-center gap-2">
+                <span className="ft-kpi-icon neg h-6 w-6 rounded-[8px]" aria-hidden>
+                  <ArrowUp className="h-3.5 w-3.5" />
                 </span>
                 {t('reports.analysis.moneyOut', { defaultValue: 'Money out' })}
-              </CardTitle>
-              <CardDescription className="text-[10.5px] mt-0.5">
+              </h3>
+              <div className="ft-card-sub">
                 {expenseCount} {t('reports.analysis.transactions', { defaultValue: 'transactions' })}
                 {includeUpcoming && projectedExpenseCount > 0 && (
-                  <> · <span className="text-fg-dim">{projectedExpenseCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
+                  <> · <span className="ft-dim">{projectedExpenseCount} {t('reports.analysis.projected', { defaultValue: 'projected' })}</span></>
                 )}
-              </CardDescription>
+              </div>
             </div>
             {onExpensesClick && (
-              <button type="button" onClick={onExpensesClick}
-                className="text-[10.5px] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+              <button type="button" onClick={onExpensesClick} className="ft-chip">
                 {t('reports.analysis.viewAll', { defaultValue: 'View all' })}
                 <ArrowRight className="h-3 w-3" />
               </button>
             )}
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-1.5">
+          </div>
+          <div className="flex flex-col">
             {topExpenses.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">
+              <p className="ft-empty text-[12.5px]">
                 {t('reports.analysis.noData', { defaultValue: 'No data' })}
               </p>
             ) : topExpenses.map(c => {
               const total = c.amount + c.projected;
+              const pct = totalExpenses > 0 ? (total / totalExpenses) * 100 : 0;
               return (
-                <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div key={c.name} className="ft-catrow">
+                  <span className="ft-row min-w-0">
                     {c.isSpecial ? (
-                      <span aria-hidden className="grid h-3.5 w-3.5 place-items-center rounded-[4px] flex-shrink-0" style={{ backgroundColor: `${c.color}22`, color: c.color }}>
+                      <span aria-hidden className="grid h-[15px] w-[15px] place-items-center rounded-[4px] flex-shrink-0" style={{ backgroundColor: `${c.color}22`, color: c.color }}>
                         <Wallet className="h-2.5 w-2.5" />
                       </span>
                     ) : (
-                      <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                      <i className="ft-swatch" aria-hidden style={{ backgroundColor: c.color }} />
                     )}
-                    <span className="truncate">{c.name}</span>
+                    <span className="ft-trunc text-[12.5px] font-550">{c.name}</span>
                     {c.isSpecial && (
-                      <span className="text-[9px] uppercase tracking-[0.04em] text-fg-dim font-medium px-1 rounded bg-secondary">
+                      <span className="ft-tag">
                         {t('reports.analysis.specialBudget', { defaultValue: 'Special budget' })}
                       </span>
                     )}
                     {c.projected > 0 && (
-                      <span className="text-[9.5px] uppercase tracking-[0.04em] text-fg-dim font-mono">
+                      <span className="ft-tag">
                         +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
                       </span>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="font-mono text-fg-dim text-[10px] tabular-nums">
-                      {totalExpenses > 0 ? ((total / totalExpenses) * 100).toFixed(0) : 0}%
-                    </span>
-                    <span className="font-mono font-medium text-[hsl(var(--neg))] tabular-nums">
+                  </span>
+                  <span className="flex items-baseline gap-2 flex-shrink-0">
+                    <span className="ft-num ft-dim text-[10.5px]">{pct.toFixed(0)}%</span>
+                    <span className="ft-num text-[12.5px] font-medium text-[hsl(var(--neg))]">
                       −{formatCurrency(total)}
                     </span>
+                  </span>
+                  <div className="ft-progress-track thin col-span-2">
+                    <i className="ft-progress-fill" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, backgroundColor: c.color }} />
                   </div>
                 </div>
               );
             })}
             {specialBudgetTotal > 0 && (
-              <div className="mt-2 pt-2 border-t border-line flex items-start gap-2 text-[10.5px] text-muted-foreground">
-                <Wallet className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <div className="ft-card-sunk mt-3.5 rounded-[15px] border p-3.5 flex items-start gap-2 text-[12px] text-muted-foreground">
+                <Wallet className="h-3.5 w-3.5 mt-px flex-shrink-0" />
                 <span>
                   {t('reports.analysis.specialBudgetImpact', {
                     defaultValue: 'Special budgets account for {{amount}} ({{pct}}%) of outflows this period across {{count}} envelope(s).',
@@ -389,9 +385,8 @@ export const FlowsTab = ({
                 </span>
               </div>
             )}
-          </CardContent>
-
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

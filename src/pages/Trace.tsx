@@ -309,7 +309,7 @@ const Trace = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-12">
       {/* A conversation reads better on a narrower measure than a dashboard,
           so this page runs tighter than the rest of the app. */}
-      <div className="ft-page max-w-5xl">
+      <div className="ft-page max-w-[1000px]">
         <div className="ft-page-head">
           <div className="flex items-start gap-3">
             <TraceMark size="lg" />
@@ -331,9 +331,9 @@ const Trace = () => {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px] items-start">
           <div className="space-y-4 min-w-0">
             {turns.length === 0 ? (
-              <div className="flex gap-2.5">
-                <TraceMark />
-                <div className="min-w-0 flex-1 space-y-2.5">
+              <div className="ft-tr-msg">
+                <TraceMark solid />
+                <div className="ft-tr-body">
                   {greeting.map((block, i) => (
                     <TraceBlockView key={i} block={block} turnId="__greeting" index={i} />
                   ))}
@@ -348,7 +348,7 @@ const Trace = () => {
 
             {/* The composer follows you down a long thread instead of
                 sitting at the bottom of it. */}
-            <div className="sticky bottom-4 z-10">
+            <div className="sticky bottom-[18px] z-10">
               <TraceComposer suggestions={suggestions} />
             </div>
 

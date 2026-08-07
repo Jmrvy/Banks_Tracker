@@ -1,14 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
+  Cell,
   XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -21,7 +19,7 @@ import {
   format,
 } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { TOOLTIP_CLASS, AXIS_TICK, GRID_PROPS, formatAxisValue } from "@/lib/chartConfig";
+import { TOOLTIP_CLASS } from "@/lib/chartConfig";
 import { netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
 import { getTxDate } from "@/lib/dateUtils";
 
@@ -42,6 +40,9 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
   const { transactions } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { isPrivacyMode } = usePrivacy();
+  // Which month the pointer is over. Presentation only — it dims the other
+  // months so the hovered pair reads on its own, exactly as the deck does.
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   // Build last 6 months (oldest → newest) with income + expense aggregates.
   const data = useMemo(() => {
@@ -125,7 +126,7 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
   };
 
   return (
-    <div className="ft-card p-5 md:p-6 flex flex-col">
+    <div className="ft-card flex flex-col">
       <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">{t("dashboard.cashflow", { defaultValue: "Cash flow" })}</h3>
@@ -133,19 +134,19 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
             {t("dashboard.cashflowSub", { defaultValue: "Income vs expenses · last 6 months" })}
           </p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-pos" />
+        <div className="ft-legend">
+          <span>
+            <i className="ft-swatch bg-pos" />
             {t("dashboard.incoming", { defaultValue: "Income" })}
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-destructive" />
+          <span>
+            <i className="ft-swatch bg-neg" />
             {t("dashboard.outgoing", { defaultValue: "Expenses" })}
           </span>
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:gap-6 ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:gap-6 ${isPrivacyMode ? "ft-priv" : ""}`}>
         {/* Stat column */}
         <div className="flex sm:flex-col flex-row sm:gap-4 gap-3 sm:min-w-[140px] flex-wrap">
           <div className="min-w-0">
@@ -179,30 +180,46 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
           </div>
         </div>
 
-        {/* Chart */}
-        <div className="h-[200px] sm:h-[220px] -mx-2">
+        {/* Chart — deliberately axis-free. The magnitudes are read from the
+            tooltip and the stat column beside it, so nothing draws a second
+            grey rhythm next to the hero's. */}
+        <div className="h-[188px] -mx-2">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid {...GRID_PROPS} vertical={false} />
+            <BarChart
+              data={data}
+              margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+              onMouseMove={(state: { activeTooltipIndex?: number }) =>
+                setActiveIndex(
+                  typeof state?.activeTooltipIndex === "number" ? state.activeTooltipIndex : null
+                )
+              }
+              onMouseLeave={() => setActiveIndex(null)}
+            >
               <XAxis
                 dataKey="label"
-                tick={AXIS_TICK}
+                tick={{ fontSize: 10.5, fill: "hsl(var(--fg-dim))", fontFamily: "Geist Mono" }}
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis
-                tick={AXIS_TICK}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={formatAxisValue}
-                width={40}
-              />
-              <Tooltip
-                content={<CustomTooltip />}
-                cursor={{ fill: "hsl(var(--bg-subtle))", opacity: 0.6 }}
-              />
-              <Bar dataKey="income" fill="hsl(var(--pos))" radius={[3, 3, 0, 0]} maxBarSize={28} />
-              <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} maxBarSize={28} />
+              <Tooltip content={<CustomTooltip />} cursor={false} />
+              <Bar dataKey="income" radius={[5, 5, 2, 2]} maxBarSize={28} isAnimationActive={false}>
+                {data.map((m, i) => (
+                  <Cell
+                    key={m.key}
+                    fill="hsl(var(--pos))"
+                    fillOpacity={activeIndex === null || activeIndex === i ? 1 : 0.35}
+                  />
+                ))}
+              </Bar>
+              <Bar dataKey="expense" radius={[5, 5, 2, 2]} maxBarSize={28} isAnimationActive={false}>
+                {data.map((m, i) => (
+                  <Cell
+                    key={m.key}
+                    fill="hsl(var(--neg))"
+                    fillOpacity={activeIndex === null || activeIndex === i ? 0.9 : 0.3}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { AlertTriangle, SendHorizonal } from "lucide-react";
 import { TraceBlockView, TraceWorking } from "@/components/trace/TraceBlocks";
 import { TraceMark } from "@/components/trace/TraceMark";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTrace, type TraceTurn } from "@/contexts/TraceContext";
 import { cn } from "@/lib/utils";
 
@@ -17,19 +18,31 @@ const ERROR_COPY: Record<string, { title: string; body: string }> = {
 
 export function TraceTurnView({ turn }: { turn: TraceTurn }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const known = turn.error ? ERROR_COPY[turn.error] : undefined;
+  // The user's turn is mirrored, so it carries an initial tile opposite
+  // Trace's mark rather than floating unattributed.
+  const initial = (
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email ||
+    ""
+  )
+    .trim()
+    .charAt(0)
+    .toUpperCase();
   return (
     <div className="space-y-3">
       {turn.question && (
-        <div className="flex justify-end">
-          <div className="max-w-[85%] rounded-2xl rounded-br-md bg-secondary px-3.5 py-2 text-sm">
-            {turn.question}
-          </div>
+        <div className="ft-tr-msg me">
+          <span className="ft-tr-avatar me text-[12.5px] font-bold" aria-hidden>
+            {initial}
+          </span>
+          <div className="ft-tr-bubble me max-w-[85%]">{turn.question}</div>
         </div>
       )}
-      <div className="flex gap-2.5">
-        <TraceMark />
-        <div className="min-w-0 flex-1 space-y-2.5">
+      <div className="ft-tr-msg">
+        <TraceMark solid />
+        <div className="ft-tr-body">
           {turn.working ? (
             <TraceWorking steps={turn.steps} />
           ) : turn.error ? (
@@ -122,9 +135,27 @@ export function TraceComposer({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 rounded-xl border border-line bg-card px-2.5 py-1.5 focus-within:border-line-strong transition-colors">
-        <TraceMark size="sm" plain />
+    /* Prompts sit *between* the thread and the composer, so the composer
+       stays the last thing on the page. */
+    <div className="flex flex-col gap-[11px]">
+      {!compact && suggestions && suggestions.length > 0 && (
+        <div className="ft-tr-sug">
+          {suggestions.map((s) => (
+            <button
+              key={s.query}
+              type="button"
+              disabled={busy}
+              onClick={() => void ask(s.query)}
+              className="ft-chip disabled:opacity-50"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="ft-tr-ask">
+        <TraceMark size="sm" plain glyphSize={17} className="h-[17px] w-[17px] text-accent-deep" />
         <input
           value={value}
           autoFocus={autoFocus}
@@ -134,37 +165,18 @@ export function TraceComposer({
             placeholder ??
             t("trace.placeholder", { defaultValue: "Ask about your money, or describe a cleanup…" })
           }
-          className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground py-1"
+          className="placeholder:text-fg-dim"
         />
         <button
           type="button"
           onClick={submit}
           disabled={busy || !value.trim()}
           aria-label={t("trace.send", { defaultValue: "Ask Trace" })}
-          className="h-7 w-7 grid place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          className="h-[34px] w-[34px] flex-shrink-0 grid place-items-center rounded-full bg-primary text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
         >
-          <SendHorizonal className="h-3.5 w-3.5" />
+          <SendHorizonal className="h-[15px] w-[15px]" />
         </button>
       </div>
-
-      {!compact && suggestions && suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {suggestions.map((s) => (
-            <button
-              key={s.query}
-              type="button"
-              disabled={busy}
-              onClick={() => void ask(s.query)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs hover:bg-bg-hover hover:border-line-strong transition-colors disabled:opacity-50"
-            >
-              <span className="text-[10px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
-                {s.group}
-              </span>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

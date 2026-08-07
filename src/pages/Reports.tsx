@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { Activity, ArrowLeftRight, Clock, Download } from "lucide-react";
+import { Book } from "lucide-react";
 import { useReportsData, type ScheduledDebtPaymentInfo } from "@/hooks/useReportsData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts } from "@/hooks/useDebts";
@@ -239,14 +239,13 @@ const Reports = () => {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12 overflow-x-hidden">
       <div className="ft-page w-full overflow-hidden">
-        {/* Page head */}
+        {/* Page head — nav group in the eyebrow, page name as the title. */}
         <div className="ft-page-head">
           <div>
-            <div className="ft-eyebrow">{t('navigation.analyse')}</div>
-            <h1 className="ft-page-title">
-              {t('reports.analysis.title', { defaultValue: 'Financial overview' })}
-            </h1>
+            <div className="ft-eyebrow">{t('navigation.tools')}</div>
+            <h1 className="ft-page-title">{t('navigation.analyse')}</h1>
             <div className="ft-page-sub">
+              {t('reports.analysis.title', { defaultValue: 'Financial overview' })} ·{' '}
               {t('reports.analysis.subtitle', {
                 count: accounts.length,
                 txCount: filteredTransactions.length,
@@ -255,67 +254,67 @@ const Reports = () => {
               · {period.label}
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setShowExportModal(true)}
-            className="h-9 px-3.5 gap-1.5 text-xs"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('reports.generateReport', { defaultValue: 'Generate report' })}</span>
-            <span className="sm:hidden">{t('reports.generate', { defaultValue: 'Generate' })}</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <PeriodSelector
+              periodType={periodType}
+              setPeriodType={setPeriodType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+            />
+            <Button
+              variant="outline"
+              onClick={() => setShowExportModal(true)}
+              className="h-[29px] rounded-[9px] px-2.5 gap-1.5 text-[12px] font-550 border-line-strong [&_svg]:size-[14px]"
+            >
+              <Book />
+              <span className="hidden sm:inline">{t('reports.generateReport', { defaultValue: 'Generate report' })}</span>
+              <span className="sm:hidden">{t('reports.generate', { defaultValue: 'Generate' })}</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Period selector */}
-        <PeriodSelector
-          periodType={periodType}
-          setPeriodType={setPeriodType}
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-        />
-
-        {/* Hoisted page-level toolbar */}
-        <AnalysisToolbar
-          includeUpcoming={includeUpcoming}
-          setIncludeUpcoming={setIncludeUpcoming}
-          dateType={dateType}
-          setDateType={setDateType}
-          compareTo={compareTo}
-          setCompareTo={setCompareTo}
-          priorPeriodLabel={priorPeriod.label}
-        />
-
-        {/* Hero — Net as headline. Uses the selected comparison source. */}
+        {/* Four peer KPIs: money in / money out / net / savings rate. */}
         <AnalysisHero
           stats={effectiveStats}
           priorStats={comparisonStats}
-          period={period}
           priorPeriodLabel={comparisonLabel}
           sparkline={sparklineData}
           onIncomeClick={() => setShowIncomeModal(true)}
           onExpensesClick={() => setShowExpensesModal(true)}
         />
 
-        {/* 3-tab structure: Over time / Flows (in+out) / What's coming */}
-        <Tabs defaultValue="overtime" className="space-y-3 w-full">
-          <TabsList data-tour="reports-tabs" className="w-full grid grid-cols-3 h-9 sm:h-10 p-0.5 sm:p-1">
-            <TabsTrigger value="overtime" className="text-xs sm:text-sm gap-1.5">
-              <Activity className="h-3.5 w-3.5" />
-              {t('reports.analysis.tabOverTime', { defaultValue: 'Over time' })}
-            </TabsTrigger>
-            <TabsTrigger value="flows" className="text-xs sm:text-sm gap-1.5">
-              <ArrowLeftRight className="h-3.5 w-3.5" />
-              {t('reports.analysis.tabFlows', { defaultValue: 'Flows' })}
-            </TabsTrigger>
-            <TabsTrigger value="coming" className="text-xs sm:text-sm gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              {t('reports.analysis.tabComing', { defaultValue: "What's coming" })}
-            </TabsTrigger>
-          </TabsList>
+        {/* 3-tab structure: Over time / Flows (in+out) / What's coming.
+            The view modifiers ride the same row, flushed right. */}
+        <Tabs defaultValue="overtime" className="w-full flex flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5">
+            <TabsList data-tour="reports-tabs" className="ft-seg h-auto rounded-[11px] p-[3px] gap-0.5">
+              <TabsTrigger value="overtime" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabOverTime', { defaultValue: 'Over time' })}
+              </TabsTrigger>
+              <TabsTrigger value="flows" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabFlows', { defaultValue: 'Flows' })}
+              </TabsTrigger>
+              <TabsTrigger value="coming" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabComing', { defaultValue: "What's coming" })}
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="overtime" className="mt-3">
+            <div className="flex-1" />
+
+            <AnalysisToolbar
+              includeUpcoming={includeUpcoming}
+              setIncludeUpcoming={setIncludeUpcoming}
+              dateType={dateType}
+              setDateType={setDateType}
+              compareTo={compareTo}
+              setCompareTo={setCompareTo}
+              priorPeriodLabel={priorPeriod.label}
+            />
+          </div>
+
+          <TabsContent value="overtime" className="mt-0">
             <OverTimeTab
               balanceEvolutionData={balanceEvolutionData}
               stats={effectiveStats}
@@ -325,7 +324,7 @@ const Reports = () => {
             />
           </TabsContent>
 
-          <TabsContent value="flows" className="mt-3">
+          <TabsContent value="flows" className="mt-0">
             <FlowsTab
               stats={effectiveStats}
               comparisonStats={comparisonStats}
@@ -342,7 +341,7 @@ const Reports = () => {
           </TabsContent>
 
 
-          <TabsContent value="coming" className="mt-3">
+          <TabsContent value="coming" className="mt-0">
             <ComingTab recurringData={recurringData} period={period} />
           </TabsContent>
         </Tabs>

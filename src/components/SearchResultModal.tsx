@@ -154,7 +154,9 @@ export function SearchResultModal({
       if (tx.type === "transfer") continue;
       const key = tx.category?.id ?? "__none__";
       const name = tx.category?.name ?? t("transactions.uncategorized", { defaultValue: "Uncategorized" });
-      const color = tx.category?.color ?? "var(--muted-foreground)";
+      // hsl() wrapper is load-bearing: the token holds bare HSL components, so
+      // consuming it raw painted the uncategorised swatch transparent.
+      const color = tx.category?.color ?? "hsl(var(--muted-foreground))";
       const entry = map.get(key) ?? { name, color, total: 0, count: 0 };
       entry.total += signedNet(tx);
       entry.count += 1;

@@ -3,6 +3,11 @@ import type { Config } from "tailwindcss";
 export default {
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  // Tailwind prunes @layer base/components rules whose classes it can't find
+  // in `content`. lucide-react stamps `.lucide` on every icon at runtime, so
+  // the string never appears in JSX and the global 1.6 stroke-weight rule in
+  // src/index.css would be dropped without this.
+  safelist: ["lucide"],
   prefix: "",
   theme: {
     container: {
@@ -11,6 +16,24 @@ export default {
       screens: {
         "2xl": "1400px",
       },
+    },
+    // Declared in full (not extended) so the design's single collapse width
+    // sorts between `lg` and `xl` instead of being appended after `2xl`,
+    // which would make it win over the larger breakpoints.
+    //
+    // The design collapses every multi-column layout at exactly one width:
+    // 1180px. `wide` is the name to reach for; `bp` and `ft` are aliases so
+    // the intent is unmistakable at call sites that read better with them.
+    // Unused breakpoint variants cost nothing — JIT only emits what's used.
+    screens: {
+      sm: "640px",
+      md: "768px",
+      lg: "1024px",
+      wide: "1180px",
+      bp: "1180px",
+      ft: "1180px",
+      xl: "1280px",
+      "2xl": "1536px",
     },
     extend: {
       fontFamily: {
@@ -34,6 +57,15 @@ export default {
         '7xl': ['3rem', { lineHeight: '1' }],          // 48px instead of 72px
         '8xl': ['3.75rem', { lineHeight: '1' }],       // 60px instead of 96px
         '9xl': ['4.5rem', { lineHeight: '1' }],        // 72px instead of 128px
+      },
+      // Instrument Sans loads as a 400..700 variable axis (index.html), so
+      // the design's two half-steps are genuinely renderable: 550 for
+      // interactive text (buttons, chips, segments, nav) and 650 for
+      // emphasis (primary buttons, card titles). Tailwind's 500/600 round
+      // both down and flatten the pair.
+      fontWeight: {
+        550: '550',
+        650: '650',
       },
       colors: {
         border: "hsl(var(--border))",
@@ -82,6 +114,12 @@ export default {
         "bg-ink": "hsl(var(--bg-ink))",
         "bg-inverse": "hsl(var(--bg-inverse))",
         "accent-deep": "hsl(var(--accent-deep))",
+        // The token carries its own alpha, so this is the tinted accent fill
+        // the design uses behind selected chips and active rows. It was being
+        // written as `bg-accent-soft` before it existed here, which emitted
+        // nothing and left selected filter chips indistinguishable.
+        "accent-soft": "hsl(var(--accent-soft))",
+        "accent-wash": "hsl(var(--accent-wash))",
         "on-accent": "hsl(var(--on-accent))",
         muted: {
           DEFAULT: "hsl(var(--muted))",

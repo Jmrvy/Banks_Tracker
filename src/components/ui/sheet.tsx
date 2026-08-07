@@ -19,7 +19,10 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
-      "fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // The scrim is a token (`--scrim`), tuned per theme and carrying its own
+      // alpha. The design darkens the page behind a sheet but keeps it legible
+      // — there is no backdrop blur anywhere in the system.
+      "fixed inset-0 z-50 bg-[hsl(var(--scrim))] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -34,8 +37,12 @@ const sheetVariants = cva(
     variants: {
       side: {
         top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        // One shoulder for every bottom sheet in the system (`.ft-sheet` =
+        // 26px + the level-3 shadow). `pt-0` hands the top inset to the grab
+        // handle's own 9px/4px margins, exactly as the design's `.sheet-h`
+        // sits 8px under the grab.
         bottom:
-          "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "inset-x-0 bottom-0 border-t pt-0 ft-sheet data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -61,6 +68,9 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+        {/* Drag affordance — the design puts one on every bottom sheet, and it
+            is what makes the surface read as dismissable by swipe. */}
+        {side === "bottom" && <div className="ft-sheet-grab" aria-hidden="true" />}
         {children}
         {!hideClose && (
           <SheetPrimitive.Close className="absolute right-4 top-4 h-8 w-8 grid place-items-center rounded-md text-muted-foreground opacity-80 transition-colors hover:opacity-100 hover:bg-bg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">

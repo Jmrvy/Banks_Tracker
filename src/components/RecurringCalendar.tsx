@@ -55,7 +55,12 @@ interface CalendarOccurrence {
   occurrenceDate: string; // YYYY-MM-DD
 }
 
-// Memoized calendar day cell — prevents re-rendering all 30+ cells on unrelated state changes
+// Memoized calendar day cell — prevents re-rendering all 30+ cells on unrelated state changes.
+//
+// The design reads the month as a rhythm rather than a ledger: a marked day is
+// a subtly sunk 9px-radius cell whose day number is set in mono, with a row of
+// 4px status dots beneath it. The euro total moves to the cell's tooltip —
+// printing it in the grid forced a 7px type size nothing could read.
 const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCurrency, getEffectiveType, onDayClick }: {
   day: Date;
   dateKey: string;
@@ -70,34 +75,33 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
     return sum + (getEffectiveType(transaction) === 'income' ? amount : -amount);
   }, 0);
 
+  const marked = dayTransactions.length > 0;
+  const hasOverdue = dayTransactions.some((d) => d.isOverdue);
+  const hasIncome = dayTransactions.some((d) => getEffectiveType(d.transaction) === 'income');
+  const hasExpense = dayTransactions.some((d) => getEffectiveType(d.transaction) !== 'income');
+
   return (
     <div
-      className={`aspect-square border rounded-md sm:rounded-lg p-0.5 sm:p-1 flex flex-col items-center justify-center transition-colors ${
+      title={marked ? formatCurrency(Math.abs(dayTotal)) : undefined}
+      className={`aspect-square rounded-[9px] border flex flex-col items-center justify-center gap-0.5 transition-colors ${
         isToday
-          ? 'border-primary bg-primary/5'
-          : dayTransactions.length > 0
-            ? 'border-border/50 bg-muted/20'
-            : 'border-border/30'
-      } ${dayTransactions.length > 0 ? 'cursor-pointer hover:bg-muted/40' : ''}`}
+          ? 'bg-bg-ink text-fg-onink border-transparent'
+          : marked
+            ? 'bg-bg-subtle border-line-soft text-foreground'
+            : 'border-transparent text-fg-dim'
+      } ${marked ? 'cursor-pointer hover:border-line-strong' : ''}`}
       onClick={() => onDayClick(dateKey, dayTransactions)}
     >
-      <span className={`text-[10px] sm:text-xs font-medium ${
-        isToday ? 'text-primary' : 'text-foreground'
-      }`}>
+      <span className={`font-mono text-[11.5px] leading-none ${isToday ? 'font-bold' : 'font-medium'}`}>
         {format(day, 'd')}
       </span>
 
-      {dayTransactions.length > 0 && (
-        <span className={`text-[7px] sm:text-[10px] font-bold mt-0.5 ${
-          dayTransactions.some(d => d.isOverdue)
-            ? 'text-warning'
-            : dayTransactions.every(d => d.isPast)
-              ? 'text-muted-foreground line-through'
-              : dayTotal >= 0 ? 'text-success' : 'text-destructive'
-        }`}>
-          {formatCurrency(Math.abs(dayTotal))}
-        </span>
-      )}
+      {/* One 4px dot per state present that day — overdue wins over expense. */}
+      <div className="flex gap-[2px] h-1 items-center">
+        {hasOverdue && <i className="h-1 w-1 rounded-full bg-neg" />}
+        {!hasOverdue && hasExpense && <i className="h-1 w-1 rounded-full bg-fg-mute" />}
+        {hasIncome && <i className="h-1 w-1 rounded-full bg-pos" />}
+      </div>
     </div>
   );
 });
@@ -128,7 +132,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   const dateField: DateField = preferences.dateType === 'value' ? 'value_date' : 'transaction_date';
   const transactionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  // Single-letter weekday initials, Monday first — the design's header. Kept
+  // as one translated, comma-separated string so a locale can supply its own
+  // seven letters rather than having them derived from a French list.
+  const daysOfWeek = t('recurring.weekdayLetters', { defaultValue: 'M,T,W,T,F,S,S' }).split(',');
 
   // Get all days in the current month view (including padding days)
   const calendarDays = useMemo(() => {
@@ -1061,8 +1068,8 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
           {/* Amount + chevron */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`text-sm sm:text-base font-bold ${
-              dimmed ? 'text-muted-foreground' : isOverdue ? 'text-destructive' : getEffectiveType(transaction) === 'income' ? 'text-success' : 'text-destructive'
+            <span className={`ft-row-amt ${
+              dimmed ? 'text-muted-foreground' : isOverdue ? 'text-neg' : getEffectiveType(transaction) === 'income' ? 'text-pos' : 'text-neg'
             }`}>
               {formatCurrency(displayAmount ?? transaction.amount)}
             </span>
@@ -1319,42 +1326,42 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               size="icon"
               onClick={viewMode === 'month' ? goToPreviousMonth : goToPreviousYear}
               className="h-8 w-8"
-              aria-label={viewMode === 'month' ? 'Mois précédent' : 'Année précédente'}
+              aria-label={viewMode === 'month'
+                ? t('recurring.previousMonth', { defaultValue: 'Previous month' })
+                : t('recurring.previousYear', { defaultValue: 'Previous year' })}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-              <CardTitle className="text-sm sm:text-lg font-semibold capitalize truncate">
+              <CardTitle className="ft-card-title capitalize truncate">
                 {viewMode === 'month'
                   ? format(currentMonth, 'MMMM yyyy', { locale: fr })
                   : format(currentMonth, 'yyyy')}
               </CardTitle>
+              {/* Design's raised-chip segment, not an ink inversion — the
+                  selection must not out-shout the figures it controls. */}
               <div
                 role="tablist"
-                aria-label="Vue calendrier"
-                className="inline-flex items-stretch rounded-md border border-border/60 p-0.5 bg-muted/40"
+                aria-label={t('recurring.calendarView', { defaultValue: 'Calendar view' })}
+                className="ft-seg"
               >
                 <button
                   type="button"
                   role="tab"
                   aria-selected={viewMode === 'month'}
                   onClick={() => setViewMode('month')}
-                  className={`px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors ${
-                    viewMode === 'month' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={viewMode === 'month' ? 'active' : undefined}
                 >
-                  Mois
+                  {t('recurring.viewMonth', { defaultValue: 'Month' })}
                 </button>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={viewMode === 'year'}
                   onClick={() => setViewMode('year')}
-                  className={`px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors ${
-                    viewMode === 'year' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={viewMode === 'year' ? 'active' : undefined}
                 >
-                  Année
+                  {t('recurring.viewYear', { defaultValue: 'Year' })}
                 </button>
               </div>
             </div>
@@ -1363,7 +1370,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               size="icon"
               onClick={viewMode === 'month' ? goToNextMonth : goToNextYear}
               className="h-8 w-8"
-              aria-label={viewMode === 'month' ? 'Mois suivant' : 'Année suivante'}
+              aria-label={viewMode === 'month'
+                ? t('recurring.nextMonth', { defaultValue: 'Next month' })
+                : t('recurring.nextYear', { defaultValue: 'Next year' })}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -1373,16 +1382,16 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           {viewMode === 'month' ? (
             <>
               {/* Days of week header */}
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
-                {daysOfWeek.map((day) => (
-                  <div key={day} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2">
+              <div className="grid grid-cols-7 gap-[5px] mb-1.5">
+                {daysOfWeek.map((day, i) => (
+                  <div key={`${day}-${i}`} className="text-center text-[10.5px] font-bold text-fg-dim">
                     {day}
                   </div>
                 ))}
               </div>
 
               {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+              <div className="grid grid-cols-7 gap-[5px]">
                 {calendarDays.map((day, index) => {
                   if (!day) {
                     return <div key={`empty-${index}`} className="aspect-square" />;
@@ -1423,59 +1432,79 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                         setCurrentMonth(m.monthDate);
                         setViewMode('month');
                       }}
-                      className={`text-left rounded-lg border p-2.5 sm:p-3 transition-colors hover:bg-muted/40 ${
-                        isCurrentMonthTile ? 'border-primary bg-primary/5' : 'border-border/50 bg-card/60'
+                      className={`text-left rounded-[15px] border p-2.5 sm:p-3 transition-colors ${
+                        isCurrentMonthTile
+                          ? 'border-line-strong bg-bg-subtle'
+                          : 'border-line-soft bg-bg-elev hover:border-line-strong'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] sm:text-xs font-semibold capitalize">
+                        <span className="text-[12px] font-[650] capitalize">
                           {format(m.monthDate, 'MMM', { locale: fr })}
                         </span>
-                        <span className="text-[9px] sm:text-[10px] text-muted-foreground">{m.count}</span>
+                        <span className="font-mono text-[10.5px] text-fg-dim">{m.count}</span>
                       </div>
-                      <div className="mt-1 flex h-1 rounded overflow-hidden bg-muted/40">
-                        <div className="bg-success/70" style={{ width: `${(m.income / max) * 100}%` }} />
-                        <div className="bg-destructive/70 ml-auto" style={{ width: `${(m.expense / max) * 100}%` }} />
+                      <div className="mt-1.5 flex h-1 rounded-[3px] overflow-hidden bg-bg-sunk">
+                        <div className="bg-pos" style={{ width: `${(m.income / max) * 100}%` }} />
+                        <div className="bg-neg ml-auto" style={{ width: `${(m.expense / max) * 100}%` }} />
                       </div>
-                      <div className={`mt-1.5 text-[11px] sm:text-xs font-bold tabular-nums ${
-                        net >= 0 ? 'text-success' : 'text-destructive'
+                      <div className={`mt-1.5 font-mono text-[13px] font-medium tracking-[-0.02em] ${
+                        net >= 0 ? 'text-pos' : 'text-neg'
                       }`}>
                         {net >= 0 ? '+' : ''}{formatCurrency(net)}
                       </div>
-                      <div className="text-[9px] sm:text-[10px] text-muted-foreground tabular-nums leading-tight">
-                        <span className="text-success">+{formatCurrency(m.income)}</span>
+                      <div className="text-[10.5px] text-fg-dim tabular-nums leading-tight">
+                        <span className="text-pos">+{formatCurrency(m.income)}</span>
                         {' · '}
-                        <span className="text-destructive">-{formatCurrency(m.expense)}</span>
+                        <span className="text-neg">-{formatCurrency(m.expense)}</span>
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Year totals */}
-              <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-3 gap-2 sm:gap-3 text-center">
-                <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
-                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">Total {format(currentMonth, 'yyyy')}</div>
-                  <div className="text-success text-[10px] sm:text-xs font-medium mt-1">+{formatCurrency(yearTotals.income)}</div>
-                  <div className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(yearTotals.expense)}</div>
-                  <div className={`text-xs sm:text-sm font-bold ${yearTotals.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {/* Year totals — same sunk-card / eyebrow / mono-figure idiom
+                  as the month strip, so the two views read as one system. */}
+              <div className="mt-3 pt-3 border-t border-line-soft grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="ft-card ft-card-sunk p-3.5">
+                  <div className="ft-eyebrow truncate">
+                    {t('recurring.yearTotal', {
+                      defaultValue: 'Total {{year}}',
+                      year: format(currentMonth, 'yyyy'),
+                    })}
+                  </div>
+                  <div className={`font-mono text-xl font-medium tracking-[-0.03em] mt-1.5 ${yearTotals.net >= 0 ? 'text-pos' : 'text-neg'}`}>
                     {yearTotals.net >= 0 ? '+' : ''}{formatCurrency(yearTotals.net)}
                   </div>
+                  <div className="text-[11.5px] text-fg-dim mt-0.5 tabular-nums">
+                    <span className="text-pos">+{formatCurrency(yearTotals.income)}</span>
+                    {' · '}
+                    <span className="text-neg">-{formatCurrency(yearTotals.expense)}</span>
+                  </div>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
-                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">Moyenne / mois</div>
-                  <div className="text-success text-[10px] sm:text-xs font-medium mt-1">+{formatCurrency(yearTotals.income / 12)}</div>
-                  <div className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(yearTotals.expense / 12)}</div>
-                  <div className={`text-xs sm:text-sm font-bold ${yearTotals.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                <div className="ft-card ft-card-sunk p-3.5">
+                  <div className="ft-eyebrow truncate">
+                    {t('recurring.perMonthAverage', { defaultValue: 'Average / month' })}
+                  </div>
+                  <div className={`font-mono text-xl font-medium tracking-[-0.03em] mt-1.5 ${yearTotals.net >= 0 ? 'text-pos' : 'text-neg'}`}>
                     {yearTotals.net >= 0 ? '+' : ''}{formatCurrency(yearTotals.net / 12)}
                   </div>
+                  <div className="text-[11.5px] text-fg-dim mt-0.5 tabular-nums">
+                    <span className="text-pos">+{formatCurrency(yearTotals.income / 12)}</span>
+                    {' · '}
+                    <span className="text-neg">-{formatCurrency(yearTotals.expense / 12)}</span>
+                  </div>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
-                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">Occurrences</div>
-                  <div className="text-sm sm:text-base font-bold mt-1">
+                <div className="ft-card ft-card-sunk p-3.5">
+                  <div className="ft-eyebrow truncate">
+                    {t('recurring.occurrences', { defaultValue: 'Occurrences' })}
+                  </div>
+                  <div className="font-mono text-xl font-medium tracking-[-0.03em] mt-1.5">
                     {yearMonths.reduce((s, m) => s + m.count, 0)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">prévues sur l'année</div>
+                  <div className="text-[11.5px] text-fg-dim mt-0.5">
+                    {t('recurring.plannedThisYear', { defaultValue: 'planned this year' })}
+                  </div>
                 </div>
               </div>
             </>
@@ -1483,71 +1512,69 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
 
           {viewMode === 'month' && <>
-          {/* Legend */}
-          <div className="flex items-center justify-center gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 border-t border-border/50 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-success/20" />
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Revenus</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-destructive/20" />
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-warning/30" />
-              <span className="text-[10px] sm:text-xs text-muted-foreground">En retard</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-muted/50" />
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Passées</span>
-            </div>
+          {/* Legend — three solid 9px swatches keyed to the dots above, in the
+              same tokens the cells use so the key and the thing it keys agree. */}
+          <div className="ft-legend mt-4 pt-3 border-t border-line-soft">
+            <span>
+              <i className="ft-swatch rounded-[2px] bg-pos" />
+              {t('recurring.calendarLegendIncome', { defaultValue: 'Income' })}
+            </span>
+            <span>
+              <i className="ft-swatch rounded-[2px] bg-fg-mute" />
+              {t('recurring.calendarLegendExpense', { defaultValue: 'Expenses' })}
+            </span>
+            <span>
+              <i className="ft-swatch rounded-[2px] bg-neg" />
+              {t('recurring.calendarLegendOverdue', { defaultValue: 'Overdue' })}
+            </span>
           </div>
 
-          {/* Monthly Summary */}
+          {/* Monthly Summary — the design's sunk card + eyebrow + one 20px
+              mono figure, with the +/− split demoted to a single dim line. */}
           {(monthlySummary.totalIncome > 0 || monthlySummary.totalExpense > 0) && (
-            <div className="mt-3 sm:mt-4 pt-3 border-t border-border/50">
+            <div className="mt-4 pt-3 border-t border-line-soft">
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">{t('recurring.monthTotal', { defaultValue: 'Month total' })}</span>
+                {[
+                  {
+                    key: 'total',
+                    Icon: Wallet,
+                    label: t('recurring.monthTotal', { defaultValue: 'Month total' }),
+                    income: monthlySummary.totalIncome,
+                    expense: monthlySummary.totalExpense,
+                    net: monthlySummary.totalNet,
+                  },
+                  {
+                    key: 'past',
+                    Icon: TrendingDown,
+                    label: t('recurring.alreadyPast', { defaultValue: 'Already past' }),
+                    income: monthlySummary.pastIncome,
+                    expense: monthlySummary.pastExpense,
+                    net: monthlySummary.pastNet,
+                  },
+                  {
+                    key: 'upcoming',
+                    Icon: TrendingUp,
+                    label: t('recurring.upcoming', { defaultValue: 'Upcoming' }),
+                    income: monthlySummary.upcomingIncome,
+                    expense: monthlySummary.upcomingExpense,
+                    net: monthlySummary.upcomingNet,
+                  },
+                ].map(({ key, Icon, label, income, expense, net }) => (
+                  <div key={key} className="ft-card ft-card-sunk p-3.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Icon className="h-3 w-3 text-fg-dim flex-shrink-0" />
+                      <span className="ft-eyebrow truncate">{label}</span>
+                    </div>
+                    <div className={`font-mono text-xl font-medium tracking-[-0.03em] mt-1.5 ${net >= 0 ? 'text-pos' : 'text-neg'}`}>
+                      {net >= 0 ? '+' : ''}{formatCurrency(net)}
+                    </div>
+                    <div className="text-[11.5px] text-fg-dim mt-0.5 tabular-nums">
+                      <span className="text-pos">+{formatCurrency(income)}</span>
+                      {' · '}
+                      <span className="text-neg">-{formatCurrency(expense)}</span>
+                    </div>
                   </div>
-                  <div className="space-y-0.5">
-                    <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.totalIncome)}</p>
-                    <p className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(monthlySummary.totalExpense)}</p>
-                    <p className={`text-xs sm:text-sm font-bold ${monthlySummary.totalNet >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {monthlySummary.totalNet >= 0 ? '+' : ''}{formatCurrency(monthlySummary.totalNet)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
-                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">Déjà passé</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.pastIncome)}</p>
-                    <p className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(monthlySummary.pastExpense)}</p>
-                    <p className={`text-xs sm:text-sm font-bold ${monthlySummary.pastNet >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {monthlySummary.pastNet >= 0 ? '+' : ''}{formatCurrency(monthlySummary.pastNet)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
-                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">À venir</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-success text-[10px] sm:text-xs font-medium">+{formatCurrency(monthlySummary.upcomingIncome)}</p>
-                    <p className="text-destructive text-[10px] sm:text-xs font-medium">-{formatCurrency(monthlySummary.upcomingExpense)}</p>
-                    <p className={`text-xs sm:text-sm font-bold ${monthlySummary.upcomingNet >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {monthlySummary.upcomingNet >= 0 ? '+' : ''}{formatCurrency(monthlySummary.upcomingNet)}
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           )}
@@ -1559,10 +1586,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       {upcomingOccurrences.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm sm:text-base font-bold capitalize">
-              À venir en {monthName}
+            <h3 className="ft-eyebrow capitalize">
+              {t('recurring.upcomingIn', { defaultValue: 'Upcoming in {{month}}', month: monthName })}
             </h3>
-            <span className="text-sm sm:text-base text-muted-foreground font-medium">
+            <span className="ft-row-amt text-fg-mute">
               {formatCurrency(sectionTotal(upcomingOccurrences))}
             </span>
           </div>
@@ -1576,10 +1603,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
       {pastOccurrences.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm sm:text-base font-bold capitalize">
-              Passé en {monthName}
+            <h3 className="ft-eyebrow capitalize">
+              {t('recurring.pastIn', { defaultValue: 'Past in {{month}}', month: monthName })}
             </h3>
-            <span className="text-sm sm:text-base text-muted-foreground font-medium">
+            <span className="ft-row-amt text-fg-mute">
               {formatCurrency(sectionTotal(pastOccurrences))}
             </span>
           </div>

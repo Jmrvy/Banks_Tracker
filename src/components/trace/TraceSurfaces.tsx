@@ -161,7 +161,7 @@ export function TraceSurfaces() {
           hideClose
           className={
             isMobile
-              ? "h-[85vh] p-0 flex flex-col gap-0 rounded-t-2xl"
+              ? "h-[85vh] p-0 flex flex-col gap-0"
               : "w-full sm:max-w-[420px] p-0 flex flex-col gap-0"
           }
         >
@@ -184,7 +184,7 @@ export function TraceSurfaces() {
         hideClose
         className={
           isMobile
-            ? "h-[88vh] p-0 flex flex-col gap-0 rounded-t-2xl"
+            ? "h-[88vh] p-0 flex flex-col gap-0"
             : "mx-auto w-full sm:max-w-2xl max-h-[80vh] mt-[6vh] rounded-2xl p-0 flex flex-col gap-0 border"
         }
       >

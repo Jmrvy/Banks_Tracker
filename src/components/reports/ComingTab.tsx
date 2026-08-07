@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowDownRight, ArrowUpRight, CalendarDays } from "lucide-react";
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, BarChart3, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
@@ -64,97 +63,95 @@ export const ComingTab = ({ recurringData, period }: ComingTabProps) => {
 
   if (grouped.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
-          {t('reports.analysis.nothingComing', { defaultValue: 'Nothing scheduled in this period' })}
-        </CardContent>
-      </Card>
+      <div className="ft-card">
+        <div className="ft-empty">
+          <CalendarDays className="h-8 w-8 opacity-40" />
+          <span className="ft-empty-title">
+            {t('reports.analysis.nothingComing', { defaultValue: 'Nothing scheduled in this period' })}
+          </span>
+        </div>
+      </div>
     );
   }
 
+  const net = totalIncome - totalExpenses;
+
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3.5">
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-line bg-card p-3">
-          <p className="text-[10.5px] text-muted-foreground">{t('reports.analysis.expected', { defaultValue: 'Expected' })}</p>
-          <p className="font-mono text-base font-semibold tabular-nums text-[hsl(var(--pos))]">+{formatCurrency(totalIncome)}</p>
+      <div className="ft-g3">
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon pos" aria-hidden><ArrowDown className="h-[15px] w-[15px]" /></span>
+            <span className="ft-kpi-label">{t('reports.analysis.expected', { defaultValue: 'Expected' })}</span>
+          </div>
+          <div className="ft-kpi-value text-[hsl(var(--pos))]">+{formatCurrency(totalIncome)}</div>
         </div>
-        <div className="rounded-xl border border-line bg-card p-3">
-          <p className="text-[10.5px] text-muted-foreground">{t('reports.analysis.dueOut', { defaultValue: 'Due out' })}</p>
-          <p className="font-mono text-base font-semibold tabular-nums text-[hsl(var(--neg))]">−{formatCurrency(totalExpenses)}</p>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon neg" aria-hidden><ArrowUp className="h-[15px] w-[15px]" /></span>
+            <span className="ft-kpi-label">{t('reports.analysis.dueOut', { defaultValue: 'Due out' })}</span>
+          </div>
+          <div className="ft-kpi-value text-[hsl(var(--neg))]">−{formatCurrency(totalExpenses)}</div>
         </div>
-        <div className="rounded-xl border border-line bg-card p-3">
-          <p className="text-[10.5px] text-muted-foreground">{t('reports.analysis.netComing', { defaultValue: 'Net' })}</p>
-          <p className={cn("font-mono text-base font-semibold tabular-nums",
-            totalIncome - totalExpenses >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
-            {totalIncome - totalExpenses >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalIncome - totalExpenses))}
-          </p>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon acc" aria-hidden><BarChart3 className="h-[15px] w-[15px]" /></span>
+            <span className="ft-kpi-label">{t('reports.analysis.netComing', { defaultValue: 'Net' })}</span>
+          </div>
+          <div className={cn("ft-kpi-value", net >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+            {net >= 0 ? '+' : '−'}{formatCurrency(Math.abs(net))}
+          </div>
         </div>
       </div>
 
       {/* Grouped by day */}
-      <Card>
-        <CardHeader className="pb-2 px-4 pt-4">
-          <CardTitle className="text-sm">{t('reports.analysis.upcomingByDay', { defaultValue: 'Coming up, by day' })}</CardTitle>
-          <CardDescription className="text-[10.5px]">{period.label}</CardDescription>
-        </CardHeader>
-        <CardContent className="px-3 sm:px-4 pb-4 space-y-3">
+      <div className="ft-card-flush">
+        <div className="ft-card-head">
+          <div className="min-w-0">
+            <h3 className="ft-card-title">{t('reports.analysis.upcomingByDay', { defaultValue: 'Coming up, by day' })}</h3>
+            <div className="ft-card-sub">{period.label}</div>
+          </div>
+        </div>
+        <div className="pb-2">
           {grouped.map(group => (
-            <div key={group.date} className="rounded-lg border border-line bg-bg-subtle/50">
-              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-line">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="grid h-7 w-7 place-items-center rounded-md bg-card text-foreground border border-line flex-shrink-0">
-                    <span className="text-[11px] font-mono font-semibold">{format(group.dateObj, 'd', { locale: dateLocale })}</span>
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium capitalize truncate">{formatDayLabel(group.dateObj)}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {group.items.length} {t('reports.analysis.items', { defaultValue: 'items' })}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end text-[10.5px] font-mono tabular-nums flex-shrink-0">
+            <div key={group.date}>
+              <div className="ft-daylab">
+                <span className="capitalize">{formatDayLabel(group.dateObj)}</span>
+                <span className="ft-num font-normal normal-case tracking-normal flex items-center gap-2">
                   {group.dayIncome > 0 && <span className="text-[hsl(var(--pos))]">+{formatCurrency(group.dayIncome)}</span>}
                   {group.dayExpenses > 0 && <span className="text-[hsl(var(--neg))]">−{formatCurrency(group.dayExpenses)}</span>}
-                </div>
+                </span>
               </div>
-              <div className="divide-y divide-line">
-                {group.items.map(tx => (
-                  <div key={tx.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className={cn("grid h-6 w-6 flex-shrink-0 place-items-center rounded-md",
-                        tx.type === 'income' ? "bg-[hsl(var(--pos)/0.12)]" : "bg-[hsl(var(--neg)/0.12)]")}>
-                        {tx.type === 'income'
-                          ? <ArrowDownRight className="h-3 w-3 text-[hsl(var(--pos))]" />
-                          : <ArrowUpRight className="h-3 w-3 text-[hsl(var(--neg))]" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium truncate">{tx.description}</p>
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          {tx.account && <span className="truncate">{tx.account}</span>}
-                          {tx.category && (
-                            <>
-                              {tx.account && <span>•</span>}
-                              <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: tx.category.color }} />
-                              <span className="truncate">{tx.category.name}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <span className={cn("flex-shrink-0 font-mono text-xs font-semibold tabular-nums",
-                      tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
-                      {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
-                    </span>
+              {group.items.map(tx => (
+                <div key={tx.id} className="ft-list-row tx">
+                  <div
+                    aria-hidden
+                    className={cn("ft-glyph sq border-transparent",
+                      tx.type === 'income'
+                        ? "bg-[hsl(var(--pos-soft))] text-[hsl(var(--pos))]"
+                        : "bg-[hsl(var(--neg-soft))] text-[hsl(var(--neg))]")}
+                  >
+                    {tx.type === 'income'
+                      ? <ArrowDownRight className="h-4 w-4" />
+                      : <ArrowUpRight className="h-4 w-4" />}
                   </div>
-                ))}
-              </div>
+                  <div className="min-w-0">
+                    <div className="ft-row-title ft-trunc">{tx.description}</div>
+                    <div className="ft-row-sub ft-trunc">
+                      {[tx.account, tx.category?.name].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <span className={cn("ft-row-amt",
+                    tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                    {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

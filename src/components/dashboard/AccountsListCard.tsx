@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { Plus, ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -43,22 +43,24 @@ export function AccountsListCard() {
 
   return (
     <div className="ft-card-flush flex flex-col">
-      <div className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 md:py-5 border-b border-line">
+      {/* No rule under the head and none under the list: the only horizontals
+          in this card are the rows' own soft dividers. */}
+      <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">{t("navigation.accounts")}</h3>
           <p className="ft-card-sub">
             {accounts.length} {t("dashboard.linked", { defaultValue: "linked" })}
             {" · "}
-            <span className="font-mono">{formatCurrency(total)}</span>{" "}
+            <span className={`font-mono ${isPrivacyMode ? "ft-priv" : ""}`}>{formatCurrency(total)}</span>{" "}
             {t("dashboard.total", { defaultValue: "total" })}
           </p>
         </div>
         <Link
           to="/accounts"
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-medium"
+          className="text-[12px] font-[550] text-fg-mute hover:text-foreground inline-flex items-center gap-1 flex-shrink-0 no-underline hover:no-underline"
         >
-          <Plus className="h-3 w-3" />
-          {t("accounts.linkAccount", { defaultValue: "Link" })}
+          {t("common.viewAll", { defaultValue: "View all" })}
+          <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
 
@@ -74,23 +76,24 @@ export function AccountsListCard() {
           const bg = BANK_COLORS[account.bank] || "#1E1E1E";
           const series = seriesByAccount[account.id];
           const change = series?.change30d ?? 0;
+          const changePct = series?.changePct ?? 0;
+          const changeUp = change > 0;
           return (
             <Link
               key={account.id}
               to="/accounts"
               state={{ selectedAccountId: account.id }}
-              className="ft-list-row hover:bg-bg-subtle/60"
-              style={{ gridTemplateColumns: "36px minmax(0,1fr) 96px auto" }}
+              className="ft-list-row acct grid-cols-[38px_minmax(0,1fr)_auto] sm:grid-cols-[38px_minmax(0,1fr)_96px_auto] hover:bg-bg-subtle/60 no-underline hover:no-underline text-foreground"
             >
               {/* Tinted rather than filled — same treatment as CategoryIcon,
                   so bank and category badges read as one family and neither
                   shouts over the balance beside it. */}
-              <div className="ft-glyph !h-9 !w-9" style={{ background: `${bg}1F`, color: bg }}>
+              <div className="ft-glyph" style={{ background: `${bg}1F`, color: bg }}>
                 {initials || "A"}
               </div>
               <div className="min-w-0">
-                <div className="font-medium text-[13.5px] truncate">{account.name}</div>
-                <div className="text-[11.5px] text-fg-dim truncate">
+                <div className="ft-row-title truncate">{account.name}</div>
+                <div className="ft-row-sub truncate">
                   {getBankLabel(account.bank, t)} · {getAccountTypeLabel(account.account_type, t)}
                 </div>
               </div>
@@ -103,16 +106,28 @@ export function AccountsListCard() {
               </div>
               <div className="text-right">
                 <div
-                  className={`font-mono text-sm font-medium ${
-                    isPrivacyMode ? "blur-md select-none" : ""
-                  } ${account.balance < 0 ? "text-destructive" : ""}`}
+                  className={`ft-row-amt ${isPrivacyMode ? "ft-priv" : ""} ${
+                    account.balance < 0 ? "text-destructive" : ""
+                  }`}
                 >
                   {formatCurrency(account.balance)}
                 </div>
+                {/* The chip is a percentage, as everywhere else; the absolute
+                    move sits under it in mute text. */}
                 {Math.abs(change) > 0.01 && (
-                  <div className="mt-0.5">
-                    <span className={`ft-delta ${change > 0 ? "up" : "down"}`}>
-                      {change > 0 ? "↑" : "↓"} {formatCurrency(Math.abs(change))}
+                  <div className="mt-0.5 flex flex-col items-end gap-0.5">
+                    <span className={`ft-delta ${changeUp ? "up" : "down"}`}>
+                      {changeUp ? (
+                        <ArrowUp className="h-[11px] w-[11px]" />
+                      ) : (
+                        <ArrowDown className="h-[11px] w-[11px]" />
+                      )}
+                      {changeUp ? "+" : "−"}
+                      {Math.abs(changePct).toFixed(1)}%
+                    </span>
+                    <span className={`ft-row-amt sub ${isPrivacyMode ? "ft-priv" : ""}`}>
+                      {changeUp ? "+" : "−"}
+                      {formatCurrency(Math.abs(change))}
                     </span>
                   </div>
                 )}
@@ -120,16 +135,6 @@ export function AccountsListCard() {
             </Link>
           );
         })}
-      </div>
-
-      <div className="px-5 py-2 border-t border-line">
-        <Link
-          to="/accounts"
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-medium"
-        >
-          {t("common.viewAll", { defaultValue: "View all" })}
-          <ArrowRight className="h-3 w-3" />
-        </Link>
       </div>
     </div>
   );

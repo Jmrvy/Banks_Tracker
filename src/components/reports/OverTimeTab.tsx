@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
@@ -272,43 +271,41 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
   } as const;
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="flex flex-col gap-3.5">
       {/* Balance chart card */}
-      <Card>
-        <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4 flex flex-row items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm sm:text-base">{t('reports.balanceEvolution')}</CardTitle>
-            <CardDescription className="text-[10.5px] sm:text-xs">
+      <div className="ft-card">
+        <div className="ft-card-head">
+          <div className="min-w-0">
+            <h3 className="ft-card-title">{t('reports.balanceEvolution')}</h3>
+            <div className="ft-card-sub">
               {t('reports.analysis.acrossAccounts', { count: accounts.length, defaultValue: 'Across {{count}} accounts · projection based on recurring transactions' })}
-            </CardDescription>
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-muted-foreground">
-            <span className="hidden sm:inline-flex items-center gap-1.5">
-              <span className="inline-block h-[3px] w-3.5 rounded-sm bg-[hsl(var(--pos))]" />
-              {t('reports.analysis.actual', { defaultValue: 'Actual' })}
-            </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5">
-              <span className="inline-block h-2 w-3.5 rounded-sm bg-[hsl(var(--pos)/0.18)]" />
-              {t('reports.analysis.projection', { defaultValue: 'Projection' })}
-            </span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="ft-legend hidden sm:flex">
+              <span>
+                <i className="ft-swatch bg-[hsl(var(--pos))]" aria-hidden />
+                {t('reports.analysis.actual', { defaultValue: 'Actual' })}
+              </span>
+              <span>
+                <i aria-hidden className="inline-block w-3.5 border-t-[1.5px] border-dashed border-fg-dim" />
+                {t('reports.analysis.projection', { defaultValue: 'Projection' })}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setShowPriorOverlay(v => !v)}
-              className={cn(
-                "h-7 px-2.5 rounded-md border text-[10.5px] font-medium inline-flex items-center gap-1.5 transition-colors",
-                showPriorOverlay
-                  ? "border-foreground/30 bg-secondary text-foreground"
-                  : "border-line bg-card text-muted-foreground hover:bg-bg-hover"
-              )}
+              aria-pressed={showPriorOverlay}
+              className={cn("ft-chip", showPriorOverlay && "active")}
             >
-              <span className="inline-block h-[2px] w-3 rounded-sm bg-muted-foreground" style={{ backgroundImage: 'linear-gradient(to right, hsl(var(--muted-foreground)) 50%, transparent 50%)', backgroundSize: '4px 2px' }} />
+              <span aria-hidden className="inline-block h-[2px] w-3 rounded-sm" style={{ backgroundImage: 'linear-gradient(to right, currentColor 50%, transparent 50%)', backgroundSize: '4px 2px' }} />
               {showPriorOverlay
                 ? t('reports.analysis.priorOverlayHide', { defaultValue: 'Hide prior period' })
                 : t('reports.analysis.priorOverlay', { defaultValue: 'Show prior period' })}
             </button>
           </div>
-        </CardHeader>
-        <CardContent className="pt-0 px-1.5 sm:px-4 pb-2 sm:pb-4">
+        </div>
+        <div>
           {chartData.length > 0 ? (
             <>
               <div className="w-full h-[200px] sm:h-[260px] lg:h-[300px] overflow-hidden">
@@ -340,23 +337,29 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                   </ResponsiveContainer>
                 </ChartContainer>
               </div>
-              {/* Inline annotation strip */}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-bg-subtle px-3 py-2 text-[11.5px] font-medium text-muted-foreground">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>
-                    <b className="font-medium tabular-nums font-mono text-foreground">{formatCurrency(chartFinalBalance)}</b> {t('reports.analysis.today', { defaultValue: 'today' })}
-                  </span>
-                  <span className="text-fg-dim">·</span>
-                  <span>
-                    {t('reports.analysis.projectedEndOfPeriod', { defaultValue: 'Projected end' })}{' '}
-                    <b className={cn("font-medium tabular-nums font-mono", projectedFinalBalance >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
-                      {formatCurrency(projectedFinalBalance)}
-                    </b>
-                  </span>
+              {/* Three sunk read-outs closing the chart: where the period
+                  started, where it stands, where it lands. */}
+              <div className="ft-g3 mt-5">
+                <div className="ft-card ft-card-sunk p-[15px]">
+                  <div className="ft-eyebrow">{t('reports.analysis.initialBalance', { defaultValue: 'Starting' })}</div>
+                  <div className="ft-num text-[20px] font-medium mt-1.5 mb-0.5">{formatCurrency(views[dateType].initial)}</div>
+                  <div className="ft-dim text-[11.5px]">{format(period.from, 'd MMM yyyy', { locale: dateLocale })}</div>
                 </div>
-                <span className="font-mono text-[10.5px] uppercase tracking-[0.04em] text-fg-dim">
-                  {projectedTransactions.length} {t('reports.analysis.projected', { defaultValue: 'projected' })}
-                </span>
+                <div className="ft-card ft-card-sunk p-[15px]">
+                  <div className="ft-eyebrow">{t('reports.analysis.currentBalance', { defaultValue: 'Current' })}</div>
+                  <div className="ft-num text-[20px] font-medium mt-1.5 mb-0.5">{formatCurrency(chartFinalBalance)}</div>
+                  <div className="ft-dim text-[11.5px]">{t('reports.analysis.today', { defaultValue: 'today' })}</div>
+                </div>
+                <div className="ft-card ft-card-sunk p-[15px]">
+                  <div className="ft-eyebrow">{t('reports.analysis.projectedEnd', { defaultValue: 'Projected end' })}</div>
+                  <div className={cn("ft-num text-[20px] font-medium mt-1.5 mb-0.5", projectedFinalBalance >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                    {formatCurrency(projectedFinalBalance)}
+                  </div>
+                  <div className="ft-dim text-[11.5px]">
+                    {format(period.to, 'd MMM yyyy', { locale: dateLocale })} · {projectedTransactions.length}{' '}
+                    {t('reports.analysis.projected', { defaultValue: 'projected' })}
+                  </div>
+                </div>
               </div>
             </>
           ) : (
@@ -364,20 +367,20 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
               <p className="text-sm text-muted-foreground">{t('reports.analysis.noData', { defaultValue: 'No data available' })}</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Reconciliation disclosure */}
       <Collapsible open={reconcileOpen} onOpenChange={setReconcileOpen}>
-        <div className="rounded-xl border border-line bg-card">
+        <div className="ft-card p-0">
           <CollapsibleTrigger className="w-full">
-            <div className="flex items-center justify-between gap-3 px-3.5 py-3 hover:bg-bg-hover/50 transition-colors">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground">
-                  <Info className="h-3.5 w-3.5" />
+            <div className="flex items-center justify-between gap-3 px-[22px] py-3.5 hover:bg-bg-subtle transition-colors">
+              <div className="flex items-center gap-[13px] min-w-0">
+                <div className="ft-glyph sq">
+                  <Info className="h-4 w-4" />
                 </div>
                 <div className="text-left min-w-0">
-                  <div className="text-[12.5px] font-medium text-foreground truncate">
+                  <div className="ft-row-title truncate">
                     {dateType === 'value'
                       ? t('reports.analysis.usingValueDate', { defaultValue: 'Using value date' })
                       : t('reports.analysis.usingAccountingDate', { defaultValue: 'Using accounting date' })} ·{' '}
@@ -386,7 +389,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                     </b>{' '}
                     {t('reports.analysis.net', { defaultValue: 'net' })}
                   </div>
-                  <div className="text-[11px] text-muted-foreground truncate">
+                  <div className="ft-row-sub truncate">
                     {views[dateType].excludedCount > 0 && (
                       <>
                         <b className="font-medium font-mono text-foreground">{views[dateType].excludedCount}</b>{' '}
@@ -413,7 +416,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
 
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground font-mono flex-shrink-0">
+              <span className="ft-chip flex-shrink-0">
                 {reconcileOpen
                   ? t('reports.analysis.hide', { defaultValue: 'Hide' })
                   : t('reports.analysis.viewOtherConventions', { defaultValue: 'View other conventions' })}
@@ -487,69 +490,69 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
 
       {/* Projected transactions list */}
       {projectedTransactions.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4">
-            <CardTitle className="text-sm sm:text-base">{t('reports.analysis.recurringProjection', { defaultValue: 'Recurring projection' })}</CardTitle>
-            <CardDescription className="text-[10.5px] sm:text-xs">
-              {projectedTransactions.length}{' '}
-              {projectedTransactions.length > 1
-                ? t('reports.analysis.txComing', { defaultValue: 'transactions coming up' })
-                : t('reports.analysis.txComingOne', { defaultValue: 'transaction coming up' })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
+        <div className="ft-card-flush">
+          <div className="ft-card-head">
+            <div className="min-w-0">
+              <h3 className="ft-card-title">{t('reports.analysis.recurringProjection', { defaultValue: 'Recurring projection' })}</h3>
+              <div className="ft-card-sub">
+                {projectedTransactions.length}{' '}
+                {projectedTransactions.length > 1
+                  ? t('reports.analysis.txComing', { defaultValue: 'transactions coming up' })
+                  : t('reports.analysis.txComingOne', { defaultValue: 'transaction coming up' })}
+              </div>
+            </div>
+          </div>
+          <div className="ft-sect-p">
+            <div className="ft-g3">
               <SummaryTile label={t('reports.analysis.moneyIn', { defaultValue: 'Money in' })} value={`+${formatCurrency(projectedIncome)}`} tone="pos" />
               <SummaryTile label={t('reports.analysis.moneyOut', { defaultValue: 'Money out' })} value={`−${formatCurrency(projectedExpenses)}`} tone="neg" />
               <SummaryTile label={t('dashboard.projectedBalanceShort')} value={formatCurrency(projectedFinalBalance)} tone={projectedFinalBalance >= 0 ? "pos" : "neg"} />
             </div>
-            <div className="space-y-1">
-              {projectedTransactions.map(tx => (
-                <div key={tx.id} className="flex items-center justify-between gap-2 rounded-lg border border-line bg-muted/20 p-2 sm:p-2.5">
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <div className={cn("grid h-6 w-6 sm:h-7 sm:w-7 flex-shrink-0 place-items-center rounded-md",
-                      tx.type === 'income' ? "bg-[hsl(var(--pos)/0.12)]" : "bg-[hsl(var(--neg)/0.12)]")}>
-                      {tx.type === 'income'
-                        ? <ArrowDownRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[hsl(var(--pos))]" />
-                        : <ArrowUpRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[hsl(var(--neg))]" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-medium truncate">{tx.description}</p>
-                      <div className="flex items-center gap-1.5 text-[10.5px] sm:text-xs text-muted-foreground">
-                        <span className="font-mono">{format(parseLocalDate(tx.date), 'dd MMM', { locale: dateLocale })}</span>
-                        {tx.account && (<><span>•</span><span className="truncate">{tx.account}</span></>)}
-                        {tx.category && (
-                          <><span>•</span>
-                            <div className="flex items-center gap-1">
-                              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tx.category.color }} />
-                              <span className="truncate">{tx.category.name}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <span className={cn("flex-shrink-0 font-mono text-xs sm:text-sm font-semibold tabular-nums",
-                    tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
-                    {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
-                  </span>
+          </div>
+          <div className="flex flex-col border-t border-line-soft">
+            {projectedTransactions.map(tx => (
+              <div key={tx.id} className="ft-list-row tx">
+                <div
+                  aria-hidden
+                  className={cn("ft-glyph sq border-transparent",
+                    tx.type === 'income'
+                      ? "bg-[hsl(var(--pos-soft))] text-[hsl(var(--pos))]"
+                      : "bg-[hsl(var(--neg-soft))] text-[hsl(var(--neg))]")}
+                >
+                  {tx.type === 'income'
+                    ? <ArrowDownRight className="h-4 w-4" />
+                    : <ArrowUpRight className="h-4 w-4" />}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="min-w-0">
+                  <div className="ft-row-title ft-trunc">{tx.description}</div>
+                  <div className="ft-row-sub ft-trunc">
+                    {[
+                      format(parseLocalDate(tx.date), 'd MMM', { locale: dateLocale }),
+                      tx.account,
+                      tx.category?.name,
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+                <span className={cn("ft-row-amt",
+                  tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                  {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
 const SummaryTile = ({ label, value, tone }: { label: string; value: string; tone: 'pos' | 'neg' }) => (
-  <div className={cn("rounded-xl border p-2 sm:p-2.5 text-center",
+  <div className={cn("rounded-[15px] border p-[15px]",
     tone === 'pos'
-      ? "border-[hsl(var(--pos)/0.15)] bg-[hsl(var(--pos)/0.05)]"
-      : "border-[hsl(var(--neg)/0.15)] bg-[hsl(var(--neg)/0.05)]")}>
-    <p className="text-[10px] sm:text-xs text-muted-foreground">{label}</p>
-    <p className={cn("text-xs sm:text-sm font-bold font-mono tabular-nums",
-      tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>{value}</p>
+      ? "border-transparent bg-[hsl(var(--pos-soft))]"
+      : "border-transparent bg-[hsl(var(--neg-soft))]")}>
+    <div className="ft-eyebrow">{label}</div>
+    <div className={cn("ft-num text-[20px] font-medium mt-1.5 leading-none",
+      tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>{value}</div>
   </div>
 );
