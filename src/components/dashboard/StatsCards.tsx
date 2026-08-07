@@ -1,7 +1,15 @@
 import { computePeriodStats, netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useId } from "react";
 import { useTranslation } from "react-i18next";
-import { TrendingUp, TrendingDown, Wallet, Repeat, Info } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowUp,
+  ArrowDown,
+  Wallet,
+  Repeat,
+  Info,
+} from "lucide-react";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -23,10 +31,16 @@ interface MiniSpark {
   color: string;
 }
 
+/**
+ * KPI sparkline — stroke over a 22% → 0 gradient, the same treatment the
+ * design gives every filled spark. 26px tall, tucked against the figure it
+ * belongs to rather than closing the tile.
+ */
 function Sparkline({ data, color }: MiniSpark) {
+  const gradientId = useId();
   if (!data || data.length < 2) return null;
   const w = 80;
-  const h = 28;
+  const h = 26;
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;
@@ -38,7 +52,15 @@ function Sparkline({ data, color }: MiniSpark) {
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
       className="block w-full h-full"
+      aria-hidden="true"
     >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.22" />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${path} L ${w} ${h} L 0 ${h} Z`} fill={`url(#${gradientId})`} />
       <path
         d={path}
         fill="none"
@@ -224,7 +246,7 @@ export function StatsCards({
     label: string;
     value: number;
     isCount?: boolean;
-    icon: typeof TrendingUp;
+    icon: typeof Wallet;
     iconClass: "pos" | "neg" | "acc" | "warn";
     spark: number[];
     sparkColor: string;
@@ -237,7 +259,10 @@ export function StatsCards({
       id: "income",
       label: t("common.income"),
       value: stats.moneyIn,
-      icon: TrendingUp,
+      // Flow, not trend: money coming in points down into the account, money
+      // leaving points up. A TrendingUp glyph beside a "↓ 12%" delta chip
+      // said two opposite things at once.
+      icon: ArrowDownRight,
       iconClass: "pos",
       spark: incomeSpark,
       sparkColor: "hsl(var(--pos))",
@@ -247,7 +272,7 @@ export function StatsCards({
       id: "expenses",
       label: t("common.expenses"),
       value: stats.moneyOut,
-      icon: TrendingDown,
+      icon: ArrowUpRight,
       iconClass: "neg",
       spark: expenseSpark,
       sparkColor: "hsl(var(--neg))",
@@ -285,7 +310,7 @@ export function StatsCards({
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="ft-g4">
         {cards.map((card) => {
           const clickable = card.id === "income" || card.id === "expenses" || card.id === "available";
           const trendNull = card.trend === null;
@@ -295,18 +320,15 @@ export function StatsCards({
           const flat = trendNull || Math.abs(trendVal) < 0.05;
           const cls = flat ? "flat" : isUp === goodUp ? "up" : "down";
           const showTrendCaption = card.id === "income" || card.id === "expenses";
-          return (
-            <button
-              key={card.id}
-              type="button"
-              onClick={() => clickable && handleCardClick(card.id)}
-              disabled={!clickable}
-              className={`ft-kpi text-left ${clickable ? "cursor-pointer" : "cursor-default"}`}
-            >
+          // A tile that goes nowhere is a <div>, not a dimmed button: the
+          // design only ever lifts a KPI you can drill into, and assistive
+          // tech shouldn't be told there is a disabled control here.
+          const body = (
+            <>
               {/* Top row: icon + label */}
               <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                 <div className={`ft-kpi-icon ${card.iconClass} flex-shrink-0`}>
-                  <card.icon className="h-4 w-4" />
+                  <card.icon className="h-[15px] w-[15px]" />
                 </div>
                 <span className="ft-kpi-label flex items-center gap-1 min-w-0 truncate">
                   <span className="truncate">{card.label}</span>
@@ -327,24 +349,37 @@ export function StatsCards({
               </div>
 
               {/* Big value */}
-              <div
-                className={`ft-kpi-value truncate min-w-0 ${isPrivacyMode ? "blur-md select-none" : ""}`}
-               
-              >
+              <div className={`ft-kpi-value truncate min-w-0 ${isPrivacyMode ? "ft-priv" : ""}`}>
                 {card.isCount ? card.value : formatKpi(card.value)}
+              </div>
+
+              {/* The curve sits directly under the figure it belongs to; the
+                  caption closes the tile. */}
+              <div className="h-[26px] -mt-0.5 -mb-1">
+                <Sparkline data={card.spark} color={card.sparkColor} />
               </div>
 
               {/* Delta + caption */}
               {showTrendCaption ? (
                 <div className="ft-kpi-foot min-w-0">
                   <span className={`ft-delta ${cls} whitespace-nowrap`}>
-                    {trendNull
-                      ? "—"
-                      : (() => {
+                    {trendNull ? (
+                      "—"
+                    ) : (
+                      <>
+                        {/* No arrow on a flat delta — a direction glyph on a
+                            0.0% move claims movement that isn't there. */}
+                        {flat ? null : isUp ? (
+                          <ArrowUp className="h-[11px] w-[11px]" />
+                        ) : (
+                          <ArrowDown className="h-[11px] w-[11px]" />
+                        )}
+                        {(() => {
                           const v = Math.abs(trendVal);
-                          const formatted = v >= 100 ? Math.round(v).toString() : v.toFixed(1);
-                          return `${isUp ? "↑" : "↓"} ${formatted}%`;
+                          return `${isUp ? "+" : "−"}${v >= 100 ? Math.round(v) : v.toFixed(1)}%`;
                         })()}
+                      </>
+                    )}
                   </span>
                   <span className="hidden md:inline truncate">
                     {trendNull
@@ -359,12 +394,21 @@ export function StatsCards({
                     : t("dashboard.activePlans", { defaultValue: "active plans" })}
                 </div>
               )}
-
-              {/* Sparkline */}
-              <div className="h-7 -mt-1">
-                <Sparkline data={card.spark} color={card.sparkColor} />
-              </div>
+            </>
+          );
+          return clickable ? (
+            <button
+              key={card.id}
+              type="button"
+              onClick={() => handleCardClick(card.id)}
+              className="ft-kpi cursor-pointer"
+            >
+              {body}
             </button>
+          ) : (
+            <div key={card.id} className="ft-kpi">
+              {body}
+            </div>
           );
         })}
       </div>

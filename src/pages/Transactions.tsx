@@ -225,6 +225,7 @@ const Transactions = () => {
               size="sm"
               onClick={handleExportCSV}
               className="h-8 px-3 gap-1.5"
+              aria-label={t("transactions.exportCSV", { defaultValue: "Export CSV" })}
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">
@@ -235,6 +236,7 @@ const Transactions = () => {
               size="sm"
               onClick={() => setShowNewTransactionModal(true)}
               className="h-8 px-3 gap-1.5 font-semibold"
+              aria-label={t("transactions.add", { defaultValue: "Add" })}
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">
@@ -254,12 +256,12 @@ const Transactions = () => {
         </div>
 
         {/* The ledger, with what it adds up to alongside it. */}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 md:gap-5 items-start">
+        <div className="ft-g2s items-start">
           <TransactionHistory filters={filters} />
 
-          <aside className="flex flex-col gap-4 md:gap-5 min-w-0">
+          <aside className="flex flex-col gap-[18px] min-w-0">
             {breakdown.rows.length > 0 && (
-              <div className="ft-card p-5">
+              <div className="ft-card">
                 <div className="ft-card-head !mb-3">
                   <div>
                     <h3 className="ft-card-title">
@@ -286,13 +288,10 @@ const Transactions = () => {
                           }))
                         }
                         disabled={row.id === "__none"}
-                        className="grid grid-cols-[1fr_auto] gap-x-2.5 gap-y-1.5 py-2.5 text-left w-full border-t border-line-soft first:border-t-0 disabled:cursor-default"
+                        className="ft-catrow disabled:cursor-default"
                       >
-                        <span className="flex items-center gap-2 text-[12.5px] font-medium min-w-0">
-                          <i
-                            className="h-2.5 w-2.5 rounded-[3px] flex-shrink-0"
-                            style={{ background: row.color }}
-                          />
+                        <span className="flex items-center gap-2 text-[12.5px] font-[550] min-w-0">
+                          <i className="ft-swatch" style={{ background: row.color }} />
                           <span className={`truncate ${active ? "text-accent-deep font-semibold" : ""}`}>
                             {row.name}
                           </span>
@@ -300,7 +299,7 @@ const Transactions = () => {
                         <span className="font-mono text-[12.5px] whitespace-nowrap">
                           {formatCurrency(row.total)}
                         </span>
-                        <div className="col-span-2 ft-progress-track !h-1">
+                        <div className="col-span-2 ft-progress-track thin">
                           <div
                             className="ft-progress-fill"
                             style={{
@@ -321,16 +320,16 @@ const Transactions = () => {
             <button
               type="button"
               onClick={openDock}
-              className="ft-card p-4 flex items-start gap-3 text-left hover:border-line-strong transition-colors"
+              className="ft-card sunk flex items-start gap-3 text-left hover:border-line-strong transition-colors"
             >
               <div className="ft-kpi-icon acc">
                 <TraceMark size="sm" plain />
               </div>
               <div className="min-w-0">
-                <div className="font-semibold text-[13px]">
+                <div className="text-[13px] font-[650]">
                   {t("trace.askTrace", { defaultValue: "Ask Trace" })}
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
+                <div className="text-[12px] text-fg-mute mt-[3px]">
                   {t("trace.askAboutPage", { defaultValue: "Ask Trace about this page" })}
                 </div>
               </div>

@@ -1,6 +1,6 @@
-import { Clock, Calendar, CalendarCheck, Info } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Clock, Layers, SlidersHorizontal } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Segmented } from "@/components/ui/segmented";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -14,33 +14,16 @@ interface AnalysisToolbarProps {
   priorPeriodLabel: string;
 }
 
-const Segmented = <T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: React.ReactNode }[];
-}) => (
-  <div className="inline-flex gap-[1px] rounded-lg border border-line bg-secondary p-[2px]">
-    {options.map(opt => (
-      <button
-        key={opt.value}
-        type="button"
-        onClick={() => onChange(opt.value)}
-        className={cn(
-          "rounded-md px-2.5 py-[5px] text-[12px] font-medium leading-none tabular-nums tracking-[-0.005em] transition-colors",
-          value === opt.value
-            ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        {opt.label}
-      </button>
-    ))}
-  </div>
-);
+/**
+ * View modifiers sit on the tab row as filter chips, flushed right — they
+ * change how the tabs below read, so they belong beside them rather than in a
+ * band of their own. Each chip opens a small popover holding a segmented
+ * control; the include-upcoming chip is itself the toggle.
+ */
+
+// The shared control is full-bleed by default (it is normally a page-level
+// band); inside a popover it must stay within the panel's inset.
+const POPOVER_SEG = "mx-0 px-0";
 
 export const AnalysisToolbar = ({
   includeUpcoming,
@@ -52,59 +35,77 @@ export const AnalysisToolbar = ({
   priorPeriodLabel,
 }: AnalysisToolbarProps) => {
   const { t } = useTranslation();
+
+  const dateTypeLabel = dateType === 'value'
+    ? t('settings.valueDate', { defaultValue: 'Value date' })
+    : t('settings.accountingDate', { defaultValue: 'Accounting date' });
+
+  const compareLabel = compareTo === '3mo'
+    ? t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' })
+    : compareTo === 'yearAgo'
+      ? t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' })
+      : priorPeriodLabel;
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5">
-      <div className="flex items-center gap-2.5">
-        <Clock className="h-3 w-3 text-fg-dim" />
-        <label className="text-[11px] font-medium text-muted-foreground cursor-pointer" htmlFor="incl-upcoming">
-          {t('reports.analysis.includeUpcoming', { defaultValue: 'Include upcoming' })}
-        </label>
-        <Switch id="incl-upcoming" checked={includeUpcoming} onCheckedChange={setIncludeUpcoming} className="scale-75" />
-      </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setIncludeUpcoming(!includeUpcoming)}
+        aria-pressed={includeUpcoming}
+        className={cn("ft-chip ft-focusable", includeUpcoming && "active")}
+      >
+        <Clock className="h-[13px] w-[13px]" aria-hidden />
+        {t('reports.analysis.includeUpcoming', { defaultValue: 'Include upcoming' })}
+      </button>
 
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1">
-          {t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={t('reports.analysis.dateConventionHintLabel', { defaultValue: 'About date conventions' })}
-                className="text-fg-dim hover:text-foreground transition-colors"
-              >
-                <Info className="h-3 w-3" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">
-              {t('reports.analysis.dateConventionHint', {
-                defaultValue:
-                  'Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions.',
-              })}
-            </TooltipContent>
-          </Tooltip>
-        </span>
-        <Segmented
-          value={dateType}
-          onChange={setDateType}
-          options={[
-            { value: 'accounting', label: <span className="inline-flex items-center gap-1.5"><Calendar className="h-3 w-3" />{t('settings.accountingDate', { defaultValue: 'Accounting' })}</span> },
-            { value: 'value', label: <span className="inline-flex items-center gap-1.5"><CalendarCheck className="h-3 w-3" />{t('settings.valueDate', { defaultValue: 'Value' })}</span> },
-          ]}
-        />
-      </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="ft-chip ft-focusable">
+            <SlidersHorizontal className="h-[13px] w-[13px]" aria-hidden />
+            {t('reports.analysis.dateConventionChip', { value: dateTypeLabel, defaultValue: 'Convention: {{value}}' })}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[300px] p-3.5">
+          <Segmented
+            value={dateType}
+            onChange={setDateType}
+            className={POPOVER_SEG}
+            label={t('reports.analysis.dateConvention', { defaultValue: 'Date convention' })}
+            options={[
+              { value: 'accounting', label: t('settings.accountingDate', { defaultValue: 'Accounting date' }) },
+              { value: 'value', label: t('settings.valueDate', { defaultValue: 'Value date' }) },
+            ]}
+          />
+          <p className="mt-3 text-[11.5px] leading-relaxed text-fg-dim">
+            {t('reports.analysis.dateConventionHint', {
+              defaultValue:
+                'Accounting: when the transaction was recorded. Value: when the bank settled it (falls back to the accounting date if not set). Account balances are always accounting-dated, so value-date views reallocate flows across period boundaries — totals near a boundary can differ between the two conventions.',
+            })}
+          </p>
+        </PopoverContent>
+      </Popover>
 
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-muted-foreground">{t('reports.analysis.compareTo', { defaultValue: 'Compare to' })}</span>
-        <Segmented
-          value={compareTo}
-          onChange={setCompareTo}
-          options={[
-            { value: 'prior', label: priorPeriodLabel },
-            { value: '3mo', label: t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' }) },
-            { value: 'yearAgo', label: t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' }) },
-          ]}
-        />
-      </div>
-    </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="ft-chip ft-focusable">
+            <Layers className="h-[13px] w-[13px]" aria-hidden />
+            {t('reports.analysis.compareToChip', { value: compareLabel, defaultValue: 'Compare to: {{value}}' })}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[300px] p-3.5">
+          <Segmented
+            value={compareTo}
+            onChange={setCompareTo}
+            className={POPOVER_SEG}
+            label={t('reports.analysis.compareTo', { defaultValue: 'Compare to' })}
+            options={[
+              { value: 'prior', label: priorPeriodLabel },
+              { value: '3mo', label: t('reports.analysis.threeMoAvg', { defaultValue: '3-mo avg' }) },
+              { value: 'yearAgo', label: t('reports.analysis.sameMonthLastYear', { defaultValue: 'Same mo. last yr' }) },
+            ]}
+          />
+        </PopoverContent>
+      </Popover>
+    </>
   );
 };

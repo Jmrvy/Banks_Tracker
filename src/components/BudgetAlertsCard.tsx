@@ -1,6 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 import { AlertTriangle } from 'lucide-react';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -97,63 +95,82 @@ export const BudgetAlertsCard = () => {
 
   if (alerts.length === 0) return null;
 
-  const renderItems = (items: typeof alerts, isExceeded: boolean) => (
-    <div className="space-y-2">
-      {items.map(a => (
-        <button
-          key={a.name}
-          onClick={() => handleCategoryClick(a.name)}
-          className="w-full text-left space-y-1 hover:opacity-80 transition-opacity"
-        >
-          <div className="flex items-center justify-between text-[11px] sm:text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
-              <span className="font-medium">{a.name}</span>
-            </div>
-            <span className={`font-medium ${isExceeded ? 'text-destructive' : 'text-orange-600 dark:text-orange-400'}`}>
-              {formatCurrency(a.spent)} / {formatCurrency(a.budget)}
-              {!isExceeded && ` (${Math.round(a.percent)}%)`}
-            </span>
-          </div>
-          <Progress value={Math.min(100, a.percent)} className="h-1.5" />
-        </button>
-      ))}
+  // Tinted 1px border on the normal elevated surface — no colour wash. The
+  // band has to read as a note beside the hero, not louder than it.
+  const renderBand = (
+    items: typeof alerts,
+    tone: 'neg' | 'warn',
+    title: string,
+    detail: string,
+  ) => (
+    <div
+      // Kept from the shadcn <Alert> this replaced: a budget-exceeded warning
+      // has to reach a screen reader, and the card that took its place is a
+      // plain div.
+      role="alert"
+      className="ft-card flex items-start gap-3.5"
+      style={{
+        padding: 18,
+        borderColor: tone === 'neg' ? 'hsl(var(--neg-soft))' : 'hsl(var(--warn-soft))',
+      }}
+    >
+      <div className={`ft-kpi-icon ${tone}`}>
+        <AlertTriangle className="h-[15px] w-[15px]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13.5px] font-[650]">
+          {title}
+          {selectedPeriod !== '1m' && (
+            <span className="font-normal text-fg-mute"> ({periodLabel})</span>
+          )}
+        </div>
+        <div className="text-[12.5px] text-fg-mute mt-[3px]">{detail}</div>
+        <div className="flex flex-wrap gap-1.5 mt-2.5">
+          {items.map(a => (
+            <button
+              key={a.name}
+              type="button"
+              onClick={() => handleCategoryClick(a.name)}
+              className={`ft-tag ${tone} hover:opacity-80 transition-opacity`}
+            >
+              {a.name} · {Math.round(a.percent)}%
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 
+  const overBy = exceeded.reduce((s, a) => s + (a.spent - a.budget), 0);
+  const leftBefore = approaching.reduce((s, a) => s + (a.budget - a.spent), 0);
+
+  // Two siblings, not a wrapper: the dashboard's alert band is a grid, and
+  // each card has to be able to take its own cell in it.
   return (
     <>
-      <div className="space-y-2">
-        {exceeded.length > 0 && (
-          <Alert className="border-destructive/50 bg-destructive/10 dark:border-destructive/30 dark:bg-destructive/5">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <AlertDescription className="text-foreground">
-              <p className="text-xs sm:text-sm font-medium mb-2">
-                {t('budgetAlerts.exceeded', { count: exceeded.length })}
-                {selectedPeriod !== '1m' && (
-                  <span className="font-normal text-destructive/80"> ({periodLabel})</span>
-                )}
-              </p>
-              {renderItems(exceeded, true)}
-            </AlertDescription>
-          </Alert>
+      {exceeded.length > 0 &&
+        renderBand(
+          exceeded,
+          'neg',
+          t('budgetAlerts.exceeded', { count: exceeded.length }),
+          t('budgetAlerts.overByTotal', {
+            defaultValue: '{{names}} — {{amount}} over in total.',
+            names: exceeded.map(a => a.name).join(', '),
+            amount: formatCurrency(overBy),
+          }),
         )}
 
-        {approaching.length > 0 && (
-          <Alert className="border-orange-500/50 bg-orange-500/10 dark:border-orange-500/30 dark:bg-orange-500/5">
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-            <AlertDescription className="text-foreground">
-              <p className="text-xs sm:text-sm font-medium mb-2">
-                {t('budgetAlerts.approaching', { count: approaching.length })}
-                {selectedPeriod !== '1m' && (
-                  <span className="font-normal text-orange-600/80 dark:text-orange-400/80"> ({periodLabel})</span>
-                )}
-              </p>
-              {renderItems(approaching, false)}
-            </AlertDescription>
-          </Alert>
+      {approaching.length > 0 &&
+        renderBand(
+          approaching,
+          'warn',
+          t('budgetAlerts.approaching', { count: approaching.length }),
+          t('budgetAlerts.leftBeforeLimit', {
+            defaultValue: '{{names}} — {{amount}} left before the limit.',
+            names: approaching.map(a => a.name).join(', '),
+            amount: formatCurrency(leftBefore),
+          }),
         )}
-      </div>
 
       {selectedCategory && modalCategoryData && (
         <CategoryTransactionsModal

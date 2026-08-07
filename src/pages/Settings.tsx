@@ -1,24 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  BarChart3,
   Bell,
   BookOpen,
-  Database,
+  CalendarClock,
+  ChevronRight,
   EyeOff,
   LogOut,
   Palette,
+  PiggyBank,
+  Plus,
   ShieldCheck,
   Smartphone,
   Sparkles,
+  Target,
   User,
   Wallet,
-  Wifi,
-  WifiOff,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -30,6 +32,7 @@ import { PreferencesSection } from "@/components/settings/PreferencesSection";
 import { NotificationsSection } from "@/components/settings/NotificationsSection";
 import { AccountsSection } from "@/components/settings/AccountsSection";
 import { TraceSection } from "@/components/settings/TraceSection";
+import { SettingsRow } from "@/components/settings/SettingsRow";
 import { cn } from "@/lib/utils";
 
 interface SectionDef {
@@ -41,6 +44,16 @@ interface SectionDef {
   /** Hidden when the user has notifications globally disabled, etc. */
   hidden?: boolean;
 }
+
+/** The guide's topic tiles. Labels reuse the navigation strings. */
+const GUIDE_TOPICS: { id: string; labelKey: string; labelDefault: string; icon: typeof User }[] = [
+  { id: "home", labelKey: "navigation.home", labelDefault: "Dashboard", icon: BarChart3 },
+  { id: "budget", labelKey: "navigation.budget", labelDefault: "Budget", icon: Target },
+  { id: "scheduled", labelKey: "navigation.scheduled", labelDefault: "Scheduled", icon: CalendarClock },
+  { id: "trace", labelKey: "navigation.trace", labelDefault: "Trace", icon: Sparkles },
+  { id: "savings", labelKey: "navigation.savings", labelDefault: "Savings", icon: PiggyBank },
+  { id: "reports", labelKey: "navigation.reports", labelDefault: "Reports", icon: BookOpen },
+];
 
 const Settings = () => {
   const { t } = useTranslation();
@@ -107,6 +120,12 @@ const Settings = () => {
         icon: Wallet,
       },
       {
+        id: "categories",
+        labelKey: "settings.myCategories",
+        labelDefault: "My categories",
+        icon: Target,
+      },
+      {
         id: "trace",
         labelKey: "settings.traceSection",
         labelDefault: "Trace copilot",
@@ -129,12 +148,6 @@ const Settings = () => {
         labelKey: "settings.guideTitle",
         labelDefault: "Application guide",
         icon: BookOpen,
-      },
-      {
-        id: "signout",
-        labelKey: "settings.signOutSection",
-        labelDefault: "Sign out",
-        icon: LogOut,
       },
     ],
     [preferences.enableNotifications]
@@ -225,7 +238,9 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <div className="ft-page">
+      {/* Settings is a form page: the design narrows it well inside the
+          dashboard measure so rows don't stretch away from their hints. */}
+      <div className="ft-page max-w-[1080px]">
         {/* Page head */}
         <div className="ft-page-head">
           <div>
@@ -238,7 +253,7 @@ const Settings = () => {
         {/* Two-column layout: left rail (sticky on desktop) + scrollable
             sections. On mobile the rail collapses to a horizontal scrolling
             strip pinned to the top of the page, doubling as a tab strip. */}
-        <div className="grid grid-cols-1 lg:grid-cols-[200px_minmax(0,1fr)] gap-5 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[216px_minmax(0,1fr)] gap-5 lg:gap-[26px] items-start">
           {/* Mobile: horizontal scroll strip */}
           <nav
             aria-label={t("settings.sectionsAria", { defaultValue: "Settings sections" })}
@@ -284,10 +299,20 @@ const Settings = () => {
                 );
               })}
             </nav>
+            {/* The only destructive affordance in the rail — separated and
+                tinted `--neg`, and it signs out rather than scrolling. */}
+            <button
+              type="button"
+              onClick={signOut}
+              className="ft-nav-item mt-2 text-neg hover:text-neg"
+            >
+              <LogOut className="ft-nav-icon text-neg" />
+              <span className="truncate">{t("auth.signOut")}</span>
+            </button>
           </aside>
 
           {/* Scrollable content column */}
-          <div ref={containerRef} className="flex flex-col gap-3 sm:gap-4 min-w-0">
+          <div ref={containerRef} className="flex flex-col gap-[18px] min-w-0">
             <section id="profile" className="scroll-mt-6">
               <ProfileSection user={user} />
             </section>
@@ -314,6 +339,42 @@ const Settings = () => {
               />
             </section>
 
+            {/* Accounts are paired with categories in the design — every
+                category as a colour-dotted chip, plus an add affordance.
+                Creation lives on Transactions, so the chip links there
+                rather than introducing new mutation logic here. */}
+            <section id="categories" className="scroll-mt-6">
+              <div className="ft-card">
+                <div className="ft-card-head">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="ft-kpi-icon acc">
+                        <Wallet className="h-[15px] w-[15px]" />
+                      </div>
+                      <h3 className="ft-card-title text-base">
+                        {t("settings.myCategories", { defaultValue: "My categories" })}
+                      </h3>
+                    </div>
+                    <p className="ft-card-sub mt-1">
+                      {t("settings.manageCategories", { defaultValue: "Manage your categories" })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => (
+                    <span key={category.id} className="ft-chip">
+                      <i className="dot" style={{ background: category.color }} aria-hidden />
+                      {category.name}
+                    </span>
+                  ))}
+                  <button type="button" className="ft-chip" onClick={() => navigate("/transactions")}>
+                    <Plus className="h-3 w-3" />
+                    {t("common.newCategory", { defaultValue: "New category" })}
+                  </button>
+                </div>
+              </div>
+            </section>
+
             {/* Trace copilot — the key that pays for it, the model it runs
                 on, and what it may do, together rather than split across
                 sections. */}
@@ -324,12 +385,12 @@ const Settings = () => {
             {/* New: Privacy & data — consolidates privacy mode, data export,
                 and account deletion in one discoverable place. */}
             <section id="privacy" data-tour="set-privacy" className="scroll-mt-6">
-              <div className="ft-card p-5 sm:p-6">
+              <div className="ft-card">
                 <div className="ft-card-head">
                   <div>
                     <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
-                        <ShieldCheck className="h-3.5 w-3.5" />
+                      <div className="ft-kpi-icon acc">
+                        <ShieldCheck className="h-[15px] w-[15px]" />
                       </div>
                       <h3 className="ft-card-title text-base">
                         {t("settings.privacySection", { defaultValue: "Privacy & data" })}
@@ -342,49 +403,40 @@ const Settings = () => {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-col gap-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-sm flex items-center gap-1.5">
+                <div className="flex flex-col gap-1">
+                  <SettingsRow
+                    label={
+                      <span className="inline-flex items-center gap-1.5">
                         <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
                         {t("settings.privacyMode", { defaultValue: "Privacy mode" })}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {t("settings.privacyModeDesc", {
-                          defaultValue: "Blur amounts and balances on screen. Useful in public spaces.",
-                        })}
-                      </p>
-                    </div>
+                      </span>
+                    }
+                    hint={t("settings.privacyModeDesc", {
+                      defaultValue: "Blur amounts and balances on screen. Useful in public spaces.",
+                    })}
+                  >
                     <Switch checked={isPrivacyMode} onCheckedChange={togglePrivacyMode} />
-                  </div>
-                  <div className="border-t border-line" />
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="min-w-0">
-                      <Label className="text-sm">
-                        {t("settings.exportData", { defaultValue: "Export your data" })}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {t("settings.exportDataDesc", {
-                          defaultValue: "Download a CSV of your transactions.",
-                        })}
-                      </p>
-                    </div>
+                  </SettingsRow>
+                  <SettingsRow
+                    label={t("settings.exportData", { defaultValue: "Export your data" })}
+                    hint={t("settings.exportDataDesc", {
+                      defaultValue: "Download a CSV of your transactions.",
+                    })}
+                  >
                     <Button variant="outline" size="sm" onClick={handleExportData} className="h-8 text-xs">
                       {t("settings.exportDataAction", { defaultValue: "Open Transactions" })}
                     </Button>
-                  </div>
-                  <div className="border-t border-line" />
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="min-w-0">
-                      <Label className="text-sm text-destructive">
+                  </SettingsRow>
+                  <SettingsRow
+                    label={
+                      <span className="text-destructive">
                         {t("settings.deleteAccount", { defaultValue: "Delete account" })}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {t("settings.deleteAccountDesc", {
-                          defaultValue: "Permanent removal of your account and all associated data.",
-                        })}
-                      </p>
-                    </div>
+                      </span>
+                    }
+                    hint={t("settings.deleteAccountDesc", {
+                      defaultValue: "Permanent removal of your account and all associated data.",
+                    })}
+                  >
                     <Button
                       variant="outline"
                       size="sm"
@@ -393,7 +445,7 @@ const Settings = () => {
                     >
                       {t("settings.deleteAccountAction", { defaultValue: "Request deletion" })}
                     </Button>
-                  </div>
+                  </SettingsRow>
                 </div>
               </div>
             </section>
@@ -401,12 +453,12 @@ const Settings = () => {
             {/* New: Device & sync — surfaces PWA install + offline status,
                 replacing the hidden /install route. */}
             <section id="device" className="scroll-mt-6">
-              <div className="ft-card p-5 sm:p-6">
+              <div className="ft-card">
                 <div className="ft-card-head">
                   <div>
                     <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
-                        <Smartphone className="h-3.5 w-3.5" />
+                      <div className="ft-kpi-icon acc">
+                        <Smartphone className="h-[15px] w-[15px]" />
                       </div>
                       <h3 className="ft-card-title text-base">
                         {t("settings.deviceSection", { defaultValue: "Device & sync" })}
@@ -419,72 +471,77 @@ const Settings = () => {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-col gap-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-sm flex items-center gap-1.5">
-                        <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                        {t("settings.syncStatus", { defaultValue: "Sync status" })}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                        {isOnline ? (
-                          <>
-                            <Wifi className="h-3 w-3 text-pos" />
-                            {queueLength > 0 || isProcessing
-                              ? t("settings.syncQueue", {
-                                  count: queueLength,
-                                  defaultValue: `Syncing ${queueLength} pending change(s)…`,
-                                })
-                              : t("settings.syncIdle", {
-                                  defaultValue: "Online · all changes saved",
-                                })}
-                          </>
-                        ) : (
-                          <>
-                            <WifiOff className="h-3 w-3 text-warning" />
-                            {t("settings.syncOffline", {
+                <div className="flex flex-col gap-1">
+                  {/* Sync is a status, not a setting: the design gives it a
+                      sunk strip with the pulsing live dot above the rows. */}
+                  <div
+                    role="status"
+                    className="flex items-center gap-3 rounded-[15px] border border-line-soft bg-bg-subtle p-[15px] mb-2"
+                  >
+                    <span
+                      className={cn(
+                        "ft-live",
+                        !isOnline && "bg-warn shadow-[0_0_0_3.5px_hsl(var(--warn-soft))]",
+                      )}
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold">
+                        {isOnline
+                          ? t("common.online", { defaultValue: "Online" })
+                          : t("common.offline", { defaultValue: "Offline" })}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-px">
+                        {isOnline
+                          ? queueLength > 0 || isProcessing
+                            ? t("settings.syncQueue", {
+                                count: queueLength,
+                                defaultValue: `Syncing ${queueLength} pending change(s)…`,
+                              })
+                            : t("settings.syncIdle", {
+                                defaultValue: "Online · all changes saved",
+                              })
+                          : t("settings.syncOffline", {
                               count: queueLength,
                               defaultValue: `Offline · ${queueLength} change(s) queued`,
                             })}
-                          </>
-                        )}
-                      </p>
+                      </div>
                     </div>
                   </div>
-                  <div className="border-t border-line" />
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="min-w-0">
-                      <Label className="text-sm">
-                        {isStandalone
-                          ? t("settings.installPwaDone", { defaultValue: "JMRVY CB installée" })
-                          : t("settings.installPwa", { defaultValue: "Installer JMRVY CB" })}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                  <SettingsRow
+                    label={
+                      isStandalone
+                        ? t("settings.installPwaDone", { defaultValue: "Banks Tracker installed" })
+                        : t("settings.installPwa", { defaultValue: "Install Banks Tracker" })
+                    }
+                    hint={
+                      <>
                         {isStandalone
                           ? t("settings.installPwaDoneDesc", {
-                              defaultValue: "L'app est déjà installée sur cet appareil.",
+                              defaultValue: "The app is already installed on this device.",
                             })
                           : isIOS
                           ? t("settings.installPwaIosDesc", {
-                              defaultValue: "Sur iPhone : Partager → Sur l'écran d'accueil.",
+                              defaultValue: "On iPhone: Share → Add to Home Screen.",
                             })
                           : deferredPrompt
                           ? t("settings.installPwaDesc", {
-                              defaultValue: "Ajoutez l'app à votre écran d'accueil pour un usage plein écran et hors ligne.",
+                              defaultValue: "Add the app to your home screen for full-screen, offline use.",
                             })
                           : t("settings.installPwaUnavailable", {
-                              defaultValue: "Installation indisponible dans ce navigateur. Utilisez Chrome, Edge ou Safari sur mobile.",
+                              defaultValue: "Installation isn't available in this browser. Use Chrome, Edge, or Safari on mobile.",
                             })}
-                      </p>
-                      {showIosHelp && isIOS && (
-                        <ol className="mt-2 text-xs text-muted-foreground list-decimal pl-4 space-y-1">
-                          <li>Ouvrez cette page dans Safari</li>
-                          <li>Touchez l'icône Partager</li>
-                          <li>Choisissez "Sur l'écran d'accueil"</li>
-                          <li>Touchez "Ajouter"</li>
-                        </ol>
-                      )}
-                    </div>
+                        {showIosHelp && isIOS && (
+                          <ol className="mt-2 list-decimal pl-4 space-y-1">
+                            <li>{t("settings.installPwaIos1", { defaultValue: "Open this page in Safari" })}</li>
+                            <li>{t("settings.installPwaIos2", { defaultValue: "Tap the Share icon" })}</li>
+                            <li>{t("settings.installPwaIos3", { defaultValue: "Choose “Add to Home Screen”" })}</li>
+                            <li>{t("settings.installPwaIos4", { defaultValue: "Tap “Add”" })}</li>
+                          </ol>
+                        )}
+                      </>
+                    }
+                  >
                     {!isStandalone && (
                       <Button
                         variant="outline"
@@ -494,44 +551,63 @@ const Settings = () => {
                         className="h-8 text-xs"
                       >
                         {isIOS
-                          ? t("settings.installPwaActionIos", { defaultValue: "Comment installer" })
-                          : t("settings.installPwaAction", { defaultValue: "Installer" })}
+                          ? t("settings.installPwaActionIos", { defaultValue: "How to install" })
+                          : t("settings.installPwaAction", { defaultValue: "Install" })}
                       </Button>
                     )}
-                  </div>
-
+                  </SettingsRow>
                 </div>
               </div>
             </section>
 
             <section id="guide" className="scroll-mt-6">
-              <div className="ft-card p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-lg bg-primary/12 flex items-center justify-center flex-shrink-0">
-                      <BookOpen className="h-4 w-4 text-primary" />
+              <div className="ft-card">
+                <div className="ft-card-head">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="ft-kpi-icon acc">
+                        <BookOpen className="h-[15px] w-[15px]" />
+                      </div>
+                      <h3 className="ft-card-title text-base">{t("settings.guideTitle")}</h3>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{t("settings.guideTitle")}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {t("settings.guideSubtitle")}
-                      </p>
-                    </div>
+                    <p className="ft-card-sub mt-1">{t("settings.guideSubtitle")}</p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleReviewGuide}
-                    className="h-8 text-xs flex-shrink-0"
-                  >
-                    {t("settings.reviewGuide")}
-                  </Button>
                 </div>
+                {/* A browsable menu of topics rather than one strip. Every
+                    tile restarts the same tour — there is no per-topic tour
+                    yet, so nothing changes behaviourally. */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {GUIDE_TOPICS.map(({ id, labelKey, labelDefault, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={handleReviewGuide}
+                      className="flex items-center gap-[11px] text-left rounded-[15px] border border-line-soft bg-bg-subtle p-3.5 hover:bg-bg-hover transition-colors"
+                    >
+                      <div className="ft-kpi-icon acc">
+                        <Icon className="h-[15px] w-[15px]" />
+                      </div>
+                      <span className="text-[13px] font-semibold truncate">
+                        {t(labelKey, { defaultValue: labelDefault })}
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5 text-fg-dim ml-auto flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReviewGuide}
+                  className="h-8 text-xs mt-4"
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  {t("settings.reviewGuide")}
+                </Button>
               </div>
             </section>
 
             <section id="signout" className="scroll-mt-6">
-              <div className="ft-card p-4 sm:p-5">
+              <div className="ft-card">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <h3 className="ft-card-title">

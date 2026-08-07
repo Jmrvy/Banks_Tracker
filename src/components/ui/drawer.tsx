@@ -18,7 +18,7 @@ const DrawerOverlay = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Overlay ref={ref} className={cn("fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm", className)} {...props} />
+  <DrawerPrimitive.Overlay ref={ref} className={cn("fixed inset-0 z-50 bg-[hsl(var(--scrim))]", className)} {...props} />
 ));
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
@@ -31,12 +31,14 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-2xl border border-line bg-card text-card-foreground shadow-lg",
+        // Same shoulder and same grab as every other bottom surface — a
+        // Drawer and a bottom Sheet must not read as two different systems.
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col ft-sheet border border-line bg-card text-card-foreground",
         className,
       )}
       {...props}
     >
-      <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-line-strong" />
+      <div className="ft-sheet-grab" aria-hidden="true" />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

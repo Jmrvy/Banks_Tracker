@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell } from "lucide-react";
+import { Bell, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 
 /** Sections the user can include in the email body. Mirrors the PDF
@@ -180,19 +180,19 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
   const reportsOn = notificationPrefs.cadence !== 'off';
 
   return (
-    <div className="ft-card p-5 sm:p-6">
+    <div className="ft-card">
       <div className="ft-card-head">
         <div>
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary/12 text-primary grid place-items-center">
-              <Bell className="h-3.5 w-3.5" />
+            <div className="ft-kpi-icon acc">
+              <Bell className="h-[15px] w-[15px]" />
             </div>
             <h3 className="ft-card-title text-base">{t('settings.emailNotifications')}</h3>
           </div>
           <p className="ft-card-sub mt-1">{t('settings.configureAlerts')}</p>
         </div>
       </div>
-      <div className="space-y-4 mt-4">
+      <div className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="notif-email" className="text-xs">{t('settings.notificationEmail')}</Label>
           <Input
@@ -316,17 +316,22 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
               <Label className="text-xs text-muted-foreground">
                 {t('settings.reportSections', { defaultValue: 'Included sections' })}
               </Label>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                {ALL_SECTIONS.map((section) => (
-                  <label
-                    key={section}
-                    className="flex items-center gap-2 text-sm cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={notificationPrefs.sections.includes(section)}
-                      onCheckedChange={() => toggleSection(section)}
-                    />
-                    <span>
+              {/* Multi-select reads the same everywhere in the app: a wrap
+                  of chips whose selected state is a tinted pill with an
+                  inline check. `aria-pressed` keeps it announceable now the
+                  native checkbox is gone. */}
+              <div className="flex flex-wrap gap-2">
+                {ALL_SECTIONS.map((section) => {
+                  const on = notificationPrefs.sections.includes(section);
+                  return (
+                    <button
+                      key={section}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleSection(section)}
+                      className={cn('ft-chip', on && 'active')}
+                    >
+                      {on && <Check className="h-3 w-3" />}
                       {t(`settings.reportSection.${section}`, {
                         defaultValue:
                           section === 'summary' ? 'Executive summary'
@@ -336,9 +341,9 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
                             : section === 'income' ? 'Income sources'
                             : 'Recurring',
                       })}
-                    </span>
-                  </label>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {t('settings.reportSectionsHint', {

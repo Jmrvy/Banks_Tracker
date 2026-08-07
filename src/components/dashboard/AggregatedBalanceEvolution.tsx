@@ -50,8 +50,9 @@ function pickIcon(categoryName: string | undefined, type: string) {
 }
 
 /**
- * Global balance evolution — last N transactions with running balance,
- * styled like RecentActivityCard so the dashboard reads consistently.
+ * Global balance evolution — last N transactions with running balance, on
+ * the shared `.ft-list-row` grammar so it reads as one list language with
+ * the accounts card above it.
  */
 export const AggregatedBalanceEvolution = () => {
   const { t, i18n } = useTranslation();
@@ -102,7 +103,7 @@ export const AggregatedBalanceEvolution = () => {
 
   return (
     <div className="ft-card-flush flex flex-col">
-      <div className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 md:py-5 border-b border-line">
+      <div className="ft-card-head">
         <div>
           <h3 className="ft-card-title">
             {t("dashboard.globalBalanceEvolution", { defaultValue: "Global balance evolution" })}
@@ -116,7 +117,7 @@ export const AggregatedBalanceEvolution = () => {
         </div>
         <Link
           to="/transactions"
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-medium flex-shrink-0"
+          className="text-[12px] font-[550] text-fg-mute hover:text-foreground inline-flex items-center gap-1 flex-shrink-0 no-underline hover:no-underline"
         >
           {t("common.viewAll", { defaultValue: "View all" })}
           <ArrowRight className="h-3 w-3" />
@@ -135,12 +136,11 @@ export const AggregatedBalanceEvolution = () => {
               key={tx.id}
               type="button"
               onClick={() => setSelectedTransaction(tx)}
-              className="grid items-center gap-3 px-4 md:px-5 py-3 border-b border-line last:border-b-0 hover:bg-bg-subtle/60 transition-colors text-left"
-              style={{ gridTemplateColumns: "32px minmax(0, 1fr) auto" }}
+              className="ft-list-row tx"
             >
               <div
-                className={`h-8 w-8 rounded-lg grid place-items-center flex-shrink-0 ${
-                  tintColor ? "" : "bg-bg-subtle border border-line text-muted-foreground"
+                className={`h-[34px] w-[34px] rounded-[11px] grid place-items-center flex-shrink-0 ${
+                  tintColor ? "" : "bg-bg-subtle border border-line-soft text-fg-mute"
                 }`}
                 style={
                   tintColor
@@ -148,37 +148,25 @@ export const AggregatedBalanceEvolution = () => {
                     : undefined
                 }
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-[17px] w-[17px]" />
               </div>
               <div className="min-w-0">
-                <div className="font-medium text-[13px] truncate">{tx.description}</div>
-                <div className="text-[11px] text-fg-dim truncate flex items-center gap-1.5">
-                  {tx.category?.name && (
-                    <span
-                      className="ft-tag truncate max-w-[140px]"
-                      style={{
-                        background: `${tx.category.color}1f`,
-                        color: tx.category.color,
-                        borderColor: "transparent",
-                      }}
-                    >
-                      <span
-                        className="dot flex-shrink-0"
-                        style={{ background: tx.category.color }}
-                      />
-                      <span className="truncate">{tx.category.name}</span>
-                    </span>
-                  )}
-                  <span className="truncate">
-                    {tx.account?.name} · {format(date, "MMM d", { locale: dateLocale })}
-                  </span>
+                <div className="ft-row-title truncate">{tx.description}</div>
+                {/* One flat meta line joined by " · " — the category never
+                    becomes a second tinted element beside the icon. */}
+                <div className="ft-row-sub truncate">
+                  {[
+                    tx.category?.name ?? t("common.uncategorized", { defaultValue: "Uncategorized" }),
+                    tx.account?.name,
+                    format(date, "MMM d", { locale: dateLocale }),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </div>
               </div>
               <div className="text-right whitespace-nowrap">
                 <div
-                  className={`font-mono text-sm font-medium ${
-                    isPrivacyMode ? "blur-md select-none" : ""
-                  } ${
+                  className={`ft-row-amt ${isPrivacyMode ? "ft-priv" : ""} ${
                     positive
                       ? "text-pos"
                       : tx.type === "transfer"
@@ -189,11 +177,7 @@ export const AggregatedBalanceEvolution = () => {
                   {positive ? "+" : tx.type === "transfer" ? "↔" : "−"}
                   {formatCurrency(Math.abs(tx.amount))}
                 </div>
-                <div
-                  className={`font-mono text-[10.5px] mt-0.5 ${
-                    isPrivacyMode ? "blur-md select-none" : "text-fg-dim"
-                  }`}
-                >
+                <div className={`ft-row-amt sub ${isPrivacyMode ? "ft-priv" : ""}`}>
                   → {formatCurrency(balanceAfter)}
                 </div>
               </div>

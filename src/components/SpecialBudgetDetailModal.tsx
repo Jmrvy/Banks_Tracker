@@ -190,7 +190,7 @@ export const SpecialBudgetDetailModal = ({
               className="h-[46px] w-[46px] rounded-[13px] flex-shrink-0 grid place-items-center"
               style={{ background: palette.tint, color: palette.ink }}
             >
-              <Icon className="h-6 w-6" strokeWidth={1.8} />
+              <Icon className="h-6 w-6" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-lg font-semibold tracking-tight truncate">{budget.name}</div>

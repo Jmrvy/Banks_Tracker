@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, ArrowDown, Lock, Info, CalendarClock } from "lucide-react";
+import { ArrowUp, ArrowDown, CalendarClock } from "lucide-react";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useDebts } from "@/hooks/useDebts";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
@@ -32,7 +32,7 @@ const BUCKETS = [
  * invested so the headline is never the only thing on offer.
  */
 export function HeroNetWorth() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { accounts, transactions, recurringTransactions } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
@@ -40,6 +40,9 @@ export function HeroNetWorth() {
   const { isPrivacyMode } = usePrivacy();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
+  // Index of the day the pointer is over — drives the crosshair, the point
+  // and the tooltip. Purely presentational: it never feeds a computation.
+  const [hover, setHover] = useState<number | null>(null);
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -94,12 +97,12 @@ export function HeroNetWorth() {
 
     // Walk backward from today balance, subtracting each day's delta to
     // produce the previous day's closing balance.
-    const out: { d: number; v: number }[] = new Array(days);
+    const out: { d: number; v: number; date: Date }[] = new Array(days);
     let v = total;
     for (let i = days - 1; i >= 0; i--) {
       const day = new Date(today);
       day.setDate(today.getDate() - (days - 1 - i));
-      out[i] = { d: i, v };
+      out[i] = { d: i, v, date: day };
       const k = key(day);
       v -= deltaByDay.get(k) || 0;
     }
@@ -140,7 +143,7 @@ export function HeroNetWorth() {
   );
 
   // Area chart geometry
-  const height = 180;
+  const height = 186;
   const padL = 8,
     padR = 8,
     padT = 12,
@@ -160,24 +163,60 @@ export function HeroNetWorth() {
       ? `${linePath} L ${x(series.length - 1)} ${padT + innerH} L ${x(0)} ${padT + innerH} Z`
       : "";
 
+  // Month ticks read straight off the series — one label per month boundary
+  // it crosses, so the curve is anchored in time without a second data pass.
+  const monthTicks = useMemo(() => {
+    const out: { i: number; label: string }[] = [];
+    let lastMonth = -1;
+    series.forEach((p, i) => {
+      const m = p.date.getMonth();
+      if (m !== lastMonth) {
+        lastMonth = m;
+        out.push({
+          i,
+          label: p.date.toLocaleDateString(i18n.language === "fr" ? "fr-FR" : "en-US", {
+            month: "short",
+          }),
+        });
+      }
+    });
+    return out;
+  }, [series, i18n.language]);
+
+  const hoverPoint = hover != null ? series[hover] : null;
+
+  const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width === 0 || series.length < 2) return;
+    const ratio = (e.clientX - rect.left) / rect.width;
+    const idx = Math.round(ratio * (series.length - 1));
+    setHover(Math.max(0, Math.min(series.length - 1, idx)));
+  };
+
   return (
     <div className="ft-hero" data-tour="hero">
-      <div className="grid grid-cols-1 md:grid-cols-[1.1fr_2fr] gap-6 md:gap-8 relative">
+      <div className="ft-hero-grid">
         {/* Left: meta */}
-        <div className="flex flex-col gap-4 pb-6 md:pb-7 min-w-0">
+        <div className="flex flex-col min-w-0">
           <div className="min-w-0">
             <div className="ft-hero-eyebrow">
               <span className="live" />
               {t("dashboard.totalNetWorth", { defaultValue: "Total net worth" })}
             </div>
-            <div className={`ft-hero-value mt-3 break-words ${isNegative ? "is-negative text-destructive" : ""} ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+            <div className={`ft-hero-value mt-3.5 break-words ${isNegative ? "is-negative text-destructive" : ""} ${isPrivacyMode ? "ft-priv" : ""}`}>
               {head}
               <span className="cents">{tail}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-[12.5px] text-muted-foreground">
-              <span className={`ft-delta ${up ? "up" : "down"} whitespace-nowrap`}>
-                {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                {Math.abs(deltaPct).toFixed(1)}% · {up ? "+" : "−"}
+            {/* The chip carries the percentage only; the absolute figure sits
+                beside it in mute text, as the design pairs them. */}
+            <div className="flex flex-wrap items-center gap-x-[9px] gap-y-1 mt-3 text-[12.5px] text-fg-mute">
+              <span className={`ft-delta ${up ? "up" : "down"} whitespace-nowrap text-[12.5px]`}>
+                {up ? <ArrowUp className="h-[11px] w-[11px]" /> : <ArrowDown className="h-[11px] w-[11px]" />}
+                {up ? "+" : "−"}
+                {Math.abs(deltaPct).toFixed(1)}%
+              </span>
+              <span className={`whitespace-nowrap ${isPrivacyMode ? "ft-priv" : ""}`}>
+                {up ? "+" : "−"}
                 {formatCurrency(Math.abs(delta30d))}
               </span>
               <span className="whitespace-nowrap">{t("dashboard.past30Days", { defaultValue: "past 30 days" })}</span>
@@ -192,7 +231,7 @@ export function HeroNetWorth() {
                 </span>
                 <span
                   className={`font-mono font-semibold tabular-nums ${
-                    isPrivacyMode ? "blur-md select-none" : ""
+                    isPrivacyMode ? "ft-priv" : ""
                   } ${projectedEom.value < 0 ? "text-destructive" : ""}`}
                 >
                   {formatCurrency(projectedEom.value)}
@@ -208,84 +247,119 @@ export function HeroNetWorth() {
               </div>
             )}
           </div>
-          {/* What the headline is made of. */}
+          {/* What the headline is made of. The hero ends here — freshness is
+              the topbar's job, not a fourth row under the buckets. */}
           {buckets.length > 1 && (
-            <div className="flex flex-wrap gap-x-6 gap-y-3 mt-auto pt-4">
+            <div className="ft-hero-foot">
               {buckets.map((bucket) => (
-                <div key={bucket.key} className="flex flex-col gap-0.5 min-w-0">
+                <div key={bucket.key} className="ft-hero-stat min-w-0">
                   <span className="flex items-center gap-1.5 text-[11px] font-semibold text-fg-dim">
-                    <i
-                      className="h-2.5 w-2.5 rounded-[3px] flex-shrink-0"
-                      style={{ background: bucket.swatch }}
-                    />
+                    <i className="ft-swatch" style={{ background: bucket.swatch }} />
                     {t(bucket.labelKey, { defaultValue: bucket.fallback })}
                   </span>
-                  <b
-                    className={`font-mono text-[15px] font-medium tracking-tight ${
-                      isPrivacyMode ? "blur-md select-none" : ""
-                    }`}
-                  >
+                  <b className={`ft-hero-stat-value ${isPrivacyMode ? "ft-priv" : ""}`}>
                     {formatCurrency(bucket.value)}
                   </b>
                 </div>
               ))}
             </div>
           )}
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-3 border-t border-line-soft text-xs text-muted-foreground">
-            <Info className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate min-w-0">
-              {t("dashboard.updated", { defaultValue: "Updated" })}{" "}
-              {new Date().toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-            <span className="ml-auto ft-chip !py-0.5 text-[11px] flex-shrink-0">
-              <Lock className="h-2.5 w-2.5" />
-              {t("common.secure", { defaultValue: "Secure" })}
-            </span>
-          </div>
         </div>
 
-        {/* Right: area chart */}
-        <div ref={wrapRef} className="pb-3 min-h-[180px]">
-          {series.length > 1 && (
-            <svg
-              viewBox={`0 0 ${w} ${height}`}
-              preserveAspectRatio="none"
-              className="w-full h-[180px] block"
-            >
-              <defs>
-                <linearGradient id="heroArea" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.18" />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {[0.25, 0.5, 0.75].map((tFrac) => (
-                <line
-                  key={tFrac}
-                  x1={padL}
-                  x2={w - padR}
-                  y1={padT + innerH * tFrac}
-                  y2={padT + innerH * tFrac}
-                  stroke="hsl(var(--line))"
-                  strokeDasharray="3 4"
-                />
-              ))}
-              <path d={areaPath} fill="url(#heroArea)" />
-              <path
-                d={linePath}
-                fill="none"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            </svg>
-          )}
+        {/* Right: area chart, bottom-aligned so the curve hugs the hero's
+            lower edge instead of floating above dead space. */}
+        <div className="flex flex-col justify-end min-w-0">
+          <div
+            ref={wrapRef}
+            className="relative"
+            onMouseMove={handleMove}
+            onMouseLeave={() => setHover(null)}
+          >
+            {series.length > 1 && (
+              <>
+                <svg
+                  viewBox={`0 0 ${w} ${height}`}
+                  preserveAspectRatio="none"
+                  className="w-full block"
+                  style={{ height }}
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="heroArea" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.26" />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {[0, 0.25, 0.5, 0.75, 1].map((tFrac) => (
+                    <line
+                      key={tFrac}
+                      x1={padL}
+                      x2={w - padR}
+                      y1={padT + innerH * tFrac}
+                      y2={padT + innerH * tFrac}
+                      stroke="hsl(var(--grid))"
+                      strokeWidth={1}
+                    />
+                  ))}
+                  <path d={areaPath} fill="url(#heroArea)" />
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  {hover != null && (
+                    <>
+                      <line
+                        x1={x(hover)}
+                        x2={x(hover)}
+                        y1={padT}
+                        y2={padT + innerH}
+                        stroke="hsl(var(--line-strong))"
+                        strokeWidth={1}
+                      />
+                      <circle
+                        cx={x(hover)}
+                        cy={y(series[hover].v)}
+                        r={3.4}
+                        fill="hsl(var(--bg-elev))"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                      />
+                    </>
+                  )}
+                </svg>
+                {hoverPoint && (
+                  <div
+                    className="absolute top-1.5 pointer-events-none whitespace-nowrap rounded-[10px] px-[11px] py-[7px] text-[11.5px] shadow-sh-2"
+                    style={{
+                      left: `${(hover! / (series.length - 1)) * 100}%`,
+                      transform: `translateX(${hover! > series.length / 2 ? "-104%" : "4%"})`,
+                      background: "hsl(var(--bg-ink))",
+                      color: "hsl(var(--fg-onink))",
+                    }}
+                  >
+                    <div className="opacity-65 font-semibold mb-0.5">
+                      {hoverPoint.date.toLocaleDateString(
+                        i18n.language === "fr" ? "fr-FR" : "en-US",
+                        { day: "numeric", month: "short" }
+                      )}
+                    </div>
+                    <div className={`font-mono text-[13px] ${isPrivacyMode ? "ft-priv" : ""}`}>
+                      {formatCurrency(hoverPoint.v)}
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between mt-[7px] text-[10.5px] font-mono text-fg-dim">
+                  {monthTicks.map((tick) => (
+                    <span key={tick.i}>{tick.label}</span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

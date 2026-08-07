@@ -107,11 +107,15 @@ export const TraceSection = () => {
   };
 
   return (
-    <div className="ft-card p-5 sm:p-6">
+    <div className="ft-card">
       <div className="ft-card-head">
         <div>
           <div className="flex items-center gap-2">
-            <TraceMark size="sm" />
+            {/* The same 30px accent tile every settings card head carries,
+                with Trace's own mark inside it. */}
+            <div className="ft-kpi-icon acc">
+              <TraceMark plain glyphSize={15} className="h-[15px] w-[15px] text-accent-deep" />
+            </div>
             <h3 className="ft-card-title text-base">
               {t("settings.traceSection", { defaultValue: "Trace copilot" })}
             </h3>
@@ -125,7 +129,7 @@ export const TraceSection = () => {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         {/* The form is useless until the function behind it exists. Say so
             up front rather than letting Save be the thing that finds out. */}
         {!available && !loading && (

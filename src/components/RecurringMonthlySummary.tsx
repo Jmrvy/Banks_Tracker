@@ -104,25 +104,22 @@ export function RecurringMonthlySummary() {
       {/* Monthly summary tile */}
       <div className="ft-card p-5">
         <div className="flex items-start justify-between gap-2">
-          <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+          <div className="ft-eyebrow">
             {t("recurring.thisMonth", { defaultValue: "This month" })}
           </div>
+          {/* Design's segmented control: the selected chip lifts onto
+              --bg-elev with a hairline shadow rather than inverting to ink. */}
           <div
             role="tablist"
             aria-label={t("recurring.modeToggle", { defaultValue: "Calculation mode" })}
-            className="inline-flex items-stretch rounded-md border border-line p-0.5 bg-bg-subtle"
+            className="ft-seg flex-shrink-0"
           >
             <button
               type="button"
               role="tab"
               aria-selected={mode === "actual"}
               onClick={() => setMode("actual")}
-              className={cn(
-                "px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors",
-                mode === "actual"
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className={cn(mode === "actual" && "active")}
             >
               {t("recurring.modeActual", { defaultValue: "Réel" })}
             </button>
@@ -131,21 +128,17 @@ export function RecurringMonthlySummary() {
               role="tab"
               aria-selected={mode === "average"}
               onClick={() => setMode("average")}
-              className={cn(
-                "px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors",
-                mode === "average"
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className={cn(mode === "average" && "active")}
             >
               {t("recurring.modeAverage", { defaultValue: "Moyenne" })}
             </button>
           </div>
         </div>
-        <div className="font-mono text-3xl font-medium tracking-tight mt-1.5">
+        {/* Card-level figure: 26px Geist Mono at weight 500, -0.03em. */}
+        <div className="font-mono text-[26px] font-medium tracking-[-0.03em] leading-tight mt-2.5">
           {formatCurrency(totalOut)}
         </div>
-        <div className="text-xs text-muted-foreground mt-0.5">
+        <div className="text-[12px] text-fg-mute mt-1">
           {t("recurring.outflowSubtitle", {
             defaultValue: "{{n}} active charges",
             n: count,
@@ -153,13 +146,18 @@ export function RecurringMonthlySummary() {
           {totalIn > 0 && (
             <>
               {" · "}
-              <span className="text-pos">+{formatCurrency(totalIn)} in</span>
+              <span className="text-pos">
+                {t("recurring.inflowInline", {
+                  defaultValue: "+{{amount}} in",
+                  amount: formatCurrency(totalIn),
+                })}
+              </span>
             </>
           )}
         </div>
-        <div className="text-[10px] text-fg-dim mt-1 leading-snug">{modeNote}</div>
+        <div className="text-[10.5px] text-fg-dim mt-1 leading-snug">{modeNote}</div>
         {breakdown.length > 0 && (
-          <div className="flex h-1.5 rounded overflow-hidden mt-3 bg-bg-subtle">
+          <div className="flex h-1.5 rounded-[3px] overflow-hidden mt-3 bg-bg-sunk">
             {breakdown.map((c, i) => (
               <div
                 key={i}
@@ -173,36 +171,36 @@ export function RecurringMonthlySummary() {
 
       {/* Category breakdown list */}
       <div className="ft-card-flush flex flex-col">
-        <div className="px-5 py-4 border-b border-line">
-          <h3 className="ft-card-title">
-            {t("recurring.byCategory", { defaultValue: "By category" })}
-          </h3>
-          <p className="ft-card-sub">
-            {t("recurring.whereGoing", { defaultValue: "Where it's going" })}
-          </p>
+        <div className="ft-card-head">
+          <div>
+            <h3 className="ft-card-title">
+              {t("recurring.byCategory", { defaultValue: "By category" })}
+            </h3>
+            <p className="ft-card-sub">
+              {t("recurring.whereGoing", { defaultValue: "Where it's going" })}
+            </p>
+          </div>
         </div>
-        <div>
+        <div className="pb-2">
           {breakdown.map((c, i) => {
             const pct = c.amt / totalBar;
             return (
-              <div
-                key={i}
-                className={`px-5 py-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 ${
-                  i < breakdown.length - 1 ? "border-b border-line" : ""
-                }`}
-              >
+              /* .catrow — 1fr/auto, 5px×10px gaps, hairline in --line-soft,
+                 paired with the 4px thin bar the design uses for category
+                 breakdowns. */
+              <div key={i} className="ft-catrow px-[22px]">
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="h-2.5 w-2.5 rounded-sm flex-shrink-0"
+                    className="ft-swatch"
                     style={{ background: c.color }}
                   />
-                  <span className="text-[13px] font-medium truncate">{c.name}</span>
+                  <span className="text-[12.5px] font-[550] truncate">{c.name}</span>
                   <span className="text-[11px] text-fg-dim">{c.count}</span>
                 </div>
-                <div className="font-mono text-[13px] font-medium">
+                <div className="font-mono text-[12.5px] font-medium">
                   {formatCurrency(c.amt)}
                 </div>
-                <div className="col-span-2 ft-progress-track">
+                <div className="col-span-2 ft-progress-track thin">
                   <div
                     className="ft-progress-fill"
                     style={{ width: `${pct * 100}%`, background: c.color }}
