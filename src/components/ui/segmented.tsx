@@ -14,6 +14,14 @@ interface SegmentedProps<T extends string> {
   className?: string;
   /** Accessible name for the group. */
   label?: string;
+  /**
+   * Let the scroller run to the screen edge on a phone by cancelling the
+   * page's 16px gutter. Opt-in, because the negative margin only works when
+   * the control owns its row and the row is the page's own width: inside a
+   * flex row it drags the control out of line with its siblings, and inside
+   * any padded box (a popover, a card) it overflows. Default off.
+   */
+  bleed?: boolean;
 }
 
 /**
@@ -37,12 +45,19 @@ export function Segmented<T extends string>({
   onChange,
   className,
   label,
+  bleed = false,
 }: SegmentedProps<T>) {
   return (
-    // Full-bleed on a phone: the scroller runs to the screen edge so a
-    // cut-off option reads as "more to scroll" rather than "truncated".
+    // When bled, the scroller runs to the screen edge so a cut-off option
+    // reads as "more to scroll" rather than "truncated".
     // `.ft-noscroll` hides the bar in WebKit as well as Firefox/Safari.
-    <div className={cn("-mx-4 px-4 md:mx-0 md:px-0 max-w-full overflow-x-auto ft-noscroll", className)}>
+    <div
+      className={cn(
+        "max-w-full overflow-x-auto ft-noscroll",
+        bleed && "-mx-4 px-4 md:mx-0 md:px-0",
+        className,
+      )}
+    >
       <div className="ft-seg" role="group" aria-label={label}>
         {options.map((option) => {
           const active = option.value === value;

@@ -578,7 +578,10 @@ const Savings = () => {
         {/* Goals, history and repayments are peer views of the same money —
             the deck switches between them rather than stacking all three into
             one long scroll. Every section is still here, one tap apart. */}
+        {/* No type argument — the dev-only tagger injects attributes between
+            the name and the argument and the result stops parsing. */}
         <Segmented
+          bleed
           label={t('navigation.savings')}
           value={section}
           onChange={(v) => setSection(v as SavingsSection)}

@@ -20,7 +20,7 @@ interface ScheduledDebtPayment {
   paid_date: string | null;
 }
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, getDay, isBefore, isAfter, startOfDay, addWeeks, addQuarters, addYears, subYears, differenceInDays } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
@@ -122,7 +122,10 @@ type DateField = 'value_date' | 'transaction_date';
 const getTxDate = (tx: Transaction, field: DateField): string => field === 'value_date' ? (tx.value_date || tx.transaction_date) : tx.transaction_date;
 
 const RecurringCalendar = ({ transactions, actualTransactions = [], installmentPayments = [], installmentRecords = [], debts = [], debtPayments = [], scheduledDebtPayments = [], onEdit, onToggleActive, onDelete, onExecuteEarly, onRecordPayment, onManageDebtPayment }: RecurringCalendarProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // Month names here were pinned to French, so the calendar title and every
+  // month chip stayed French whatever the UI language was set to.
+  const dateLocale = i18n.language === "fr" ? fr : enUS;
   const [currentMonth, setCurrentMonth] = useState(new Date());
   useEffect(() => { setRecurringCurrentMonth(currentMonth); }, [currentMonth]);
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
@@ -900,7 +903,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
     }
   };
 
-  const monthName = format(currentMonth, 'MMMM', { locale: fr });
+  const monthName = format(currentMonth, 'MMMM', { locale: dateLocale });
 
   const sectionTotal = (occurrences: CalendarOccurrence[]) => {
     return occurrences.reduce((sum, o) => sum + (o.displayAmount ?? o.transaction.amount), 0);
@@ -1018,7 +1021,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             dimmed ? 'bg-muted/30' : isOverdue ? 'bg-destructive/15' : getEffectiveType(transaction) === 'income' ? 'bg-success/10' : 'bg-destructive/10'
           }`}>
             <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
-              {format(occDate, 'MMM', { locale: fr })}
+              {format(occDate, 'MMM', { locale: dateLocale })}
             </span>
             <span className={`text-sm sm:text-base font-bold leading-none ${dimmed ? 'text-muted-foreground' : isOverdue ? 'text-destructive' : ''}`}>
               {format(occDate, 'd')}
@@ -1042,7 +1045,10 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                 <>
                   <CheckCircle2 className="h-3 w-3 text-success" />
                   <span className="text-[10px] sm:text-xs text-muted-foreground">
-                    Payé le {format(occDate, 'd MMM', { locale: fr })}
+                    {t('recurring.paidOn', {
+                      defaultValue: 'Paid on {{date}}',
+                      date: format(occDate, 'd MMM', { locale: dateLocale }),
+                    })}
                   </span>
                 </>
               ) : (
@@ -1335,7 +1341,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
               <CardTitle className="ft-card-title capitalize truncate">
                 {viewMode === 'month'
-                  ? format(currentMonth, 'MMMM yyyy', { locale: fr })
+                  ? format(currentMonth, 'MMMM yyyy', { locale: dateLocale })
                   : format(currentMonth, 'yyyy')}
               </CardTitle>
               {/* Design's raised-chip segment, not an ink inversion — the
@@ -1440,7 +1446,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-[650] capitalize">
-                          {format(m.monthDate, 'MMM', { locale: fr })}
+                          {format(m.monthDate, 'MMM', { locale: dateLocale })}
                         </span>
                         <span className="font-mono text-[10.5px] text-fg-dim">{m.count}</span>
                       </div>

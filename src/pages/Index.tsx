@@ -11,6 +11,7 @@ import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { HeroNetWorth } from "@/components/dashboard/HeroNetWorth";
 import { AccountsListCard } from "@/components/dashboard/AccountsListCard";
+import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { SavingsGoalsCard } from "@/components/dashboard/SavingsGoalsCard";
 import { UpcomingCard } from "@/components/dashboard/UpcomingCard";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
@@ -257,10 +258,15 @@ const Index = () => {
         {/* Accounts (full width) */}
         <AccountsListCard />
 
-        {/* Activity closes the page beside the two forward-looking cards —
-            what is about to leave, and what it is all for. */}
+        {/* The pack closes on a pair: what already happened on the left,
+            what is about to and what it is all for on the right. The balance
+            chart is ours rather than the pack's — it sits under the activity
+            list instead of standing in for it. */}
         <div className="ft-g2 items-start">
-          <AggregatedBalanceEvolution />
+          <div className="flex flex-col gap-[18px]">
+            <RecentActivityCard />
+            <AggregatedBalanceEvolution />
+          </div>
           <div className="flex flex-col gap-[18px]">
             <UpcomingCard />
             <SavingsGoalsCard />

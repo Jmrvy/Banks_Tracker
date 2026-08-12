@@ -96,16 +96,27 @@ const Accounts = () => {
     0
   );
 
-  const checkingTotal = accounts
-    .filter((a) => a.account_type === "checking")
-    .reduce((s, a) => s + Math.max(0, a.balance), 0);
-  const savingsTotal = accounts
-    .filter((a) => a.account_type === "savings")
-    .reduce((s, a) => s + Math.max(0, a.balance), 0);
-  const investTotal = accounts
-    .filter((a) => a.account_type === "investment" || a.account_type === "credit")
-    .reduce((s, a) => s + Math.max(0, a.balance), 0);
-  const compositionTotal = checkingTotal + savingsTotal + investTotal || 1;
+  // Liquidity buckets. Two things were wrong here and they compounded:
+  //
+  //  * every account was floored with Math.max(0, …), so a card sitting at
+  //    −491,25 € counted as zero and the panel reported more cash than the
+  //    accounts hold. The bucket figures are money, not bar widths — clamping
+  //    belongs at the point we draw a bar, which is what the widths below do.
+  //  * `credit` was bucketed with `investment` under "up to 5 days /
+  //    brokerage". A card is spending access, not something you liquidate;
+  //    HeroNetWorth already groups it with checking as "liquid", and these two
+  //    surfaces have to agree.
+  const sumBalances = (types: readonly string[]) =>
+    accounts.filter((a) => types.includes(a.account_type)).reduce((s, a) => s + a.balance, 0);
+
+  const checkingTotal = sumBalances(["checking", "credit"]);
+  const savingsTotal = sumBalances(["savings"]);
+  const investTotal = sumBalances(["investment"]);
+  // Bars can only be drawn from the positive part; a bucket in the red shows
+  // its real figure beside an empty track rather than a negative width.
+  const compositionScale =
+    Math.max(0, checkingTotal) + Math.max(0, savingsTotal) + Math.max(0, investTotal) || 1;
+  const barPct = (v: number) => `${Math.min(100, (Math.max(0, v) / compositionScale) * 100)}%`;
 
   // Average monthly expenses for emergency-fund coverage
   const avgMonthlyExpenses = useMemo(() => {
@@ -404,7 +415,8 @@ const Accounts = () => {
                 </div>
                 <div className="text-[12px] text-fg-dim truncate">
                   {t("accounts.nAccounts", { count: list.length, defaultValue: "{{count}} accounts" })}
-                  {compositionTotal > 0 && ` · ${((Math.max(0, total) / compositionTotal) * 100).toFixed(0)} %`}
+                  {compositionScale > 0 &&
+                    ` · ${((Math.max(0, total) / compositionScale) * 100).toFixed(0)} %`}
                 </div>
               </div>
             );
@@ -685,7 +697,9 @@ const Accounts = () => {
         </div>
 
         {/* Cash on hand panel */}
-        {compositionTotal > 0 && (
+        {/* Gated on having accounts, not on a positive total — someone whose
+            balances net out to zero or below still needs to see where they sit. */}
+        {accounts.length > 0 && (
           <div className="ft-card">
             <div className="ft-card-head">
               <div>
@@ -727,7 +741,7 @@ const Accounts = () => {
                   <div className="col-span-2 ft-progress-track">
                     <div
                       className="ft-progress-fill"
-                      style={{ width: `${(row.v / compositionTotal) * 100}%`, background: row.color }}
+                      style={{ width: barPct(row.v), background: row.color }}
                     />
                   </div>
                   <div className="col-span-2 text-[11px] text-fg-dim truncate">{row.meta}</div>
