@@ -14,6 +14,8 @@ import { AnalysisToolbar } from "@/components/reports/AnalysisToolbar";
 import { OverTimeTab } from "@/components/reports/OverTimeTab";
 import { FlowsTab } from "@/components/reports/FlowsTab";
 import { ComingTab } from "@/components/reports/ComingTab";
+import { CategoriesTab } from "@/components/reports/CategoriesTab";
+import { RecurringTab } from "@/components/reports/RecurringTab";
 import { TransactionTypeModal } from "@/components/TransactionTypeModal";
 import { ReportWizard } from "@/components/ReportWizard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -32,7 +34,9 @@ const Reports = () => {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
-  const [useSpendingPatterns] = useState(false);
+  // The setter is wired now that the Recurring tab is rendered — it owns the
+  // toggle between declared recurrences and detected spending patterns.
+  const [useSpendingPatterns, setUseSpendingPatterns] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -285,8 +289,11 @@ const Reports = () => {
           onExpensesClick={() => setShowExpensesModal(true)}
         />
 
-        {/* 3-tab structure: Over time / Flows (in+out) / What's coming.
-            The view modifiers ride the same row, flushed right. */}
+        {/* The pack's five views of one period, in its order: Over time /
+            Flows / Categories / Recurring / What's coming. Categories and
+            Recurring were built but never mounted, so the page had been
+            showing three. The view modifiers ride the same row, flushed
+            right. */}
         <Tabs defaultValue="overtime" className="w-full flex flex-col gap-3.5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5">
             <TabsList data-tour="reports-tabs" className="ft-seg h-auto rounded-[11px] p-[3px] gap-0.5">
@@ -295,6 +302,12 @@ const Reports = () => {
               </TabsTrigger>
               <TabsTrigger value="flows" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
                 {t('reports.analysis.tabFlows', { defaultValue: 'Flows' })}
+              </TabsTrigger>
+              <TabsTrigger value="categories" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabCategories', { defaultValue: 'Categories' })}
+              </TabsTrigger>
+              <TabsTrigger value="recurring" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
+                {t('reports.analysis.tabRecurring', { defaultValue: 'Recurring' })}
               </TabsTrigger>
               <TabsTrigger value="coming" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
                 {t('reports.analysis.tabComing', { defaultValue: "What's coming" })}
@@ -340,6 +353,28 @@ const Reports = () => {
 
           </TabsContent>
 
+
+          <TabsContent value="categories" className="mt-0">
+            <CategoriesTab
+              categoryChartData={categoryChartData}
+              transactions={filteredTransactions}
+              periodStart={period.from}
+              periodEnd={period.to}
+              includeUpcoming={includeUpcoming}
+              upcomingItems={recurringData.periodItems}
+              dateType={dateType}
+            />
+          </TabsContent>
+
+          <TabsContent value="recurring" className="mt-0">
+            <RecurringTab
+              recurringData={recurringData}
+              spendingPatternsData={spendingPatternsData}
+              period={period}
+              useSpendingPatterns={useSpendingPatterns}
+              setUseSpendingPatterns={setUseSpendingPatterns}
+            />
+          </TabsContent>
 
           <TabsContent value="coming" className="mt-0">
             <ComingTab recurringData={recurringData} period={period} />
