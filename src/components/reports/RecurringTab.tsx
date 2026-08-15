@@ -9,8 +9,10 @@ import { enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { ChartTouchFrame } from "@/components/charts/ChartTouchFrame";
 import { RecurringData, SpendingPatternsData, ReportsPeriod } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { parseLocalDate } from "@/lib/dateUtils";
 
@@ -30,6 +32,7 @@ export const RecurringTab = ({
   setUseSpendingPatterns
 }: RecurringTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const [showAllItems, setShowAllItems] = useState(false);
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -77,76 +80,78 @@ export const RecurringTab = ({
 
   if (periodItems.length === 0) {
     return (
-      <Card className="border-border">
-        <CardContent className="text-center py-12">
-          <Repeat className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">Aucune récurrence sur cette période</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{period.label}</p>
-        </CardContent>
-      </Card>
+      <div className="ft-card">
+        <div className="ft-empty">
+          <Repeat className="h-8 w-8 opacity-40" />
+          <span className="ft-empty-title">Aucune récurrence sur cette période</span>
+          <span className="text-[11.5px] text-fg-dim">{period.label}</span>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 ">
-        <Card className="">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
-                <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.incoming')}</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-success">+{formatCurrency(periodIncome)}</p>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{periodIncomeCount} récurrence{periodIncomeCount > 1 ? 's' : ''}</p>
-          </CardContent>
-        </Card>
+    <div className="flex flex-col gap-3.5">
+      {/* Summary — same .ft-kpi tiles as the hero one scroll position above */}
+      <div className="ft-g4">
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon pos" aria-hidden>
+              <TrendingUp className="h-[15px] w-[15px]" />
+            </span>
+            <span className="ft-kpi-label">{t('dashboard.incoming')}</span>
+          </div>
+          <div className={cn("ft-kpi-value text-[hsl(var(--pos))]", isPrivacyMode && "ft-priv")}>
+            +{formatCurrency(periodIncome)}
+          </div>
+          <div className="ft-kpi-foot">
+            <span className="ft-trunc"><span className="font-mono tabular-nums">{periodIncomeCount}</span> récurrence{periodIncomeCount > 1 ? 's' : ''}</span>
+          </div>
+        </div>
 
-        <Card className="">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-destructive/10">
-                <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.outgoing')}</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-destructive">-{formatCurrency(periodExpenses)}</p>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{periodExpenseCount} récurrence{periodExpenseCount > 1 ? 's' : ''}</p>
-          </CardContent>
-        </Card>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon neg" aria-hidden>
+              <TrendingDown className="h-[15px] w-[15px]" />
+            </span>
+            <span className="ft-kpi-label">{t('dashboard.outgoing')}</span>
+          </div>
+          <div className={cn("ft-kpi-value text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
+            −{formatCurrency(periodExpenses)}
+          </div>
+          <div className="ft-kpi-foot">
+            <span className="ft-trunc"><span className="font-mono tabular-nums">{periodExpenseCount}</span> récurrence{periodExpenseCount > 1 ? 's' : ''}</span>
+          </div>
+        </div>
 
-        <Card className="">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-muted/50">
-                <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Net</span>
-            </div>
-            <p className={cn("text-sm sm:text-base font-bold", periodNet >= 0 ? "text-success" : "text-destructive")}>
-              {periodNet >= 0 ? '+' : ''}{formatCurrency(periodNet)}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon acc" aria-hidden>
+              <ArrowRight className="h-[15px] w-[15px]" />
+            </span>
+            <span className="ft-kpi-label">Net</span>
+          </div>
+          <div className={cn("ft-kpi-value", periodNet >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
+            {periodNet >= 0 ? '+' : ''}{formatCurrency(periodNet)}
+          </div>
+        </div>
 
-        <Card className="">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
-                <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Récurrences</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold">{periodItems.length}</p>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">{period.label}</p>
-          </CardContent>
-        </Card>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon acc" aria-hidden>
+              <Repeat className="h-[15px] w-[15px]" />
+            </span>
+            <span className="ft-kpi-label">Récurrences</span>
+          </div>
+          <div className="ft-kpi-value">{periodItems.length}</div>
+          <div className="ft-kpi-foot">
+            <span className="ft-trunc">{period.label}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Chart + Spending Patterns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Chart + Spending Patterns — collapses at the app-wide 1180px breakpoint */}
+      <div className="ft-g2e">
         {/* Donut chart by category (expenses) */}
         {expenseCategories.length > 0 && (
           <Card className="  overflow-hidden">
@@ -157,6 +162,7 @@ export const RecurringTab = ({
               </h3>
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <div className="relative w-full sm:w-1/2 h-[160px] sm:h-[180px]">
+                  <ChartTouchFrame className="h-full w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -180,14 +186,16 @@ export const RecurringTab = ({
                             const data = payload[0].payload;
                             const pct = totalExpenseCat > 0 ? ((data.amount / totalExpenseCat) * 100).toFixed(1) : '0';
                             return (
-                              <div className="rounded-lg border bg-background/95  p-2 shadow-lg">
+                              <div
+                                className="rounded-md border border-line bg-card text-foreground p-2 shadow-sh-2"
+                              >
                                 <div className="flex items-center gap-2 mb-1">
                                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} />
                                   <span className="font-medium text-xs">{data.name}</span>
                                 </div>
                                 <div className="text-xs">
-                                  <div className="font-semibold">{formatCurrency(data.amount)}</div>
-                                  <div className="text-muted-foreground text-[10px]">{pct}% — {data.count} occurrence{data.count > 1 ? 's' : ''}</div>
+                                  <div className={cn("font-semibold font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(data.amount)}</div>
+                                  <div className="text-muted-foreground text-[10px]"><span className="font-mono tabular-nums">{pct}%</span> — {data.count} occurrence{data.count > 1 ? 's' : ''}</div>
                                 </div>
                               </div>
                             );
@@ -197,8 +205,9 @@ export const RecurringTab = ({
                       />
                     </PieChart>
                   </ResponsiveContainer>
+                  </ChartTouchFrame>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-base sm:text-lg font-bold text-destructive">{formatCurrency(totalExpenseCat)}</span>
+                    <span className={cn("text-base sm:text-lg font-semibold font-mono tabular-nums text-neg", isPrivacyMode && "ft-priv")}>{formatCurrency(totalExpenseCat)}</span>
                     <span className="text-[9px] sm:text-[10px] text-muted-foreground">sur la période</span>
                   </div>
                 </div>
@@ -213,8 +222,8 @@ export const RecurringTab = ({
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] sm:text-xs font-medium truncate">{cat.name}</p>
                         </div>
-                        <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0">{pct}%</span>
-                        <span className="text-[10px] sm:text-xs font-semibold text-destructive flex-shrink-0">{formatCurrency(cat.amount)}</span>
+                        <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0 font-mono tabular-nums">{pct}%</span>
+                        <span className={cn("text-[10px] sm:text-xs font-semibold text-neg flex-shrink-0 font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(cat.amount)}</span>
                       </div>
                     );
                   })}
@@ -236,15 +245,15 @@ export const RecurringTab = ({
                 <div className="grid grid-cols-3 gap-2">
                   <div className="p-2 bg-success/5 border border-success/10 rounded-xl text-center">
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Moy. entrants/j</p>
-                    <p className="text-xs sm:text-sm font-semibold text-success">+{formatCurrency(spendingPatternsData.dailyAvgIncome)}</p>
+                    <p className={cn("text-xs sm:text-sm font-semibold text-success font-mono tabular-nums", isPrivacyMode && "ft-priv")}>+{formatCurrency(spendingPatternsData.dailyAvgIncome)}</p>
                   </div>
                   <div className="p-2 bg-destructive/5 border border-destructive/10 rounded-xl text-center">
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Moy. sortants/j</p>
-                    <p className="text-xs sm:text-sm font-semibold text-destructive">-{formatCurrency(spendingPatternsData.dailyAvgExpenses)}</p>
+                    <p className={cn("text-xs sm:text-sm font-semibold text-destructive font-mono tabular-nums", isPrivacyMode && "ft-priv")}>-{formatCurrency(spendingPatternsData.dailyAvgExpenses)}</p>
                   </div>
                   <div className={cn("p-2 rounded-xl text-center border", spendingPatternsData.dailyNet >= 0 ? "bg-success/5 border-success/10" : "bg-destructive/5 border-destructive/10")}>
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net/jour</p>
-                    <p className={cn("text-xs sm:text-sm font-semibold", spendingPatternsData.dailyNet >= 0 ? "text-success" : "text-destructive")}>
+                    <p className={cn("text-xs sm:text-sm font-semibold font-mono tabular-nums", spendingPatternsData.dailyNet >= 0 ? "text-success" : "text-destructive", isPrivacyMode && "ft-priv")}>
                       {spendingPatternsData.dailyNet >= 0 ? '+' : ''}{formatCurrency(spendingPatternsData.dailyNet)}
                     </p>
                   </div>
@@ -255,15 +264,15 @@ export const RecurringTab = ({
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t('reports.projectedIncoming')}</span>
-                      <span className="font-medium text-success">+{formatCurrency(spendingPatternsData.projectedMonthlyIncome)}</span>
+                      <span className={cn("font-medium text-success font-mono tabular-nums", isPrivacyMode && "ft-priv")}>+{formatCurrency(spendingPatternsData.projectedMonthlyIncome)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t('reports.projectedOutgoing')}</span>
-                      <span className="font-medium text-destructive">-{formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}</span>
+                      <span className={cn("font-medium text-destructive font-mono tabular-nums", isPrivacyMode && "ft-priv")}>-{formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}</span>
                     </div>
                     <div className="flex justify-between border-t border-border pt-1.5">
                       <span className="font-medium">Net projeté:</span>
-                      <span className={cn("font-bold", spendingPatternsData.projectedMonthlyNet >= 0 ? "text-success" : "text-destructive")}>
+                      <span className={cn("font-semibold font-mono tabular-nums", spendingPatternsData.projectedMonthlyNet >= 0 ? "text-success" : "text-destructive", isPrivacyMode && "ft-priv")}>
                         {spendingPatternsData.projectedMonthlyNet >= 0 ? '+' : ''}{formatCurrency(spendingPatternsData.projectedMonthlyNet)}
                       </span>
                     </div>
@@ -276,16 +285,16 @@ export const RecurringTab = ({
                   <div className="space-y-1.5 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t('reports.recurringOutgoing')}</span>
-                      <span className="font-medium">{formatCurrency(recurringData.monthlyExpenses)}/mois</span>
+                      <span className="font-medium"><span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(recurringData.monthlyExpenses)}</span>/mois</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t('reports.projectedRealOutgoing')}</span>
-                      <span className="font-medium">{formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}/mois</span>
+                      <span className="font-medium"><span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(spendingPatternsData.projectedMonthlyExpenses)}</span>/mois</span>
                     </div>
                     {spendingPatternsData.projectedMonthlyExpenses > 0 && (
                       <div className="flex justify-between border-t border-border pt-1.5">
                         <span className="text-muted-foreground">{t('reports.recurringShare', { defaultValue: 'Recurring share:' })}</span>
-                        <span className="font-bold text-primary">
+                        <span className="font-semibold text-accent-deep font-mono tabular-nums">
                           {((recurringData.monthlyExpenses / spendingPatternsData.projectedMonthlyExpenses) * 100).toFixed(0)}%
                         </span>
                       </div>
@@ -294,7 +303,7 @@ export const RecurringTab = ({
                 </div>
 
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center">
-                  Basé sur {differenceInDays(period.to, period.from) + 1} jours d'analyse
+                  Basé sur <span className="font-mono tabular-nums">{differenceInDays(period.to, period.from) + 1}</span> jours d'analyse
                 </p>
               </div>
             ) : (
@@ -348,7 +357,7 @@ export const RecurringTab = ({
                           {recurrenceLabel(recurring.recurrence_type)}
                         </Badge>
                         {isReimbursement && (
-                          <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4 border-orange-500/50 text-orange-500">
+                          <Badge variant="outline" className="text-[8px] sm:text-[10px] px-1 py-0 h-4 border-warn/50 text-warn">
                             Remb.
                           </Badge>
                         )}
@@ -384,19 +393,20 @@ export const RecurringTab = ({
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
                     <p className={cn(
-                      "text-xs sm:text-sm font-semibold",
-                      effectiveType === 'income' ? "text-success" : "text-destructive"
+                      "text-xs sm:text-sm font-semibold font-mono tabular-nums",
+                      effectiveType === 'income' ? "text-success" : "text-destructive",
+                      isPrivacyMode && "ft-priv"
                     )}>
                       {effectiveType === 'income' ? '+' : '-'}{formatCurrency(periodAmount)}
                     </p>
                     {pastOccurrences > 0 && futureOccurrences > 0 && (
                       <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        {formatCurrency(pastAmount)} passé / {formatCurrency(futureAmount)} à venir
+                        <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(pastAmount)}</span> passé / <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(futureAmount)}</span> à venir
                       </p>
                     )}
                     {occurrences > 1 && !(pastOccurrences > 0 && futureOccurrences > 0) && (
                       <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        {formatCurrency(periodAmount / occurrences)}/fois
+                        <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(periodAmount / occurrences)}</span>/fois
                       </p>
                     )}
                   </div>

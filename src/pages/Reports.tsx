@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from "date-fns";
@@ -25,9 +26,12 @@ import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import type { Transaction } from "@/hooks/useFinancialData";
 
+type AnalysisTab = "overtime" | "flows" | "categories" | "recurring" | "coming";
+
 const Reports = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<AnalysisTab>("overtime");
   const [periodType, setPeriodType] = useState<"month" | "year" | "custom">("month");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
@@ -236,13 +240,23 @@ const Reports = () => {
   }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
 
 
+  // The pack's five views of one period, in its order. Labels reuse the
+  // existing tab keys; the strip is the shared Segmented control.
+  const tabOptions: { value: AnalysisTab; label: string }[] = [
+    { value: 'overtime', label: t('reports.analysis.tabOverTime', { defaultValue: 'Over time' }) },
+    { value: 'flows', label: t('reports.analysis.tabFlows', { defaultValue: 'Flows' }) },
+    { value: 'categories', label: t('reports.analysis.tabCategories', { defaultValue: 'Categories' }) },
+    { value: 'recurring', label: t('reports.analysis.tabRecurring', { defaultValue: 'Recurring' }) },
+    { value: 'coming', label: t('reports.analysis.tabComing', { defaultValue: "What's coming" }) },
+  ];
+
   if (loading) {
     return <LoadingSpinner text={t('common.loading')} />;
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12 overflow-x-hidden">
-      <div className="ft-page w-full overflow-hidden">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <div className="ft-page">
         {/* Page head — nav group in the eyebrow, page name as the title. */}
         <div className="ft-page-head">
           <div>
@@ -294,25 +308,20 @@ const Reports = () => {
             Recurring were built but never mounted, so the page had been
             showing three. The view modifiers ride the same row, flushed
             right. */}
-        <Tabs defaultValue="overtime" className="w-full flex flex-col gap-3.5">
+        <Tabs value={activeTab} className="w-full flex flex-col gap-3.5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5">
-            <TabsList data-tour="reports-tabs" className="ft-seg h-auto rounded-[11px] p-[3px] gap-0.5">
-              <TabsTrigger value="overtime" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
-                {t('reports.analysis.tabOverTime', { defaultValue: 'Over time' })}
-              </TabsTrigger>
-              <TabsTrigger value="flows" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
-                {t('reports.analysis.tabFlows', { defaultValue: 'Flows' })}
-              </TabsTrigger>
-              <TabsTrigger value="categories" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
-                {t('reports.analysis.tabCategories', { defaultValue: 'Categories' })}
-              </TabsTrigger>
-              <TabsTrigger value="recurring" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
-                {t('reports.analysis.tabRecurring', { defaultValue: 'Recurring' })}
-              </TabsTrigger>
-              <TabsTrigger value="coming" className="rounded-[8px] px-[11px] py-[5px] text-[12px] font-550 data-[state=active]:shadow-sh-1">
-                {t('reports.analysis.tabComing', { defaultValue: "What's coming" })}
-              </TabsTrigger>
-            </TabsList>
+            {/* The five views ride the shared Segmented control, whose own
+                scroller (overflow-x-auto, hidden bar) keeps all five labels
+                reachable by swipe on a phone instead of clipping flat. */}
+            <div data-tour="reports-tabs" className="min-w-0 max-w-full">
+              <Segmented
+                options={tabOptions}
+                value={activeTab}
+                onChange={(v) => setActiveTab(v)}
+                className="mx-0 px-0"
+                label={t('reports.analysis.tabsLabel', { defaultValue: 'Analysis views' })}
+              />
+            </div>
 
             <div className="flex-1" />
 

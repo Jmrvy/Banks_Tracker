@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Wallet, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReportsStats } from "@/hooks/useReportsData";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface StatsCardsProps {
@@ -17,6 +18,7 @@ const Tile = ({
   value,
   valueClass,
   onClick,
+  masked,
 }: {
   icon: typeof TrendingUp;
   iconClass: "pos" | "neg" | "acc" | "warn" | "";
@@ -24,6 +26,11 @@ const Tile = ({
   value: string | number;
   valueClass?: string;
   onClick?: () => void;
+  /**
+   * Privacy mask on the figure only — `.ft-priv` carries pointer-events:none,
+   * so it must never land on the clickable tile itself.
+   */
+  masked?: boolean;
 }) => {
   const Tag = onClick ? "button" : "div";
   return (
@@ -38,7 +45,7 @@ const Tile = ({
         </div>
         <span className="ft-kpi-label text-[10px] lg:text-xs truncate hidden sm:block">{label}</span>
       </div>
-      <div className={cn("ft-kpi-value text-sm lg:text-xl truncate leading-tight", valueClass)}>
+      <div className={cn("ft-kpi-value text-sm lg:text-xl truncate leading-tight", valueClass, masked && "ft-priv")}>
         {value}
       </div>
     </Tag>
@@ -47,6 +54,7 @@ const Tile = ({
 
 export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClick }: StatsCardsProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
 
   return (
     <div className="grid grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
@@ -57,6 +65,7 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
         value={formatCurrency(stats.income)}
         valueClass="text-pos"
         onClick={onIncomeClick}
+        masked={isPrivacyMode}
       />
       <Tile
         icon={TrendingDown}
@@ -65,12 +74,14 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
         value={formatCurrency(stats.expenses)}
         valueClass="text-destructive"
         onClick={onExpensesClick}
+        masked={isPrivacyMode}
       />
       <Tile
         icon={Wallet}
         iconClass="acc"
         label="Initial"
         value={formatCurrency(stats.initialBalance)}
+        masked={isPrivacyMode}
       />
       <Tile
         icon={Target}
@@ -78,6 +89,7 @@ export const StatsCards = ({ stats, accountsCount, onIncomeClick, onExpensesClic
         label="Final"
         value={formatCurrency(stats.finalBalance)}
         valueClass={stats.finalBalance >= 0 ? "text-pos" : "text-destructive"}
+        masked={isPrivacyMode}
       />
       <div className="hidden lg:block">
         <Tile

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ArrowDown, ArrowUp, ArrowRight, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
 import { Delta } from "./analysisPrimitives";
@@ -58,17 +59,19 @@ const Row = ({ label, nowValue, priorValue, delta, positiveIsGood, comparisonLab
   tone: 'pos' | 'neg';
 }) => {
   const { t } = useTranslation();
+  const { isPrivacyMode } = usePrivacy();
   return (
     <div className="p-[17px_18px] flex flex-col gap-[9px]">
       <div className="ft-kpi-label">{label}</div>
       <div className={cn("ft-num text-[20px] font-medium leading-none tracking-[-0.03em]",
-        tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+        tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]",
+        isPrivacyMode && "ft-priv")}>
         {nowValue}
       </div>
       <div className="ft-kpi-foot">
         <Delta value={delta} positiveIsGood={positiveIsGood} />
         <span className="ft-trunc">
-          {t('reports.analysis.vs', { defaultValue: 'vs' })} {priorValue}
+          {t('reports.analysis.vs', { defaultValue: 'vs' })} <span className={cn(isPrivacyMode && "ft-priv")}>{priorValue}</span>
         </span>
       </div>
       <div className="ft-eyebrow">{comparisonLabel}</div>
@@ -83,6 +86,7 @@ export const FlowsTab = ({
   onIncomeClick, onExpensesClick,
 }: FlowsTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { t } = useTranslation();
   const { specialBudgets } = useSpecialBudgets();
 
@@ -287,13 +291,13 @@ export const FlowsTab = ({
                     <span className="ft-trunc text-[12.5px] font-550">{c.name}</span>
                     {c.projected > 0 && (
                       <span className="ft-tag">
-                        +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
+                        <span className={cn(isPrivacyMode && "ft-priv")}>+{formatCurrency(c.projected)}</span> {t('reports.analysis.projected', { defaultValue: 'projected' })}
                       </span>
                     )}
                   </span>
                   <span className="flex items-baseline gap-2 flex-shrink-0">
                     <span className="ft-num ft-dim text-[10.5px]">{pct.toFixed(0)}%</span>
-                    <span className="ft-num text-[12.5px] font-medium text-[hsl(var(--pos))]">
+                    <span className={cn("ft-num text-[12.5px] font-medium text-[hsl(var(--pos))]", isPrivacyMode && "ft-priv")}>
                       +{formatCurrency(total)}
                     </span>
                   </span>
@@ -356,13 +360,13 @@ export const FlowsTab = ({
                     )}
                     {c.projected > 0 && (
                       <span className="ft-tag">
-                        +{formatCurrency(c.projected)} {t('reports.analysis.projected', { defaultValue: 'projected' })}
+                        <span className={cn(isPrivacyMode && "ft-priv")}>+{formatCurrency(c.projected)}</span> {t('reports.analysis.projected', { defaultValue: 'projected' })}
                       </span>
                     )}
                   </span>
                   <span className="flex items-baseline gap-2 flex-shrink-0">
                     <span className="ft-num ft-dim text-[10.5px]">{pct.toFixed(0)}%</span>
-                    <span className="ft-num text-[12.5px] font-medium text-[hsl(var(--neg))]">
+                    <span className={cn("ft-num text-[12.5px] font-medium text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
                       −{formatCurrency(total)}
                     </span>
                   </span>
@@ -375,7 +379,9 @@ export const FlowsTab = ({
             {specialBudgetTotal > 0 && (
               <div className="ft-card-sunk mt-3.5 rounded-[15px] border p-3.5 flex items-start gap-2 text-[12px] text-muted-foreground">
                 <Wallet className="h-3.5 w-3.5 mt-px flex-shrink-0" />
-                <span>
+                {/* The amount is interpolated into the sentence, so the whole
+                    note is masked — there is no isolated span to blur. */}
+                <span className={cn(isPrivacyMode && "ft-priv")}>
                   {t('reports.analysis.specialBudgetImpact', {
                     defaultValue: 'Special budgets account for {{amount}} ({{pct}}%) of outflows this period across {{count}} envelope(s).',
                     amount: formatCurrency(specialBudgetTotal),

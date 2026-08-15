@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { ArrowDown, ArrowUp, BarChart3, PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
 import { Delta, Spark } from "./analysisPrimitives";
@@ -32,6 +33,7 @@ const KpiTile = ({
   foot,
   onClick,
   ariaLabel,
+  masked,
 }: {
   icon: ComponentType<{ className?: string }>;
   tone: Tone;
@@ -41,6 +43,12 @@ const KpiTile = ({
   foot: ReactNode;
   onClick?: () => void;
   ariaLabel?: string;
+  /**
+   * Privacy mask on the figure only. `.ft-priv` sets pointer-events:none, so
+   * it must sit on the inner value div — never on the clickable `.ft-kpi`
+   * button, which would make the tile untappable while privacy is on.
+   */
+  masked?: boolean;
 }) => {
   const body = (
     <>
@@ -50,7 +58,7 @@ const KpiTile = ({
         </span>
         <span className="ft-kpi-label">{label}</span>
       </div>
-      <div className="ft-kpi-value">{value}</div>
+      <div className={cn("ft-kpi-value", masked && "ft-priv")}>{value}</div>
       {spark && <div style={{ margin: "-2px 0 -4px" }}>{spark}</div>}
       <div className="ft-kpi-foot">{foot}</div>
     </>
@@ -75,6 +83,7 @@ export const AnalysisHero = ({
   onExpensesClick,
 }: AnalysisHeroProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { t } = useTranslation();
 
   const net = stats.netPeriodBalance;
@@ -103,12 +112,13 @@ export const AnalysisHero = ({
         tone="pos"
         label={t('reports.analysis.moneyIn', { defaultValue: 'Money in' })}
         value={formatCurrency(stats.income)}
+        masked={isPrivacyMode}
         ariaLabel={t('reports.analysis.moneyIn', { defaultValue: 'Money in' })}
         spark={<Spark values={incomeSpark} color="hsl(var(--pos))" />}
         foot={
           <>
             <Delta value={inDeltaPct} />
-            <span className="ft-trunc">{vs} {formatCurrency(priorStats.income)}</span>
+            <span className="ft-trunc">{vs} <span className={cn(isPrivacyMode && "ft-priv")}>{formatCurrency(priorStats.income)}</span></span>
           </>
         }
         onClick={onIncomeClick}
@@ -119,12 +129,13 @@ export const AnalysisHero = ({
         tone="neg"
         label={t('reports.analysis.moneyOut', { defaultValue: 'Money out' })}
         value={formatCurrency(stats.expenses)}
+        masked={isPrivacyMode}
         ariaLabel={t('reports.analysis.moneyOut', { defaultValue: 'Money out' })}
         spark={<Spark values={expenseSpark} color="hsl(var(--neg))" />}
         foot={
           <>
             <Delta value={outDeltaPct} positiveIsGood={false} />
-            <span className="ft-trunc">{vs} {formatCurrency(priorStats.expenses)}</span>
+            <span className="ft-trunc">{vs} <span className={cn(isPrivacyMode && "ft-priv")}>{formatCurrency(priorStats.expenses)}</span></span>
           </>
         }
         onClick={onExpensesClick}
@@ -135,6 +146,7 @@ export const AnalysisHero = ({
         tone="acc"
         label={t('reports.analysis.netChange', { defaultValue: 'Net change' })}
         value={`${net >= 0 ? '+' : '−'}${formatCurrency(Math.abs(net))}`}
+        masked={isPrivacyMode}
         foot={
           <>
             <Delta value={netDeltaPct} />

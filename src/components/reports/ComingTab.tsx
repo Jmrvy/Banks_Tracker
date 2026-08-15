@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, BarChart3, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useTranslation } from "react-i18next";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -16,6 +17,7 @@ interface ComingTabProps {
 
 export const ComingTab = ({ recurringData, period }: ComingTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
@@ -85,21 +87,21 @@ export const ComingTab = ({ recurringData, period }: ComingTabProps) => {
             <span className="ft-kpi-icon pos" aria-hidden><ArrowDown className="h-[15px] w-[15px]" /></span>
             <span className="ft-kpi-label">{t('reports.analysis.expected', { defaultValue: 'Expected' })}</span>
           </div>
-          <div className="ft-kpi-value text-[hsl(var(--pos))]">+{formatCurrency(totalIncome)}</div>
+          <div className={cn("ft-kpi-value text-[hsl(var(--pos))]", isPrivacyMode && "ft-priv")}>+{formatCurrency(totalIncome)}</div>
         </div>
         <div className="ft-kpi">
           <div className="ft-row">
             <span className="ft-kpi-icon neg" aria-hidden><ArrowUp className="h-[15px] w-[15px]" /></span>
             <span className="ft-kpi-label">{t('reports.analysis.dueOut', { defaultValue: 'Due out' })}</span>
           </div>
-          <div className="ft-kpi-value text-[hsl(var(--neg))]">−{formatCurrency(totalExpenses)}</div>
+          <div className={cn("ft-kpi-value text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>−{formatCurrency(totalExpenses)}</div>
         </div>
         <div className="ft-kpi">
           <div className="ft-row">
             <span className="ft-kpi-icon acc" aria-hidden><BarChart3 className="h-[15px] w-[15px]" /></span>
             <span className="ft-kpi-label">{t('reports.analysis.netComing', { defaultValue: 'Net' })}</span>
           </div>
-          <div className={cn("ft-kpi-value", net >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+          <div className={cn("ft-kpi-value", net >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
             {net >= 0 ? '+' : '−'}{formatCurrency(Math.abs(net))}
           </div>
         </div>
@@ -118,7 +120,7 @@ export const ComingTab = ({ recurringData, period }: ComingTabProps) => {
             <div key={group.date}>
               <div className="ft-daylab">
                 <span className="capitalize">{formatDayLabel(group.dateObj)}</span>
-                <span className="ft-num font-normal normal-case tracking-normal flex items-center gap-2">
+                <span className={cn("ft-num font-normal normal-case tracking-normal flex items-center gap-2", isPrivacyMode && "ft-priv")}>
                   {group.dayIncome > 0 && <span className="text-[hsl(var(--pos))]">+{formatCurrency(group.dayIncome)}</span>}
                   {group.dayExpenses > 0 && <span className="text-[hsl(var(--neg))]">−{formatCurrency(group.dayExpenses)}</span>}
                 </span>
@@ -143,7 +145,8 @@ export const ComingTab = ({ recurringData, period }: ComingTabProps) => {
                     </div>
                   </div>
                   <span className={cn("ft-row-amt",
-                    tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                    tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]",
+                    isPrivacyMode && "ft-priv")}>
                     {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
                   </span>
                 </div>
