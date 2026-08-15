@@ -117,7 +117,7 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 w-8 p-0 flex-shrink-0"
+                  className="h-9 w-9 p-0 flex-shrink-0"
                   onClick={() => handleQuickAdd(-1)}
                   disabled={!quickAddAmount || parseFloat(quickAddAmount) <= 0}
                 >
@@ -127,13 +127,13 @@ export const EditSavingsGoalModal = ({ goal, isOpen, onClose }: EditSavingsGoalM
                   value={quickAddAmount}
                   onChange={setQuickAddAmount}
                   placeholder="100.00"
-                  className="h-8 text-sm"
+                  className="h-9 text-sm"
                 />
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 w-8 p-0 flex-shrink-0"
+                  className="h-9 w-9 p-0 flex-shrink-0"
                   onClick={() => handleQuickAdd(1)}
                   disabled={!quickAddAmount || parseFloat(quickAddAmount) <= 0}
                 >

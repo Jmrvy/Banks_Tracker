@@ -363,7 +363,7 @@ const Savings = () => {
             <div className={cn(
               'ft-kpi-value truncate',
               investmentStats.netTotal >= 0 ? 'text-pos' : 'text-neg',
-              isPrivacyMode && 'blur-md select-none',
+              isPrivacyMode && 'ft-priv',
             )}>
               {investmentStats.netTotal >= 0 ? '+' : ''}{formatCurrency(investmentStats.netTotal)}
             </div>
@@ -379,7 +379,7 @@ const Savings = () => {
               <div className="ft-kpi-icon pos"><TrendingDown className="h-4 w-4" /></div>
               <span className="ft-kpi-label truncate">{t('savings.deposits')}</span>
             </div>
-            <div className={cn('ft-kpi-value truncate text-pos', isPrivacyMode && 'blur-md select-none')}>
+            <div className={cn('ft-kpi-value truncate text-pos', isPrivacyMode && 'ft-priv')}>
               +{formatCurrency(investmentStats.expenseTotal)}
             </div>
             <div className="ft-kpi-foot truncate">
@@ -394,7 +394,7 @@ const Savings = () => {
               <div className="ft-kpi-icon"><TrendingUp className="h-4 w-4 text-muted-foreground" /></div>
               <span className="ft-kpi-label truncate">{t('savings.withdrawals')}</span>
             </div>
-            <div className={cn('ft-kpi-value truncate text-neg', isPrivacyMode && 'blur-md select-none')}>
+            <div className={cn('ft-kpi-value truncate text-neg', isPrivacyMode && 'ft-priv')}>
               -{formatCurrency(investmentStats.incomeTotal)}
             </div>
             <div className="ft-kpi-foot truncate capitalize">{periodLabel}</div>
@@ -404,7 +404,7 @@ const Savings = () => {
               <div className="ft-kpi-icon pos"><CreditCard className="h-4 w-4" /></div>
               <span className="ft-kpi-label truncate">{t('savings.reimbursements')}</span>
             </div>
-            <div className={cn('ft-kpi-value truncate text-pos', isPrivacyMode && 'blur-md select-none')}>
+            <div className={cn('ft-kpi-value truncate text-pos', isPrivacyMode && 'ft-priv')}>
               +{formatCurrency(reimbursementStats.total)}
             </div>
             <div className="ft-kpi-foot truncate">
@@ -428,7 +428,7 @@ const Savings = () => {
             </div>
             <div className={cn(
               'font-mono text-[26px] font-medium tracking-[-0.03em] leading-none mt-2.5 mb-1',
-              isPrivacyMode && 'blur-md select-none',
+              isPrivacyMode && 'ft-priv',
             )}>
               {formatCurrency(goalTotals.current)}
             </div>
@@ -448,7 +448,7 @@ const Savings = () => {
             </div>
             <div className={cn(
               'font-mono text-[26px] font-medium tracking-[-0.03em] leading-none mt-2.5 mb-1',
-              isPrivacyMode && 'blur-md select-none',
+              isPrivacyMode && 'ft-priv',
             )}>
               {formatCurrency(allTimeStats.monthlyAverage)}
             </div>
@@ -463,7 +463,7 @@ const Savings = () => {
             </div>
             <div className={cn(
               'font-mono text-[26px] font-medium tracking-[-0.03em] leading-none mt-2.5 mb-1',
-              isPrivacyMode && 'blur-md select-none',
+              isPrivacyMode && 'ft-priv',
             )}>
               {formatCurrency(reimbursementRemaining)}
             </div>
@@ -562,7 +562,7 @@ const Savings = () => {
                       </div>
                       <span className={cn(
                         'font-mono text-[12.5px] font-medium text-right w-[78px] flex-shrink-0',
-                        isPrivacyMode && 'blur-md select-none',
+                        isPrivacyMode && 'ft-priv',
                       )}>
                         {m.deposits - m.withdrawals >= 0 ? '+' : ''}
                         {formatCurrency(m.deposits - m.withdrawals)}
@@ -669,7 +669,7 @@ const Savings = () => {
                     {/* Amount and status share the trailing cell so the row
                         still collapses to glyph / name / value on a phone. */}
                     <div className="flex items-center gap-2.5 justify-end">
-                      <span className={cn('ft-row-amt text-pos', isPrivacyMode && 'blur-md select-none')}>
+                      <span className={cn('ft-row-amt text-pos', isPrivacyMode && 'ft-priv')}>
                         {formatCurrency(installment.remaining_amount)}
                       </span>
                       <span className={cn('ft-tag flex-shrink-0', installment.is_active && 'pos')}>
@@ -755,11 +755,11 @@ const Savings = () => {
                     <div className="flex items-baseline gap-2 flex-wrap mt-4">
                       <span className={cn(
                         'font-mono text-[25px] font-medium tracking-[-0.03em] leading-none',
-                        isPrivacyMode && 'blur-md select-none',
+                        isPrivacyMode && 'ft-priv',
                       )}>
                         {formatCurrency(goal.current_amount)}
                       </span>
-                      <span className={cn('text-fg-mute text-[12.5px]', isPrivacyMode && 'blur-md select-none')}>
+                      <span className={cn('text-fg-mute text-[12.5px]', isPrivacyMode && 'ft-priv')}>
                         {t('savings.outOfTarget', {
                           defaultValue: 'of {{amount}}',
                           amount: formatCurrency(goal.target_amount),
@@ -772,7 +772,7 @@ const Savings = () => {
                     </div>
                     <div className="flex justify-between gap-2 text-[11.5px] text-fg-dim mt-[7px]">
                       <span>{progressPct.toFixed(0)}%</span>
-                      <span className={cn(isPrivacyMode && 'blur-md select-none')}>
+                      <span className={cn(isPrivacyMode && 'ft-priv')}>
                         {t('savings.amountRemaining', {
                           defaultValue: '{{amount}} to go',
                           amount: formatCurrency(remaining),
@@ -789,7 +789,7 @@ const Savings = () => {
                             <span className="text-fg-mute">
                               {t('savings.requiredToHold', { defaultValue: 'Needed to hit the date' })}
                             </span>
-                            <b className={cn('font-mono font-medium', isPrivacyMode && 'blur-md select-none')}>
+                            <b className={cn('font-mono font-medium', isPrivacyMode && 'ft-priv')}>
                               {t('savings.perMonth', {
                                 defaultValue: '{{amount}} / month',
                                 amount: formatCurrency(projection.monthlyRequired),
@@ -801,7 +801,7 @@ const Savings = () => {
                           <span className="text-fg-mute">
                             {t('savings.currentPace', { defaultValue: 'Your current pace' })}
                           </span>
-                          <b className={cn('font-mono font-medium', isPrivacyMode && 'blur-md select-none')}>
+                          <b className={cn('font-mono font-medium', isPrivacyMode && 'ft-priv')}>
                             {t('savings.perMonth', {
                               defaultValue: '{{amount}} / month',
                               amount: formatCurrency(allTimeStats.monthlyAverage),

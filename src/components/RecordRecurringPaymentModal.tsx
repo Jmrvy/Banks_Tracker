@@ -152,7 +152,7 @@ export const RecordRecurringPaymentModal = ({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Montant</span>
-              <span className="font-medium whitespace-nowrap">{formatCurrency(recurringTransaction.amount)}</span>
+              <span className="font-medium whitespace-nowrap font-mono tabular-nums">{formatCurrency(recurringTransaction.amount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Compte</span>
@@ -204,7 +204,7 @@ export const RecordRecurringPaymentModal = ({
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={cn(
-                              "text-sm font-semibold",
+                              "text-sm font-semibold font-mono tabular-nums",
                               selectedTransactionId === t.id ? "text-primary-foreground" : t.type === 'income' ? "text-success" : "text-destructive"
                             )}>
                               {formatCurrency(t.amount)}
@@ -227,7 +227,7 @@ export const RecordRecurringPaymentModal = ({
                 )}
                 {selectedTransaction && (
                   <p className="text-xs text-muted-foreground">
-                    Montant: <strong>{formatCurrency(selectedTransaction.amount)}</strong>
+                    Montant: <strong className="font-mono tabular-nums">{formatCurrency(selectedTransaction.amount)}</strong>
                   </p>
                 )}
               </div>
@@ -244,7 +244,7 @@ export const RecordRecurringPaymentModal = ({
                   required={mode === 'new'}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Montant attendu: {recurringTransaction ? formatCurrency(recurringTransaction.amount) : '—'}
+                  Montant attendu: <span className="font-mono tabular-nums">{recurringTransaction ? formatCurrency(recurringTransaction.amount) : '—'}</span>
                 </p>
               </div>
             </TabsContent>

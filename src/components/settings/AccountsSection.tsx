@@ -363,7 +363,7 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                     {run.entries.map((entry, idx) => (
                       <div key={idx} className="flex items-center justify-between text-xs">
                         <span className="font-medium">{entry.account_name}</span>
-                        <span className={entry.difference !== 0 ? 'text-orange-500 font-semibold' : 'text-muted-foreground'}>
+                        <span className={entry.difference !== 0 ? 'text-warn font-semibold' : 'text-muted-foreground'}>
                           {formatCurrency(entry.old_balance)} → {formatCurrency(entry.new_balance)}
                           {entry.difference !== 0 && (
                             <span className="ml-1">

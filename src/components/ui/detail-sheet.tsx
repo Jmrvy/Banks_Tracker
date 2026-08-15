@@ -26,22 +26,26 @@ export function DetailSheet({ open, onOpenChange, children }: DetailSheetProps) 
   return (
     <SheetPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <SheetPrimitive.Portal>
-        <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        {/* The scrim is a token (`--scrim`), tuned per theme and carrying its
+            own alpha — same treatment as ui/sheet.tsx and ui/drawer.tsx. The
+            design darkens the page behind a sheet but keeps it legible; there
+            is no backdrop blur anywhere in the system. */}
+        <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-[hsl(var(--scrim))] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <SheetPrimitive.Content
           className={cn(
-            "fixed z-50 bg-card text-card-foreground border-line shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300 flex flex-col overflow-hidden",
+            "fixed z-50 bg-card text-card-foreground border-line transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300 flex flex-col overflow-hidden",
             isMobile
-              ? "inset-x-0 bottom-0 rounded-t-2xl border-t h-[92vh] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
-              : "inset-y-0 right-0 h-full w-full sm:max-w-[480px] border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right"
+              ? // `ft-sheet` = the system's one bottom-sheet shoulder (26px top
+                // radius + the level-3 shadow), matching MobileNavigation.
+                "inset-x-0 bottom-0 ft-sheet border-t h-[92vh] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+              : "inset-y-0 right-0 h-full w-full sm:max-w-[480px] border-l shadow-sh-3 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right"
           )}
         >
-          {isMobile && (
-            <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
-              <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-            </div>
-          )}
+          {/* Drag affordance — the system grab handle carries its own 9px/4px
+              margins, so no wrapper is needed. */}
+          {isMobile && <div className="ft-sheet-grab" aria-hidden="true" />}
           {children}
-          <SheetPrimitive.Close className="absolute right-4 top-4 rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+          <SheetPrimitive.Close className="absolute right-4 top-4 h-[29px] w-[29px] grid place-items-center rounded-[9px] text-fg-mute transition-colors hover:bg-bg-hover hover:text-foreground ft-focusable focus:outline-none">
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
@@ -58,7 +62,9 @@ export const DetailSheetHeader = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "px-5 pt-5 pb-3 sm:px-6 sm:pt-6 border-b border-line flex-shrink-0",
+      // Modal header canon; the body below scrolls, so it keeps a hairline —
+      // `--line-soft`, the rule for splits inside a surface.
+      "px-5 pt-5 pb-3 border-b border-line-soft flex-shrink-0",
       className
     )}
     {...props}
@@ -72,7 +78,7 @@ export const DetailSheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Title
     ref={ref}
-    className={cn("text-base sm:text-lg font-semibold text-foreground flex items-center gap-2", className)}
+    className={cn("text-[15px] font-semibold tracking-tight text-foreground flex items-center gap-2", className)}
     {...props}
   />
 ));
@@ -84,7 +90,7 @@ export const DetailSheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Description
     ref={ref}
-    className={cn("text-xs sm:text-sm text-muted-foreground mt-0.5", className)}
+    className={cn("text-xs text-fg-mute mt-0.5", className)}
     {...props}
   />
 ));
@@ -96,7 +102,7 @@ export const DetailSheetBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4", className)}
+    className={cn("flex-1 overflow-y-auto px-5 py-4 space-y-4", className)}
     {...props}
   />
 ));
@@ -109,7 +115,7 @@ export const DetailSheetFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "px-5 py-3 sm:px-6 sm:py-4 border-t border-line flex flex-wrap gap-2 flex-shrink-0",
+      "px-5 py-3 border-t border-line-soft flex flex-wrap gap-2 flex-shrink-0",
       className
     )}
     {...props}

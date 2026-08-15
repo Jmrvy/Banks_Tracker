@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData } from '@/hooks/useFinancialData';
 import { useDebts, Debt } from '@/hooks/useDebts';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePrivacy } from '@/contexts/PrivacyContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { supabase } from '@/integrations/supabase/client';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
@@ -51,6 +53,7 @@ export const LinkDebtPaymentModal = ({
   const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isPrivacyMode } = usePrivacy();
   const { formatCurrency } = useUserPreferences();
   const { transactions, accounts, refetch } = useFinancialData();
   const { addPayment } = useDebts();
@@ -195,12 +198,12 @@ export const LinkDebtPaymentModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg">{t('debts.recordPayment', { defaultValue: 'Record a payment' })}</DialogTitle>
+      <DialogContent className="w-[95vw] sm:max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-5 pt-5 pb-3 flex-shrink-0 border-b text-left">
+          <DialogTitle className="text-[15px] font-semibold tracking-tight">{t('debts.recordPayment', { defaultValue: 'Record a payment' })}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4 sm:px-6 sm:pb-6">
           {/* Scheduled payment info */}
           <div className="p-3 bg-muted rounded-lg space-y-1.5 text-xs sm:text-sm mb-3">
             <div className="flex justify-between gap-2">
@@ -211,11 +214,15 @@ export const LinkDebtPaymentModal = ({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Montant prévu</span>
-              <span className="font-medium whitespace-nowrap">{formatCurrency(scheduledPayment.scheduled_amount)}</span>
+              <span className={cn('font-medium font-mono tabular-nums whitespace-nowrap', isPrivacyMode && 'ft-priv')}>
+                {formatCurrency(scheduledPayment.scheduled_amount)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Restant sur la dette</span>
-              <span className="font-medium text-primary whitespace-nowrap">{formatCurrency(debt.remaining_amount)}</span>
+              <span className={cn('font-medium font-mono tabular-nums text-primary whitespace-nowrap', isPrivacyMode && 'ft-priv')}>
+                {formatCurrency(debt.remaining_amount)}
+              </span>
             </div>
           </div>
 
@@ -283,8 +290,9 @@ export const LinkDebtPaymentModal = ({
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <span className={cn(
-                                "text-sm font-semibold",
-                                selectedTransactionId === t.id ? "text-primary-foreground" : ""
+                                "text-sm font-semibold font-mono tabular-nums",
+                                selectedTransactionId === t.id ? "text-primary-foreground" : "",
+                                isPrivacyMode && "ft-priv"
                               )}>
                                 {formatCurrency(t.amount)}
                               </span>
@@ -314,16 +322,19 @@ export const LinkDebtPaymentModal = ({
                     <div className="p-2.5 bg-muted/50 rounded-md space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Montant de la transaction</span>
-                        <span className="font-semibold">{formatCurrency(selectedTransaction.amount)}</span>
+                        <span className={cn('font-semibold font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                          {formatCurrency(selectedTransaction.amount)}
+                        </span>
                       </div>
                       {selectedTransaction.amount !== scheduledPayment.scheduled_amount && (
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Écart avec l'échéance</span>
                           <span className={cn(
-                            "font-medium",
+                            "font-medium font-mono tabular-nums",
                             selectedTransaction.amount > scheduledPayment.scheduled_amount
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-orange-600 dark:text-orange-400"
+                              ? "text-pos"
+                              : "text-warn",
+                            isPrivacyMode && "ft-priv"
                           )}>
                             {selectedTransaction.amount > scheduledPayment.scheduled_amount ? '+' : ''}
                             {formatCurrency(selectedTransaction.amount - scheduledPayment.scheduled_amount)}
@@ -338,17 +349,21 @@ export const LinkDebtPaymentModal = ({
               <TabsContent value="new" className="space-y-3 pt-3">
                 <div className="space-y-2">
                   <Label className="text-xs sm:text-sm">Compte *</Label>
-                  <select
+                  <Select
                     value={selectedAccountId}
-                    onChange={(e) => setSelectedAccountId(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    onValueChange={(value) => setSelectedAccountId(value)}
                   >
-                    {accounts.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} {a.bank ? `(${a.bank})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('common.selectAccount')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} {a.bank ? `(${a.bank})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="debt-payment-amount" className="text-xs sm:text-sm">Montant *</Label>
@@ -360,7 +375,10 @@ export const LinkDebtPaymentModal = ({
                     required={mode === 'new'}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Montant prévu: {formatCurrency(scheduledPayment.scheduled_amount)}
+                    Montant prévu:{' '}
+                    <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                      {formatCurrency(scheduledPayment.scheduled_amount)}
+                    </span>
                   </p>
                 </div>
               </TabsContent>

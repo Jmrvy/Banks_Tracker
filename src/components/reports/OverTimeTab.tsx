@@ -3,7 +3,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
-import { GRID_PROPS } from "@/lib/chartConfig";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/hooks/useReportsData";
 import { ArrowUpRight, ArrowDownRight, ChevronDown, Info, CalendarCheck2, Activity, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -32,6 +32,7 @@ const chartConfig = {
 
 export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period, dateType }: OverTimeTabProps) => {
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { accounts, transactions } = useFinancialData();
   const isMobile = useIsMobile();
   const { t, i18n } = useTranslation();
@@ -308,16 +309,21 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
         <div>
           {chartData.length > 0 ? (
             <>
-              <div className="w-full h-[200px] sm:h-[260px] lg:h-[300px] overflow-hidden">
                 <ChartContainer config={chartConfig} className="w-full h-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartDataWithPrior} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                      <CartesianGrid {...GRID_PROPS} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--grid))" />
                       <XAxis dataKey="date" fontSize={9} tickLine={false} axisLine={false} className="text-muted-foreground" interval={xTickInterval} />
-                      <YAxis fontSize={9} tickLine={false} axisLine={false} className="text-muted-foreground" width={50} domain={yDomain} tickFormatter={yTickFormatter} />
+                      {/* The Y ticks are money read-outs: blur the tick layer
+                          under privacy while the line itself stays visible. */}
+                      <YAxis fontSize={9} tickLine={false} axisLine={false} className={cn("text-muted-foreground", isPrivacyMode && "ft-priv")} width={50} domain={yDomain} tickFormatter={yTickFormatter} />
+                      {/* Tooltip skin per the chart spec: card surface, line
+                          border, 11px radius, sh-2 — overriding the shadcn
+                          defaults. Amounts blur under privacy. */}
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
+                            className={cn("bg-card border-line rounded-md shadow-sh-2 text-foreground", isPrivacyMode && "ft-priv")}
                             formatter={(value, name) => [
                               typeof value === 'number' ? formatCurrency(value) : 'N/A',
                               name === 'solde' ? t('reports.analysis.actual', { defaultValue: 'Actual' })
@@ -336,23 +342,22 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                     </ComposedChart>
                   </ResponsiveContainer>
                 </ChartContainer>
-              </div>
               {/* Three sunk read-outs closing the chart: where the period
                   started, where it stands, where it lands. */}
               <div className="ft-g3 mt-5">
                 <div className="ft-card ft-card-sunk p-[15px]">
                   <div className="ft-eyebrow">{t('reports.analysis.initialBalance', { defaultValue: 'Starting' })}</div>
-                  <div className="ft-num text-[20px] font-medium mt-1.5 mb-0.5">{formatCurrency(views[dateType].initial)}</div>
+                  <div className={cn("ft-num text-[20px] font-medium mt-1.5 mb-0.5", isPrivacyMode && "ft-priv")}>{formatCurrency(views[dateType].initial)}</div>
                   <div className="ft-dim text-[11.5px]">{format(period.from, 'd MMM yyyy', { locale: dateLocale })}</div>
                 </div>
                 <div className="ft-card ft-card-sunk p-[15px]">
                   <div className="ft-eyebrow">{t('reports.analysis.currentBalance', { defaultValue: 'Current' })}</div>
-                  <div className="ft-num text-[20px] font-medium mt-1.5 mb-0.5">{formatCurrency(chartFinalBalance)}</div>
+                  <div className={cn("ft-num text-[20px] font-medium mt-1.5 mb-0.5", isPrivacyMode && "ft-priv")}>{formatCurrency(chartFinalBalance)}</div>
                   <div className="ft-dim text-[11.5px]">{t('reports.analysis.today', { defaultValue: 'today' })}</div>
                 </div>
                 <div className="ft-card ft-card-sunk p-[15px]">
                   <div className="ft-eyebrow">{t('reports.analysis.projectedEnd', { defaultValue: 'Projected end' })}</div>
-                  <div className={cn("ft-num text-[20px] font-medium mt-1.5 mb-0.5", projectedFinalBalance >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                  <div className={cn("ft-num text-[20px] font-medium mt-1.5 mb-0.5", projectedFinalBalance >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
                     {formatCurrency(projectedFinalBalance)}
                   </div>
                   <div className="ft-dim text-[11.5px]">
@@ -384,7 +389,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                     {dateType === 'value'
                       ? t('reports.analysis.usingValueDate', { defaultValue: 'Using value date' })
                       : t('reports.analysis.usingAccountingDate', { defaultValue: 'Using accounting date' })} ·{' '}
-                    <b className={cn("font-medium font-mono tabular-nums", stats.netPeriodBalance >= 0 ? "text-foreground" : "text-[hsl(var(--neg))]")}>
+                    <b className={cn("font-medium font-mono tabular-nums", stats.netPeriodBalance >= 0 ? "text-foreground" : "text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
                       {formatCurrency(stats.netPeriodBalance)}
                     </b>{' '}
                     {t('reports.analysis.net', { defaultValue: 'net' })}
@@ -399,7 +404,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                     {views[dateType].refundedCount > 0 && (
                       <>
                         {views[dateType].excludedCount > 0 && ' · '}
-                        <b className="font-medium font-mono text-foreground">{formatCurrency(views[dateType].refundOffset)}</b>{' '}
+                        <b className={cn("font-medium font-mono text-foreground", isPrivacyMode && "ft-priv")}>{formatCurrency(views[dateType].refundOffset)}</b>{' '}
                         {t('reports.analysis.inRefundsNetted', { defaultValue: 'refunds netted' })}
                       </>
                     )}
@@ -407,7 +412,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                       <>
                         {(views[dateType].excludedCount > 0 || views[dateType].refundedCount > 0) && ' · '}
                         {t('reports.analysis.valueDiffersBy', { defaultValue: 'value date differs by' })}{' '}
-                        <b className={cn("font-medium font-mono", dateShiftDelta >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                        <b className={cn("font-medium font-mono", dateShiftDelta >= 0 ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
                           {dateShiftDelta >= 0 ? '+' : '−'}{formatCurrency(Math.abs(dateShiftDelta))}
                         </b>
                       </>
@@ -460,10 +465,10 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                             {isCurrent && <> · <b className="font-medium text-foreground">{t('reports.analysis.current', { defaultValue: 'current' })}</b></>}
                           </div>
                         </td>
-                        <td className="border-b border-line px-3 py-2.5 text-right font-mono font-medium tabular-nums text-foreground last:border-b-0">{formatCurrency(v.initial)}</td>
-                        <td className="border-b border-line px-3 py-2.5 text-right font-mono font-medium tabular-nums text-[hsl(var(--pos))] last:border-b-0">+{formatCurrency(v.income)}</td>
-                        <td className="border-b border-line px-3 py-2.5 text-right font-mono font-medium tabular-nums text-[hsl(var(--neg))] last:border-b-0">−{formatCurrency(v.expenses)}</td>
-                        <td className={cn("border-b border-line px-3 py-2.5 text-right font-mono tabular-nums last:border-b-0", isCurrent ? "font-semibold" : "font-medium")}>
+                        <td className={cn("border-b border-line px-3 py-2.5 text-right font-mono font-medium tabular-nums text-foreground last:border-b-0", isPrivacyMode && "ft-priv")}>{formatCurrency(v.initial)}</td>
+                        <td className={cn("border-b border-line px-3 py-2.5 text-right font-mono font-medium tabular-nums text-[hsl(var(--pos))] last:border-b-0", isPrivacyMode && "ft-priv")}>+{formatCurrency(v.income)}</td>
+                        <td className={cn("border-b border-line px-3 py-2.5 text-right font-mono font-medium tabular-nums text-[hsl(var(--neg))] last:border-b-0", isPrivacyMode && "ft-priv")}>−{formatCurrency(v.expenses)}</td>
+                        <td className={cn("border-b border-line px-3 py-2.5 text-right font-mono tabular-nums last:border-b-0", isCurrent ? "font-semibold" : "font-medium", isPrivacyMode && "ft-priv")}>
                           {formatCurrency(v.net)}
                         </td>
                       </tr>
@@ -479,7 +484,7 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                 </span>
                 {Math.abs(chartFinalBalance - views.real.finalBalance) > 0.01 && (
                   <span className="font-mono text-[10.5px]">
-                    {t('reports.analysis.chartEndpoint', { defaultValue: 'Chart endpoint' })}: <b className="font-medium text-foreground">{formatCurrency(chartFinalBalance)}</b>
+                    {t('reports.analysis.chartEndpoint', { defaultValue: 'Chart endpoint' })}: <b className={cn("font-medium text-foreground", isPrivacyMode && "ft-priv")}>{formatCurrency(chartFinalBalance)}</b>
                   </span>
                 )}
               </div>
@@ -534,7 +539,8 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                   </div>
                 </div>
                 <span className={cn("ft-row-amt",
-                  tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>
+                  tx.type === 'income' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]",
+                  isPrivacyMode && "ft-priv")}>
                   {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
                 </span>
               </div>
@@ -546,13 +552,17 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
   );
 };
 
-const SummaryTile = ({ label, value, tone }: { label: string; value: string; tone: 'pos' | 'neg' }) => (
-  <div className={cn("rounded-[15px] border p-[15px]",
-    tone === 'pos'
-      ? "border-transparent bg-[hsl(var(--pos-soft))]"
-      : "border-transparent bg-[hsl(var(--neg-soft))]")}>
-    <div className="ft-eyebrow">{label}</div>
-    <div className={cn("ft-num text-[20px] font-medium mt-1.5 leading-none",
-      tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]")}>{value}</div>
-  </div>
-);
+const SummaryTile = ({ label, value, tone }: { label: string; value: string; tone: 'pos' | 'neg' }) => {
+  const { isPrivacyMode } = usePrivacy();
+  return (
+    <div className={cn("rounded-[15px] border p-[15px]",
+      tone === 'pos'
+        ? "border-transparent bg-[hsl(var(--pos-soft))]"
+        : "border-transparent bg-[hsl(var(--neg-soft))]")}>
+      <div className="ft-eyebrow">{label}</div>
+      <div className={cn("ft-num text-[20px] font-medium mt-1.5 leading-none",
+        tone === 'pos' ? "text-[hsl(var(--pos))]" : "text-[hsl(var(--neg))]",
+        isPrivacyMode && "ft-priv")}>{value}</div>
+    </div>
+  );
+};

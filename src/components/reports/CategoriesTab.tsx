@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CategoryTransactionsModal } from "@/components/CategoryTransactionsModal";
@@ -37,6 +38,7 @@ const getUpcomingForCategory = (catName: string, upcomingItems?: PeriodRecurring
 export const CategoriesTab = ({ categoryChartData, transactions, periodStart, periodEnd, includeUpcoming, upcomingItems, projectedExpenses, dateType }: CategoriesTabProps) => {
   const isMobile = useIsMobile();
   const { preferences, formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -119,7 +121,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
       for (const item of upcomingItems) {
         if (item.futureOccurrences <= 0) continue;
         const catName = item.recurring.category?.name || 'Sans catégorie';
-        const catColor = item.recurring.category?.color || '#6b7280';
+        const catColor = item.recurring.category?.color || 'hsl(var(--muted-foreground))';
         const existing = merged.get(catName);
         if (existing) {
           existing.projected += item.futurePeriodAmount;
@@ -171,83 +173,86 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
 
   if (!hasAnyData) {
     return (
-      <Card className="border-border">
-        <CardContent className="text-center py-12">
-          <TrendingDown className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">{t('reports.noExpensesFound')}</p>
-        </CardContent>
-      </Card>
+      <div className="ft-card">
+        <div className="ft-empty">
+          <TrendingDown className="h-8 w-8 opacity-40" />
+          <span className="ft-empty-title">{t('reports.noExpensesFound')}</span>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {/* Stats Cards */}
-      <div className={cn("grid gap-2 ", includeUpcoming ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
-        <Card className="">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-destructive/10">
-                <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-destructive" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.realExpenses')}</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-destructive">{formatCurrency(totalRealSpent)}</p>
-          </CardContent>
-        </Card>
+    <div className="flex flex-col gap-3.5">
+      {/* Summary — same .ft-kpi tiles as the hero one scroll position above */}
+      <div className={includeUpcoming ? "ft-g3" : "ft-g4"}>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon neg" aria-hidden>
+              <TrendingDown className="h-[15px] w-[15px]" />
+            </span>
+            <span className="ft-kpi-label">{t('reports.realExpenses')}</span>
+          </div>
+          <div className={cn("ft-kpi-value text-[hsl(var(--neg))]", isPrivacyMode && "ft-priv")}>
+            {formatCurrency(totalRealSpent)}
+          </div>
+        </div>
 
         {includeUpcoming && (
-          <Card className=" border-dashed border-primary/30">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
-                  <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
-                </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.projected')}</span>
-              </div>
-              <p className="text-sm sm:text-base font-bold text-primary">{formatCurrency(totalProjected)}</p>
-              <p className="text-[9px] text-muted-foreground">{t('reports.totalExpected')}: {formatCurrency(grandTotal)}</p>
-            </CardContent>
-          </Card>
+          <div className="ft-kpi">
+            <div className="ft-row">
+              <span className="ft-kpi-icon acc" aria-hidden>
+                <Clock className="h-[15px] w-[15px]" />
+              </span>
+              <span className="ft-kpi-label">{t('reports.projected')}</span>
+            </div>
+            <div className={cn("ft-kpi-value text-accent-deep", isPrivacyMode && "ft-priv")}>
+              {formatCurrency(totalProjected)}
+            </div>
+            <div className="ft-kpi-foot">
+              <span className="ft-trunc">
+                {t('reports.totalExpected')}:{' '}
+                <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>
+                  {formatCurrency(grandTotal)}
+                </span>
+              </span>
+            </div>
+          </div>
         )}
 
-        <Card className="">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-primary/10">
-                <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
-              </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.totalBudget')}</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold">{formatCurrency(totalBudget)}</p>
-          </CardContent>
-        </Card>
+        <div className="ft-kpi">
+          <div className="ft-row">
+            <span className="ft-kpi-icon acc" aria-hidden>
+              <Target className="h-[15px] w-[15px]" />
+            </span>
+            <span className="ft-kpi-label">{t('reports.totalBudget')}</span>
+          </div>
+          <div className={cn("ft-kpi-value", isPrivacyMode && "ft-priv")}>
+            {formatCurrency(totalBudget)}
+          </div>
+        </div>
 
         {!includeUpcoming && (
           <>
-            <Card className="">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-orange-500/10">
-                    <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-500" />
-                  </div>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.exceeded')}</span>
-                </div>
-                <p className="text-sm sm:text-base font-bold text-orange-500">{overBudgetCategories.length}</p>
-              </CardContent>
-            </Card>
+            <div className="ft-kpi">
+              <div className="ft-row">
+                <span className="ft-kpi-icon warn" aria-hidden>
+                  <AlertTriangle className="h-[15px] w-[15px]" />
+                </span>
+                <span className="ft-kpi-label">{t('reports.exceeded')}</span>
+              </div>
+              <div className="ft-kpi-value text-warn">{overBudgetCategories.length}</div>
+            </div>
 
-            <Card className="">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-7 w-7 rounded-lg grid place-items-center bg-success/10">
-                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-success" />
-                  </div>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">{t('reports.underBudget')}</span>
-                </div>
-                <p className="text-sm sm:text-base font-bold text-success">{underBudgetCategories.length}</p>
-              </CardContent>
-            </Card>
+            <div className="ft-kpi">
+              <div className="ft-row">
+                <span className="ft-kpi-icon pos" aria-hidden>
+                  <CheckCircle2 className="h-[15px] w-[15px]" />
+                </span>
+                <span className="ft-kpi-label">{t('reports.underBudget')}</span>
+              </div>
+              <div className="ft-kpi-value text-[hsl(var(--pos))]">{underBudgetCategories.length}</div>
+            </div>
           </>
         )}
       </div>
@@ -267,7 +272,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                     labelLine={false}
                     outerRadius={isMobile ? 70 : 85}
                     innerRadius={isMobile ? 45 : 55}
-                    fill="#8884d8"
                     dataKey="value"
                     paddingAngle={2}
                     strokeWidth={0}
@@ -302,16 +306,16 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         {chartData[hoveredIndex].name}
                       </span>
                     </div>
-                    <span className="text-base sm:text-lg font-bold tabular-nums leading-tight">
+                    <span className={cn("text-base sm:text-lg font-semibold font-mono tabular-nums leading-tight", isPrivacyMode && "ft-priv")}>
                       {formatCurrency(chartData[hoveredIndex].value)}
                     </span>
-                    <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">
-                      {((chartData[hoveredIndex].value / totalSpent) * 100).toFixed(1)}% {t('reports.ofTotal')}
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      <span className="font-mono tabular-nums">{((chartData[hoveredIndex].value / totalSpent) * 100).toFixed(1)}%</span> {t('reports.ofTotal')}
                     </span>
                   </>
                 ) : (
                   <>
-                    <span className="text-lg sm:text-xl font-bold tabular-nums">{formatCurrency(totalSpent)}</span>
+                    <span className={cn("text-lg sm:text-xl font-semibold font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(totalSpent)}</span>
                     <span className="text-[10px] sm:text-xs text-muted-foreground">
                       {includeUpcoming ? t('reports.totalExpected') : t('reports.totalLabel')}
                     </span>
@@ -336,7 +340,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-[10px] sm:text-xs font-medium truncate">{item.name}</p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">{percentage}%</p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground font-mono tabular-nums">{percentage}%</p>
                     </div>
                   </button>
                 );
@@ -398,10 +402,10 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                             <span className="text-xs font-medium truncate">{cat.name}</span>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4">
+                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 font-mono tabular-nums">
                               {pct}%
                             </Badge>
-                            <span className="text-[10px] sm:text-xs text-destructive font-semibold">
+                            <span className={cn("text-[10px] sm:text-xs text-destructive font-semibold font-mono tabular-nums", isPrivacyMode && "ft-priv")}>
                               +{formatCurrency(overAmount)}
                             </span>
                           </div>
@@ -442,11 +446,11 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                             )}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-mono tabular-nums">
                               {pct}%
                             </Badge>
                             <span className="text-[10px] sm:text-xs text-success font-medium">
-                              {formatCurrency(remaining)} {t('reports.remaining')}
+                              <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(remaining)}</span> {t('reports.remaining')}
                             </span>
                           </div>
                         </button>
@@ -520,22 +524,23 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {category.budget > 0 && (
-                        <Badge 
+                        <Badge
                           variant={isOverBudget ? "destructive" : "secondary"}
-                          className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 sm:h-5"
+                          className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 sm:h-5 font-mono tabular-nums"
                         >
                           {percentage.toFixed(0)}%
                         </Badge>
                       )}
                       <div className="text-right">
                         <span className={cn(
-                          "font-bold text-xs sm:text-sm",
-                          isOverBudget ? "text-destructive" : "text-foreground"
+                          "font-semibold text-xs sm:text-sm font-mono tabular-nums",
+                          isOverBudget ? "text-destructive" : "text-foreground",
+                          isPrivacyMode && "ft-priv"
                         )}>
                           {formatCurrency(effectiveSpent)}
                         </span>
                         {includeUpcoming && projected > 0 && (
-                          <span className="text-[9px] text-primary block">
+                          <span className={cn("text-[9px] text-accent-deep block", isPrivacyMode && "ft-priv")}>
                             {t('reports.ofWhichProjected', { amount: formatCurrency(projected) })}
                           </span>
                         )}
@@ -555,12 +560,12 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         />
                       </div>
                       <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
-                        <span>{t('reports.budget')}: {formatCurrency(category.budget)}</span>
+                        <span>{t('reports.budget')}: <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(category.budget)}</span></span>
                         <span className={cn(
                           "font-medium",
                           remaining > 0 ? "text-success" : "text-destructive"
                         )}>
-                          {remaining >= 0 ? t('reports.remains') : t('reports.overage')}: {formatCurrency(Math.abs(remaining))}
+                          {remaining >= 0 ? t('reports.remains') : t('reports.overage')}: <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(Math.abs(remaining))}</span>
                         </span>
                       </div>
                     </div>
@@ -598,7 +603,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                     <div className="flex items-center gap-2 min-w-0">
                       <div
                         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: item.recurring.category?.color || '#94a3b8' }}
+                        style={{ backgroundColor: item.recurring.category?.color || 'hsl(var(--muted-foreground))' }}
                       />
                       <div className="min-w-0">
                         <span className="text-xs font-medium truncate block">{resolveNamePlaceholders(item.recurring.description, parseLocalDate(item.occurrenceDetails?.find(d => d.isFuture)?.date || item.recurring.next_due_date))}</span>
@@ -607,7 +612,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                         </span>
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-primary flex-shrink-0">
+                    <span className={cn("text-xs font-semibold text-accent-deep flex-shrink-0 font-mono tabular-nums", isPrivacyMode && "ft-priv")}>
                       {formatCurrency(item.futurePeriodAmount)}
                     </span>
                   </div>

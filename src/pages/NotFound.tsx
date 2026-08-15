@@ -18,7 +18,7 @@ const NotFound = () => {
         style={{ background: "radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.10), transparent 60%)" }}
       />
       <div className="ft-card w-full max-w-md p-8 sm:p-10 relative text-center">
-        <div className="ft-eyebrow mb-2">Error 404</div>
+        <div className="ft-eyebrow mb-2">{t("common.error", { defaultValue: "Error" })} 404</div>
         <h1 className="font-mono text-6xl sm:text-7xl font-semibold tracking-tight mb-3">404</h1>
         <p className="text-sm sm:text-base text-muted-foreground mb-6">
           {t("common.pageNotFound")}

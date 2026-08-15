@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -35,6 +35,10 @@ import {
 } from "@/components/ui/sheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import {
+  CategoryMonthsChart,
+  type CategoryMonth,
+} from "@/components/budget/CategoryMonthsChart";
 import { EditCategoryModal } from "@/components/EditCategoryModal";
 import { NewCategoryModal } from "@/components/NewCategoryModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +55,7 @@ import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useSpecialBudgets, type SpecialBudget } from "@/hooks/useSpecialBudgets";
 import { useSavingsGoals } from "@/hooks/useSavingsGoals";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { SpecialBudgetModal } from "@/components/SpecialBudgetModal";
 import { SpecialBudgetDetailModal } from "@/components/SpecialBudgetDetailModal";
 import {
@@ -62,16 +67,18 @@ import {
 } from "@/lib/specialBudgetUtils";
 import { Plane as PlaneEmptyIcon } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
-import { resolveDebtForRecurring } from "@/lib/recurringAmount";
+import {
+  advanceDate,
+  forEachFutureCharge,
+  type ScheduleContext,
+} from "@/lib/scheduledCharges";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/lib/errorMessage";
 import { computeCategoryNets } from "@/lib/reportsEngine";
+import { fr as frLocale, enUS as enLocale } from "date-fns/locale";
 import {
   addDays,
   addMonths,
-  addQuarters,
-  addWeeks,
-  addYears,
   differenceInCalendarDays,
   endOfMonth,
   endOfYear,
@@ -125,11 +132,38 @@ interface CategoryStats {
    * through so the expanded panel can chart it without recomputing.
    */
   history: number[];
+  /**
+   * Six months back to three ahead, oldest first: settled spend, the current
+   * month split at today, and what the schedules have already committed.
+   */
+  months: CategoryMonth[];
 }
+
+type MonthKind = CategoryMonth["kind"];
 
 interface PeriodBuckets {
   count: number;
   bucketOf: (d: Date) => number;
+}
+
+/**
+ * A formatted amount that honours privacy mode.
+ *
+ * This page had no privacy support at all: every cap, every spend and every
+ * remaining figure rendered in the clear with the mask switched on, which is
+ * the one screen where the mask most obviously matters. Rather than thread a
+ * `masked` prop through the card, the sheet and the special-budget section,
+ * the component reads the context itself — the mask is a property of the
+ * figure, not of whoever happens to be rendering it.
+ */
+function Money({ v, className }: { v: number; className?: string }) {
+  const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
+  return (
+    <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv", className)}>
+      {formatCurrency(v)}
+    </span>
+  );
 }
 
 // =============================================================================
@@ -192,21 +226,6 @@ function niceRoundStep(n: number): number {
 function niceRound(n: number): number {
   if (n <= 0) return 0;
   return Math.round(n / niceRoundStep(n)) * niceRoundStep(n);
-}
-
-function advanceDate(date: Date, recurrenceType: RecurringTransaction["recurrence_type"]): Date {
-  switch (recurrenceType) {
-    case "weekly":
-      return addWeeks(date, 1);
-    case "monthly":
-      return addMonths(date, 1);
-    case "quarterly":
-      return addQuarters(date, 1);
-    case "yearly":
-      return addYears(date, 1);
-    default:
-      return addMonths(date, 1);
-  }
 }
 
 function effectiveMonthsBetween(from: Date, to: Date): number {
@@ -322,6 +341,7 @@ function TrendChart({
   period: PeriodSpec;
   formatCurrency: (n: number) => string;
 }) {
+  const { isPrivacyMode } = usePrivacy();
   const W = 520;
   const H = 168;
   const padL = 6;
@@ -417,6 +437,7 @@ function TrendChart({
             fontSize={10}
             fontFamily="Geist Mono, ui-monospace, monospace"
             fill="hsl(var(--fg-dim))"
+            className={cn(isPrivacyMode && "ft-priv")}
           >
             {formatCurrency(totalBudget)}
           </text>
@@ -499,6 +520,7 @@ function BudgetCard({
   formatCurrency,
   t,
 }: BudgetCardProps) {
+  const { isPrivacyMode } = usePrivacy();
   const used = stat.spent + (includeProjected ? stat.projected : 0);
   const budget = stat.periodBudget;
   const remaining =
@@ -547,7 +569,7 @@ function BudgetCard({
             })}
             {" · "}
             {t("budget.avgShort", { defaultValue: "avg." })}{" "}
-            {formatCurrency(stat.monthlyAvg)}/{t("budget.month", { defaultValue: "mo" })}
+            <Money v={stat.monthlyAvg} />/{t("budget.month", { defaultValue: "mo" })}
           </div>
         </div>
 
@@ -570,7 +592,7 @@ function BudgetCard({
                 {stat.projected > 0 && (
                   <span className="whitespace-nowrap">
                     {t("budget.projectedShort", { defaultValue: "projected" })}{" "}
-                    {formatCurrency(stat.spent + stat.projected)}
+                    <Money v={stat.spent + stat.projected} />
                   </span>
                 )}
               </div>
@@ -584,13 +606,17 @@ function BudgetCard({
 
         {/* Spent */}
         <div className="ft-hide-sm text-right min-w-0">
-          <div className="font-mono text-[13.5px] font-medium tabular-nums truncate">
-            {formatCurrency(used)}
+          <div className="text-[13.5px] font-medium truncate">
+            <Money v={used} />
           </div>
-          <div className="font-mono text-[11px] text-fg-dim tabular-nums truncate">
-            {budget != null
-              ? `${t("budget.outOf", { defaultValue: "of" })} ${formatCurrency(budget)}`
-              : "—"}
+          <div className="text-[11px] text-fg-dim truncate">
+            {budget != null ? (
+              <>
+                {t("budget.outOf", { defaultValue: "of" })} <Money v={budget} />
+              </>
+            ) : (
+              "—"
+            )}
           </div>
         </div>
 
@@ -602,11 +628,11 @@ function BudgetCard({
             <>
               <div
                 className={cn(
-                  "font-mono text-[13.5px] font-medium tabular-nums truncate",
+                  "text-[13.5px] font-medium truncate",
                   remaining < 0 && "text-neg"
                 )}
               >
-                {formatCurrency(Math.abs(remaining))}
+                <Money v={Math.abs(remaining)} />
               </div>
               <div className="text-[11px] text-fg-dim truncate">
                 {remaining < 0
@@ -644,52 +670,27 @@ function BudgetCard({
         </div>
       )}
 
-      {/* Expanded detail — the design's three-column panel, dropped onto the
-          sunk surface and indented so it lines up under the category name:
-          six months of history, the period's biggest spends, and the cap
-          editor. */}
+      {/* Expanded detail. The monthly chart takes the full width of the
+          panel — ten bars in a third of it were unreadable — and the two
+          things you act on afterwards, the biggest spends and the cap, sit
+          under it as a pair. */}
       {expanded && (
         <div className="bg-bg-subtle border-t border-line-soft pt-1 pb-5 pl-[22px] pr-[22px] wide:pl-[68px]">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 mt-3.5">
-            {/* Six trailing months. `history` is newest-first, so it is read
-                back to front to run left-to-right in time. */}
-            <div>
-              <div className="ft-eyebrow mb-2">
-                {t("budget.last6Months", { defaultValue: "Last 6 months" })}
-              </div>
-              {(() => {
-                const series = [...stat.history].reverse();
-                const peak = Math.max(...series.map((v) => Math.max(0, v)), 0);
-                return (
-                  <>
-                    <div className="flex items-end gap-[5px] h-[54px]">
-                      {series.map((v, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 min-w-0"
-                          style={{
-                            height: `${peak > 0 ? Math.max(3, (Math.max(0, v) / peak) * 100) : 3}%`,
-                            background:
-                              i === series.length - 1
-                                ? stat.category.color
-                                : `color-mix(in oklab, ${stat.category.color} 30%, transparent)`,
-                            borderRadius: "4px 4px 2px 2px",
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-[10px] text-fg-dim mt-[5px]">
-                      {series.map((_, i) => (
-                        <span key={i}>
-                          {format(subMonths(new Date(), series.length - i), "MMM")}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
+          <div className="mt-3.5">
+            <div className="ft-eyebrow mb-2">
+              {t("budget.monthByMonth", { defaultValue: "Month by month" })}
             </div>
+            <CategoryMonthsChart
+              months={stat.months}
+              cap={stat.category.budget != null ? Number(stat.category.budget) : null}
+              color={stat.category.color}
+              formatCurrency={formatCurrency}
+              masked={isPrivacyMode}
+              t={t}
+            />
+          </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mt-4">
             {/* Biggest spends of the period. */}
             <div>
               <div className="ft-eyebrow mb-2">
@@ -702,9 +703,7 @@ function BudgetCard({
                     className="flex items-center justify-between gap-3 text-[12.5px]"
                   >
                     <span className="truncate">{d.description}</span>
-                    <span className="font-mono whitespace-nowrap">
-                      {formatCurrency(d.amount)}
-                    </span>
+                    <Money v={d.amount} className="whitespace-nowrap" />
                   </div>
                 ))}
                 {stat.topDrivers.length === 0 && (
@@ -738,7 +737,7 @@ function BudgetCard({
                   {t("budget.suggestedFromHistory", {
                     defaultValue: "Suggested from history:",
                   })}{" "}
-                  <b className="font-mono">{formatCurrency(stat.suggested)}</b>
+                  <Money v={stat.suggested} className="font-semibold" />
                   {" · "}
                   <button
                     type="button"
@@ -762,14 +761,14 @@ function BudgetCard({
                 <span className="text-muted-foreground">
                   {t("budget.breakdownGross", { defaultValue: "Charged" })}
                 </span>
-                <span className="font-mono">{formatCurrency(stat.gross)}</span>
+                <Money v={stat.gross} />
               </div>
               {stat.refunded > 0 && (
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">
                     {t("budget.breakdownRefunded", { defaultValue: "Refunded" })}
                   </span>
-                  <span className="font-mono text-pos">−{formatCurrency(stat.refunded)}</span>
+                  <Money v={stat.refunded} className="text-pos before:content-['−']" />
                 </div>
               )}
               {/* Income filed here that says it came back on this category
@@ -780,12 +779,12 @@ function BudgetCard({
                   <span className="text-muted-foreground">
                     {t("budget.breakdownOffset", { defaultValue: "Came back on this category" })}
                   </span>
-                  <span className="font-mono text-pos">−{formatCurrency(stat.offsetIncome)}</span>
+                  <Money v={stat.offsetIncome} className="text-pos before:content-['−']" />
                 </div>
               )}
               <div className="flex items-center justify-between text-[11px] font-medium border-t border-line/60 pt-1 mt-0.5">
                 <span>{t("budget.breakdownNet", { defaultValue: "Counted against budget" })}</span>
-                <span className="font-mono">{formatCurrency(stat.spent)}</span>
+                <Money v={stat.spent} />
               </div>
             </div>
           )}
@@ -891,6 +890,7 @@ function BudgetEditSheet({
   formatCurrency: (n: number) => string;
 }) {
   const { t } = useTranslation();
+  const { isPrivacyMode } = usePrivacy();
   const isMobile = useIsMobile();
   const [val, setVal] = useState<number>(0);
   const [saving, setSaving] = useState(false);
@@ -985,7 +985,7 @@ function BudgetEditSheet({
             </div>
             {delta != null && delta !== 0 && (
               <div className="mt-2 text-xs tabular-nums text-muted-foreground">
-                {delta > 0 ? "▲" : "▼"} {formatCurrency(Math.abs(delta))}{" "}
+                {delta > 0 ? "▲" : "▼"} <Money v={Math.abs(delta)} />{" "}
                 {t("budget.vsCurrent", { defaultValue: "vs current budget" })}
               </div>
             )}
@@ -1002,7 +1002,7 @@ function BudgetEditSheet({
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold">
+                <div className={cn("text-sm font-semibold", isPrivacyMode && "ft-priv")}>
                   {t("budget.suggestion", {
                     defaultValue: "Suggestion: {{amt}} / month",
                     amt: formatCurrency(suggestedMonthly),
@@ -1026,19 +1026,19 @@ function BudgetEditSheet({
             <div className="grid grid-cols-2 gap-2.5">
               <ContextCell
                 label={t("budget.statSpent", { defaultValue: "Spent" })}
-                value={formatCurrency(stat.spent)}
+                value={<Money v={stat.spent} />}
               />
               <ContextCell
                 label={t("budget.statProjected", { defaultValue: "Projected" })}
-                value={formatCurrency(stat.projected)}
+                value={<Money v={stat.projected} />}
               />
               <ContextCell
                 label={t("budget.statAvg", { defaultValue: "Avg / mo" })}
-                value={formatCurrency(stat.monthlyAvg)}
+                value={<Money v={stat.monthlyAvg} />}
               />
               <ContextCell
                 label={t("budget.statPrev", { defaultValue: "Prev period" })}
-                value={formatCurrency(stat.prevSpent)}
+                value={<Money v={stat.prevSpent} />}
               />
             </div>
           </div>
@@ -1064,7 +1064,7 @@ function BudgetEditSheet({
   );
 }
 
-function ContextCell({ label, value }: { label: string; value: string }) {
+function ContextCell({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="bg-bg-subtle border border-line rounded-lg px-3.5 py-3">
       <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
@@ -1169,7 +1169,9 @@ interface PeriodSpec {
 // =============================================================================
 
 const Budget = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { isPrivacyMode } = usePrivacy();
+  const dateLocale = i18n.language === "fr" ? frLocale : enLocale;
   const { toast } = useToast();
   const navigate = useNavigate();
   const { categories: allCategories, transactions, recurringTransactions, refetch } = useFinancialData();
@@ -1196,7 +1198,7 @@ const Budget = () => {
     () => allCategories.filter((c) => c.budget == null && !everSpent.has(c.id)),
     [allCategories, everSpent],
   );
-  const { installmentPayments } = useInstallmentPayments();
+  const { installmentPayments, installmentRecords } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { specialBudgets } = useSpecialBudgets();
   const { goals: savingsGoals } = useSavingsGoals();
@@ -1377,179 +1379,142 @@ const Budget = () => {
     [preferences.dateType]
   );
 
-  // --- projection (preserved verbatim) -----------------------------------
+  // --- projection ---------------------------------------------------------
+  // The period's share of what is still to come, bucketed onto the period's
+  // own x-axis. The rule-walking lives in `forEachFutureCharge` so that this
+  // and the per-category monthly chart cannot drift apart about when a plan
+  // or a debt stops.
+  const forecastCtx = useMemo(
+    () => ({
+      recurringTransactions,
+      installmentPayments,
+      installmentRecords,
+      debts,
+      scheduledDebtPayments,
+    }),
+    [recurringTransactions, installmentPayments, installmentRecords, debts, scheduledDebtPayments]
+  );
+
   const projectedByCategory = useMemo(() => {
     type Entry = { total: number; series: number[] };
     const map = new Map<string, Entry>();
     if (!includeProjected || period.to < today) return map;
 
-    const installmentMap = new Map(installmentPayments.map((ip) => [ip.id, ip]));
-    const sdpByDebtMonth = new Map<string, number>();
-    for (const sp of scheduledDebtPayments) {
-      sdpByDebtMonth.set(`${sp.debt_id}:${sp.scheduled_date.substring(0, 7)}`, sp.scheduled_amount);
-    }
-
-    const effectiveAmount = (rt: RecurringTransaction, dateStr: string): number => {
-      const debt = resolveDebtForRecurring(rt, debts);
-      if (debt) {
-        const monthKey = dateStr.substring(0, 7);
-        const scheduled = sdpByDebtMonth.get(`${debt.id}:${monthKey}`);
-        if (scheduled !== undefined) return scheduled;
-        const nextUnpaid = scheduledDebtPayments.find(
-          (sp) => sp.debt_id === debt.id && !sp.is_paid
-        );
-        if (nextUnpaid) return nextUnpaid.scheduled_amount;
-        return debt.payment_amount > 0 ? debt.payment_amount : Number(rt.amount);
+    const from = period.from > today ? period.from : today;
+    forEachFutureCharge(forecastCtx, from, period.to, (categoryId, date, amount) => {
+      let entry = map.get(categoryId);
+      if (!entry) {
+        entry = { total: 0, series: new Array(period.buckets.count).fill(0) };
+        map.set(categoryId, entry);
       }
-      if (rt.installment_payment_id) {
-        const ip = installmentMap.get(rt.installment_payment_id);
-        if (ip && ip.installment_amount > 0) return ip.installment_amount;
-      }
-      return Number(rt.amount);
-    };
-
-    const isExpenseForBudget = (rt: RecurringTransaction): boolean => {
-      if (rt.type === "expense") return true;
-      if (rt.installment_payment_id && rt.type === "income") return true;
-      return false;
-    };
-
-    for (const rt of recurringTransactions) {
-      if (!rt.is_active) continue;
-      if (!isExpenseForBudget(rt)) continue;
-      if (!rt.category?.id) continue;
-      if (!rt.start_date || !rt.next_due_date) continue;
-
-      const endDate = rt.end_date ? parseLocalDate(rt.end_date) : null;
-      let effectiveEnd: Date | null = endDate;
-      const nextDue = parseLocalDate(rt.next_due_date);
-
-      if (rt.installment_payment_id) {
-        const ip = installmentMap.get(rt.installment_payment_id);
-        if (ip) {
-          if (!ip.is_active || ip.installment_amount <= 0) {
-            const stop = new Date(nextDue.getTime() - 86400000);
-            if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
-          } else {
-            const maxFuture = Math.max(
-              0,
-              Math.ceil(ip.remaining_amount / ip.installment_amount)
-            );
-            if (maxFuture <= 0) {
-              const stop = new Date(nextDue.getTime() - 86400000);
-              if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
-            } else {
-              let last = new Date(nextDue);
-              for (let i = 1; i < maxFuture; i++) {
-                last = advanceDate(last, rt.recurrence_type);
-              }
-              if (!effectiveEnd || last < effectiveEnd) effectiveEnd = last;
-            }
-          }
-        }
-      }
-
-      {
-        const debt = resolveDebtForRecurring(rt, debts);
-        if (debt) {
-          if (debt.status === "completed") {
-            const stop = new Date(nextDue.getTime() - 86400000);
-            if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
-          } else {
-            const unpaidCount = scheduledDebtPayments.filter(
-              (sp) => sp.debt_id === debt.id && !sp.is_paid
-            ).length;
-            const maxFuture =
-              unpaidCount > 0
-                ? unpaidCount
-                : debt.payment_amount > 0
-                ? Math.max(0, Math.ceil(debt.remaining_amount / debt.payment_amount))
-                : 0;
-            if (maxFuture <= 0) {
-              const stop = new Date(nextDue.getTime() - 86400000);
-              if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
-            } else {
-              let last = new Date(nextDue);
-              for (let i = 1; i < maxFuture; i++) {
-                last = advanceDate(last, rt.recurrence_type);
-              }
-              if (!effectiveEnd || last < effectiveEnd) effectiveEnd = last;
-            }
-          }
-        }
-      }
-
-      let cursor = new Date(nextDue);
-      cursor.setHours(0, 0, 0, 0);
-      const cap = 500;
-      let n = 0;
-      while (cursor <= period.to && n < cap) {
-        if (effectiveEnd && cursor > effectiveEnd) break;
-        if (cursor >= today && cursor >= period.from) {
-          const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-          const amt = effectiveAmount(rt, dateStr);
-          const idx = period.buckets.bucketOf(cursor);
-          let entry = map.get(rt.category.id);
-          if (!entry) {
-            entry = { total: 0, series: new Array(period.buckets.count).fill(0) };
-            map.set(rt.category.id, entry);
-          }
-          entry.total += amt;
-          if (idx >= 0) entry.series[idx] += amt;
-        }
-        cursor = advanceDate(cursor, rt.recurrence_type);
-        n++;
-      }
-    }
+      entry.total += amount;
+      const idx = period.buckets.bucketOf(date);
+      if (idx >= 0) entry.series[idx] += amount;
+    });
     return map;
-  }, [
-    recurringTransactions,
-    installmentPayments,
-    debts,
-    scheduledDebtPayments,
-    includeProjected,
-    period.from,
-    period.to,
-    period.buckets,
-    today,
-  ]);
+  }, [forecastCtx, includeProjected, period.from, period.to, period.buckets, today]);
 
-  // --- history (preserved) ----------------------------------------------
-  const historyByCategory = useMemo(() => {
-    const todayDate = new Date();
-    const monthsBack = 6;
-    const buckets: { from: Date; to: Date; key: string }[] = [];
-    for (let i = 1; i <= monthsBack; i++) {
-      const ref = subMonths(todayDate, i);
-      buckets.push({
+  // --- monthly series ----------------------------------------------------
+  // One calendar-month series per category, running from six months back to
+  // three months ahead, and the source of both the expanded panel's chart
+  // and the trailing history the suggestion is built from.
+  //
+  // Deliberately independent of the selected period: the panel answers "what
+  // does this category normally cost, and what is already committed", which
+  // does not change because the user is looking at Q1. It is also
+  // independent of the `includeProjected` toggle — that decides whether
+  // projections count toward the period's figures, while a bar labelled as
+  // scheduled is making no claim about the period at all.
+  const monthlySeries = useMemo(() => {
+    const TRAIL = 6;
+    const AHEAD = 3;
+
+    const months: { from: Date; to: Date; key: string; label: string; kind: MonthKind }[] = [];
+    for (let i = TRAIL; i >= -AHEAD; i--) {
+      const ref = subMonths(today, i);
+      months.push({
         from: startOfMonth(ref),
         to: endOfMonth(ref),
         key: format(ref, "yyyy-MM"),
+        label: format(ref, "MMM", { locale: dateLocale }),
+        kind: i > 0 ? "past" : i === 0 ? "current" : "future",
       });
     }
-    const byCat = new Map<string, Map<string, number>>();
+
+    const windowFrom = months[0].from;
+    const windowTo = months[months.length - 1].to;
+    const indexOfMonth = new Map(months.map((m, i) => [m.key, i]));
+    const monthKeyOf = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    const blank = () => ({
+      actual: new Array(months.length).fill(0),
+      forecast: new Array(months.length).fill(0),
+    });
+    const byCat = new Map<string, ReturnType<typeof blank>>();
+    const entry = (id: string) => {
+      let e = byCat.get(id);
+      if (!e) {
+        e = blank();
+        byCat.set(id, e);
+      }
+      return e;
+    };
+
     for (const tx of transactions) {
       if (!tx.category?.id) continue;
       const net = categorySpend(tx);
       if (net === 0) continue;
       const d = dateOf(tx);
-      const bucket = buckets.find((b) => d >= b.from && d <= b.to);
-      if (!bucket) continue;
-      let inner = byCat.get(tx.category.id);
-      if (!inner) {
-        inner = new Map();
-        byCat.set(tx.category.id, inner);
-      }
-      inner.set(bucket.key, (inner.get(bucket.key) ?? 0) + net);
+      if (d < windowFrom || d > windowTo) continue;
+      const idx = indexOfMonth.get(monthKeyOf(d));
+      if (idx === undefined) continue;
+      entry(tx.category.id).actual[idx] += net;
     }
-    const out = new Map<string, number[]>();
+
+    // From today, so the current month's bar splits at the present: settled
+    // below, still-to-come hatched above. Starting at the 1st would double
+    // every charge already paid this month.
+    forEachFutureCharge(forecastCtx, today, windowTo, (categoryId, date, amount) => {
+      const idx = indexOfMonth.get(monthKeyOf(date));
+      if (idx === undefined) return;
+      entry(categoryId).forecast[idx] += amount;
+    });
+
+    const out = new Map<string, CategoryMonth[]>();
     for (const cat of categories) {
-      const inner = byCat.get(cat.id);
-      const series = buckets.map((b) => inner?.get(b.key) ?? 0);
-      out.set(cat.id, series);
+      const e = byCat.get(cat.id);
+      out.set(
+        cat.id,
+        months.map((m, i) => ({
+          key: m.key,
+          label: m.label,
+          kind: m.kind,
+          actual: e?.actual[i] ?? 0,
+          forecast: e?.forecast[i] ?? 0,
+        })),
+      );
+    }
+    return { months: out, trail: TRAIL };
+  }, [transactions, categories, dateOf, forecastCtx, today, dateLocale]);
+
+  // The trailing six complete months, newest first — the shape `monthlyAvg`,
+  // `p75` and the suggested cap have always been fed. Sliced off the series
+  // above rather than scanned again, so the chart and the suggestion can
+  // never disagree about what a month cost.
+  const historyByCategory = useMemo(() => {
+    const out = new Map<string, number[]>();
+    for (const [id, series] of monthlySeries.months) {
+      out.set(
+        id,
+        series
+          .slice(0, monthlySeries.trail)
+          .map((m) => m.actual)
+          .reverse(),
+      );
     }
     return out;
-  }, [transactions, categories, dateOf]);
+  }, [monthlySeries]);
 
   // Refunds and paired income come from the engine so this page cannot
   // drift from the reports, the emails or Trace — they had each grown their
@@ -1619,6 +1584,7 @@ const Budget = () => {
       const pct = periodBudget != null && periodBudget > 0 ? used / periodBudget : 0;
       const status = statusOf(used, periodBudget, period.elapsedFraction);
 
+      const months = monthlySeries.months.get(category.id) ?? [];
       const history = historyByCategory.get(category.id) ?? [];
       const hasHistory = history.some((v) => v !== 0);
       const monthlyAvg =
@@ -1663,9 +1629,20 @@ const Budget = () => {
         topDrivers,
         txCount: driversInPeriod.length,
         history,
+        months,
       };
     });
-  }, [categories, transactions, dateOf, period, periodNets, projectedByCategory, historyByCategory, today]);
+  }, [
+    categories,
+    transactions,
+    dateOf,
+    period,
+    periodNets,
+    projectedByCategory,
+    historyByCategory,
+    monthlySeries,
+    today,
+  ]);
 
   // --- totals (preserved) -----------------------------------------------
   const totals = useMemo(() => {
@@ -2086,13 +2063,11 @@ const Budget = () => {
             </div>
 
             <div className="mt-3.5 mb-1">
-              <div
-                className="font-mono font-medium tabular-nums whitespace-nowrap text-[26px] sm:text-[34px] leading-none"
-                style={{ letterSpacing: "-.03em" }}
-              >
-                {formatCurrency(totals.totalUsed)}
-              </div>
-              <div className="text-[13.5px] text-fg-mute mt-0.5">
+              <Money
+                v={totals.totalUsed}
+                className="block font-medium whitespace-nowrap text-[26px] sm:text-[34px] leading-none tracking-[-.03em]"
+              />
+              <div className={cn("text-[13.5px] text-fg-mute mt-0.5", isPrivacyMode && "ft-priv")}>
                 {t("budget.outOfBudget", {
                   amt: formatCurrency(totals.totalBudget),
                   defaultValue: `of ${formatCurrency(totals.totalBudget)} budget`,
@@ -2146,7 +2121,7 @@ const Budget = () => {
                     <CheckCircle2 className="h-[13px] w-[13px]" />
                   )}
                 </div>
-                <div className="text-[12.5px] min-w-0">
+                <div className={cn("text-[12.5px] min-w-0", isPrivacyMode && "ft-priv")}>
                   <b>
                     {aheadOfPace
                       ? t("budget.overPace", {
@@ -2622,13 +2597,13 @@ function SpecialBudgetsSection({
           </span>
           <span className="h-3 w-px bg-line" />
           <span className="whitespace-nowrap">
-            <span className="font-mono font-semibold text-foreground">{formatCurrency(aggregate.engaged)}</span>{" "}
+            <Money v={aggregate.engaged} className="font-semibold text-foreground" />{" "}
             {t("specialBudgets.aggEngaged", { defaultValue: "engaged" })}
           </span>
           <span className="h-3 w-px bg-line" />
           <span className="whitespace-nowrap">
             {t("specialBudgets.aggOf", { defaultValue: "of" })}{" "}
-            <span className="font-mono">{formatCurrency(aggregate.committed)}</span>{" "}
+            <Money v={aggregate.committed} />{" "}
             {t("specialBudgets.aggCommitted", { defaultValue: "committed" })}
           </span>
           <div className="ft-progress-track thin flex-1 min-w-[80px]">
@@ -2705,6 +2680,7 @@ function SpecialBudgetCard({
   t,
 }: SpecialBudgetCardProps) {
   const { i18n } = useTranslation();
+  const { isPrivacyMode } = usePrivacy();
   const locale: "fr" | "en" = i18n.language === "fr" ? "fr" : "en";
 
   const c = useMemo(
@@ -2804,10 +2780,8 @@ function SpecialBudgetCard({
       <div>
         {/* Money row */}
         <div className="flex items-baseline gap-[7px] mb-[7px]">
-          <span className={cn("font-mono text-[19px] font-medium", c.over && "text-neg")}>
-            {formatCurrency(c.spent)}
-          </span>
-          <span className="text-[12px] text-fg-mute">
+          <Money v={c.spent} className={cn("text-[19px] font-medium", c.over && "text-neg")} />
+          <span className={cn("text-[12px] text-fg-mute", isPrivacyMode && "ft-priv")}>
             {t("budget.outOfBudget", {
               amt: formatCurrency(c.total),
               defaultValue: `of ${formatCurrency(c.total)} budget`,
@@ -2840,7 +2814,11 @@ function SpecialBudgetCard({
           <span className="truncate flex-1 min-w-0">
             {Math.round(c.ratio * 100)}%{" "}
             {t("specialBudgets.used", { defaultValue: "used" })}
-            {guidance ? ` · ${guidance}` : ""}
+            {guidance ? (
+              <span className={cn(isPrivacyMode && "ft-priv")}> · {guidance}</span>
+            ) : (
+              ""
+            )}
             {c.hot && (
               <span className="text-warn font-semibold ml-1.5">
                 · {t("specialBudgets.hotPace", { defaultValue: "high pace" })}
@@ -2848,7 +2826,11 @@ function SpecialBudgetCard({
             )}
           </span>
           <span
-            className={cn("whitespace-nowrap flex-shrink-0", c.remaining < 0 && "text-neg")}
+            className={cn(
+              "whitespace-nowrap flex-shrink-0 font-mono tabular-nums",
+              c.remaining < 0 && "text-neg",
+              isPrivacyMode && "ft-priv"
+            )}
           >
             {c.remaining >= 0
               ? `${formatCurrency(c.remaining)} ${t("specialBudgets.remainingShort", {

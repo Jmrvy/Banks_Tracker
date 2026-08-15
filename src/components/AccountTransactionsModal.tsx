@@ -67,7 +67,7 @@ export const AccountTransactionsModal = ({
             <span>{accountName}</span>
             <div className="flex items-center justify-between text-sm font-normal">
               <span className="text-muted-foreground">{bankName}</span>
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-semibold font-mono tabular-nums">
                 {formatCurrency(balance)}
               </span>
             </div>
@@ -91,11 +91,11 @@ export const AccountTransactionsModal = ({
                 <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
                   <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-bg-hover flex-shrink-0">
                     {transaction.type === 'income' ? (
-                      <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                      <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5 text-pos" />
                     ) : transaction.type === 'transfer' ? (
-                      <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                      <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 text-info" />
                     ) : (
-                      <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+                      <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 text-neg" />
                     )}
                   </div>
 
@@ -107,9 +107,9 @@ export const AccountTransactionsModal = ({
                           variant="outline"
                           className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5"
                           style={{
-                            backgroundColor: transaction.category.color,
-                            color: 'white',
-                            borderColor: transaction.category.color
+                            background: `color-mix(in oklab, ${transaction.category.color} 15%, transparent)`,
+                            color: transaction.category.color,
+                            borderColor: `color-mix(in oklab, ${transaction.category.color} 35%, transparent)`
                           }}
                         >
                           {transaction.category.name}
@@ -125,11 +125,11 @@ export const AccountTransactionsModal = ({
                 <div className="text-right ml-2 flex-shrink-0">
                   <div className="flex flex-col items-end gap-1">
                     <span
-                      className={`font-medium text-xs sm:text-sm ${
+                      className={`font-medium text-xs sm:text-sm font-mono tabular-nums ${
                         transaction.type === 'income'
-                          ? 'text-green-600'
+                          ? 'text-pos'
                           : transaction.type === 'transfer'
-                          ? 'text-blue-600'
+                          ? 'text-info'
                           : 'text-foreground'
                       }`}
                     >
@@ -141,7 +141,7 @@ export const AccountTransactionsModal = ({
                       }{formatCurrency(Math.abs(transaction.amount))}
                     </span>
                     <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                      Solde: {formatCurrency(transaction.balanceAfter)}
+                      Solde: <span className="font-mono tabular-nums">{formatCurrency(transaction.balanceAfter)}</span>
                     </span>
                   </div>
                 </div>

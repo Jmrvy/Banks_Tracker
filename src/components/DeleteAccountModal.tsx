@@ -179,9 +179,9 @@ export function DeleteAccountModal({ open, onOpenChange, account, onDeleted }: D
                     </ul>
                   )}
                   {inboundCount > 0 && (
-                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-[12px] leading-relaxed">
+                    <div className="rounded-md border border-warn/40 bg-warn-soft p-2.5 text-[12px] leading-relaxed">
                       <div className="flex items-start gap-2">
-                        <ArrowLeftRight className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                        <ArrowLeftRight className="h-3.5 w-3.5 text-warn mt-0.5 flex-shrink-0" />
                         <span>
                           {t('accounts.inboundTransfersNotice', {
                             defaultValue:

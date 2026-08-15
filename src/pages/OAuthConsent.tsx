@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InlineSpinner } from "@/components/LoadingSpinner";
 
 /**
@@ -23,14 +23,16 @@ type Details = {
   scope: string;
 };
 
-/** What went wrong, in terms the person looking at the screen can act on. */
-const describe = (e: unknown) => {
-  if (e instanceof Error) return e.message;
-  return typeof e === "string" ? e : "Unexpected error";
-};
-
 export default function OAuthConsent() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
+
+  /** What went wrong, in terms the person looking at the screen can act on. */
+  const describe = (e: unknown) => {
+    if (e instanceof Error) return e.message;
+    if (typeof e === "string") return e;
+    return t("oauth.unexpected", { defaultValue: "Unexpected error" });
+  };
   const authorizationId = params.get("authorization_id") ?? "";
   const [details, setDetails] = useState<Details | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,12 @@ export default function OAuthConsent() {
     (async () => {
       try {
         if (!authorizationId) {
-          setError("This link is missing its authorization_id. Start the connection again from the app that requested it.");
+          setError(
+            t("oauth.missingId", {
+              defaultValue:
+                "This link is missing its authorization_id. Start the connection again from the app that requested it.",
+            }),
+          );
           return;
         }
 
@@ -93,7 +100,11 @@ export default function OAuthConsent() {
       }
       if (!data?.redirect_url) {
         setBusy(false);
-        setError("The authorization server did not return a redirect target.");
+        setError(
+          t("oauth.noRedirect", {
+            defaultValue: "The authorization server did not return a redirect target.",
+          }),
+        );
         return;
       }
       window.location.href = data.redirect_url;
@@ -103,47 +114,70 @@ export default function OAuthConsent() {
     }
   };
 
-  const clientName = details?.client?.client_name?.trim() || "An application";
+  const clientName =
+    details?.client?.client_name?.trim() ||
+    t("oauth.anApplication", { defaultValue: "An application" });
   const scopes = (details?.scope ?? "").split(" ").filter(Boolean);
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <main className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.10), transparent 60%)",
+        }}
+        aria-hidden
+      />
+      <div className="ft-card w-full max-w-md p-6 sm:p-8 relative">
         {error ? (
           <>
-            <CardHeader>
-              <CardTitle>Connection request failed</CardTitle>
-              <CardDescription>{error}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                Try again
-              </Button>
-            </CardContent>
+            <div className="ft-eyebrow mb-1">
+              {t("oauth.eyebrow", { defaultValue: "Connection request" })}
+            </div>
+            <h1 className="ft-page-title text-xl sm:text-2xl">
+              {t("oauth.failedTitle", { defaultValue: "Connection request failed" })}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2 mb-5">{error}</p>
+            <Button variant="outline" className="h-10" onClick={() => window.location.reload()}>
+              {t("common.retry", { defaultValue: "Try again" })}
+            </Button>
           </>
         ) : !details ? (
-          <CardContent className="py-10 flex justify-center">
+          <div className="py-10 flex justify-center">
             <InlineSpinner />
-          </CardContent>
+          </div>
         ) : (
           <>
-            <CardHeader>
-              <CardTitle>Connect {clientName} to your account</CardTitle>
-              <CardDescription>
-                {clientName} will be able to read your accounts, transactions, budgets and
-                savings goals, and to record new transactions — acting as you.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+            <div className="ft-eyebrow mb-1">
+              {t("oauth.eyebrow", { defaultValue: "Connection request" })}
+            </div>
+            <h1 className="ft-page-title text-xl sm:text-2xl">
+              {t("oauth.title", {
+                defaultValue: "Connect {{name}} to your account",
+                name: clientName,
+              })}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              {t("oauth.body", {
+                defaultValue:
+                  "{{name}} will be able to read your accounts, transactions, budgets and savings goals, and to record new transactions — acting as you.",
+                name: clientName,
+              })}
+            </p>
+
+            <div className="flex flex-col gap-4 mt-6">
               {details.client.client_uri && (
                 <p className="text-xs text-muted-foreground break-all">
                   {details.client.client_uri}
                 </p>
               )}
               {scopes.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Requested permissions</p>
-                  <ul className="list-disc list-inside space-y-0.5">
+                <div className="rounded-lg border border-line bg-bg-subtle p-4">
+                  <p className="ft-eyebrow mb-2">
+                    {t("oauth.permissions", { defaultValue: "Requested permissions" })}
+                  </p>
+                  <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
                     {scopes.map((s) => (
                       <li key={s} className="font-mono">
                         {s}
@@ -153,17 +187,26 @@ export default function OAuthConsent() {
                 </div>
               )}
               <div className="flex gap-2">
-                <Button disabled={busy} onClick={() => decide(true)}>
-                  Approve
+                <Button
+                  disabled={busy}
+                  className="flex-1 h-10 font-semibold"
+                  onClick={() => decide(true)}
+                >
+                  {t("oauth.approve", { defaultValue: "Approve" })}
                 </Button>
-                <Button variant="outline" disabled={busy} onClick={() => decide(false)}>
-                  Deny
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  className="flex-1 h-10"
+                  onClick={() => decide(false)}
+                >
+                  {t("oauth.deny", { defaultValue: "Deny" })}
                 </Button>
               </div>
-            </CardContent>
+            </div>
           </>
         )}
-      </Card>
+      </div>
     </main>
   );
 }

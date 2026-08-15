@@ -55,6 +55,7 @@ import {
   type BudgetSummaryRow,
   type AverageStats,
 } from '@/components/SearchResultModal';
+import { paymentsLeft } from '@/lib/scheduledCharges';
 
 /** Recent-transaction icon driven by transaction type so colorblind
  *  users get a directional cue alongside the colour. */
@@ -360,7 +361,7 @@ export const CommandPalette = () => {
       if (rt.installment_payment_id) {
         const ip = installmentMap.get(rt.installment_payment_id);
         if (ip && ip.is_active && ip.installment_amount > 0) {
-          const maxFuture = Math.max(0, Math.ceil(ip.remaining_amount / ip.installment_amount));
+          const maxFuture = paymentsLeft(ip.remaining_amount, ip.installment_amount);
           if (maxFuture <= 0) {
             const stop = new Date(nextDue.getTime() - 86400000);
             if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
@@ -384,9 +385,7 @@ export const CommandPalette = () => {
           const maxFuture =
             unpaidCount > 0
               ? unpaidCount
-              : debt.payment_amount > 0
-              ? Math.max(0, Math.ceil(debt.remaining_amount / debt.payment_amount))
-              : 0;
+              : paymentsLeft(debt.remaining_amount, debt.payment_amount);
           if (maxFuture <= 0) {
             const stop = new Date(nextDue.getTime() - 86400000);
             if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;

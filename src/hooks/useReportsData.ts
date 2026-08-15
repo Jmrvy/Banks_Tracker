@@ -7,6 +7,11 @@ import { fr } from "date-fns/locale";
 import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
 import { filterByPeriod, computePeriodStats, statsForRange, computeInitialBalance, signedGlobalAmount, realNetChange, netExpenseAmount } from "@/lib/reportsEngine";
 import { resolvePeriodRange, priorPeriodRange } from "@/lib/periodUtils";
+import {
+  lastScheduledInstallment,
+  paymentsLeft,
+  type InstallmentScheduleRow,
+} from "@/lib/scheduledCharges";
 
 export interface ReportsPeriod {
   from: Date;
@@ -140,6 +145,10 @@ export interface UseReportsDataOptions {
    * Used by the Reports page to show income/expense tabs with a user-selectable date type
    * while keeping balance evolution on the accounting date. Avoids calling the hook twice. */
   secondaryDateType?: 'accounting' | 'value';
+  /** Per-instalment schedule rows, where the caller has them. When a plan
+   *  has rows they settle how many instalments are left; without them the
+   *  count is inferred from the balance. */
+  installmentRecords?: InstallmentScheduleRow[];
 }
 
 export const useReportsData = (
@@ -155,6 +164,7 @@ export const useReportsData = (
   debtPaymentInfos?: DebtPaymentInfo[],
 ) => {
   const skipHeavy = options?.skipHeavyComputations ?? false;
+  const installmentRecords = options?.installmentRecords;
   const { transactions, categories, accounts, recurringTransactions, loading } = useFinancialData();
   const { preferences } = useUserPreferences();
   
@@ -548,18 +558,31 @@ export const useReportsData = (
               effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
             }
           } else {
-            const maxFuture = Math.ceil(ip.remaining_amount / ip.installment_amount);
-            if (maxFuture <= 0) {
-              if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
-                effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
-              }
+            // A plan with rows knows its own last instalment. Inferring one
+            // from the balance overshoots whenever the final payment carries
+            // the rounding — `remaining` is then a cent above the nominal
+            // instalment and the division buys another whole occurrence.
+            const scheduledEnd = lastScheduledInstallment(
+              rt.installment_payment_id,
+              installmentRecords,
+            );
+            if (scheduledEnd) {
+              const end = parseLocalDate(scheduledEnd);
+              if (!effectiveEndDate || end < effectiveEndDate) effectiveEndDate = end;
             } else {
-              let lastOccurrence = new Date(nextDueDate);
-              for (let i = 1; i < maxFuture; i++) {
-                lastOccurrence = advanceDate(lastOccurrence, rt.recurrence_type);
-              }
-              if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
-                effectiveEndDate = lastOccurrence;
+              const maxFuture = paymentsLeft(ip.remaining_amount, ip.installment_amount);
+              if (maxFuture <= 0) {
+                if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
+                  effectiveEndDate = new Date(nextDueDate.getTime() - 86400000);
+                }
+              } else {
+                let lastOccurrence = new Date(nextDueDate);
+                for (let i = 1; i < maxFuture; i++) {
+                  lastOccurrence = advanceDate(lastOccurrence, rt.recurrence_type);
+                }
+                if (!effectiveEndDate || lastOccurrence < effectiveEndDate) {
+                  effectiveEndDate = lastOccurrence;
+                }
               }
             }
           }
@@ -578,8 +601,8 @@ export const useReportsData = (
           if (scheduledDebtPaymentInfos) {
             maxFuture = scheduledDebtPaymentInfos.filter(sp => sp.debt_id === linkedDebt.id && !sp.is_paid).length;
           }
-          if (maxFuture === 0 && linkedDebt.payment_amount > 0) {
-            maxFuture = Math.ceil(linkedDebt.remaining_amount / linkedDebt.payment_amount);
+          if (maxFuture === 0) {
+            maxFuture = paymentsLeft(linkedDebt.remaining_amount, linkedDebt.payment_amount);
           }
           if (maxFuture <= 0) {
             if (!effectiveEndDate || nextDueDate < effectiveEndDate) {
@@ -766,7 +789,7 @@ export const useReportsData = (
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
       gapBalance,
     };
-  }, [recurringTransactions, period, installmentPayments, debtInfos, scheduledDebtPaymentInfos]);
+  }, [recurringTransactions, period, installmentPayments, installmentRecords, debtInfos, scheduledDebtPaymentInfos]);
 
   // Augment balance evolution with projections from recurringData.periodItems
   // For future periods, adjust starting balance with gapBalance (projected recurring between today and period start)

@@ -24,6 +24,8 @@ import {
   DetailSheetHeader,
   DetailSheetTitle,
 } from "@/components/ui/detail-sheet";
+import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -114,6 +116,7 @@ export function SearchResultModal({
   const { t } = useTranslation();
   const { formatCurrency, preferences } = useUserPreferences();
   const dateLocale = useDateFnsLocale();
+  const { isPrivacyMode } = usePrivacy();
 
   // Display date respects the user's accounting-vs-value preference,
   // matching how StatsCards and the rest of the app pick a date.
@@ -374,37 +377,75 @@ export function SearchResultModal({
                         </div>
                         <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground tabular-nums">
                           {isForecasted ? (
-                            <span>
-                              <span className="text-foreground font-medium">
+                            <span className={cn(isPrivacyMode && "ft-priv")}>
+                              <span className="text-foreground font-medium font-mono tabular-nums">
                                 {formatCurrency(row.spent)}
                               </span>
-                              <span className="text-info/80">
+                              <span className="text-info/80 font-mono tabular-nums">
                                 {" +"}
                                 {formatCurrency(row.projectedSpend)}
                               </span>
                               {" / "}
-                              {formatCurrency(row.expectedBudget)}
+                              <span className="font-mono tabular-nums">
+                                {formatCurrency(row.expectedBudget)}
+                              </span>
                             </span>
                           ) : (
-                            <span>
-                              <span className="text-foreground font-medium">
+                            <span className={cn(isPrivacyMode && "ft-priv")}>
+                              <span className="text-foreground font-medium font-mono tabular-nums">
                                 {formatCurrency(row.spent)}
                               </span>
                               {" / "}
-                              {formatCurrency(row.expectedBudget)}
+                              <span className="font-mono tabular-nums">
+                                {formatCurrency(row.expectedBudget)}
+                              </span>
                             </span>
                           )}
                           {isForecasted ? (
-                            <span className={breachedForecast ? "text-warning font-medium" : ""}>
-                              {breachedForecast
-                                ? `+${formatCurrency(row.spent + row.projectedSpend - row.expectedBudget)} ${t("search.overBy", { defaultValue: "over" })}`
-                                : `${formatCurrency(row.expectedBudget - row.spent - row.projectedSpend)} ${t("search.left", { defaultValue: "left" })}`}
+                            <span
+                              className={cn(
+                                breachedForecast && "text-warning font-medium",
+                                isPrivacyMode && "ft-priv"
+                              )}
+                            >
+                              {breachedForecast ? (
+                                <>
+                                  <span className="font-mono tabular-nums">
+                                    +{formatCurrency(row.spent + row.projectedSpend - row.expectedBudget)}
+                                  </span>{" "}
+                                  {t("search.overBy", { defaultValue: "over" })}
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-mono tabular-nums">
+                                    {formatCurrency(row.expectedBudget - row.spent - row.projectedSpend)}
+                                  </span>{" "}
+                                  {t("search.left", { defaultValue: "left" })}
+                                </>
+                              )}
                             </span>
                           ) : (
-                            <span className={breachedNow ? "text-neg font-medium" : ""}>
-                              {breachedNow
-                                ? `+${formatCurrency(row.spent - row.expectedBudget)} ${t("search.overBy", { defaultValue: "over" })}`
-                                : `${formatCurrency(row.expectedBudget - row.spent)} ${t("search.left", { defaultValue: "left" })}`}
+                            <span
+                              className={cn(
+                                breachedNow && "text-neg font-medium",
+                                isPrivacyMode && "ft-priv"
+                              )}
+                            >
+                              {breachedNow ? (
+                                <>
+                                  <span className="font-mono tabular-nums">
+                                    +{formatCurrency(row.spent - row.expectedBudget)}
+                                  </span>{" "}
+                                  {t("search.overBy", { defaultValue: "over" })}
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-mono tabular-nums">
+                                    {formatCurrency(row.expectedBudget - row.spent)}
+                                  </span>{" "}
+                                  {t("search.left", { defaultValue: "left" })}
+                                </>
+                              )}
                             </span>
                           )}
                         </div>
@@ -430,7 +471,12 @@ export function SearchResultModal({
                         )}
                       </>
                     ) : (
-                      <p className="text-[11px] text-muted-foreground">
+                      <p
+                        className={cn(
+                          "text-[11px] text-muted-foreground",
+                          isPrivacyMode && "ft-priv"
+                        )}
+                      >
                         {t("search.noBudgetSet", {
                           defaultValue: "No budget set · spent {{spent}}",
                           spent: formatCurrency(row.spent),

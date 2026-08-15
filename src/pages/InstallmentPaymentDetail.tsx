@@ -12,18 +12,16 @@ import {
   Loader2,
   MoreVertical,
   Receipt,
-  RefreshCw,
   RotateCcw,
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LoadingSpinner, InlineSpinner } from '@/components/LoadingSpinner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +47,7 @@ import {
 } from '@/hooks/useInstallmentPayments';
 import { useFinancialData, type Transaction } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { usePrivacy } from '@/contexts/PrivacyContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -79,6 +78,7 @@ const InstallmentPaymentDetail = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
 
   const {
     installmentPayments,
@@ -212,23 +212,31 @@ const InstallmentPaymentDetail = () => {
   }, [plan?.id, plan?.total_amount, plan?.installment_amount, plan?.remaining_amount]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner text={t('common.loading')} />;
   }
 
   if (!plan) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-        <p className="text-sm text-muted-foreground">
-          {t('installments.notFound', { defaultValue: 'Installment plan not found.' })}
-        </p>
-        <Button variant="outline" size="sm" onClick={() => navigate('/scheduled?tab=plans')}>
-          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-          {t('common.back', { defaultValue: 'Back' })}
-        </Button>
+      <div className="min-h-screen bg-background pb-20 md:pb-12">
+        <div className="ft-page">
+          <div className="ft-card flex flex-col items-center">
+            <div className="ft-empty">
+              <Receipt className="h-[26px] w-[26px]" />
+              <div className="ft-empty-title">
+                {t('installments.notFound', { defaultValue: 'Installment plan not found.' })}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 gap-1.5"
+              onClick={() => navigate('/scheduled?tab=plans')}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {t('common.back', { defaultValue: 'Back' })}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -294,173 +302,251 @@ const InstallmentPaymentDetail = () => {
     });
   };
 
+  // Timeline marker colours come from the system's tokens: semantic states
+  // (`--pos`/`--neg`/`--warn`/`--info`) where the change has a direction, the
+  // categorical chart ramp (`--cN`) for the rest — never raw palette hues,
+  // which would not follow the theme into dark mode.
   const getChangeTypeLabel = (changeType: string) => {
-    const labels: Record<string, { label: string; color: string }> = {
-      created: { label: t('installments.h.created', { defaultValue: 'Created' }), color: 'bg-green-500' },
-      updated: { label: t('installments.h.updated', { defaultValue: 'Updated' }), color: 'bg-blue-500' },
-      amount_changed: { label: t('installments.h.amount', { defaultValue: 'Amount changed' }), color: 'bg-orange-500' },
-      completed: { label: t('installments.h.completed', { defaultValue: 'Completed' }), color: 'bg-purple-500' },
-      reactivated: { label: t('installments.h.reactivated', { defaultValue: 'Reactivated' }), color: 'bg-cyan-500' },
-      recalculated: { label: t('installments.h.recalculated', { defaultValue: 'Recalculated' }), color: 'bg-yellow-500' },
-      deleted: { label: t('installments.h.deleted', { defaultValue: 'Deleted' }), color: 'bg-red-500' },
+    const labels: Record<string, { label: string; token: string }> = {
+      created: { label: t('installments.h.created', { defaultValue: 'Created' }), token: '--pos' },
+      updated: { label: t('installments.h.updated', { defaultValue: 'Updated' }), token: '--info' },
+      amount_changed: { label: t('installments.h.amount', { defaultValue: 'Amount changed' }), token: '--warn' },
+      completed: { label: t('installments.h.completed', { defaultValue: 'Completed' }), token: '--c5' },
+      reactivated: { label: t('installments.h.reactivated', { defaultValue: 'Reactivated' }), token: '--c4' },
+      recalculated: { label: t('installments.h.recalculated', { defaultValue: 'Recalculated' }), token: '--c8' },
+      deleted: { label: t('installments.h.deleted', { defaultValue: 'Deleted' }), token: '--neg' },
     };
-    return labels[changeType] || { label: changeType, color: 'bg-gray-500' };
+    return labels[changeType] || { label: changeType, token: '--c9' };
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32 md:pb-12">
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
       <div className="ft-page">
-        {/* Top bar */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 h-8 px-2 -ml-2"
-            onClick={() => navigate('/scheduled?tab=plans')}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-xs sm:text-sm">{t('common.back', { defaultValue: 'Back' })}</span>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {plan.is_active && (
-                <DropdownMenuItem onSelect={handleComplete}>
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
-                  {t('installments.markComplete', { defaultValue: 'Mark complete' })}
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  handleDeleteClick();
-                }}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-2" />
-                {t('common.delete', { defaultValue: 'Delete' })}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Hero */}
-        <div className="ft-card p-4 sm:p-6 space-y-4">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0 flex-1">
-              <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
-                {plan.payment_type === 'reimbursement'
-                  ? t('installments.reimbursement', { defaultValue: 'Reimbursement' })
-                  : t('installments.payment', { defaultValue: 'Payment plan' })}
+        {/* Page head — identity on the left (back, eyebrow, title, tags),
+            the plan's own actions on the right. Nothing docks or floats:
+            the primary action lives here, like every other page. */}
+        <div className="ft-page-head">
+          <div className="flex items-start gap-3 min-w-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 flex-shrink-0 mt-1"
+              onClick={() => navigate('/scheduled?tab=plans')}
+              aria-label={t('common.back', { defaultValue: 'Back' })}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Button>
+            <div className="min-w-0">
+              <div className="ft-eyebrow">
+                {t('scheduled.pageTitle', { defaultValue: 'Scheduled' })}
               </div>
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight mt-0.5 truncate">
-                {plan.description}
-              </h1>
-              <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                <Badge variant={plan.is_active ? 'default' : 'secondary'} className="text-[10px]">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <h1 className="ft-page-title text-2xl min-w-0 truncate">{plan.description}</h1>
+                <span className={plan.is_active ? 'ft-tag pos' : 'ft-tag'}>
                   {plan.is_active
                     ? t('installments.active', { defaultValue: 'Active' })
                     : t('installments.completed', { defaultValue: 'Completed' })}
-                </Badge>
-                {account && (
-                  <span className="text-[11px] text-muted-foreground truncate">{account.name}</span>
-                )}
+                </span>
                 {category && (
-                  <Badge variant="outline" className="gap-1 text-[10px]">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: category.color }}
-                    />
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                    style={{
+                      background: `color-mix(in oklab, ${category.color} 15%, transparent)`,
+                      color: category.color,
+                    }}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-current flex-shrink-0" />
                     {category.name}
-                  </Badge>
+                  </span>
                 )}
+              </div>
+              <div className="ft-page-sub">
+                {plan.payment_type === 'reimbursement'
+                  ? t('installments.reimbursement', { defaultValue: 'Reimbursement' })
+                  : t('installments.payment', { defaultValue: 'Payment plan' })}
+                {account && ` · ${account.name}`}
               </div>
             </div>
           </div>
-
-          <div>
-            <div className="flex items-baseline justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground font-semibold">
-                  {t('installments.remaining', { defaultValue: 'Remaining' })}
-                </div>
-                <div className="text-3xl sm:text-4xl font-semibold tabular-nums">
-                  {formatCurrency(plan.remaining_amount)}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground font-semibold">
-                  {t('installments.paid', { defaultValue: 'Paid' })}
-                </div>
-                <div className="text-sm font-medium tabular-nums">
-                  {formatCurrency(paid)} / {formatCurrency(plan.total_amount)}
-                </div>
-              </div>
-            </div>
-            <Progress value={progress} className="h-2 mt-3" />
-            <div className="flex justify-between text-[11px] text-muted-foreground mt-1.5">
-              <span>
-                {planRecords.length > 0 ? (
-                  // Custom schedule: per-installment amount/frequency varies, so
-                  // showing "X/mo" would be misleading.
-                  <>{t('installments.variableSchedule', { defaultValue: 'Custom schedule' })}</>
-                ) : (
-                  plan.installment_amount > 0 && (
-                    <>
-                      {formatCurrency(plan.installment_amount)} /
-                      {plan.frequency === 'weekly'
-                        ? ` ${t('installments.wk', { defaultValue: 'wk' })}`
-                        : plan.frequency === 'quarterly'
-                        ? ` ${t('installments.qtr', { defaultValue: 'qtr' })}`
-                        : ` ${t('installments.mo', { defaultValue: 'mo' })}`}
-                    </>
-                  )
-                )}
-              </span>
-              <span>
-                {t('installments.nextCharge', { defaultValue: 'Next charge' })}:{' '}
-                {format(nextDue, 'PP', { locale: dateLocale })}{' '}
+          <div className="flex items-center gap-1.5">
+            {plan.is_active && (
+              <Button
+                size="sm"
+                className="h-8 px-3 gap-1.5 font-semibold"
+                onClick={() => setShowRecord(true)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {t('installments.recordPayment', { defaultValue: 'Record a payment' })}
+                </span>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  aria-label={t('common.moreActions', { defaultValue: 'More actions' })}
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
                 {plan.is_active && (
-                  <span>
-                    ·{' '}
-                    {daysUntil < 0
-                      ? t('installments.overdue', { defaultValue: 'overdue' })
-                      : daysUntil === 0
-                      ? t('installments.today', { defaultValue: 'today' })
-                      : t('installments.inDays', {
-                          defaultValue: 'in {{n}} days',
-                          n: daysUntil,
-                        })}
-                  </span>
+                  <DropdownMenuItem onSelect={handleComplete}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-2" />
+                    {t('installments.markComplete', { defaultValue: 'Mark complete' })}
+                  </DropdownMenuItem>
                 )}
-              </span>
-            </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleDeleteClick();
+                  }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                  {t('common.delete', { defaultValue: 'Delete' })}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
-            <TabsTrigger value="schedule" className="gap-1.5 text-xs sm:text-sm">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {t('installments.scheduleTab', { defaultValue: 'Schedule' })}
-            </TabsTrigger>
-            <TabsTrigger value="adjust" className="gap-1.5 text-xs sm:text-sm">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              {t('installments.adjustTab', { defaultValue: 'Adjust' })}
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm">
-              <HistoryIcon className="h-3.5 w-3.5" />
-              {t('installments.historyTab', { defaultValue: 'History' })}
-            </TabsTrigger>
-          </TabsList>
+        {/* Hero — what is left against the whole. */}
+        <div className="ft-card">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground font-semibold">
+                {t('installments.remaining', { defaultValue: 'Remaining' })}
+              </div>
+              <div
+                className={cn(
+                  'font-mono tabular-nums text-[25px] sm:text-[28px] font-medium tracking-[-0.02em] leading-none mt-1.5',
+                  isPrivacyMode && 'ft-priv'
+                )}
+              >
+                {formatCurrency(plan.remaining_amount)}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground font-semibold">
+                {t('installments.paid', { defaultValue: 'Paid' })}
+              </div>
+              <div
+                className={cn(
+                  'font-mono tabular-nums text-sm font-medium mt-1',
+                  isPrivacyMode && 'ft-priv'
+                )}
+              >
+                {formatCurrency(paid)} / {formatCurrency(plan.total_amount)}
+              </div>
+            </div>
+          </div>
+          {/* Direction carries the fill colour: money coming back is `pos`,
+              money going out is the accent — matching the plan cards on the
+              Échéancier list. */}
+          <div className="ft-progress-track tall mt-3.5">
+            <span
+              className="ft-progress-fill"
+              style={{
+                width: `${progress}%`,
+                background:
+                  plan.payment_type === 'reimbursement'
+                    ? 'hsl(var(--pos))'
+                    : 'hsl(var(--primary))',
+              }}
+            />
+          </div>
+          <div className="flex justify-between gap-2 text-[11px] text-fg-dim mt-1.5">
+            <span>
+              {planRecords.length > 0 ? (
+                // Custom schedule: per-installment amount/frequency varies, so
+                // showing "X/mo" would be misleading.
+                <>{t('installments.variableSchedule', { defaultValue: 'Custom schedule' })}</>
+              ) : (
+                plan.installment_amount > 0 && (
+                  <>
+                    <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                      {formatCurrency(plan.installment_amount)}
+                    </span>{' '}
+                    /
+                    {plan.frequency === 'weekly'
+                      ? ` ${t('installments.wk', { defaultValue: 'wk' })}`
+                      : plan.frequency === 'quarterly'
+                      ? ` ${t('installments.qtr', { defaultValue: 'qtr' })}`
+                      : ` ${t('installments.mo', { defaultValue: 'mo' })}`}
+                  </>
+                )
+              )}
+            </span>
+            <span>
+              {t('installments.nextCharge', { defaultValue: 'Next charge' })}:{' '}
+              {format(nextDue, 'PP', { locale: dateLocale })}{' '}
+              {plan.is_active && (
+                <span>
+                  ·{' '}
+                  {daysUntil < 0
+                    ? t('installments.overdue', { defaultValue: 'overdue' })
+                    : daysUntil === 0
+                    ? t('installments.today', { defaultValue: 'today' })
+                    : t('installments.inDays', {
+                        defaultValue: 'in {{n}} days',
+                        n: daysUntil,
+                      })}
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
 
-          <TabsContent value="schedule" className="mt-3 space-y-3">
+        {/* The three views are peers of the same plan, so they get the design
+            system's segmented control (same treatment as the Scheduled page
+            one level up), not a bespoke tab strip. */}
+        <div
+          role="tablist"
+          aria-label={t('installments.planViews', { defaultValue: 'Plan views' })}
+          className="max-w-full overflow-x-auto [scrollbar-width:none]"
+        >
+          <div className="ft-seg">
+            {(
+              [
+                {
+                  key: 'schedule',
+                  Icon: CalendarDays,
+                  label: t('installments.scheduleTab', { defaultValue: 'Schedule' }),
+                },
+                {
+                  key: 'adjust',
+                  Icon: SlidersHorizontal,
+                  label: t('installments.adjustTab', { defaultValue: 'Adjust' }),
+                },
+                {
+                  key: 'history',
+                  Icon: HistoryIcon,
+                  label: t('installments.historyTab', { defaultValue: 'History' }),
+                },
+              ] as const
+            ).map(({ key, Icon, label }) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={activeTab === key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                className={cn('inline-flex items-center gap-1.5', activeTab === key && 'active')}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeTab === 'schedule' && (
+          <>
             <InstallmentScheduleTimeline
               plan={plan}
               accountName={account?.name ?? null}
@@ -469,17 +555,17 @@ const InstallmentPaymentDetail = () => {
               onTransactionClick={(tx) => setViewingTxn(tx)}
             />
             {linkedTransactions.length > 0 && (
-              <div className="ft-card p-3 sm:p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-xs sm:text-sm font-semibold">
-                    {t('installments.linkedTxns', { defaultValue: 'Linked transactions' })}
-                  </span>
-                  <Badge variant="secondary" className="ml-auto text-[10px]">
-                    {linkedTransactions.length}
-                  </Badge>
+              <div className="ft-card flush">
+                <div className="ft-card-head">
+                  <div className="ft-row min-w-0">
+                    <Receipt className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                    <span className="ft-card-title">
+                      {t('installments.linkedTxns', { defaultValue: 'Linked transactions' })}
+                    </span>
+                  </div>
+                  <span className="ft-tag font-mono">{linkedTransactions.length}</span>
                 </div>
-                <div className="space-y-1.5">
+                <div>
                   {linkedTransactions
                     .slice()
                     .sort(
@@ -492,44 +578,53 @@ const InstallmentPaymentDetail = () => {
                         key={tx.id}
                         type="button"
                         onClick={() => setViewingTxn(tx)}
-                        className="w-full flex items-center justify-between gap-2 p-2 rounded-lg bg-bg-subtle/40 hover:bg-bg-subtle text-left transition-colors"
+                        className="ft-list-row plain"
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs sm:text-sm font-medium truncate">{tx.description}</p>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        <div className="min-w-0">
+                          <p className="ft-row-title truncate">{tx.description}</p>
+                          <p className="ft-row-sub">
                             {format(parseISO(tx.transaction_date), 'PP', { locale: dateLocale })}
                           </p>
                         </div>
-                        <span className="text-xs sm:text-sm font-semibold text-destructive tabular-nums whitespace-nowrap">
-                          −{formatCurrency(tx.amount)}
+                        <span
+                          className={cn(
+                            'ft-row-amt whitespace-nowrap',
+                            tx.type === 'income' && 'text-pos',
+                            isPrivacyMode && 'ft-priv'
+                          )}
+                        >
+                          {tx.type === 'income' ? '+' : '−'}
+                          {formatCurrency(tx.amount)}
                         </span>
                       </button>
                     ))}
                 </div>
               </div>
             )}
-          </TabsContent>
+          </>
+        )}
 
-          <TabsContent value="adjust" className="mt-3">
-            <div className="ft-card p-4 sm:p-5">
-              <AdjustPlanForm plan={plan} />
-            </div>
-          </TabsContent>
+        {activeTab === 'adjust' && (
+          <div className="ft-card">
+            <AdjustPlanForm plan={plan} />
+          </div>
+        )}
 
-          <TabsContent value="history" className="mt-3 space-y-2">
-            {loadingHistory ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : history.length === 0 ? (
-              <div className="ft-card p-8 text-center">
-                <HistoryIcon className="w-7 h-7 mb-2 mx-auto text-muted-foreground/50" />
-                <p className="text-xs sm:text-sm text-muted-foreground">
+        {activeTab === 'history' &&
+          (loadingHistory ? (
+            <InlineSpinner />
+          ) : history.length === 0 ? (
+            <div className="ft-card flush">
+              <div className="ft-empty">
+                <HistoryIcon className="h-[26px] w-[26px]" />
+                <div className="ft-empty-title">
                   {t('installments.noHistory', { defaultValue: 'No history yet.' })}
-                </p>
+                </div>
               </div>
-            ) : (
-              history.map((entry) => {
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {history.map((entry) => {
                 const typeInfo = getChangeTypeLabel(entry.change_type);
                 const isRevertible =
                   entry.change_type !== 'created' &&
@@ -558,7 +653,10 @@ const InstallmentPaymentDetail = () => {
                   <div key={entry.id} className="ft-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${typeInfo.color}`} />
+                        <span
+                          className="ft-swatch"
+                          style={{ background: `hsl(var(${typeInfo.token}))` }}
+                        />
                         <span className="text-xs sm:text-sm font-medium truncate">
                           {typeInfo.label}
                         </span>
@@ -595,11 +693,21 @@ const InstallmentPaymentDetail = () => {
                             className="flex items-baseline gap-1.5 flex-wrap text-[11px] sm:text-xs"
                           >
                             <span className="text-muted-foreground">{r.label}</span>
-                            <span className="font-mono tabular-nums text-destructive line-through opacity-80">
+                            <span
+                              className={cn(
+                                'font-mono tabular-nums text-neg line-through opacity-80',
+                                isPrivacyMode && NUMERIC_FIELDS.has(r.field) && 'ft-priv'
+                              )}
+                            >
                               {formatHistoryValue(r.oldVal, r.field, formatCurrency, t)}
                             </span>
                             <ArrowRight className="h-2.5 w-2.5 text-muted-foreground flex-shrink-0" />
-                            <span className="font-mono tabular-nums text-pos font-medium">
+                            <span
+                              className={cn(
+                                'font-mono tabular-nums text-pos font-medium',
+                                isPrivacyMode && NUMERIC_FIELDS.has(r.field) && 'ft-priv'
+                              )}
+                            >
                               {formatHistoryValue(r.newVal, r.field, formatCurrency, t)}
                             </span>
                           </div>
@@ -614,25 +722,10 @@ const InstallmentPaymentDetail = () => {
                     )}
                   </div>
                 );
-              })
-            )}
-          </TabsContent>
-        </Tabs>
+              })}
+            </div>
+          ))}
       </div>
-
-      {/* Sticky action bar */}
-      {plan.is_active && (
-        <div className="fixed bottom-0 left-0 right-0 md:left-64 z-30 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="max-w-4xl mx-auto px-3 sm:px-6 py-3 flex gap-2">
-            <Button onClick={() => setShowRecord(true)} className="flex-1 h-10 gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-sm">
-                {t('installments.recordPayment', { defaultValue: 'Record a payment' })}
-              </span>
-            </Button>
-          </div>
-        </div>
-      )}
 
       <RecordInstallmentPaymentModal
         open={showRecord}
@@ -704,9 +797,11 @@ const InstallmentPaymentDetail = () => {
                               </span>
                             </div>
                             <span
-                              className={`font-medium whitespace-nowrap ${
-                                tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'
-                              }`}
+                              className={cn(
+                                'font-mono tabular-nums font-medium whitespace-nowrap',
+                                tx.type === 'income' ? 'text-pos' : 'text-neg',
+                                isPrivacyMode && 'ft-priv'
+                              )}
                             >
                               {tx.type === 'income' ? '+' : '−'}
                               {formatCurrency(tx.amount)}
@@ -789,7 +884,14 @@ const InstallmentPaymentDetail = () => {
                           className="flex items-center justify-between px-3 py-1.5"
                         >
                           <span className="text-muted-foreground">{label}</span>
-                          <span className="font-mono font-medium tabular-nums">{display}</span>
+                          <span
+                            className={cn(
+                              'font-mono font-medium tabular-nums',
+                              isPrivacyMode && typeof value === 'number' && 'ft-priv'
+                            )}
+                          >
+                            {display}
+                          </span>
                         </div>
                       );
                     })}
@@ -801,9 +903,9 @@ const InstallmentPaymentDetail = () => {
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 ) : transactionsSince.length > 0 ? (
-                  <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
+                  <div className="space-y-2 rounded-md border border-warn/40 bg-[hsl(var(--warn-soft))] p-2.5">
                     <div className="flex items-start gap-2">
-                      <Receipt className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <Receipt className="h-3.5 w-3.5 text-warn mt-0.5 flex-shrink-0" />
                       <div className="text-[12px] leading-relaxed">
                         <p className="font-medium">
                           {t('installments.undoTxnsSince', {
@@ -835,7 +937,12 @@ const InstallmentPaymentDetail = () => {
                                 {accountName && ` · ${accountName}`}
                               </p>
                             </div>
-                            <span className="font-mono font-semibold whitespace-nowrap text-destructive">
+                            <span
+                              className={cn(
+                                'font-mono tabular-nums font-semibold whitespace-nowrap text-neg',
+                                isPrivacyMode && 'ft-priv'
+                              )}
+                            >
                               −{formatCurrency(tx.amount)}
                             </span>
                           </div>

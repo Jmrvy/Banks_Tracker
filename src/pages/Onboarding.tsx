@@ -277,9 +277,9 @@ const FeatureMockup = ({ id }: { id: string }) => {
                 <div className={`w-1 h-5 rounded-full ${tx.bankColor}`} />
                 {/* Type icon */}
                 <div className={`h-5 w-5 rounded-full flex items-center justify-center ${tx.type === 'income' ? 'bg-muted' : tx.type === 'transfer' ? 'bg-muted' : 'bg-muted'}`}>
-                  {tx.type === 'income' && <ArrowDownRight className="w-2.5 h-2.5 text-green-600" />}
-                  {tx.type === 'expense' && <ArrowUpRight className="w-2.5 h-2.5 text-red-600" />}
-                  {tx.type === 'transfer' && <ArrowLeftRight className="w-2.5 h-2.5 text-blue-600" />}
+                  {tx.type === 'income' && <ArrowDownRight className="w-2.5 h-2.5 text-pos" />}
+                  {tx.type === 'expense' && <ArrowUpRight className="w-2.5 h-2.5 text-neg" />}
+                  {tx.type === 'transfer' && <ArrowLeftRight className="w-2.5 h-2.5 text-accent-deep" />}
                 </div>
                 <div>
                   <p className="font-medium text-[11px]">{tx.desc}</p>
@@ -290,7 +290,7 @@ const FeatureMockup = ({ id }: { id: string }) => {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <span className={`font-semibold text-[11px] ${tx.type === 'income' ? 'text-green-600' : tx.type === 'transfer' ? 'text-blue-600' : 'text-foreground'}`}>{tx.amount}</span>
+                <span className={`font-semibold text-[11px] ${tx.type === 'income' ? 'text-pos' : tx.type === 'transfer' ? 'text-accent-deep' : 'text-foreground'}`}>{tx.amount}</span>
                 <Pencil className="h-2.5 w-2.5 text-muted-foreground/40" />
                 <Trash2 className="h-2.5 w-2.5 text-muted-foreground/40" />
               </div>
@@ -643,7 +643,7 @@ const FeatureMockup = ({ id }: { id: string }) => {
                 </div>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
                   <div className="flex justify-between"><span className="text-muted-foreground">Total:</span><span className="font-bold">1 200 €</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Restant:</span><span className="font-bold text-orange-500">600 €</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Restant:</span><span className="font-semibold font-mono text-warn">600 €</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Mensualite:</span><span className="font-semibold">300 €</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Echeances:</span><span className="font-semibold">2/4</span></div>
                 </div>

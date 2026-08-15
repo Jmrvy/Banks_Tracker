@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLinkRefund, type RefundCandidate } from "@/hooks/useLinkRefund";
 import { describeError } from "@/lib/errorMessage";
@@ -96,11 +95,11 @@ export function LinkRefundModal({ open, onOpenChange, transaction, onLinked }: P
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3">
-          <DialogTitle className="text-base">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-line">
+          <DialogTitle className="text-[15px] font-semibold tracking-tight">
             {t("transactions.linkRefundTitle", { defaultValue: "Which expense does this refund?" })}
           </DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogDescription className="text-xs text-fg-mute mt-0.5">
             {transaction
               ? t("transactions.linkRefundDesc", {
                   amount: formatCurrency(transaction.amount),
@@ -110,7 +109,7 @@ export function LinkRefundModal({ open, onOpenChange, transaction, onLinked }: P
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-2">
+        <div className="flex-1 overflow-y-auto px-5 pt-1 pb-2">
           {loading ? (
             <p className="text-xs text-muted-foreground py-4">
               {t("common.loading", { defaultValue: "Loading…" })}
@@ -130,19 +129,17 @@ export function LinkRefundModal({ open, onOpenChange, transaction, onLinked }: P
                     <div className="flex items-center gap-2">
                       <span className="text-sm truncate">{c.description}</span>
                       {i === 0 && (
-                        <Badge variant="secondary" className="text-[10px] h-4 shrink-0">
+                        <span className="ft-tag acc !text-[10px] shrink-0">
                           {t("transactions.bestMatch", { defaultValue: "closest" })}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       {c.transaction_date}
                       {c.category_name ? ` · ${c.category_name}` : ""}
                       {" · "}
-                      {t("transactions.refundableLeft", {
-                        amount: formatCurrency(c.remaining),
-                        defaultValue: `${formatCurrency(c.remaining)} refundable`,
-                      })}
+                      <span className="font-mono tabular-nums">{formatCurrency(c.remaining)}</span>{" "}
+                      {t("transactions.refundableSuffix", { defaultValue: "refundable" })}
                     </div>
                   </div>
                   <Button
@@ -162,7 +159,7 @@ export function LinkRefundModal({ open, onOpenChange, transaction, onLinked }: P
           )}
         </div>
 
-        <div className="flex justify-end px-4 py-3 border-t">
+        <div className="flex justify-end px-5 py-3 border-t border-line">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             {t("common.close", { defaultValue: "Close" })}
           </Button>

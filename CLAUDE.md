@@ -190,14 +190,19 @@ src/
 | `/accounts` | Account management | Yes |
 | `/transactions` | Transaction history | Yes |
 | `/new-transaction` | Create transaction | Yes |
-| `/recurring-transactions` | Recurring transactions | Yes |
-| `/installment-payments` | Installment payments | Yes |
-| `/debts` | Debt tracking | Yes |
+| `/scheduled` | Subscriptions, plans & loans (tabbed) | Yes |
+| `/installment-payments/:id` | Installment plan detail | Yes |
 | `/savings` | Savings goals | Yes |
-| `/reports` | Reports & analytics | Yes |
+| `/budget` | Budgets & category caps | Yes |
+| `/analyse` | Reports & analytics | Yes |
 | `/trace` | Trace copilot | Yes |
 | `/settings` | User settings | Yes |
 | `/install` | PWA install prompt | Yes |
+| `/.lovable/oauth/consent` | OAuth 2.1 consent (MCP clients) | Yes |
+
+Legacy paths kept as redirects: `/recurring-transactions`, `/debts` and
+`/installment-payments` → the matching `/scheduled` tab; `/reports` →
+`/analyse`.
 
 ---
 
@@ -257,6 +262,8 @@ src/
 
 | Date | Changes |
 |------|---------|
+| 2026-08-15 | Projections billed a plan's last instalment twice. An instalment is the total rounded down to the cent, so the remainder rides on the final payment — 105,85 € over three bills 35,28 twice and 35,29 once — which leaves `remaining` a cent ABOVE an instalment and makes `Math.ceil(remaining / installment_amount)` claim two payments left. A three-instalment plan with two paid was charged four times. Where a plan has `installment_payment_records` those rows are now the schedule (date, amount and paid flag per instalment), the way debt projections already prefer `scheduled_debt_payments`; where it has none the count is `paymentsLeft` — `round`, not `ceil`, because the tail is absorbed by the last payment rather than promoted into its own. The division had been copied into seven places (Budget's period projection and monthly chart, Analyse, the recurring calendar, the command palette, the plan timeline, the reimbursement detail, the adjust form); all share `paymentsLeft` now. Edge functions were unaffected — they read `scheduled_charges` directly |
+| 2026-08-15 | Budget: each category's expanded panel charts six months back to three ahead — settled months solid, the current month solid to today with its remaining schedule hatched on top, future months hatched, the monthly cap a dashed rule that joins the scale. Selection, not hover: every column is a button and the readout sits in normal flow, so touch gets what a mouse gets. The schedule-walking behind the forecast moved to `src/lib/scheduledCharges.ts` (tested) and now feeds both the period projection and the monthly chart, so the two cannot disagree about when a plan or a debt stops; the trailing history the suggested cap is built from is sliced off the same series. Privacy mode reached Budget (it did nothing there) via a `Money` component that reads the context itself. Charts: `touch-action: pan-y` on `.recharts-responsive-container` plus one document listener (`useChartTouch`) replace a per-chart wrapper — a vertical swipe scrolls, and a tapped tooltip survives until the next touch lands elsewhere. i18n: 391 strings the redesign left as `defaultValue` are in both locale files (French was falling through to English on a French-default app); locales are key-sorted and at parity. `/install` was never routed (Settings linked to a 404); `/reports` redirects to `/analyse`. Fixed: `bg-primary/12` and friends compiled to nothing — Tailwind's opacity scale has no 8/12/24 step, so sixteen tinted halos rendered bare. CI now typechecks the app (`tsc -p tsconfig.app.json`; the root config is `"files": []` and checks nothing) and runs `check:classes` against the built CSS |
 | 2026-08-07 | `Segmented` is called without a JSX type argument. `lovable-tagger` runs only in dev and injects `data-lov-*` between the component name and the type parameter, so `<Segmented<PeriodKey> …>` stops parsing — `npm run dev` served an error overlay instead of Budget, Épargne, Échéancier's plans and its subscriptions, while `vite build`, the tests and CI all stayed green. Narrow in the handler instead; the rule is written at the `Segmented` declaration. Settings: the rail switches sections rather than scroll-anchoring one long page, and the panel repeating the rail's Sign out is gone; the tour's three anchors moved onto the rail entries, gated by breakpoint so the off-screen rail's zero-size rect never captures them |
 | 2026-08-04 | Refonte 2026 — warm design system (paper / espresso ink / apricot) replaces the cool-grey-and-green fintech skin. Palette authored in OKLCH, stored as sRGB-equivalent HSL components so all ~270 `hsl(var(--token))` and `hsl(var(--token) / 0.12)` call sites keep working untouched; radius scale (8/11/15/20/28) remapped onto `rounded-sm…3xl` so existing call sites pick up the geometry. Type: Instrument Sans + Instrument Serif (page titles, hero figures, brand marks) + Geist Mono. New shell: breadcrumb topbar (`AppTopbar`), sidebar CTA, centre-FAB mobile tab bar, Trace FAB (opens the existing dock — no third surface). Hero splits net worth into liquid/savings/invested and formats via `splitFormattedAmount`, so the figure follows the user's locale instead of a hard-coded `en-US` `€`. Fixed: `var(--chart-N)`/`var(--primary)` used as bare colours (tokens hold HSL components, so those rendered transparent — the debt-strategy badges had no background) |
 | 2026-08-04 | Silent truncation fixed app-wide: `useFinancialData` fetched transactions unbounded, so PostgREST capped it at 1000 and — ordered newest-first — dropped the 33 OLDEST rows from every screen, reports and the opening-balance replay. Now paged on the exact count with `created_at, id` tiebreakers. Trace: `scheduled_charges` had never worked (queried `amount`/`payment_date` on a table rebuilt as `scheduled_amount`/`scheduled_date`, and one shared error check sank the other two legs); `search_transactions` no longer applies the category rule to a period question and returns both figures; `list_uncategorized` honours the date basis and reports the income/expense split; the budget envelope is computed into the prompt context (`budget_envelope.monthly_total`) rather than added up in the answer, after Trace quoted 2 465 € against a real 2 795 €. `npm run check:functions` parses every edge function in CI — an unescaped backtick had left trace-copilot uncompilable on main while the deployed copy still ran |

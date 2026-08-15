@@ -386,9 +386,9 @@ export const CsvLoanImport = ({ onSuccess }: CsvLoanImportProps) => {
           ))}
           {/* Warnings */}
           {validation.warnings.map((warn, i) => (
-            <div key={`warn-${i}`} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
-              <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400">{warn}</p>
+            <div key={`warn-${i}`} className="flex items-start gap-2 p-2.5 rounded-lg bg-warn-soft border border-warn/20">
+              <AlertTriangle className="h-4 w-4 text-warn flex-shrink-0 mt-0.5" />
+              <p className="text-xs sm:text-sm text-warn">{warn}</p>
             </div>
           ))}
           {/* Success */}

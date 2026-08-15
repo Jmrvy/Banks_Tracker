@@ -141,25 +141,25 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg flex items-center gap-2">
-            <RotateCcw className="h-5 w-5 text-primary" />
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-line flex-shrink-0">
+          <DialogTitle className="text-[15px] font-semibold tracking-tight flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-primary" />
             Créer un remboursement
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-fg-mute mt-0.5">
             Enregistrer un remboursement pour cette transaction
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="flex-1 overflow-y-auto px-5 pt-4 pb-5">
         {/* Original transaction info */}
-        <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+        <div className="rounded-lg border border-line bg-bg-subtle p-3 space-y-2">
           <p className="text-sm font-medium">Transaction originale :</p>
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground truncate max-w-[60%]">
               {transaction.description}
             </span>
-            <span className="text-sm font-semibold text-destructive">
+            <span className="text-sm font-semibold font-mono tabular-nums text-neg">
               -{formatCurrency(transaction.amount)}
             </span>
           </div>
@@ -168,25 +168,32 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
               {format(parseLocalDate(transaction.transaction_date), 'dd MMMM yyyy', { locale: fr })}
             </span>
             {transaction.category && (
-              <span 
-                className="px-2 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: transaction.category.color }}
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                style={{
+                  background: `color-mix(in oklab, ${transaction.category.color} 15%, transparent)`,
+                  color: transaction.category.color,
+                }}
               >
+                <i
+                  className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                  style={{ background: transaction.category.color }}
+                />
                 {transaction.category.name}
               </span>
             )}
           </div>
           {(transaction.refunded_amount || 0) > 0 && (
-            <div className="flex justify-between items-center text-xs pt-1 border-t border-border/50">
+            <div className="flex justify-between items-center text-xs pt-1 border-t border-line-soft">
               <span className="text-muted-foreground">Déjà remboursé :</span>
-              <span className="text-green-600 font-medium">
+              <span className="text-pos font-medium font-mono tabular-nums">
                 +{formatCurrency(transaction.refunded_amount || 0)}
               </span>
             </div>
           )}
-          <div className="flex justify-between items-center text-sm pt-1 border-t border-border/50">
+          <div className="flex justify-between items-center text-sm pt-1 border-t border-line-soft">
             <span className="font-medium">Reste à rembourser :</span>
-            <span className={`font-semibold ${remainingToRefund <= 0 ? 'text-muted-foreground' : 'text-primary'}`}>
+            <span className={`font-semibold font-mono tabular-nums ${remainingToRefund <= 0 ? 'text-muted-foreground' : 'text-primary'}`}>
               {formatCurrency(remainingToRefund)}
             </span>
           </div>
@@ -194,13 +201,13 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
 
         {/* Warning when amount exceeds remaining */}
         {exceedsRemaining && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-600 dark:text-amber-400">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-warn/10 border border-warn/20">
+            <AlertCircle className="h-5 w-5 text-warn flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-warn">
               <p className="font-medium">Remboursement supérieur au reste dû</p>
               <p className="text-xs mt-1">
                 L'intégralité sera liée à cette transaction. Elle deviendra négative
-                de {formatCurrency(excessAmount)}, ce qui réduira d'autant sa catégorie.
+                de <span className="font-mono tabular-nums">{formatCurrency(excessAmount)}</span>, ce qui réduira d'autant sa catégorie.
               </p>
             </div>
           </div>
@@ -218,7 +225,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
             />
             {remainingToRefund > 0 && (
               <p className="text-xs text-muted-foreground">
-                Reste à rembourser : {formatCurrency(remainingToRefund)} 
+                Reste à rembourser : <span className="font-mono tabular-nums">{formatCurrency(remainingToRefund)}</span>
                 <span className="ml-1">(vous pouvez dépasser ce montant)</span>
               </p>
             )}
@@ -307,7 +314,7 @@ export function CreateRefundModal({ open, onOpenChange, transaction }: CreateRef
           </form>
         </div>
 
-        <div className="flex gap-2 p-4 sm:px-6 flex-shrink-0 border-t">
+        <div className="flex gap-2 px-5 py-4 flex-shrink-0 border-t border-line">
               <Button
                 type="button"
                 variant="outline"

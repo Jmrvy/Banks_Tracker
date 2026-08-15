@@ -37,11 +37,13 @@ const InstallmentPaymentDetail = lazy(() => import("@/pages/InstallmentPaymentDe
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const Trace = lazy(() => import("@/pages/Trace"));
 const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
+const Install = lazy(() => import("@/pages/Install"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useChartTouch } from "@/hooks/useChartTouch";
 import { InlineSpinner } from "@/components/LoadingSpinner";
 import { TourProvider } from "@/contexts/TourContext";
 import { TourEngine } from "@/components/tour/TourEngine";
@@ -77,6 +79,9 @@ function AppRoutes() {
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
   const location = useLocation();
+  // Above the early returns: the hook must run on every render, including
+  // the loading one.
+  useChartTouch();
   const isOnboardingPage = location.pathname === '/onboarding';
 
   if (loading) {
@@ -215,6 +220,21 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          {/* Settings links here to explain installing the PWA. The page has
+              existed all along and the route did not, so the link fell
+              through to the catch-all and showed a 404. */}
+          <Route
+            path="/install"
+            element={
+              <ProtectedRoute>
+                <Install />
+              </ProtectedRoute>
+            }
+          />
+          {/* Analyse used to be Reports. Nothing in the app links to the old
+              path any more, but bookmarks outlive renames — this sends them
+              to the page instead of the catch-all 404. */}
+          <Route path="/reports" element={<Navigate to="/analyse" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

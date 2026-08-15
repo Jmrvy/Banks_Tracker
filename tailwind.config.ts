@@ -36,6 +36,15 @@ export default {
       "2xl": "1536px",
     },
     extend: {
+      // Three steps the design uses that Tailwind's scale does not have.
+      // A class built on a missing step is not an error — it simply is not
+      // generated, so `bg-primary/12` reached the browser as nothing and the
+      // tinted halo behind sixteen icons and empty-state marks was absent.
+      opacity: {
+        8: "0.08",
+        12: "0.12",
+        24: "0.24",
+      },
       fontFamily: {
         inter: ['Instrument Sans', 'sans-serif'],
         sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
@@ -101,6 +110,14 @@ export default {
         pos: "hsl(var(--pos))",
         neg: "hsl(var(--neg))",
         warn: "hsl(var(--warn))",
+        // Same story as `accent-soft` below: the `--*-soft` tokens carry
+        // their own alpha and are the designed tone fills, but they were
+        // never mapped, so `bg-warn-soft` emitted nothing and callers either
+        // reached for a raw Tailwind palette colour or spelled the token out
+        // as `bg-[hsl(var(--warn-soft))]`.
+        "pos-soft": "hsl(var(--pos-soft))",
+        "neg-soft": "hsl(var(--neg-soft))",
+        "warn-soft": "hsl(var(--warn-soft))",
         line: "hsl(var(--line))",
         "line-soft": "hsl(var(--line-soft))",
         "line-strong": "hsl(var(--line-strong))",

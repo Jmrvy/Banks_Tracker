@@ -4,8 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, CalendarDays, Clock, CalendarClock } from "lucide-react";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { BANK_COLORS, getBankLabel } from "@/lib/constants";
 import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { type Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import {
@@ -53,31 +55,13 @@ interface CategoryTransactionsModalProps {
   upcomingItems?: PeriodRecurringItem[];
 }
 
-const bankColors: Record<string, string> = {
-  societe_generale: 'bg-red-500',
-  revolut: 'bg-blue-500',
-  boursorama: 'bg-orange-500',
-  bnp_paribas: 'bg-green-600',
-  credit_agricole: 'bg-green-700',
-  lcl: 'bg-blue-700',
-  caisse_epargne: 'bg-yellow-600',
-  credit_mutuel: 'bg-blue-800',
-  sg: 'bg-red-500', // Legacy support
-  other: 'bg-fg-dim'
-};
+/** Legacy rows stored 'sg' before the bank ids were normalised. */
+const normalizeBank = (bank: string) => (bank === 'sg' ? 'societe_generale' : bank);
 
-const bankNames: Record<string, string> = {
-  societe_generale: 'Société Générale',
-  revolut: 'Revolut',
-  boursorama: 'Boursorama',
-  bnp_paribas: 'BNP Paribas',
-  credit_agricole: 'Crédit Agricole',
-  lcl: 'LCL',
-  caisse_epargne: 'Caisse d\'Épargne',
-  credit_mutuel: 'Crédit Mutuel',
-  sg: 'Société Générale', // Legacy support
-  other: 'Autre'
-};
+/** One source of truth for bank accents — lib/constants, shared with
+    Comptes, Nouvelle transaction and Paramètres. Neutral fallback for
+    banks without a brand colour. */
+const bankAccent = (bank: string) => BANK_COLORS[normalizeBank(bank)] ?? BANK_COLORS.other;
 
 export const CategoryTransactionsModal = ({
   open,
@@ -94,6 +78,7 @@ export const CategoryTransactionsModal = ({
 }: CategoryTransactionsModalProps) => {
   const { t } = useTranslation();
   const { formatCurrency, preferences } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const isMobile = useIsMobile();
   const activeDateType = dateType || preferences.dateType;
 
@@ -281,25 +266,25 @@ export const CategoryTransactionsModal = ({
     const isOver = spentValue > categoryData.budget;
 
     return (
-      <div className="bg-popover  border border-border/50 rounded-lg shadow-xl p-2.5 text-xs">
-        <p className="font-semibold text-foreground mb-1.5 pb-1 border-b border-border/30">
+      <div className="bg-card border border-line rounded-[11px] shadow-sh-2 p-2.5 text-xs text-foreground">
+        <p className="font-semibold text-foreground mb-1.5 pb-1 border-b border-line-soft">
           {label}
         </p>
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Dépensé</span>
-            <span className={isOver ? "text-destructive font-semibold" : "font-medium"}>
+            <span className={cn("font-mono tabular-nums", isOver ? "text-neg font-semibold" : "font-medium")}>
               {formatCurrency(spentValue)}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Budget</span>
-            <span className="font-medium">{formatCurrency(categoryData.budget)}</span>
+            <span className="font-medium font-mono tabular-nums">{formatCurrency(categoryData.budget)}</span>
           </div>
           {isOver && (
-            <div className="flex items-center justify-between gap-4 pt-1 border-t border-border/30">
-              <span className="text-destructive">Dépassement</span>
-              <span className="text-destructive font-semibold">
+            <div className="flex items-center justify-between gap-4 pt-1 border-t border-line-soft">
+              <span className="text-neg">Dépassement</span>
+              <span className="text-neg font-semibold font-mono tabular-nums">
                 +{formatCurrency(spentValue - categoryData.budget)}
               </span>
             </div>
@@ -312,22 +297,22 @@ export const CategoryTransactionsModal = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="flex items-center justify-between text-sm sm:text-lg pr-8">
+        <DialogHeader className="px-5 pt-5 pb-3 flex-shrink-0">
+          <DialogTitle className="flex items-center justify-between text-[15px] font-semibold tracking-tight pr-8">
             <span className="truncate">{categoryName}</span>
-            <Badge variant="secondary" className="text-xs sm:text-sm ml-2 flex-shrink-0">
+            <Badge variant="secondary" className={cn("text-xs sm:text-sm ml-2 flex-shrink-0 font-mono tabular-nums", isPrivacyMode && "ft-priv")}>
               {formatCurrency(totalAmount)}
             </Badge>
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            {realCount} transaction{realCount > 1 ? 's' : ''}
+          <p className="text-xs text-fg-mute mt-0.5">
+            <span className="font-mono tabular-nums">{realCount}</span> transaction{realCount > 1 ? 's' : ''}
             {projectedCount > 0 && (
-              <span className="text-primary"> + {projectedCount} projetée{projectedCount > 1 ? 's' : ''}</span>
+              <span className="text-accent-deep"> + <span className="font-mono tabular-nums">{projectedCount}</span> projetée{projectedCount > 1 ? 's' : ''}</span>
             )}
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6 space-y-3 sm:space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-3 sm:space-y-4">
           {/* Budget Evolution Chart (only if category has a budget) */}
           {hasBudget && budgetChartData.length > 0 && (
             <div className="space-y-2.5">
@@ -338,22 +323,24 @@ export const CategoryTransactionsModal = ({
               {/* Progress bar */}
               <div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                  <span>{percentUsed}% utilisé</span>
-                  <span>{formatCurrency(effectiveSpent)} / {formatCurrency(categoryData.budget)}</span>
+                  <span><span className="font-mono tabular-nums">{percentUsed}%</span> utilisé</span>
+                  <span>
+                    <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(effectiveSpent)}</span>
+                    {' / '}
+                    <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(categoryData.budget)}</span>
+                  </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                <div className="ft-progress-track">
                   <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-500",
-                      isOverBudget ? "bg-destructive" : "bg-success"
-                    )}
+                    className={cn("ft-progress-fill", isOverBudget && "bg-neg")}
                     style={{ width: `${Math.min(100, percentUsed)}%` }}
                   />
                 </div>
               </div>
 
-              {/* Chart */}
-              <div style={{ height: isMobile ? 160 : 200 }}>
+              {/* Chart — the frame owns touch-action and outside-tap tooltip
+                  clearing; the whole read-out blurs under privacy since the
+                  axis and tooltip are SVG/portal content no span can reach. */}
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={budgetChartData}
@@ -363,12 +350,12 @@ export const CategoryTransactionsModal = ({
                       <linearGradient id={`spentGradient-${categoryName}`} x1="0" y1="0" x2="0" y2="1">
                         <stop
                           offset="5%"
-                          stopColor={categoryData.color || "#8884d8"}
+                          stopColor={categoryData.color || "hsl(var(--chart-1))"}
                           stopOpacity={0.3}
                         />
                         <stop
                           offset="95%"
-                          stopColor={categoryData.color || "#8884d8"}
+                          stopColor={categoryData.color || "hsl(var(--chart-1))"}
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -377,7 +364,7 @@ export const CategoryTransactionsModal = ({
                       dataKey="date"
                       tick={{ fontSize: isMobile ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
                       tickLine={false}
-                      axisLine={{ stroke: "hsl(var(--border))" }}
+                      axisLine={{ stroke: "hsl(var(--line))" }}
                       interval={Math.max(0, Math.floor(budgetChartData.length / (isMobile ? 5 : 7)) - 1)}
                     />
                     <YAxis
@@ -417,7 +404,7 @@ export const CategoryTransactionsModal = ({
                     <Line
                       type="monotone"
                       dataKey="spent"
-                      stroke={categoryData.color || "#8884d8"}
+                      stroke={categoryData.color || "hsl(var(--chart-1))"}
                       strokeWidth={2.5}
                       dot={false}
                       activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--background))" }}
@@ -425,7 +412,6 @@ export const CategoryTransactionsModal = ({
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
             </div>
           )}
 
@@ -452,9 +438,10 @@ export const CategoryTransactionsModal = ({
                   >
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                        <div className={`w-1.5 sm:w-2 h-5 sm:h-6 rounded-full ${
-                          bankColors[transaction.bank] || 'bg-fg-dim'
-                        }`} />
+                        <div
+                          className="w-1.5 sm:w-2 h-5 sm:h-6 rounded-full"
+                          style={{ background: bankAccent(transaction.bank) }}
+                        />
                         <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-muted">
                           {transaction.type === 'income' ? (
                             <ArrowDownRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-success" />
@@ -470,13 +457,10 @@ export const CategoryTransactionsModal = ({
                           {transaction.isProjected && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Badge
-                                  variant="outline"
-                                  className="text-[9px] px-1 py-0 h-4 flex-shrink-0 border-primary/40 text-primary bg-primary/10"
-                                >
-                                  <CalendarClock className="w-2.5 h-2.5 mr-0.5" />
+                                <span className="ft-tag acc !text-[10px] flex-shrink-0">
+                                  <CalendarClock className="w-2.5 h-2.5" />
                                   Projeté
-                                </Badge>
+                                </span>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
                                 Transaction récurrente projetée
@@ -486,21 +470,15 @@ export const CategoryTransactionsModal = ({
                           {hasRefund && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Badge
-                                  variant={isFullyRefunded ? "secondary" : "outline"}
-                                  className={cn(
-                                    "text-[9px] px-1 py-0 h-4 flex-shrink-0",
-                                    isFullyRefunded ? "bg-muted text-muted-foreground" : "border-amber-500 text-amber-600"
-                                  )}
-                                >
+                                <span className={cn("ft-tag !text-[10px] flex-shrink-0", !isFullyRefunded && "warn")}>
                                   {isFullyRefunded ? t('transactions.refunded') : t('transactions.partialRefund')}
-                                </Badge>
+                                </span>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
                                 <div className="space-y-1">
-                                  <p>Brut: {formatCurrency(transaction.amount)}</p>
-                                  <p>Remboursé: {formatCurrency(transaction.refundedAmount || 0)}</p>
-                                  <p className="font-semibold">Net: {formatCurrency(netAmount)}</p>
+                                  <p>Brut: <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(transaction.amount)}</span></p>
+                                  <p>Remboursé: <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(transaction.refundedAmount || 0)}</span></p>
+                                  <p className="font-semibold">Net: <span className={cn("font-mono tabular-nums", isPrivacyMode && "ft-priv")}>{formatCurrency(netAmount)}</span></p>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -508,7 +486,7 @@ export const CategoryTransactionsModal = ({
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 flex-wrap">
                           <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-2 py-0 h-4 sm:h-5">
-                            {bankNames[transaction.bank] || transaction.bank}
+                            {getBankLabel(normalizeBank(transaction.bank), t)}
                           </Badge>
                           <span className="text-[10px] sm:text-sm text-muted-foreground">
                             {parseLocalDate(transaction.date).toLocaleDateString('fr-FR')}
@@ -533,21 +511,24 @@ export const CategoryTransactionsModal = ({
                     <div className="text-right flex-shrink-0">
                       {transaction.type === 'expense' && hasRefund ? (
                         <div className="flex flex-col items-end">
-                          <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                          <span className={cn("text-[10px] sm:text-xs font-mono tabular-nums text-muted-foreground line-through", isPrivacyMode && "ft-priv")}>
                             {formatCurrency(transaction.amount)}
                           </span>
                           <span className={cn(
-                            "font-semibold text-xs sm:text-sm",
-                            isFullyRefunded ? "text-muted-foreground" : "text-foreground"
+                            "font-semibold font-mono tabular-nums text-xs sm:text-sm",
+                            isFullyRefunded ? "text-muted-foreground" : "text-foreground",
+                            isPrivacyMode && "ft-priv",
                           )}>
                             {formatCurrency(netAmount)}
                           </span>
                         </div>
                       ) : (
                         <span
-                          className={`font-semibold text-xs sm:text-sm ${
-                            transaction.type === 'income' ? 'text-success' : 'text-foreground'
-                          }`}
+                          className={cn(
+                            "font-semibold font-mono tabular-nums text-xs sm:text-sm",
+                            transaction.type === 'income' ? 'text-pos' : 'text-foreground',
+                            isPrivacyMode && "ft-priv",
+                          )}
                         >
                           {formatCurrency(transaction.amount)}
                         </span>

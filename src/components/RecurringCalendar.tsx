@@ -25,6 +25,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { getRecurringDisplayAmount, getRecurringEffectiveType } from "@/lib/recurringAmount";
 import { setRecurringCurrentMonth, setRecurringActualTotals, setRecurringActualBreakdown, setRecurringYearAggregates, type RecurringBreakdownEntry } from "@/lib/recurringCalendarMonth";
+import { paymentsLeft } from "@/lib/scheduledCharges";
 
 interface RecurringCalendarProps {
   transactions: RecurringTransaction[];
@@ -412,7 +413,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               effectiveEndDate = blockDate;
             }
           } else {
-            const maxFutureOccurrences = Math.ceil(ip.remaining_amount / ip.installment_amount);
+            const maxFutureOccurrences = paymentsLeft(ip.remaining_amount, ip.installment_amount);
             if (maxFutureOccurrences <= 0) {
               const blockDate = new Date(nextDueDate.getTime() - 86400000);
               if (!effectiveEndDate || blockDate < effectiveEndDate) {
@@ -444,7 +445,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             effectiveEndDate = blockDate;
           }
         } else if (debt.payment_amount > 0) {
-          const maxFutureOccurrences = Math.ceil(debt.remaining_amount / debt.payment_amount);
+          const maxFutureOccurrences = paymentsLeft(debt.remaining_amount, debt.payment_amount);
           let lastOccurrence = new Date(nextDueDate);
           for (let i = 1; i < maxFutureOccurrences; i++) {
             lastOccurrence = advanceDate(lastOccurrence, transaction.recurrence_type);

@@ -145,7 +145,7 @@ export function ScheduledSummary() {
             </div>
             <span className="ft-kpi-label truncate">{card.label}</span>
           </div>
-          <div className={`ft-kpi-value truncate ${isPrivacyMode ? "blur-md select-none" : ""}`}>
+          <div className={`ft-kpi-value truncate ${isPrivacyMode ? "ft-priv" : ""}`}>
             {card.value}
           </div>
           <div className="ft-kpi-foot truncate">{card.foot}</div>

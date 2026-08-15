@@ -1268,6 +1268,13 @@
     user-select: none;
   }
 
+  /* A vertical swipe that starts on a chart scrolls the page instead of
+     being swallowed by the SVG; horizontal movement still scrubs it. Stated
+     here rather than per chart because it is a rule about every chart, and a
+     per-chart opt-in is one a future chart can forget. Tooltip dismissal is
+     the other half, in `useChartTouch`. */
+  .recharts-responsive-container { touch-action: pan-y; }
+
   /* Edge-to-edge horizontal scrollers on mobile. */
   .ft-noscroll,
   .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
