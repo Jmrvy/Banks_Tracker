@@ -9,7 +9,6 @@ import { enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { ChartTouchFrame } from "@/components/charts/ChartTouchFrame";
 import { RecurringData, SpendingPatternsData, ReportsPeriod } from "@/hooks/useReportsData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -162,7 +161,6 @@ export const RecurringTab = ({
               </h3>
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <div className="relative w-full sm:w-1/2 h-[160px] sm:h-[180px]">
-                  <ChartTouchFrame className="h-full w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -205,7 +203,6 @@ export const RecurringTab = ({
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  </ChartTouchFrame>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className={cn("text-base sm:text-lg font-semibold font-mono tabular-nums text-neg", isPrivacyMode && "ft-priv")}>{formatCurrency(totalExpenseCat)}</span>
                     <span className="text-[9px] sm:text-[10px] text-muted-foreground">sur la période</span>

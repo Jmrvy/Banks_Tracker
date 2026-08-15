@@ -3,7 +3,6 @@ import { addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ChartTouchFrame } from "@/components/charts/ChartTouchFrame";
 import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
@@ -264,7 +263,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Donut Chart */}
             <div className="relative w-full sm:w-1/2 h-[180px] sm:h-[220px]">
-              <ChartTouchFrame className="h-full w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -294,7 +292,6 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              </ChartTouchFrame>
               {/* Center Text — morphs into the hovered slice's info to
                   avoid overlapping with a floating tooltip. */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2 text-center">

@@ -8,7 +8,6 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { BANK_COLORS, getBankLabel } from "@/lib/constants";
-import { ChartTouchFrame } from "@/components/charts/ChartTouchFrame";
 import { CategoryData, PeriodRecurringItem } from "@/hooks/useReportsData";
 import { type Transaction as FinancialTransaction } from "@/hooks/useFinancialData";
 import {
@@ -342,7 +341,6 @@ export const CategoryTransactionsModal = ({
               {/* Chart — the frame owns touch-action and outside-tap tooltip
                   clearing; the whole read-out blurs under privacy since the
                   axis and tooltip are SVG/portal content no span can reach. */}
-              <ChartTouchFrame className={cn(isMobile ? "h-40" : "h-[200px]", isPrivacyMode && "ft-priv")}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={budgetChartData}
@@ -414,7 +412,6 @@ export const CategoryTransactionsModal = ({
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </ChartTouchFrame>
             </div>
           )}
 

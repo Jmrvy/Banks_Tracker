@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ComposedChart, CartesianGrid, XAxis, YAxis, Area, Line, ResponsiveContainer } from "recharts";
-import { ChartTouchFrame } from "@/components/charts/ChartTouchFrame";
 import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { BalanceDataPoint, ReportsStats, RecurringData, ReportsPeriod } from "@/hooks/useReportsData";
@@ -310,7 +309,6 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
         <div>
           {chartData.length > 0 ? (
             <>
-              <ChartTouchFrame className="w-full h-[200px] sm:h-[260px] lg:h-[300px] overflow-hidden">
                 <ChartContainer config={chartConfig} className="w-full h-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartDataWithPrior} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -344,7 +342,6 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
                     </ComposedChart>
                   </ResponsiveContainer>
                 </ChartContainer>
-              </ChartTouchFrame>
               {/* Three sunk read-outs closing the chart: where the period
                   started, where it stands, where it lands. */}
               <div className="ft-g3 mt-5">

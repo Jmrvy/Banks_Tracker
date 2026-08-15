@@ -42,6 +42,7 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useChartTouch } from "@/hooks/useChartTouch";
 import { InlineSpinner } from "@/components/LoadingSpinner";
 import { TourProvider } from "@/contexts/TourContext";
 import { TourEngine } from "@/components/tour/TourEngine";
@@ -77,6 +78,9 @@ function AppRoutes() {
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
   const location = useLocation();
+  // Above the early returns: the hook must run on every render, including
+  // the loading one.
+  useChartTouch();
   const isOnboardingPage = location.pathname === '/onboarding';
 
   if (loading) {
