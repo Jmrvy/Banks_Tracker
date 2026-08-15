@@ -621,12 +621,27 @@
     "updateError": "Impossible de mettre à jour"
   },
   "install": {
+    "benefitFullscreen": "Plein écran, sans barre de navigateur",
+    "benefitHome": "Accessible depuis l'écran d'accueil",
+    "benefitOffline": "Fonctionne hors ligne",
+    "benefitUpdates": "Se met à jour toute seule",
+    "benefits": "Avantages",
+    "continueInBrowser": "Continuer dans le navigateur",
+    "eyebrow": "Installation",
+    "installedBody": "L'application est déjà installée sur cet appareil.",
+    "installedTitle": "Application installée",
     "iosStep1": "Ouvrez cette page dans Safari",
     "iosStep2Prefix": "Appuyez sur le bouton",
     "iosStep2Suffix": "Partager",
     "iosStep3": "Choisissez « Sur l'écran d'accueil »",
     "iosStep4": "Appuyez sur « Ajouter »",
-    "iosTitle": "Pour installer sur iPhone :"
+    "iosTitle": "Pour installer sur iPhone :",
+    "later": "Plus tard",
+    "now": "Installer maintenant",
+    "open": "Ouvrir l'application",
+    "subtitle": "Installez Banks Tracker sur votre appareil pour un accès rapide et une expérience plein écran.",
+    "title": "Installer l'application",
+    "unsupported": "Pour installer l'application, utilisez un navigateur compatible comme Chrome, Edge ou Safari."
   },
   "installments": {
     "active": "Actifs",

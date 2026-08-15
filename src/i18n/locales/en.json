@@ -621,12 +621,27 @@
     "updateError": "Unable to update"
   },
   "install": {
+    "benefitFullscreen": "Full-screen, no browser chrome",
+    "benefitHome": "Opens straight from the home screen",
+    "benefitOffline": "Works offline",
+    "benefitUpdates": "Updates itself",
+    "benefits": "Benefits",
+    "continueInBrowser": "Continue in the browser",
+    "eyebrow": "Installation",
+    "installedBody": "The app is already installed on this device.",
+    "installedTitle": "App installed",
     "iosStep1": "Open this page in Safari",
     "iosStep2Prefix": "Tap the",
     "iosStep2Suffix": "Share button",
     "iosStep3": "Select \"Add to Home Screen\"",
     "iosStep4": "Tap \"Add\"",
-    "iosTitle": "To install on iPhone:"
+    "iosTitle": "To install on iPhone:",
+    "later": "Later",
+    "now": "Install now",
+    "open": "Open the app",
+    "subtitle": "Install Banks Tracker on your device for quick access and a full-screen experience.",
+    "title": "Install the app",
+    "unsupported": "To install the app, use a supported browser such as Chrome, Edge or Safari."
   },
   "installments": {
     "active": "Active",

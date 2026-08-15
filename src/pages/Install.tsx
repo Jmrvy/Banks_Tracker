@@ -54,13 +54,17 @@ export default function Install() {
           <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-pos/12 grid place-items-center">
             <CheckCircle className="w-7 h-7 text-pos" />
           </div>
-          <div className="ft-eyebrow mb-1">Installation</div>
-          <h1 className="ft-page-title text-xl sm:text-2xl">Application installée</h1>
+          <div className="ft-eyebrow mb-1">{t('install.eyebrow', { defaultValue: 'Installation' })}</div>
+          <h1 className="ft-page-title text-xl sm:text-2xl">
+            {t('install.installedTitle', { defaultValue: 'App installed' })}
+          </h1>
           <p className="text-sm text-muted-foreground mt-2 mb-5">
-            L'application est déjà installée sur votre appareil
+            {t('install.installedBody', {
+              defaultValue: 'The app is already installed on this device.',
+            })}
           </p>
           <Button onClick={() => navigate('/')} className="w-full h-10 font-semibold">
-            Ouvrir l'application
+            {t('install.open', { defaultValue: 'Open the app' })}
           </Button>
         </div>
       </div>
@@ -78,10 +82,15 @@ export default function Install() {
           <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-primary/12 grid place-items-center">
             <Smartphone className="w-7 h-7 text-primary" />
           </div>
-          <div className="ft-eyebrow mb-1">Installation</div>
-          <h1 className="ft-page-title text-xl sm:text-2xl">Installer l'application</h1>
+          <div className="ft-eyebrow mb-1">{t('install.eyebrow', { defaultValue: 'Installation' })}</div>
+          <h1 className="ft-page-title text-xl sm:text-2xl">
+            {t('install.title', { defaultValue: 'Install the app' })}
+          </h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Installez Spending Tracker sur votre appareil pour un accès rapide et une expérience optimale
+            {t('install.subtitle', {
+              defaultValue:
+                'Install Banks Tracker on your device for quick access and a full-screen experience.',
+            })}
           </p>
         </div>
 
@@ -89,7 +98,7 @@ export default function Install() {
           {!isIOS && deferredPrompt && (
             <Button onClick={handleInstall} className="w-full h-11 font-semibold gap-2" size="lg">
               <Download className="h-4 w-4" />
-              Installer maintenant
+              {t('install.now', { defaultValue: 'Install now' })}
             </Button>
           )}
 
@@ -127,39 +136,37 @@ export default function Install() {
             <div className="space-y-3">
               <div className="rounded-lg border border-line bg-bg-subtle p-4">
                 <p className="text-sm text-muted-foreground">
-                  Pour installer l'application, utilisez un navigateur compatible comme Chrome, Edge ou Safari.
+                  {t('install.unsupported', {
+                    defaultValue:
+                      'To install the app, use a supported browser such as Chrome, Edge or Safari.',
+                  })}
                 </p>
               </div>
               <Button onClick={() => navigate('/')} variant="outline" className="w-full h-10">
-                Continuer dans le navigateur
+                {t('install.continueInBrowser', { defaultValue: 'Continue in the browser' })}
               </Button>
             </div>
           )}
 
           <div className="border-t border-line pt-4">
-            <p className="ft-eyebrow mb-2">Avantages</p>
+            <p className="ft-eyebrow mb-2">{t('install.benefits', { defaultValue: 'Benefits' })}</p>
             <ul className="space-y-1.5 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
-                Accès rapide depuis l'écran d'accueil
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
-                Fonctionne hors ligne
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
-                Expérience plein écran
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
-                Mises à jour automatiques
-              </li>
+              {[
+                ['install.benefitHome', 'Opens straight from the home screen'],
+                ['install.benefitOffline', 'Works offline'],
+                ['install.benefitFullscreen', 'Full-screen, no browser chrome'],
+                ['install.benefitUpdates', 'Updates itself'],
+              ].map(([key, fallback]) => (
+                <li key={key} className="flex items-center gap-2">
+                  <CheckCircle className="h-3.5 w-3.5 text-pos flex-shrink-0" />
+                  {t(key, { defaultValue: fallback })}
+                </li>
+              ))}
             </ul>
           </div>
 
           <Button onClick={() => navigate('/')} variant="ghost" className="w-full h-10">
-            Plus tard
+            {t('install.later', { defaultValue: 'Later' })}
           </Button>
         </div>
       </div>
