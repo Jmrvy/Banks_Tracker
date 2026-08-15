@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The root tsconfig is `"files": []` plus project references, so a bare
+      # `tsc --noEmit` checks nothing at all. This names the app project.
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Strict null-check (ratcheted scope)
         run: npm run typecheck:strict
 
@@ -34,3 +39,7 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      # Reads the built CSS, so it has to follow the build.
+      - name: Tailwind classes are all generated
+        run: npm run check:classes

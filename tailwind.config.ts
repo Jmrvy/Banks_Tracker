@@ -36,6 +36,15 @@ export default {
       "2xl": "1536px",
     },
     extend: {
+      // Three steps the design uses that Tailwind's scale does not have.
+      // A class built on a missing step is not an error — it simply is not
+      // generated, so `bg-primary/12` reached the browser as nothing and the
+      // tinted halo behind sixteen icons and empty-state marks was absent.
+      opacity: {
+        8: "0.08",
+        12: "0.12",
+        24: "0.24",
+      },
       fontFamily: {
         inter: ['Instrument Sans', 'sans-serif'],
         sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
