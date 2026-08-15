@@ -244,7 +244,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                     <SelectItem key={account.id} value={account.id}>
                       <div className="flex items-center justify-between w-full">
                         <span>{account.name}</span>
-                        <Badge variant="outline" className="ml-2 text-xs">
+                        <Badge variant="outline" className="ml-2 text-xs font-mono tabular-nums">
                           {formatCurrency(account.balance)}
                         </Badge>
                       </div>
@@ -255,7 +255,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
             </Select>
             {selectedAccount && (
               <div className="text-sm text-muted-foreground">
-                Solde actuel: {formatCurrency(selectedAccount.balance)}
+                Solde actuel: <span className="font-mono tabular-nums">{formatCurrency(selectedAccount.balance)}</span>
               </div>
             )}
           </div>
@@ -286,7 +286,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                     <SelectItem key={account.id} value={account.id}>
                       <div className="flex items-center justify-between w-full">
                         <span>{account.name}</span>
-                        <Badge variant="outline" className="ml-2 text-xs">
+                        <Badge variant="outline" className="ml-2 text-xs font-mono tabular-nums">
                           {formatCurrency(account.balance)}
                         </Badge>
                       </div>
@@ -296,7 +296,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
               </Select>
               {selectedToAccount && (
                 <div className="text-sm text-muted-foreground">
-                  Solde actuel: {formatCurrency(selectedToAccount.balance)}
+                  Solde actuel: <span className="font-mono tabular-nums">{formatCurrency(selectedToAccount.balance)}</span>
                 </div>
               )}
             </div>

@@ -18,6 +18,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, type RecurringTransaction } from '@/hooks/useFinancialData';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { usePrivacy } from '@/contexts/PrivacyContext';
+import { cn } from '@/lib/utils';
 
 interface DeleteRecurringDialogProps {
   open: boolean;
@@ -80,6 +82,7 @@ export function DeleteRecurringDialog({
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const { toast } = useToast();
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { accounts, getRecurringDeletionImpact, deleteRecurringTransaction } = useFinancialData();
 
   const [linked, setLinked] = useState<LinkedTx[]>([]);
@@ -227,9 +230,11 @@ export function DeleteRecurringDialog({
                             </p>
                           </div>
                           <span
-                            className={`font-mono font-semibold whitespace-nowrap ${
-                              tx.type === 'income' ? 'text-emerald-600' : 'text-destructive'
-                            }`}
+                            className={cn(
+                              'font-mono tabular-nums font-semibold whitespace-nowrap',
+                              tx.type === 'income' ? 'text-pos' : 'text-destructive',
+                              isPrivacyMode && 'ft-priv',
+                            )}
                           >
                             {tx.type === 'income' ? '+' : '−'}
                             {formatCurrency(tx.amount)}
@@ -261,14 +266,14 @@ export function DeleteRecurringDialog({
                     </span>
                   </label>
                   {deleteLinked && balanceImpact.length > 0 && (
-                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-1.5">
+                    <div className="rounded-md border border-warning/30 bg-warning/10 p-2 space-y-1.5">
                       <div className="flex items-center gap-1.5 text-[11px] font-medium">
-                        <Wallet className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        <Wallet className="h-3 w-3 text-warn" />
                         {t('recurring.deleteBalancePreview', {
                           defaultValue: 'Account balances after delete:',
                         })}
                       </div>
-                      <div className="divide-y divide-amber-500/20 rounded bg-background/40">
+                      <div className="divide-y divide-warning/20 rounded bg-background/40">
                         {balanceImpact.map((row) => (
                           <div
                             key={row.id}
@@ -276,17 +281,19 @@ export function DeleteRecurringDialog({
                           >
                             <span className="truncate font-medium">{row.name}</span>
                             <div className="flex items-center gap-1.5 font-mono tabular-nums whitespace-nowrap">
-                              <span className="text-muted-foreground line-through opacity-80">
+                              <span className={cn('text-muted-foreground line-through opacity-80', isPrivacyMode && 'ft-priv')}>
                                 {formatCurrency(row.current)}
                               </span>
                               <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
-                              <span className="font-semibold">{formatCurrency(row.next)}</span>
+                              <span className={cn('font-semibold', isPrivacyMode && 'ft-priv')}>{formatCurrency(row.next)}</span>
                               <span
-                                className={`ml-0.5 text-[10px] px-1 py-px rounded ${
+                                className={cn(
+                                  'ml-0.5 text-[10px] px-1 py-px rounded',
                                   row.delta >= 0
-                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                                    : 'bg-destructive/15 text-destructive'
-                                }`}
+                                    ? 'bg-pos/15 text-pos'
+                                    : 'bg-destructive/15 text-destructive',
+                                  isPrivacyMode && 'ft-priv',
+                                )}
                               >
                                 {row.delta >= 0 ? '+' : '−'}
                                 {formatCurrency(Math.abs(row.delta))}

@@ -260,7 +260,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
             </Select>
             {selectedAccount && (
               <div className="text-sm text-muted-foreground">
-                Solde actuel: {formatCurrency(selectedAccount.balance)}
+                Solde actuel: <span className="font-mono tabular-nums">{formatCurrency(selectedAccount.balance)}</span>
               </div>
             )}
           </div>
@@ -288,7 +288,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                         <span>{category.name}</span>
                         {category.budget && (
                           <Badge variant="outline" className="ml-2 text-xs">
-                            Budget: {formatCurrency(category.budget)}
+                            Budget: <span className="font-mono tabular-nums">{formatCurrency(category.budget)}</span>
                           </Badge>
                         )}
                       </div>
@@ -367,7 +367,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                     <strong>Type:</strong> {formData.type === 'income' ? t('common.income') : t('common.expense')}
                   </div>
                   <div>
-                    <strong>Montant:</strong> {formatCurrency(parseFloat(formData.amount) || 0)}
+                    <strong>Montant:</strong> <span className="font-mono tabular-nums">{formatCurrency(parseFloat(formData.amount) || 0)}</span>
                   </div>
                   <div>
                     <strong>Fréquence:</strong> {getRecurrenceLabel(formData.recurrence_type)}
@@ -396,7 +396,7 @@ export function NewRecurringTransactionModal({ open, onOpenChange }: NewRecurrin
                       />
                       <span>
                         <strong>Impact sur le budget {selectedCategory.name}:</strong> 
-                        {formatCurrency(parseFloat(formData.amount) || 0)} par {formData.recurrence_type === 'weekly' ? 'semaine' : formData.recurrence_type === 'monthly' ? 'mois' : 'an'}
+                        <span className="font-mono tabular-nums">{formatCurrency(parseFloat(formData.amount) || 0)}</span> par {formData.recurrence_type === 'weekly' ? 'semaine' : formData.recurrence_type === 'monthly' ? 'mois' : 'an'}
                       </span>
                     </div>
                   </div>

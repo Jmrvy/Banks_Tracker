@@ -71,15 +71,15 @@ export function ExcludedTransactionsModal({
       <div className="grid grid-cols-3 gap-1 sm:gap-2 py-3 border-y border-border">
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Revenus exclus</p>
-          <p className="font-semibold text-success text-xs sm:text-sm">+{formatCurrency(totals.income)}</p>
+          <p className="font-semibold text-success text-xs sm:text-sm font-mono tabular-nums">+{formatCurrency(totals.income)}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Dépenses exclues</p>
-          <p className="font-semibold text-destructive text-xs sm:text-sm">-{formatCurrency(totals.expense)}</p>
+          <p className="font-semibold text-destructive text-xs sm:text-sm font-mono tabular-nums">-{formatCurrency(totals.expense)}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Impact net</p>
-          <p className={`font-semibold text-xs sm:text-sm ${netImpact >= 0 ? 'text-success' : 'text-destructive'}`}>
+          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${netImpact >= 0 ? 'text-success' : 'text-destructive'}`}>
             {netImpact >= 0 ? '+' : ''}{formatCurrency(netImpact)}
           </p>
         </div>
@@ -110,7 +110,7 @@ export function ExcludedTransactionsModal({
                   </p>
                 </div>
               </div>
-              <p className={`font-bold text-xs flex-shrink-0 ml-2 sm:hidden ${
+              <p className={`font-bold text-xs flex-shrink-0 ml-2 sm:hidden font-mono tabular-nums ${
                 t.type === 'income' ? 'text-success' : t.type === 'expense' ? 'text-destructive' : 'text-primary'
               }`}>
                 {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
@@ -136,7 +136,7 @@ export function ExcludedTransactionsModal({
                   </div>
                 </div>
               </div>
-              <p className={`hidden sm:block font-bold text-sm flex-shrink-0 ml-2 ${
+              <p className={`hidden sm:block font-bold text-sm flex-shrink-0 ml-2 font-mono tabular-nums ${
                 t.type === 'income' ? 'text-success' : t.type === 'expense' ? 'text-destructive' : 'text-primary'
               }`}>
                 {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}

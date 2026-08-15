@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PlusCircle, MinusCircle, Repeat, Clock, Target, Info, Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { usePrivacy } from '@/contexts/PrivacyContext';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialData, RecurringTransaction } from '@/hooks/useFinancialData';
 import { useInstallmentPayments } from '@/hooks/useInstallmentPayments';
@@ -34,6 +35,7 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
   const { toast } = useToast();
   const navigate = useNavigate();
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
   const { accounts, categories, updateRecurringTransaction } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
   const { debts } = useDebts();
@@ -274,28 +276,28 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 flex-shrink-0">
-          <DialogTitle className="text-sm sm:text-lg flex items-center gap-2">
-            <Repeat className="h-5 w-5 text-primary" />
+        <DialogHeader className="px-5 pt-5 pb-3 flex-shrink-0 border-b text-left">
+          <DialogTitle className="text-[15px] font-semibold tracking-tight flex items-center gap-2">
+            <Repeat className="h-4 w-4 text-primary" />
             Modifier Transaction Récurrente
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-fg-mute mt-0.5">
             Modifier une transaction qui se répète automatiquement
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4 sm:px-6 sm:pb-6">
         <form id="edit-recurring-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Linked transaction info */}
           {isLinked.any && (
-            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertDescription className="text-sm text-blue-800 dark:text-blue-300">
+            <div role="status" className="flex items-start gap-2.5 rounded-xl border border-info/30 bg-info/10 p-3">
+              <Info className="h-4 w-4 text-info shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground/90">
                 {isLinked.debt
                   ? "Le montant et le type sont gérés par l'échéancier de la dette. Modifiez-les depuis les détails de la dette."
                   : "Le montant et le type sont gérés par l'échéancier. Modifiez-les depuis les détails du paiement échelonné."}
-              </AlertDescription>
-            </Alert>
+              </p>
+            </div>
           )}
 
           {/* Transaction Type Toggle */}
@@ -383,7 +385,10 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
             </Select>
             {selectedAccount && (
               <div className="text-sm text-muted-foreground">
-                Solde actuel: {formatCurrency(selectedAccount.balance)}
+                Solde actuel:{' '}
+                <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                  {formatCurrency(selectedAccount.balance)}
+                </span>
               </div>
             )}
           </div>
@@ -411,7 +416,10 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                         <span>{category.name}</span>
                         {category.budget && (
                           <Badge variant="outline" className="ml-2 text-xs">
-                            Budget: {formatCurrency(category.budget)}
+                            Budget:{' '}
+                            <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                              {formatCurrency(category.budget)}
+                            </span>
                           </Badge>
                         )}
                       </div>
@@ -424,11 +432,11 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
 
           {/* Recurrence Configuration */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <div className="ft-eyebrow flex items-center gap-1.5">
+                <Clock className="h-3 w-3" />
                 Configuration de la récurrence
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Recurrence Type */}
@@ -490,11 +498,11 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
           {/* Preview */}
           {formData.amount && formData.start_date && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <div className="ft-eyebrow flex items-center gap-1.5">
+                  <Target className="h-3 w-3" />
                   Aperçu de la récurrence
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -502,7 +510,8 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                     <strong>Type:</strong> {formData.type === 'income' ? t('common.income') : t('common.expense')}
                   </div>
                   <div>
-                    <strong>Montant:</strong> {formatCurrency(parseFloat(formData.amount) || 0)}
+                    <strong>Montant:</strong>{' '}
+                    <span className="font-mono tabular-nums">{formatCurrency(parseFloat(formData.amount) || 0)}</span>
                   </div>
                   <div>
                     <strong>Fréquence:</strong> {getRecurrenceLabel(formData.recurrence_type)}
@@ -530,8 +539,9 @@ export function EditRecurringTransactionModal({ open, onOpenChange, transaction 
                         style={{ backgroundColor: selectedCategory.color }}
                       />
                       <span>
-                        <strong>Impact sur le budget {selectedCategory.name}:</strong> 
-                        {formatCurrency(parseFloat(formData.amount) || 0)} par {formData.recurrence_type === 'weekly' ? 'semaine' : formData.recurrence_type === 'monthly' ? 'mois' : formData.recurrence_type === 'quarterly' ? 'trimestre' : 'an'}
+                        <strong>Impact sur le budget {selectedCategory.name}:</strong>{' '}
+                        <span className="font-mono tabular-nums">{formatCurrency(parseFloat(formData.amount) || 0)}</span>
+                        {' '}par {formData.recurrence_type === 'weekly' ? 'semaine' : formData.recurrence_type === 'monthly' ? 'mois' : formData.recurrence_type === 'quarterly' ? 'trimestre' : 'an'}
                       </span>
                     </div>
                   </div>

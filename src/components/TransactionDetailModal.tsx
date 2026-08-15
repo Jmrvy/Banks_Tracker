@@ -6,9 +6,10 @@ import {
   DetailSheetBody,
   DetailSheetFooter,
 } from "@/components/ui/detail-sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, CreditCard, Tag, FileText, RotateCcw, TrendingUp, History, Receipt, Pencil, Trash2, Link2, Link2Off } from "lucide-react";
 import { type Transaction, useFinancialData } from "@/hooks/useFinancialData";
 import { LinkRefundModal } from "@/components/LinkRefundModal";
@@ -50,6 +51,7 @@ interface OriginalTransaction {
 export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund }: TransactionDetailModalProps) {
   const { formatCurrency } = useUserPreferences();
   const { t, i18n } = useTranslation();
+  const { isPrivacyMode } = usePrivacy();
   const { refetch } = useFinancialData();
   // Linking lives here rather than in each host. This modal is rendered from
   // four places and only one of them wired the props, so the action existed
@@ -183,11 +185,11 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
   const getTypeIcon = () => {
     switch (transaction.type) {
       case 'income':
-        return <ArrowDownRight className="w-6 h-6 text-green-600" />;
+        return <ArrowDownRight className="w-6 h-6 text-pos" />;
       case 'expense':
-        return <ArrowUpRight className="w-6 h-6 text-red-600" />;
+        return <ArrowUpRight className="w-6 h-6 text-neg" />;
       case 'transfer':
-        return <ArrowRightLeft className="w-6 h-6 text-blue-600" />;
+        return <ArrowRightLeft className="w-6 h-6 text-info" />;
     }
   };
 
@@ -205,11 +207,11 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
   const getTypeColor = () => {
     switch (transaction.type) {
       case 'income':
-        return 'text-green-600';
+        return 'text-pos';
       case 'expense':
-        return 'text-red-600';
+        return 'text-neg';
       case 'transfer':
-        return 'text-blue-600';
+        return 'text-info';
     }
   };
 
@@ -220,7 +222,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
   return (
     <DetailSheet open={open} onOpenChange={onOpenChange}>
       <DetailSheetHeader>
-        <DetailSheetTitle>
+        <DetailSheetTitle className="text-[15px] sm:text-[15px] tracking-tight">
           {getTypeIcon()}
           {t('transactions.detailsTitle', { defaultValue: 'Transaction details' })}
         </DetailSheetTitle>
@@ -228,55 +230,55 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
 
       <DetailSheetBody>
           {/* Description and amount */}
-          <div className="text-center py-4 bg-bg-subtle  border border-line rounded-2xl">
+          <div className="text-center py-4 bg-bg-subtle border border-line rounded-2xl">
             <p className="text-lg font-semibold mb-2">{transaction.description}</p>
-            <p className={`text-3xl font-bold ${getTypeColor()}`}>
+            <p
+              className={cn(
+                'text-[22px] font-semibold font-mono tabular-nums tracking-tight',
+                getTypeColor(),
+                isPrivacyMode && 'ft-priv'
+              )}
+            >
               {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}
               {formatCurrency(Math.abs(transaction.amount))}
             </p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <Badge variant="secondary">
-                {getTypeLabel()}
-              </Badge>
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+              <span className="ft-tag">{getTypeLabel()}</span>
               {transaction.refund_of_transaction_id && (
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                  <RotateCcw className="w-3 h-3 mr-1" />
+                <span className="ft-tag pos">
+                  <RotateCcw className="h-2.5 w-2.5" />
                   Remboursement
-                </Badge>
+                </span>
               )}
               {transaction.repayment_of_transaction_id && (
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
-                  <RotateCcw className="w-3 h-3 mr-1" />
+                <span className="ft-tag">
+                  <RotateCcw className="h-2.5 w-2.5" />
                   {t('transactions.repayment', { defaultValue: 'Repayment' })}
-                </Badge>
+                </span>
               )}
               {transaction.type === 'income' && (transaction.repaid_amount || 0) > 0 && (
-                <Badge
-                  variant="outline"
-                  className={
-                    (transaction.repaid_amount || 0) >= transaction.amount
-                      ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
-                      : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                  }
+                <span
+                  className={cn(
+                    'ft-tag',
+                    (transaction.repaid_amount || 0) >= transaction.amount ? '' : 'warn'
+                  )}
                 >
-                  <RotateCcw className="w-3 h-3 mr-1" />
+                  <RotateCcw className="h-2.5 w-2.5" />
                   {(transaction.repaid_amount || 0) >= transaction.amount
                     ? t('transactions.repaid', { defaultValue: 'Repaid' })
                     : t('transactions.partialRepayment', { defaultValue: 'Partial' })}
-                </Badge>
+                </span>
               )}
               {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
-                <Badge 
-                  variant="outline" 
-                  className={
-                    transaction.refunded_amount === transaction.amount 
-                      ? 'bg-green-500/10 text-green-600 border-green-500/30' 
-                      : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                  }
+                <span
+                  className={cn(
+                    'ft-tag',
+                    transaction.refunded_amount === transaction.amount ? 'pos' : 'warn'
+                  )}
                 >
-                  <RotateCcw className="w-3 h-3 mr-1" />
+                  <RotateCcw className="h-2.5 w-2.5" />
                   {transaction.refunded_amount === transaction.amount ? 'Remboursé' : 'Partiel'}
-                </Badge>
+                </span>
               )}
             </div>
           </div>
@@ -286,10 +288,10 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           {/* The advance this expense settles */}
           {transaction.repayment_of_transaction_id && repaidIncome && (
             <>
-              <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+              <div className="p-3 bg-info/10 border border-info/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
-                  <Receipt className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-medium text-blue-600">
+                  <Receipt className="w-4 h-4 text-info" />
+                  <p className="text-sm font-medium text-info">
                     {t('transactions.repaidAdvance', { defaultValue: 'Advance repaid by this' })}
                   </p>
                 </div>
@@ -297,7 +299,14 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                   <p className="text-sm font-medium">{repaidIncome.description}</p>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{format(parseLocalDate(repaidIncome.transaction_date), "d MMM yyyy", { locale: dateLocale })}</span>
-                    <span className="font-medium text-green-600">+{formatCurrency(repaidIncome.amount)}</span>
+                    <span
+                      className={cn(
+                        'font-medium font-mono tabular-nums text-pos',
+                        isPrivacyMode && 'ft-priv'
+                      )}
+                    >
+                      +{formatCurrency(repaidIncome.amount)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -308,10 +317,10 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           {/* Repayments received against this income */}
           {transaction.type === 'income' && repayments.length > 0 && (
             <>
-              <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+              <div className="p-3 bg-info/10 border border-info/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
-                  <Receipt className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-medium text-blue-600">
+                  <Receipt className="w-4 h-4 text-info" />
+                  <p className="text-sm font-medium text-info">
                     {t('transactions.repaymentsReceived', { defaultValue: 'Repaid by' })}
                   </p>
                 </div>
@@ -320,7 +329,10 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                     <div key={r.id} className="flex items-center justify-between text-sm">
                       <span className="truncate mr-2">{r.description}</span>
                       <span className="font-medium text-muted-foreground whitespace-nowrap">
-                        {format(parseLocalDate(r.transaction_date), "d MMM", { locale: dateLocale })} · −{formatCurrency(r.amount)}
+                        {format(parseLocalDate(r.transaction_date), "d MMM", { locale: dateLocale })} ·{' '}
+                        <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                          −{formatCurrency(r.amount)}
+                        </span>
                       </span>
                     </div>
                   ))}
@@ -333,16 +345,23 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           {/* Original transaction info (if this is a refund) */}
           {transaction.refund_of_transaction_id && originalTransaction && (
             <>
-              <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-xl">
+              <div className="p-3 bg-pos/10 border border-pos/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
-                  <Receipt className="w-4 h-4 text-green-600" />
-                  <p className="text-sm font-medium text-green-600">Transaction originale remboursée</p>
+                  <Receipt className="w-4 h-4 text-pos" />
+                  <p className="text-sm font-medium text-pos">Transaction originale remboursée</p>
                 </div>
                 <div className="ml-6 space-y-1">
                   <p className="text-sm font-medium">{originalTransaction.description}</p>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{format(parseLocalDate(originalTransaction.transaction_date), "d MMM yyyy", { locale: dateLocale })}</span>
-                    <span className="font-medium text-red-600">-{formatCurrency(originalTransaction.amount)}</span>
+                    <span
+                      className={cn(
+                        'font-medium font-mono tabular-nums text-neg',
+                        isPrivacyMode && 'ft-priv'
+                      )}
+                    >
+                      -{formatCurrency(originalTransaction.amount)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -353,24 +372,34 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
           {/* Refund summary for expenses */}
           {transaction.type === 'expense' && (transaction.refunded_amount || 0) > 0 && (
             <>
-              <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+              <div className="p-3 bg-warn/10 border border-warn/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-3">
-                  <History className="w-4 h-4 text-amber-600" />
-                  <p className="text-sm font-medium text-amber-600">{t('refund.history', { defaultValue: 'Refund history' })}</p>
+                  <History className="w-4 h-4 text-warn" />
+                  <p className="text-sm font-medium text-warn">{t('refund.history', { defaultValue: 'Refund history' })}</p>
                 </div>
-                
+
                 {/* Summary bar */}
                 <div className="mb-3">
                   <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>Remboursé : {formatCurrency(transaction.refunded_amount || 0)}</span>
-                    <span>Reste : {formatCurrency(remainingToRefund)}</span>
+                    <span>
+                      Remboursé :{' '}
+                      <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                        {formatCurrency(transaction.refunded_amount || 0)}
+                      </span>
+                    </span>
+                    <span>
+                      Reste :{' '}
+                      <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
+                        {formatCurrency(remainingToRefund)}
+                      </span>
+                    </span>
                   </div>
                   <div className="w-full bg-bg-hover rounded-full h-2">
-                    <div 
+                    <div
                       className={`h-2 rounded-full transition-all ${
-                        transaction.refunded_amount === transaction.amount 
-                          ? 'bg-green-500' 
-                          : 'bg-amber-500'
+                        transaction.refunded_amount === transaction.amount
+                          ? 'bg-pos'
+                          : 'bg-warn'
                       }`}
                       style={{ width: `${((transaction.refunded_amount || 0) / transaction.amount) * 100}%` }}
                     />
@@ -396,7 +425,12 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                             </p>
                           </div>
                         </div>
-                        <span className="text-sm font-medium text-green-600">
+                        <span
+                          className={cn(
+                            'text-sm font-medium font-mono tabular-nums text-pos',
+                            isPrivacyMode && 'ft-priv'
+                          )}
+                        >
                           +{formatCurrency(refund.amount)}
                         </span>
                       </div>
@@ -456,12 +490,19 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                 <Tag className="w-4 h-4 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Catégorie</p>
-                  <Badge 
-                    variant="secondary"
-                    style={{ backgroundColor: transaction.category.color, color: 'white' }}
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{
+                      background: `color-mix(in oklab, ${transaction.category.color} 15%, transparent)`,
+                      color: transaction.category.color,
+                    }}
                   >
+                    <i
+                      className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                      style={{ background: transaction.category.color }}
+                    />
                     {transaction.category.name}
-                  </Badge>
+                  </span>
                 </div>
               </div>
             )}
@@ -472,7 +513,12 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
                 <TrendingUp className="w-4 h-4 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Frais de virement</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p
+                    className={cn(
+                      'text-sm text-muted-foreground font-mono tabular-nums',
+                      isPrivacyMode && 'ft-priv'
+                    )}
+                  >
                     {formatCurrency(transaction.transfer_fee)}
                   </p>
                 </div>
@@ -531,7 +577,7 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 text-green-600 border-green-500/30 hover:bg-green-500/10"
+              className="flex-1 text-pos border-pos/30 hover:bg-pos/10"
               onClick={() => { onRefund(transaction); onOpenChange(false); }}
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />

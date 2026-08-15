@@ -89,7 +89,7 @@ export const AddPaymentModal = ({ open, onOpenChange, debt }: AddPaymentModalPro
                 required
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t('common.max', { defaultValue: 'Max' })}: {formatCurrency(debt.remaining_amount)}
+                {t('common.max', { defaultValue: 'Max' })}: <span className="font-mono tabular-nums">{formatCurrency(debt.remaining_amount)}</span>
               </p>
             </div>
 
