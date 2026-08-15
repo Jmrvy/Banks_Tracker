@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface CategoryMonth {
@@ -60,7 +60,6 @@ export function CategoryMonthsChart({
     months.findIndex((m) => m.kind === "current"),
   );
   const [selected, setSelected] = useState<number>(currentIndex);
-  const railRef = useRef<HTMLDivElement>(null);
 
   // The current month moves when the period or the category changes under
   // us; a selection pinned to a stale index would read the wrong bar.
@@ -79,7 +78,11 @@ export function CategoryMonthsChart({
   }, [months, cap]);
 
   const active = months[selected] ?? months[currentIndex];
-  const activeTotal = active ? Math.max(0, active.actual) + Math.max(0, active.forecast) : 0;
+  // Unclamped: a category can net negative for a month when a refund lands
+  // after the expense it cancels, and the readout has to say −60 € rather
+  // than the 0 the bar is drawn at. Only the geometry floors at zero — a bar
+  // has no downward direction here.
+  const activeTotal = active ? active.actual + active.forecast : 0;
   const overCap = cap != null && cap > 0 && activeTotal > cap;
 
   const hatch = `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px)`;
@@ -123,7 +126,7 @@ export function CategoryMonthsChart({
         </span>
       </div>
 
-      <div className="relative" style={{ height: BAR_H }} ref={railRef}>
+      <div className="relative" style={{ height: BAR_H }}>
         {/* The cap, drawn behind the bars so a bar that crosses it reads as
             crossing it rather than being cut by it. */}
         {cap != null && cap > 0 && cap <= scale && (
@@ -139,7 +142,6 @@ export function CategoryMonthsChart({
             const actual = Math.max(0, m.actual);
             const forecast = Math.max(0, m.forecast);
             const isSel = i === selected;
-            const total = actual + forecast;
 
             return (
               <button
@@ -147,7 +149,7 @@ export function CategoryMonthsChart({
                 type="button"
                 onClick={() => setSelected(i)}
                 aria-pressed={isSel}
-                aria-label={`${m.label} — ${formatCurrency(total)}`}
+                aria-label={`${m.label} — ${formatCurrency(m.actual + m.forecast)}`}
                 className={cn(
                   "flex-1 min-w-0 h-full flex flex-col justify-end rounded-t-[4px]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
