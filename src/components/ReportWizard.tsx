@@ -616,22 +616,22 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
               "relative cursor-pointer rounded-xl p-4 transition-all duration-200",
               "border bg-card",
               config.format === 'excel'
-                ? "border-green-500 bg-green-500/5 to-green-500/10 shadow-lg shadow-green-500/10"
+                ? "border-pos bg-pos-soft shadow-sm"
                 : "border-border/50 from-muted/30 to-muted/10 hover:border-muted-foreground/30 hover:shadow-md"
             )}
             onClick={() => setConfig(prev => ({ ...prev, format: 'excel' }))}
           >
             {config.format === 'excel' && (
               <div className="absolute top-2 right-2">
-                <Check className="h-4 w-4 text-green-500" />
+                <Check className="h-4 w-4 text-pos" />
               </div>
             )}
             <div className="flex flex-col items-center gap-2">
               <div className={cn(
                 "p-3 rounded-xl",
-                config.format === 'excel' ? "bg-green-500/10" : "bg-muted"
+                config.format === 'excel' ? "bg-pos-soft" : "bg-muted"
               )}>
-                <FileSpreadsheet className={cn("h-6 w-6", config.format === 'excel' ? "text-green-500" : "text-muted-foreground")} />
+                <FileSpreadsheet className={cn("h-6 w-6", config.format === 'excel' ? "text-pos" : "text-muted-foreground")} />
               </div>
               <span className="font-semibold text-sm">Excel</span>
               <span className="text-[11px] text-muted-foreground text-center leading-tight">Donnees brutes</span>
@@ -907,13 +907,13 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
           <Card>
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">Revenus</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(stats.income)}</p>
+              <p className="text-lg font-semibold font-mono tabular-nums text-pos">{formatCurrency(stats.income)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">Depenses</p>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(stats.expenses)}</p>
+              <p className="text-lg font-semibold font-mono tabular-nums text-neg">{formatCurrency(stats.expenses)}</p>
             </CardContent>
           </Card>
         </div>

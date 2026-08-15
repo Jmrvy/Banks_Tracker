@@ -87,9 +87,9 @@ export const ReimbursementDetailModal = ({
                 <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Reçu</p>
                 <p className="text-[11px] sm:text-sm font-bold text-success truncate">{formatCurrency(amountPaid)}</p>
               </div>
-              <div className="rounded-xl bg-orange-500/5 border border-orange-500/10 p-2">
+              <div className="rounded-xl bg-warn-soft border border-warn/20 p-2">
                 <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Restant</p>
-                <p className="text-[11px] sm:text-sm font-bold text-orange-500 truncate">{formatCurrency(installment.remaining_amount)}</p>
+                <p className="text-[11px] sm:text-sm font-semibold font-mono tabular-nums text-warn truncate">{formatCurrency(installment.remaining_amount)}</p>
               </div>
             </div>
           </div>

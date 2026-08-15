@@ -395,6 +395,7 @@
     "remove": "Remove",
     "required": "Required",
     "reset": "Reset",
+    "retry": "Try again",
     "returnHome": "Return to Home",
     "sameAccounts": "Identical accounts",
     "save": "Save",
@@ -835,6 +836,19 @@
     "subtitle": "Two fields are enough. The rest is guessed from your habits.",
     "title": "New transaction",
     "transferFee": "Transfer fee"
+  },
+  "oauth": {
+    "anApplication": "An application",
+    "approve": "Approve",
+    "body": "{{name}} will be able to read your accounts, transactions, budgets and savings goals, and to record new transactions — acting as you.",
+    "deny": "Deny",
+    "eyebrow": "Connection request",
+    "failedTitle": "Connection request failed",
+    "missingId": "This link is missing its authorization_id. Start the connection again from the app that requested it.",
+    "noRedirect": "The authorization server did not return a redirect target.",
+    "permissions": "Requested permissions",
+    "title": "Connect {{name}} to your account",
+    "unexpected": "Unexpected error"
   },
   "offline": {
     "syncComplete": "Sync complete",

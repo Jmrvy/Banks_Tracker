@@ -395,6 +395,7 @@
     "remove": "Retirer",
     "required": "Requis",
     "reset": "Réinitialiser",
+    "retry": "Réessayer",
     "returnHome": "Retour à l'accueil",
     "sameAccounts": "Comptes identiques",
     "save": "Sauvegarder",
@@ -835,6 +836,19 @@
     "subtitle": "Deux champs suffisent. Le reste est deviné à partir de vos habitudes.",
     "title": "Nouvelle transaction",
     "transferFee": "Frais de transfert"
+  },
+  "oauth": {
+    "anApplication": "Une application",
+    "approve": "Autoriser",
+    "body": "{{name}} pourra lire vos comptes, transactions, budgets et objectifs d'épargne, et enregistrer de nouvelles transactions — en agissant en votre nom.",
+    "deny": "Refuser",
+    "eyebrow": "Demande de connexion",
+    "failedTitle": "La demande de connexion a échoué",
+    "missingId": "Cet identifiant d'autorisation est absent du lien. Relancez la connexion depuis l'application qui l'a demandée.",
+    "noRedirect": "Le serveur d'autorisation n'a renvoyé aucune adresse de redirection.",
+    "permissions": "Autorisations demandées",
+    "title": "Connecter {{name}} à votre compte",
+    "unexpected": "Erreur inattendue"
   },
   "offline": {
     "syncComplete": "Synchronisation terminée",

@@ -260,7 +260,7 @@ export function AdjustPlanForm({ plan }: Props) {
     <div className="space-y-4">
       {/* Drift banner */}
       {driftSignificant && (
-        <div className="rounded-xl border border-warn/40 bg-[hsl(var(--warn-soft))] p-3 sm:p-4">
+        <div className="rounded-xl border border-warn/40 bg-warn-soft p-3 sm:p-4">
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="h-4 w-4 text-warn mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-2">

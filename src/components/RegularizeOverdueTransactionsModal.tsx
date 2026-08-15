@@ -285,7 +285,7 @@ export const RegularizeOverdueTransactionsModal = ({
                 <div className="p-3 rounded-lg bg-muted/50 border">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Impact total</span>
-                    <span className={`font-bold ${totalAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-bold ${totalAmount >= 0 ? 'text-pos' : 'text-neg'}`}>
                       {totalAmount >= 0 ? '+' : ''}{formatCurrency(Math.abs(totalAmount))}
                     </span>
                   </div>
