@@ -51,7 +51,7 @@ const Reports = () => {
   const [dateType, setDateType] = useState<'accounting' | 'value'>(preferences.dateType);
   const [compareTo, setCompareTo] = useState<'prior' | '3mo' | 'yearAgo'>('prior');
 
-  const { installmentPayments } = useInstallmentPayments();
+  const { installmentPayments, installmentRecords } = useInstallmentPayments();
   const installmentPaymentInfos = useMemo(() =>
     installmentPayments.map(ip => ({
       id: ip.id,
@@ -111,7 +111,7 @@ const Reports = () => {
     useSpendingPatterns,
     dateType,
     installmentPaymentInfos,
-    undefined,
+    { installmentRecords },
     debtInfos,
     scheduledDebtPaymentInfos,
     debtPaymentInfos,

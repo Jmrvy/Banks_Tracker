@@ -1198,7 +1198,7 @@ const Budget = () => {
     () => allCategories.filter((c) => c.budget == null && !everSpent.has(c.id)),
     [allCategories, everSpent],
   );
-  const { installmentPayments } = useInstallmentPayments();
+  const { installmentPayments, installmentRecords } = useInstallmentPayments();
   const { debts, scheduledPayments: scheduledDebtPayments } = useDebts();
   const { specialBudgets } = useSpecialBudgets();
   const { goals: savingsGoals } = useSavingsGoals();
@@ -1385,8 +1385,14 @@ const Budget = () => {
   // and the per-category monthly chart cannot drift apart about when a plan
   // or a debt stops.
   const forecastCtx = useMemo(
-    () => ({ recurringTransactions, installmentPayments, debts, scheduledDebtPayments }),
-    [recurringTransactions, installmentPayments, debts, scheduledDebtPayments]
+    () => ({
+      recurringTransactions,
+      installmentPayments,
+      installmentRecords,
+      debts,
+      scheduledDebtPayments,
+    }),
+    [recurringTransactions, installmentPayments, installmentRecords, debts, scheduledDebtPayments]
   );
 
   const projectedByCategory = useMemo(() => {

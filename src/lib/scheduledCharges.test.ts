@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { forEachFutureCharge, type ScheduleContext } from "./scheduledCharges";
+import {
+  forEachFutureCharge,
+  paymentsLeft,
+  type ScheduleContext,
+} from "./scheduledCharges";
 import type { RecurringTransaction } from "@/hooks/useFinancialData";
 import type { Debt, ScheduledDebtPayment } from "@/hooks/useDebts";
-import type { InstallmentPayment } from "@/hooks/useInstallmentPayments";
+import type {
+  InstallmentPayment,
+  InstallmentPaymentRecord,
+} from "@/hooks/useInstallmentPayments";
 
 const CAT = { id: "cat-1", name: "Abonnements", color: "#c66" };
 
@@ -73,6 +80,21 @@ const debt = (over: Partial<Debt> = {}): Debt =>
     updated_at: "",
     ...over,
   }) as Debt;
+
+const record = (
+  over: Partial<InstallmentPaymentRecord> & { scheduled_date: string },
+): InstallmentPaymentRecord =>
+  ({
+    id: `r-${over.scheduled_date}`,
+    installment_payment_id: "ip-1",
+    user_id: "u",
+    scheduled_amount: 35.28,
+    is_paid: false,
+    paid_date: null,
+    actual_amount: null,
+    transaction_id: null,
+    ...over,
+  }) as InstallmentPaymentRecord;
 
 const ctx = (over: Partial<ScheduleContext> = {}): ScheduleContext => ({
   recurringTransactions: [],
@@ -346,5 +368,128 @@ describe("forEachFutureCharge", () => {
       { categoryId: CAT.id, date: "2026-09-10", amount: 40 },
       { categoryId: other.id, date: "2026-09-10", amount: 75 },
     ]);
+  });
+
+  describe("a plan that has a schedule", () => {
+    // The live plan this was found on: 105,85 € over three instalments bills
+    // 35,28 twice and 35,29 once. Two are paid.
+    const zalando = [
+      record({ scheduled_date: "2026-07-08", scheduled_amount: 35.28, is_paid: true }),
+      record({ scheduled_date: "2026-08-08", scheduled_amount: 35.28, is_paid: true }),
+      record({ scheduled_date: "2026-09-08", scheduled_amount: 35.29 }),
+    ];
+    const withSchedule = ctx({
+      recurringTransactions: [
+        rule({ amount: 35.28, installment_payment_id: "ip-1", next_due_date: "2026-09-08" }),
+      ],
+      installmentPayments: [
+        plan({ total_amount: 105.85, remaining_amount: 35.28999999999999, installment_amount: 35.28 }),
+      ],
+      installmentRecords: zalando,
+    });
+
+    it("bills the unpaid rows and no more", () => {
+      // Without the schedule this emitted two charges — `remaining` is a
+      // cent above the instalment, so the balance division rounded up — and
+      // the category was billed a fourth time for a three-instalment plan.
+      const got = collect(withSchedule, d("2026-08-15"), d("2027-06-30"));
+      expect(got).toEqual([{ categoryId: CAT.id, date: "2026-09-08", amount: 35.29 }]);
+    });
+
+    it("bills the scheduled amount, not the nominal instalment", () => {
+      const got = collect(withSchedule, d("2026-08-15"), d("2027-06-30"));
+      expect(got[0].amount).toBe(35.29);
+    });
+
+    it("never re-bills a paid row, whatever the window", () => {
+      const got = collect(withSchedule, d("2026-01-01"), d("2027-06-30"));
+      expect(got.map((g) => g.date)).toEqual(["2026-09-08"]);
+    });
+
+    it("keeps the rows on their own dates rather than stepping the rule", () => {
+      // A custom schedule need not be evenly spaced; walking `next_due_date`
+      // by the recurrence would invent regular dates it does not have.
+      const got = collect(
+        ctx({
+          recurringTransactions: [
+            rule({ installment_payment_id: "ip-1", next_due_date: "2026-09-08" }),
+          ],
+          installmentPayments: [plan({ remaining_amount: 120, installment_amount: 40 })],
+          installmentRecords: [
+            record({ scheduled_date: "2026-09-08", scheduled_amount: 40 }),
+            record({ scheduled_date: "2026-09-30", scheduled_amount: 40 }),
+            record({ scheduled_date: "2026-12-24", scheduled_amount: 40 }),
+          ],
+        }),
+        d("2026-08-15"),
+        d("2027-06-30"),
+      );
+      expect(got.map((g) => g.date)).toEqual(["2026-09-08", "2026-09-30", "2026-12-24"]);
+    });
+
+    it("emits nothing once every row is paid", () => {
+      const got = collect(
+        ctx({
+          recurringTransactions: [rule({ installment_payment_id: "ip-1" })],
+          installmentPayments: [plan()],
+          installmentRecords: zalando.map((r) => ({ ...r, is_paid: true })),
+        }),
+        d("2026-08-15"),
+        d("2027-06-30"),
+      );
+      expect(got).toEqual([]);
+    });
+
+    it("falls back to the balance when the plan has no rows of its own", () => {
+      const got = collect(
+        ctx({
+          recurringTransactions: [rule({ installment_payment_id: "ip-1" })],
+          installmentPayments: [plan({ remaining_amount: 300, installment_amount: 100 })],
+          // Rows exist, but for a different plan.
+          installmentRecords: [
+            record({ scheduled_date: "2026-09-01", installment_payment_id: "ip-other" }),
+          ],
+        }),
+        d("2026-09-01"),
+        d("2027-06-30"),
+      );
+      expect(got).toHaveLength(3);
+    });
+  });
+});
+
+describe("paymentsLeft", () => {
+  it("does not promote a rounding tail into another payment", () => {
+    // Both live plans that produced the phantom charge.
+    expect(paymentsLeft(35.28999999999999, 35.28)).toBe(1);
+    expect(paymentsLeft(102.19999999999999, 102.19)).toBe(1);
+  });
+
+  it("absorbs a large final remainder into the last payment", () => {
+    // 289 € at 24 €: twelve payments, the last of 25. With nine full ones
+    // billed the remaining 217 is nine payments, not ten.
+    expect(paymentsLeft(217, 24)).toBe(9);
+    expect(paymentsLeft(476, 40)).toBe(12);
+  });
+
+  it("counts exact multiples exactly", () => {
+    expect(paymentsLeft(135, 45)).toBe(3);
+    expect(paymentsLeft(813.15, 62.55)).toBe(13);
+    expect(paymentsLeft(822.7099999999998, 205.68)).toBe(4);
+  });
+
+  it("still owes one payment for a balance smaller than one", () => {
+    expect(paymentsLeft(12, 40)).toBe(1);
+  });
+
+  it("owes nothing on a settled or nonsensical plan", () => {
+    expect(paymentsLeft(0, 40)).toBe(0);
+    expect(paymentsLeft(-5, 40)).toBe(0);
+    expect(paymentsLeft(100, 0)).toBe(0);
+  });
+
+  it("rounds up once the tail is more than half a payment", () => {
+    expect(paymentsLeft(60, 40)).toBe(2);
+    expect(paymentsLeft(59, 40)).toBe(1);
   });
 });

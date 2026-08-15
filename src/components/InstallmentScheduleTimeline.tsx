@@ -17,6 +17,7 @@ import {
 } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { paymentsLeft } from "@/lib/scheduledCharges";
 
 /** Personalized-schedule row — one per planned installment.
  *  Present only for custom plans; uniform plans don't have records. */
@@ -102,7 +103,7 @@ export function InstallmentScheduleTimeline({
       const paidCount = linkedTransactions.length;
       const remainingCount =
         plan.remaining_amount > 0
-          ? Math.ceil(plan.remaining_amount / plan.installment_amount)
+          ? paymentsLeft(plan.remaining_amount, plan.installment_amount)
           : 0;
       return Math.max(1, paidCount + remainingCount);
     }

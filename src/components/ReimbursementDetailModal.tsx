@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { paymentsLeft } from "@/lib/scheduledCharges";
 
 interface ReimbursementDetailModalProps {
   open: boolean;
@@ -38,7 +39,7 @@ export const ReimbursementDetailModal = ({
     : 0;
 
   const remainingPayments = installment.installment_amount > 0
-    ? Math.ceil(installment.remaining_amount / installment.installment_amount)
+    ? paymentsLeft(installment.remaining_amount, installment.installment_amount)
     : 0;
 
   const frequencyLabel = installment.frequency === 'weekly' ? 'Hebdomadaire'

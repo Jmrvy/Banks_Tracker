@@ -5,11 +5,68 @@ import type { RecurringTransaction } from "@/hooks/useFinancialData";
 import type { Debt, ScheduledDebtPayment } from "@/hooks/useDebts";
 import type { InstallmentPayment } from "@/hooks/useInstallmentPayments";
 
+/**
+ * The shape a schedule row has to have to be usable here — structurally
+ * satisfied by `InstallmentPaymentRecord`, and small enough that the reports
+ * hook can pass its own lightweight rows without importing the whole model.
+ */
+export interface InstallmentScheduleRow {
+  installment_payment_id: string;
+  /** `yyyy-MM-dd`. */
+  scheduled_date: string;
+  scheduled_amount: number;
+  is_paid: boolean | null;
+}
+
 export interface ScheduleContext {
   recurringTransactions: RecurringTransaction[];
   installmentPayments: InstallmentPayment[];
+  /**
+   * Per-instalment rows, where a plan has them. They are the schedule — a
+   * date and an amount per instalment, and a paid flag — so where they exist
+   * nothing needs to be inferred from the balance.
+   */
+  installmentRecords?: InstallmentScheduleRow[];
   debts: Debt[];
   scheduledDebtPayments: ScheduledDebtPayment[];
+}
+
+/**
+ * How many payments a balance still has in it.
+ *
+ * `Math.ceil(remaining / perPayment)` is the obvious answer and it is wrong,
+ * because a plan's instalment is its total rounded DOWN to the cent: the
+ * remainder rides on the final payment. A three-instalment plan of 105,85 €
+ * bills 35,28 twice and 35,29 once, so after two payments `remaining` is
+ * 35,29 — one cent more than an instalment — and `ceil` reports two payments
+ * left. The budget then counted a fourth charge on a plan that has three.
+ *
+ * Rounding is the model that matches how the plans are actually built: the
+ * tail is absorbed by the last payment, never promoted into its own. It
+ * reads every live plan correctly, including the 289 € / 24 € one whose last
+ * instalment is 25 €.
+ *
+ * A balance smaller than one payment is still one payment, not zero.
+ */
+export function paymentsLeft(remaining: number, perPayment: number): number {
+  if (!(remaining > 0) || !(perPayment > 0)) return 0;
+  return Math.max(1, Math.round(remaining / perPayment));
+}
+
+/**
+ * The instalments a plan has still to bill, oldest first — its unpaid rows
+ * when it has a schedule, otherwise null to say "infer it from the balance".
+ */
+export function unpaidInstallments(
+  planId: string,
+  records: InstallmentScheduleRow[] | undefined,
+): InstallmentScheduleRow[] | null {
+  if (!records?.length) return null;
+  const mine = records.filter((r) => r.installment_payment_id === planId);
+  if (!mine.length) return null;
+  return mine
+    .filter((r) => !r.is_paid)
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
 }
 
 /**
@@ -108,15 +165,32 @@ export function forEachFutureCharge(
 
     if (rt.installment_payment_id) {
       const ip = installmentMap.get(rt.installment_payment_id);
+
+      // A plan with rows needs no walking at all: the unpaid rows say what
+      // is left, on what date, for how much. Walking the rule instead
+      // rebuilt all three by inference and got each of them wrong on a plan
+      // whose instalments are not identical — the wrong count, the nominal
+      // amount rather than the scheduled one, and dates stepped from
+      // `next_due_date` rather than the ones the schedule holds.
+      const scheduled = ip?.is_active
+        ? unpaidInstallments(rt.installment_payment_id, ctx.installmentRecords)
+        : null;
+      if (scheduled) {
+        for (const r of scheduled) {
+          const due = parseLocalDate(r.scheduled_date);
+          if (due < from || due > to) continue;
+          if (effectiveEnd && due > effectiveEnd) continue;
+          emit(rt.category.id, due, Number(r.scheduled_amount));
+        }
+        continue;
+      }
+
       if (ip) {
         if (!ip.is_active || ip.installment_amount <= 0) {
           const stop = new Date(nextDue.getTime() - 86400000);
           if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
         } else {
-          const maxFuture = Math.max(
-            0,
-            Math.ceil(ip.remaining_amount / ip.installment_amount)
-          );
+          const maxFuture = paymentsLeft(ip.remaining_amount, ip.installment_amount);
           if (maxFuture <= 0) {
             const stop = new Date(nextDue.getTime() - 86400000);
             if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
@@ -144,9 +218,7 @@ export function forEachFutureCharge(
           const maxFuture =
             unpaidCount > 0
               ? unpaidCount
-              : debt.payment_amount > 0
-              ? Math.max(0, Math.ceil(debt.remaining_amount / debt.payment_amount))
-              : 0;
+              : paymentsLeft(debt.remaining_amount, debt.payment_amount);
           if (maxFuture <= 0) {
             const stop = new Date(nextDue.getTime() - 86400000);
             if (!effectiveEnd || stop < effectiveEnd) effectiveEnd = stop;
@@ -175,4 +247,20 @@ export function forEachFutureCharge(
       n++;
     }
   }
+}
+
+/**
+ * The date a plan's schedule runs out — its last unpaid row — or null when
+ * it has no schedule to read.
+ *
+ * For callers that bound a walk by an end date rather than emitting the rows
+ * themselves. Bounding on this is what stops the walk running one occurrence
+ * past the end of a plan whose final instalment carries the rounding.
+ */
+export function lastScheduledInstallment(
+  planId: string,
+  records: InstallmentScheduleRow[] | undefined,
+): string | null {
+  const unpaid = unpaidInstallments(planId, records);
+  return unpaid?.length ? unpaid[unpaid.length - 1].scheduled_date : null;
 }

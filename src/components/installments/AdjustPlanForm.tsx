@@ -17,6 +17,7 @@ import {
   PlanDrift,
   PlanModifyField,
 } from '@/hooks/useInstallmentPayments';
+import { paymentsLeft } from '@/lib/scheduledCharges';
 
 interface Props {
   plan: InstallmentPayment;
@@ -50,7 +51,7 @@ export function AdjustPlanForm({ plan }: Props) {
   const [amountStr, setAmountStr] = useState(plan.installment_amount.toString());
   const initialCount =
     plan.installment_amount > 0
-      ? Math.max(1, Math.ceil(plan.remaining_amount / plan.installment_amount))
+      ? Math.max(1, paymentsLeft(plan.remaining_amount, plan.installment_amount))
       : 1;
   const [countStr, setCountStr] = useState(initialCount.toString());
 
@@ -70,7 +71,7 @@ export function AdjustPlanForm({ plan }: Props) {
     setAmountStr(plan.installment_amount.toString());
     setCountStr(
       plan.installment_amount > 0
-        ? Math.max(1, Math.ceil(plan.remaining_amount / plan.installment_amount)).toString()
+        ? Math.max(1, paymentsLeft(plan.remaining_amount, plan.installment_amount)).toString()
         : '1'
     );
   }, [modifyField, plan.id, plan.total_amount, plan.installment_amount, plan.remaining_amount]);
