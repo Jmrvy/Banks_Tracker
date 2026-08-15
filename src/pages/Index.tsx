@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData, Transaction } from "@/hooks/useFinancialData";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { usePeriod } from "@/contexts/PeriodContext";
+import { usePeriod, type PeriodType } from "@/contexts/PeriodContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
@@ -67,7 +67,12 @@ const Index = () => {
   const fixTimezone = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
 
-  const periods = [
+  // Annotated rather than left to inference: an array literal widens `value`
+  // to `string`, which the segmented control then hands to `setSelectedPeriod`
+  // — a function that takes the union. Same trap the `Segmented` note in
+  // CLAUDE.md describes, caught here only because the root tsconfig checks
+  // nothing and `vite build` strips types without reading them.
+  const periods: { label: string; value: PeriodType }[] = [
     { label: "1M", value: "1m" },
     { label: "3M", value: "3m" },
     { label: "YTD", value: "ytd" },

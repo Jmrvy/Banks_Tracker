@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useMemo, ReactNode } from "react";
 import { subMonths, startOfMonth, endOfMonth, subYears, format, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 
-type PeriodType = "1m" | "3m" | "ytd" | "1y" | "custom";
+export type PeriodType = "1m" | "3m" | "ytd" | "1y" | "custom";
 
 interface DateRange {
   start: Date;
