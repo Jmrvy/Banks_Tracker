@@ -396,7 +396,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 />
                 {computed.valid && (
                   <p className="text-xs text-primary font-medium">
-                    → {formatCurrency(computed.installment_amount)} / {frequencyLabel(formData.frequency)}
+                    → <span className="font-mono tabular-nums">{formatCurrency(computed.installment_amount)}</span> / {frequencyLabel(formData.frequency)}
                   </p>
                 )}
               </div>
@@ -548,7 +548,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                           <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         )}
                         <span className="text-xs font-medium">
-                          Total échéances: {formatCurrency(manualTotal)}
+                          Total échéances: <span className="font-mono tabular-nums">{formatCurrency(manualTotal)}</span>
                         </span>
                       </div>
                       <div className="text-xs">
@@ -556,10 +556,10 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                           <span>✓ Correspond au total</span>
                         ) : (
                           <span>
-                            {manualDifference > 0
-                              ? `Manque ${formatCurrency(manualDifference)}`
-                              : `Excès de ${formatCurrency(Math.abs(manualDifference))}`
-                            }
+                            {manualDifference > 0 ? 'Manque ' : 'Excès de '}
+                            <span className="font-mono tabular-nums">
+                              {formatCurrency(Math.abs(manualDifference))}
+                            </span>
                           </span>
                         )}
                       </div>
@@ -631,9 +631,9 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
             <div className="p-3 rounded-lg bg-muted space-y-1">
               <p className="text-sm font-medium">{formData.description || 'Sans description'}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span>Total: <span className="font-semibold text-foreground">{formatCurrency(parseFloat(formData.total_amount) || 0)}</span></span>
+                <span>Total: <span className="font-semibold text-foreground font-mono tabular-nums">{formatCurrency(parseFloat(formData.total_amount) || 0)}</span></span>
                 {calculationMode !== 'manual' && (
-                  <span>Échéance: <span className="font-semibold text-foreground">{formatCurrency(computed.installment_amount)}</span></span>
+                  <span>Échéance: <span className="font-semibold text-foreground font-mono tabular-nums">{formatCurrency(computed.installment_amount)}</span></span>
                 )}
                 <span>{schedulePreview.length} paiement{schedulePreview.length > 1 ? 's' : ''}</span>
                 {calculationMode === 'manual' && (
@@ -662,7 +662,7 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                     <div key={item.index} className="grid grid-cols-3 gap-2 px-3 py-2 text-xs">
                       <span className="text-muted-foreground">{item.index}</span>
                       <span>{format(item.date, 'dd/MM/yyyy')}</span>
-                      <span className="text-right font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="text-right font-medium font-mono tabular-nums">{formatCurrency(item.amount)}</span>
                     </div>
                   ))}
                 </div>

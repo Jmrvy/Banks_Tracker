@@ -260,9 +260,9 @@ export function AdjustPlanForm({ plan }: Props) {
     <div className="space-y-4">
       {/* Drift banner */}
       {driftSignificant && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4">
+        <div className="rounded-xl border border-warn/40 bg-[hsl(var(--warn-soft))] p-3 sm:p-4">
           <div className="flex items-start gap-2.5">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="h-4 w-4 text-warn mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-2">
               <div>
                 <p className="text-xs sm:text-sm font-semibold">
@@ -432,37 +432,37 @@ export function AdjustPlanForm({ plan }: Props) {
             <span className="text-muted-foreground">
               {t('installments.paidSoFar', { defaultValue: 'Paid so far' })}
             </span>
-            <span className="font-medium tabular-nums">{formatCurrency(preview.paid)}</span>
+            <span className="font-mono font-medium tabular-nums">{formatCurrency(preview.paid)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">
               {t('installments.newRemaining', { defaultValue: 'New remaining' })}
             </span>
-            <span className="font-medium tabular-nums">{formatCurrency(preview.remaining)}</span>
+            <span className="font-mono font-medium tabular-nums">{formatCurrency(preview.remaining)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">
               {t('installments.newTotal', { defaultValue: 'New total' })}
             </span>
-            <span className="font-medium tabular-nums">{formatCurrency(preview.total)}</span>
+            <span className="font-mono font-medium tabular-nums">{formatCurrency(preview.total)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">
               {t('installments.installmentsLeft', { defaultValue: 'Installments left' })}
             </span>
-            <span className="font-medium tabular-nums">{preview.count}</span>
+            <span className="font-mono font-medium tabular-nums">{preview.count}</span>
           </div>
           <div className="flex justify-between col-span-2">
             <span className="text-muted-foreground">
               {t('installments.perInstallment', { defaultValue: 'Per installment' })}
             </span>
             <span className="font-medium tabular-nums">
-              {formatCurrency(preview.amount)}
+              <span className="font-mono">{formatCurrency(preview.amount)}</span>
               {preview.installmentsDiffer && (
                 <span className="text-muted-foreground">
                   {' '}
                   · {t('installments.lastIs', { defaultValue: 'last' })}{' '}
-                  {formatCurrency(preview.lastAmount)}
+                  <span className="font-mono">{formatCurrency(preview.lastAmount)}</span>
                 </span>
               )}
             </span>

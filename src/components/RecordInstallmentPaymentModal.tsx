@@ -160,11 +160,11 @@ export const RecordInstallmentPaymentModal = ({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Suggéré</span>
-              <span className="font-medium whitespace-nowrap">{formatCurrency(installmentPayment.installment_amount)}</span>
+              <span className="font-mono tabular-nums font-medium whitespace-nowrap">{formatCurrency(installmentPayment.installment_amount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground text-[11px] sm:text-xs">Restant</span>
-              <span className="font-medium text-primary whitespace-nowrap">{formatCurrency(installmentPayment.remaining_amount)}</span>
+              <span className="font-mono tabular-nums font-medium text-primary whitespace-nowrap">{formatCurrency(installmentPayment.remaining_amount)}</span>
             </div>
           </div>
         )}
@@ -228,8 +228,8 @@ export const RecordInstallmentPaymentModal = ({
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={cn(
-                              "text-sm font-semibold",
-                              selectedTransactionId === t.id ? "text-primary-foreground" : "text-destructive"
+                              "text-sm font-mono tabular-nums font-semibold",
+                              selectedTransactionId === t.id ? "text-primary-foreground" : "text-neg"
                             )}>
                               {formatCurrency(t.amount)}
                             </span>
@@ -251,7 +251,7 @@ export const RecordInstallmentPaymentModal = ({
                 )}
                 {selectedTransaction && (
                   <p className="text-xs text-muted-foreground">
-                    Montant à enregistrer: <strong>{formatCurrency(selectedTransaction.amount)}</strong>
+                    Montant à enregistrer: <strong className="font-mono tabular-nums">{formatCurrency(selectedTransaction.amount)}</strong>
                   </p>
                 )}
               </div>

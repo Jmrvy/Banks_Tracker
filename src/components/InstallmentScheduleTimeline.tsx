@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Check, Bolt, Box, CreditCard, ShoppingBag } from "lucide-react";
 import type { InstallmentPayment } from "@/hooks/useInstallmentPayments";
 import type { Transaction } from "@/hooks/useFinancialData";
+import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 import {
   addMonths,
   addWeeks,
@@ -71,6 +73,7 @@ export function InstallmentScheduleTimeline({
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
 
   // A plan has a personalized (custom) schedule when records are loaded
   // for it. Custom plans drive the timeline from records (variable dates
@@ -296,7 +299,12 @@ export function InstallmentScheduleTimeline({
           <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
             {t("installments.remaining", { defaultValue: "Remaining" })}
           </div>
-          <div className="font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1">
+          <div
+            className={cn(
+              "font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1",
+              isPrivacyMode && "ft-priv"
+            )}
+          >
             {formatCurrency(plan.remaining_amount)}
           </div>
         </div>
@@ -304,7 +312,12 @@ export function InstallmentScheduleTimeline({
           <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
             {t("installments.paid", { defaultValue: "Paid" })}
           </div>
-          <div className="font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1 text-pos">
+          <div
+            className={cn(
+              "font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1 text-pos",
+              isPrivacyMode && "ft-priv"
+            )}
+          >
             {formatCurrency(plan.total_amount - plan.remaining_amount)}
           </div>
         </div>
@@ -312,7 +325,12 @@ export function InstallmentScheduleTimeline({
           <div className="text-[11px] uppercase tracking-[0.06em] font-semibold text-muted-foreground">
             {t("installments.perInstallment", { defaultValue: "Per installment" })}
           </div>
-          <div className="font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1">
+          <div
+            className={cn(
+              "font-mono text-2xl md:text-[26px] font-medium tracking-tight mt-1",
+              isPrivacyMode && "ft-priv"
+            )}
+          >
             {hasCustomSchedule
               ? nextStep
                 ? formatCurrency(nextStep.amount)
@@ -454,13 +472,15 @@ export function InstallmentScheduleTimeline({
                     )}
                   </div>
                   <div
-                    className={`text-[10px] font-mono ${
+                    className={cn(
+                      "text-[10px] font-mono",
                       step.status === "upcoming"
                         ? "text-fg-dim"
                         : step.status === "paid"
                         ? "text-pos font-semibold"
-                        : "text-muted-foreground"
-                    }`}
+                        : "text-muted-foreground",
+                      isPrivacyMode && "ft-priv"
+                    )}
                   >
                     {formatCurrency(step.amount)}
                   </div>
@@ -482,11 +502,15 @@ export function InstallmentScheduleTimeline({
         {plan.remaining_amount > 0 && (
           <div className="mt-auto pt-4 px-4 py-3 rounded-lg bg-bg-subtle text-xs leading-relaxed">
             <div className="flex items-center gap-2 font-semibold">
-              <Bolt className="h-3.5 w-3.5" />
-              {t("installments.payToSettle", {
-                defaultValue: "Pay {{amt}} now to settle",
-                amt: formatCurrency(plan.remaining_amount),
-              })}
+              <Bolt className="h-3.5 w-3.5 flex-shrink-0" />
+              {/* The amount is interpolated into the sentence, so the mask has
+                  to cover the whole phrase — there is no separable figure. */}
+              <span className={cn(isPrivacyMode && "ft-priv")}>
+                {t("installments.payToSettle", {
+                  defaultValue: "Pay {{amt}} now to settle",
+                  amt: formatCurrency(plan.remaining_amount),
+                })}
+              </span>
             </div>
             <div className="text-muted-foreground mt-1">
               {t("installments.payToSettleHint", {
@@ -519,6 +543,7 @@ export function InstallmentMiniCard({
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { formatCurrency } = useUserPreferences();
+  const { isPrivacyMode } = usePrivacy();
 
   const totalSteps =
     plan.installment_amount > 0
@@ -565,7 +590,7 @@ export function InstallmentMiniCard({
         <span className="text-muted-foreground">
           {t("installments.remaining", { defaultValue: "Remaining" })}
         </span>
-        <span className="font-mono font-semibold">
+        <span className={cn("font-mono font-semibold", isPrivacyMode && "ft-priv")}>
           {formatCurrency(plan.remaining_amount)}
         </span>
       </div>
@@ -593,7 +618,7 @@ export function InstallmentMiniCard({
             ? format(parseISO(plan.next_payment_date), "PP", { locale: dateLocale })
             : "—"}
         </span>
-        <span className="font-mono font-medium">
+        <span className={cn("font-mono font-medium", isPrivacyMode && "ft-priv")}>
           {formatCurrency(plan.installment_amount)}/
           {plan.frequency === "weekly"
             ? t("installments.wk", { defaultValue: "wk" })
