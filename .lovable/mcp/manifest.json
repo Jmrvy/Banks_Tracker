@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sdk_version": "0.25.0",
+  "sdk_version": "0.25.1",
   "path": "/functions/v1/mcp",
   "auth": {
     "type": "oauth",
@@ -141,7 +141,7 @@
       {
         "name": "spending_summary",
         "title": "Spending summary",
-        "description": "Summarize income, expenses and net flow over a date range, broken down by category. Amounts are net of refunds.",
+        "description": "Summarize income, expenses and net flow over a date range, broken down by category. Expenses are net of refunds and of income the user marked as having come back on a category; income is net of anything repaid against it. Advance settlements and refund rows are excluded — they would otherwise count the same money twice. Nothing further should be subtracted from these figures.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

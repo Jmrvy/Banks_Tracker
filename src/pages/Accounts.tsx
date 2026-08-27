@@ -33,7 +33,7 @@ import { BANK_COLORS, getBankLabel, getAccountTypeLabel } from "@/lib/constants"
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
 
 const initialsOf = (name: string) =>
   name
@@ -75,7 +75,7 @@ const TYPE_GROUPS = [
 
 const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { dateRange, periodLabel } = usePeriod();
   const { t } = useTranslation();
   const location = useLocation();
@@ -179,7 +179,11 @@ const Accounts = () => {
     // Mini stats for the period
     const periodTxns = transactions.filter((tx) => {
       if (tx.account_id !== selectedAccountId && tx.transfer_to_account_id !== selectedAccountId) return false;
-      const d = parseLocalDate(tx.transaction_date);
+      // Honour the accounting/value date preference, the same way the
+      // detail tiles and charts below do — otherwise the hero strip and the
+      // period cards disagree for any transaction whose two dates straddle
+      // the period boundary.
+      const d = getTxDate(tx, preferences.dateType);
       return d >= dateRange.start && d <= dateRange.end;
     });
     const periodIncome = periodTxns

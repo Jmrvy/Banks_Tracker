@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -846,6 +846,36 @@ export type Database = {
         }
         Relationships: []
       }
+      trace_credentials: {
+        Row: {
+          api_key: string
+          created_at: string
+          key_hint: string
+          model: string | null
+          reasoning_effort: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          key_hint: string
+          model?: string | null
+          reasoning_effort?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          key_hint?: string
+          model?: string | null
+          reasoning_effort?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_categories: {
         Row: {
           category_id: string
@@ -894,13 +924,13 @@ export type Database = {
           description: string
           id: string
           include_in_stats: boolean
-          offsets_category: boolean
           installment_payment_id: string | null
+          offsets_category: boolean
           recurring_transaction_id: string | null
           refund_of_transaction_id: string | null
+          refunded_amount: number | null
           repaid_amount: number
           repayment_of_transaction_id: string | null
-          refunded_amount: number | null
           special_budget_id: string | null
           transaction_date: string
           transfer_fee: number | null
@@ -918,13 +948,13 @@ export type Database = {
           description: string
           id?: string
           include_in_stats?: boolean
-          offsets_category?: boolean
           installment_payment_id?: string | null
+          offsets_category?: boolean
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
+          refunded_amount?: number | null
           repaid_amount?: number
           repayment_of_transaction_id?: string | null
-          refunded_amount?: number | null
           special_budget_id?: string | null
           transaction_date?: string
           transfer_fee?: number | null
@@ -942,13 +972,13 @@ export type Database = {
           description?: string
           id?: string
           include_in_stats?: boolean
-          offsets_category?: boolean
           installment_payment_id?: string | null
+          offsets_category?: boolean
           recurring_transaction_id?: string | null
           refund_of_transaction_id?: string | null
+          refunded_amount?: number | null
           repaid_amount?: number
           repayment_of_transaction_id?: string | null
-          refunded_amount?: number | null
           special_budget_id?: string | null
           transaction_date?: string
           transfer_fee?: number | null
@@ -990,6 +1020,13 @@ export type Database = {
           {
             foreignKeyName: "transactions_refund_of_transaction_id_fkey"
             columns: ["refund_of_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_repayment_of_transaction_id_fkey"
+            columns: ["repayment_of_transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
             referencedColumns: ["id"]
