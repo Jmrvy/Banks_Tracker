@@ -21,6 +21,9 @@ export interface Account {
   bank: 'chase' | 'bofa' | 'wells_fargo' | 'citi' | 'capital_one' | 'other' | 'societe_generale' | 'revolut' | 'boursorama' | 'bnp_paribas' | 'credit_agricole' | 'lcl' | 'caisse_epargne' | 'credit_mutuel';
   account_type: 'checking' | 'savings' | 'credit' | 'investment';
   balance: number;
+  /** Opening ledger balance. Current cash is rebuilt from this value using
+   * accounting dates, so a future-posted transaction cannot move cash early. */
+  initial_balance?: number;
   created_at: string;
 }
 
@@ -195,8 +198,39 @@ function useFinancialDataInternal() {
     enabled: !!user,
   });
 
-  const accounts = accountsQuery.data ?? [];
   const transactions = transactionsQuery.data ?? [];
+  const accounts = useMemo(() => {
+    const rawAccounts = accountsQuery.data ?? [];
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    return rawAccounts.map((account) => {
+      // `accounts.balance` is maintained by an immediate database trigger and
+      // therefore includes future-dated rows. Cash availability must instead
+      // follow the bank ledger: only transactions whose accounting date has
+      // arrived affect today's balance. The user's reporting date preference
+      // intentionally has no bearing on this calculation.
+      if (account.initial_balance == null) return account;
+
+      let balance = Number(account.initial_balance) || 0;
+      for (const transaction of transactions) {
+        if (parseLocalDate(transaction.transaction_date) > today) continue;
+
+        if (transaction.account_id === account.id) {
+          if (transaction.type === 'income') balance += Number(transaction.amount) || 0;
+          else if (transaction.type === 'expense') balance -= Number(transaction.amount) || 0;
+          else balance -= (Number(transaction.amount) || 0) + (Number(transaction.transfer_fee) || 0);
+        } else if (
+          transaction.type === 'transfer' &&
+          transaction.transfer_to_account_id === account.id
+        ) {
+          balance += Number(transaction.amount) || 0;
+        }
+      }
+
+      return { ...account, balance };
+    });
+  }, [accountsQuery.data, transactions]);
   const categories = categoriesQuery.data ?? [];
 
   // Convenience invalidation helpers (replace old fetch* callbacks)
