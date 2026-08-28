@@ -35,8 +35,11 @@ export function useAccountSeries(
     }
 
     for (const txn of transactions) {
-      if (txn.include_in_stats === false) continue;
+      // This is a cash-balance replay, not a statistics series: every bank
+      // movement counts, including rows excluded from reports. Future
+      // accounting dates are not in the displayed window and are ignored.
       const d = parseLocalDate(txn.transaction_date);
+      if (d > today) continue;
       const k = dayKey(d);
 
       if (txn.type === "income") {
