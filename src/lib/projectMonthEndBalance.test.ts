@@ -100,4 +100,43 @@ describe('sumRecurringWindow', () => {
     const walked = sum(rules, AUG_4, new Date(2026, 7, 31, 23, 59));
     expect(delta).toBe(walked.net);
   });
+
+  it('adds persisted future cash movements on their accounting date', () => {
+    const delta = projectMonthEndDelta([], [], [], [], AUG_4, [
+      {
+        amount: 600,
+        type: 'expense',
+        transaction_date: '2026-08-05',
+      },
+      {
+        amount: 50,
+        type: 'income',
+        transaction_date: '2026-08-06',
+      },
+    ]);
+
+    expect(delta).toBe(-550);
+  });
+
+  it('does not use value date or double-count a materialised recurrence', () => {
+    const rule = rt({ id: 'rent', amount: 600, next_due_date: '2026-08-05' });
+    const delta = projectMonthEndDelta([rule], [], [], [], AUG_4, [
+      {
+        amount: 600,
+        type: 'expense',
+        transaction_date: '2026-08-05',
+        recurring_transaction_id: 'rent',
+      },
+    ]);
+
+    expect(delta).toBe(-600);
+  });
+
+  it('ignores persisted movements whose accounting date has already arrived', () => {
+    const delta = projectMonthEndDelta([], [], [], [], AUG_4, [
+      { amount: 600, type: 'expense', transaction_date: '2026-08-04' },
+    ]);
+
+    expect(delta).toBe(0);
+  });
 });

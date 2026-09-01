@@ -67,10 +67,11 @@ export function HeroNetWorth() {
       installmentPayments,
       debts,
       scheduledDebtPayments,
-      today
+      today,
+      transactions,
     );
     return { value: total + delta, delta };
-  }, [total, recurringTransactions, installmentPayments, debts, scheduledDebtPayments]);
+  }, [total, recurringTransactions, installmentPayments, debts, scheduledDebtPayments, transactions]);
 
   // Derive 90-day balance series by replaying transactions backward from today.
   const series = useMemo(() => {
