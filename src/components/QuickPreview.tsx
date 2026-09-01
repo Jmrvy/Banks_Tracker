@@ -65,7 +65,8 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       installmentPayments,
       debts,
       scheduledDebtPayments,
-      today
+      today,
+      transactions,
     );
     return { value: totalBalance + delta, delta };
   }, [
@@ -74,6 +75,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
     installmentPayments,
     debts,
     scheduledDebtPayments,
+    transactions,
   ]);
 
   // Monthly income and expenses
