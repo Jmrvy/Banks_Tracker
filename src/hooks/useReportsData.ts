@@ -751,6 +751,9 @@ export const useReportsData = (
       }
     }
 
+    const todayGap = new Date();
+    todayGap.setHours(0, 0, 0, 0);
+
     // Materialised future rows are cash forecasts on transaction_date. Keep
     // their linked scheduled occurrence out of the template walk so an early
     // generated recurring transaction is never counted twice.
