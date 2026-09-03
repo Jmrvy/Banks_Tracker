@@ -30,7 +30,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
  */
 export function ScheduledSummary() {
   const { t } = useTranslation();
-  const { recurringTransactions } = useFinancialData();
+  const { recurringTransactions, transactions } = useFinancialData();
   const { installmentPayments } = useInstallmentPayments();
   const { debts, scheduledPayments } = useDebts();
   const { formatCurrency } = useUserPreferences();
@@ -39,6 +39,25 @@ export function ScheduledSummary() {
   const stats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const materialised = new Set<string>();
+    for (const transaction of transactions) {
+      const accountingDate = parseLocalDate(transaction.transaction_date);
+      if (accountingDate <= today) continue;
+      const dateKey = transaction.transaction_date.substring(0, 10);
+      if (transaction.recurring_transaction_id) {
+        materialised.add(`${transaction.recurring_transaction_id}:${dateKey}`);
+      }
+      if (transaction.installment_payment_id) {
+        materialised.add(`installment:${transaction.installment_payment_id}:${dateKey}`);
+      }
+    }
+    const isMaterialised = (recurring: typeof recurringTransactions[number], date: Date) => {
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      return materialised.has(`${recurring.id}:${dateKey}`) || Boolean(
+        recurring.installment_payment_id &&
+        materialised.has(`installment:${recurring.installment_payment_id}:${dateKey}`),
+      );
+    };
 
     const month = sumRecurringWindow(
       recurringTransactions,
@@ -46,7 +65,8 @@ export function ScheduledSummary() {
       debts,
       scheduledPayments,
       today,
-      addMonths(today, 1)
+      addMonths(today, 1),
+      isMaterialised,
     );
     const week = sumRecurringWindow(
       recurringTransactions,
@@ -54,7 +74,8 @@ export function ScheduledSummary() {
       debts,
       scheduledPayments,
       today,
-      addDays(today, 7)
+      addDays(today, 7),
+      isMaterialised,
     );
 
     // A due date in the past that was never recorded. Counted, not summed —
@@ -74,7 +95,7 @@ export function ScheduledSummary() {
     const planMonthly = activePlans.reduce((s, p) => s + (p.installment_amount || 0), 0);
 
     return { month, week, overdue, planCount: activePlans.length, planMonthly };
-  }, [recurringTransactions, installmentPayments, debts, scheduledPayments]);
+  }, [recurringTransactions, installmentPayments, debts, scheduledPayments, transactions]);
 
   const money = (v: number) => (isPrivacyMode ? "•••••" : formatCurrency(v));
 
