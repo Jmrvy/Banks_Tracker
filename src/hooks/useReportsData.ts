@@ -294,36 +294,52 @@ export const useReportsData = (
   }, [periodType, selectedDate, period, computeStatsForRange]);
 
 
-  // Données pour l'évolution des soldes avec projection
-  // Positions transactions on the SAME date type used for filtering and for
-  // the initial balance. Mixing timelines (filter by value date, plot by
-  // accounting date) produced points outside the period and out-of-order
-  // x values whenever the two dates straddled a period boundary.
+  // Cash balance evolution is always an accounting-date ledger. The user's
+  // date preference changes reporting statistics, never when money reaches
+  // (or is forecast to reach) the cash balance.
   const balanceEvolutionData = useMemo<BalanceDataPoint[]>(() => {
     if (skipHeavy) return [];
-    const getChartDate = (t: Transaction) => getTxDate(t, activeDateType);
-
-    // Utiliser filteredTransactions qui sont déjà filtrés par période selon le dateType
-    const sortedTransactions = [...filteredTransactions]
-      .sort((a, b) => getChartDate(a).getTime() - getChartDate(b).getTime());
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const periodCashTransactions = filterByPeriod(
+      transactions,
+      period.from,
+      period.to,
+      'accounting',
+    );
+    const arrivedTransactions = transactions.filter(
+      (transaction) => parseLocalDate(transaction.transaction_date) <= today,
+    );
+    const cashInitialBalance = computeInitialBalance(
+      accounts,
+      arrivedTransactions,
+      period.from,
+      'accounting',
+    );
+    const sortedTransactions = periodCashTransactions
+      .filter((transaction) => parseLocalDate(transaction.transaction_date) <= today)
+      .sort(
+      (a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime(),
+    );
     
     const dailyData: BalanceDataPoint[] = [];
 
-    let runningBalance = initialBalance;
+    let runningBalance = cashInitialBalance;
     
     // Ajouter le point de départ
     const startDate = period.from;
     dailyData.push({
       date: format(startDate, "dd/MM", { locale: fr }),
-      solde: runningBalance,
+      solde: period.from <= today ? runningBalance : null,
       soldeProjecte: runningBalance,
       dateObj: startDate
     });
 
-    // Grouper les transactions par date (selon le type de date actif)
+    // Group arrived movements by accounting date. Persisted rows whose date
+    // is still ahead join the projected segment below.
     const transactionsByDate = new Map();
     sortedTransactions.forEach(t => {
-      const date = format(getChartDate(t), "yyyy-MM-dd");
+      const date = format(parseLocalDate(t.transaction_date), "yyyy-MM-dd");
       if (!transactionsByDate.has(date)) {
         transactionsByDate.set(date, []);
       }
@@ -345,12 +361,12 @@ export const useReportsData = (
         date: format(dateObj, "dd/MM", { locale: fr }),
         solde: runningBalance,
         soldeProjecte: runningBalance,
-        dateObj: dateObj
+        dateObj: dateObj,
       });
     });
 
     return dailyData;
-  }, [filteredTransactions, period, initialBalance, skipHeavy, activeDateType]);
+  }, [transactions, accounts, period, skipHeavy]);
 
   // Données pour les catégories avec budgets
   const categoryChartData = useMemo<CategoryData[]>(() => {
@@ -736,11 +752,33 @@ export const useReportsData = (
       }
     }
 
-    // For future periods, compute net impact of recurring transactions between today and period.from
-    let gapBalance = 0;
     const todayGap = new Date();
     todayGap.setHours(0, 0, 0, 0);
+
+    // Materialised future rows are cash forecasts on transaction_date. Keep
+    // their linked scheduled occurrence out of the template walk so an early
+    // generated recurring transaction is never counted twice.
+    const materialisedFuture = new Set<string>();
+    for (const transaction of transactions) {
+      if (parseLocalDate(transaction.transaction_date) <= todayGap) continue;
+      const dateKey = transaction.transaction_date.substring(0, 10);
+      if (transaction.recurring_transaction_id) {
+        materialisedFuture.add(`${transaction.recurring_transaction_id}:${dateKey}`);
+      }
+      if (transaction.installment_payment_id) {
+        materialisedFuture.add(`installment:${transaction.installment_payment_id}:${dateKey}`);
+      }
+    }
+
+    // For future periods, compute net impact between today and period.from.
+    let gapBalance = 0;
     if (period.from > todayGap) {
+      for (const transaction of transactions) {
+        const accountingDate = parseLocalDate(transaction.transaction_date);
+        if (accountingDate > todayGap && accountingDate < period.from) {
+          gapBalance += signedGlobalAmount(transaction);
+        }
+      }
       for (const rt of activeRecurring) {
         if (!rt.next_due_date) continue;
         const [gny, gnm, gnd] = rt.next_due_date.split('-').map(Number);
@@ -759,6 +797,14 @@ export const useReportsData = (
         while (cur < period.from && gapIter < 500) {
           if (cur > todayGap) {
             const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+            if (
+              materialisedFuture.has(`${rt.id}:${ds}`) ||
+              (rt.installment_payment_id && materialisedFuture.has(`installment:${rt.installment_payment_id}:${ds}`))
+            ) {
+              cur = advanceDate(cur, rt.recurrence_type);
+              gapIter++;
+              continue;
+            }
             const amt = getEffectiveAmount(rt, ds);
             gapBalance += effectiveType === 'income' ? amt : -amt;
           }
@@ -789,7 +835,7 @@ export const useReportsData = (
       periodByCategory: Array.from(periodCategoryMap.values()).sort((a, b) => b.amount - a.amount),
       gapBalance,
     };
-  }, [recurringTransactions, period, installmentPayments, installmentRecords, debtInfos, scheduledDebtPaymentInfos]);
+  }, [recurringTransactions, period, installmentPayments, installmentRecords, debtInfos, scheduledDebtPaymentInfos, transactions]);
 
   // Augment balance evolution with projections from recurringData.periodItems
   // For future periods, adjust starting balance with gapBalance (projected recurring between today and period start)
@@ -814,14 +860,32 @@ export const useReportsData = (
         }))
       : balanceEvolutionData;
 
-    const futureItems: Array<{ date: Date; amount: number; type: 'income' | 'expense' }> = [];
+    const futureItems: Array<{ date: Date; delta: number }> = [];
+
+    // Already-created transactions are the most concrete forecast and are
+    // always positioned by accounting date, including rows whose value date
+    // has already passed.
+    for (const transaction of transactions) {
+      const accountingDate = parseLocalDate(transaction.transaction_date);
+      if (accountingDate <= today || accountingDate < period.from || accountingDate > period.to) continue;
+      futureItems.push({ date: accountingDate, delta: signedGlobalAmount(transaction) });
+    }
+
     for (const pi of recurringData.periodItems) {
       for (const occ of pi.occurrenceDetails) {
         if (occ.isFuture) {
+          const alreadyMaterialised = transactions.some((transaction) =>
+            transaction.transaction_date.substring(0, 10) === occ.date &&
+            (transaction.recurring_transaction_id === pi.recurring.id ||
+              Boolean(
+                pi.recurring.installment_payment_id &&
+                transaction.installment_payment_id === pi.recurring.installment_payment_id,
+              )),
+          );
+          if (alreadyMaterialised) continue;
           futureItems.push({
             date: parseLocalDate(occ.date),
-            amount: occ.amount,
-            type: pi.effectiveType,
+            delta: pi.effectiveType === 'income' ? occ.amount : -occ.amount,
           });
         }
       }
@@ -835,8 +899,7 @@ export const useReportsData = (
     let currentProjected = lastPoint?.soldeProjecte ?? lastPoint?.solde ?? 0;
 
     const projectionPoints: BalanceDataPoint[] = futureItems.map(ft => {
-      if (ft.type === 'income') currentProjected += ft.amount;
-      else currentProjected -= ft.amount;
+      currentProjected += ft.delta;
       return {
         date: format(ft.date, "dd/MM", { locale: fr }),
         solde: null,
@@ -847,7 +910,7 @@ export const useReportsData = (
     });
 
     return [...adjustedBase, ...projectionPoints];
-  }, [balanceEvolutionData, recurringData.periodItems, recurringData.gapBalance, period, skipHeavy]);
+  }, [balanceEvolutionData, recurringData.periodItems, recurringData.gapBalance, period, skipHeavy, transactions]);
 
   // Données spending patterns si activé
   const spendingPatternsData = useMemo<SpendingPatternsData | null>(() => {
