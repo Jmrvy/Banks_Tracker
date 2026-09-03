@@ -301,7 +301,7 @@ export const useReportsData = (
     if (skipHeavy) return [];
     const today = new Date();
     today.setHours(23, 59, 59, 999);
-    const cashTransactions = filterByPeriod(
+    const periodCashTransactions = filterByPeriod(
       transactions,
       period.from,
       period.to,
@@ -316,7 +316,9 @@ export const useReportsData = (
       period.from,
       'accounting',
     );
-    const sortedTransactions = [...cashTransactions].sort(
+    const sortedTransactions = periodCashTransactions
+      .filter((transaction) => parseLocalDate(transaction.transaction_date) <= today)
+      .sort(
       (a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime(),
     );
     
@@ -333,8 +335,8 @@ export const useReportsData = (
       dateObj: startDate
     });
 
-    // Group persisted movements by accounting date. Future persisted rows
-    // are projected cash movements, not current balance movements.
+    // Group arrived movements by accounting date. Persisted rows whose date
+    // is still ahead join the projected segment below.
     const transactionsByDate = new Map();
     sortedTransactions.forEach(t => {
       const date = format(parseLocalDate(t.transaction_date), "yyyy-MM-dd");
@@ -357,10 +359,9 @@ export const useReportsData = (
       
       dailyData.push({
         date: format(dateObj, "dd/MM", { locale: fr }),
-        solde: dateObj <= today ? runningBalance : null,
+        solde: runningBalance,
         soldeProjecte: runningBalance,
         dateObj: dateObj,
-        isProjection: dateObj > today,
       });
     });
 
@@ -859,7 +860,17 @@ export const useReportsData = (
         }))
       : balanceEvolutionData;
 
-    const futureItems: Array<{ date: Date; amount: number; type: 'income' | 'expense' }> = [];
+    const futureItems: Array<{ date: Date; delta: number }> = [];
+
+    // Already-created transactions are the most concrete forecast and are
+    // always positioned by accounting date, including rows whose value date
+    // has already passed.
+    for (const transaction of transactions) {
+      const accountingDate = parseLocalDate(transaction.transaction_date);
+      if (accountingDate <= today || accountingDate < period.from || accountingDate > period.to) continue;
+      futureItems.push({ date: accountingDate, delta: signedGlobalAmount(transaction) });
+    }
+
     for (const pi of recurringData.periodItems) {
       for (const occ of pi.occurrenceDetails) {
         if (occ.isFuture) {
@@ -874,8 +885,7 @@ export const useReportsData = (
           if (alreadyMaterialised) continue;
           futureItems.push({
             date: parseLocalDate(occ.date),
-            amount: occ.amount,
-            type: pi.effectiveType,
+            delta: pi.effectiveType === 'income' ? occ.amount : -occ.amount,
           });
         }
       }
@@ -889,8 +899,7 @@ export const useReportsData = (
     let currentProjected = lastPoint?.soldeProjecte ?? lastPoint?.solde ?? 0;
 
     const projectionPoints: BalanceDataPoint[] = futureItems.map(ft => {
-      if (ft.type === 'income') currentProjected += ft.amount;
-      else currentProjected -= ft.amount;
+      currentProjected += ft.delta;
       return {
         date: format(ft.date, "dd/MM", { locale: fr }),
         solde: null,
