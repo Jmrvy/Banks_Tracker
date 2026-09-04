@@ -193,14 +193,25 @@ serve(async (req) => {
             iterDate = currentDueDate;
           }
 
-          // Deduplication: skip if transaction already exists for this date.
+          // Deduplication: skip if the occurrence was already materialised.
+          //
+          // A generated row carries transaction_date = value_date = its
+          // occurrence date. Matching on transaction_date alone breaks as
+          // soon as the user re-dates a past occurrence forward: an August
+          // row moved to an accounting date of 2 September made the run
+          // believe the September occurrence already existed, so it was
+          // never created and next_due_date still advanced. Requiring BOTH
+          // dates to equal the occurrence date identifies the untouched
+          // generated row and nothing else.
           const { data: existingTx } = await supabase
             .from('transactions')
             .select('id')
             .eq('user_id', recurring.user_id)
             .eq('recurring_transaction_id', recurring.id)
             .eq('transaction_date', iterDate)
+            .eq('value_date', iterDate)
             .limit(1);
+
 
           if (existingTx && existingTx.length > 0) {
             occurrencesProcessed++;
