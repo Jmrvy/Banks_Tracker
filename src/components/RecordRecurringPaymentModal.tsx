@@ -90,6 +90,9 @@ export const RecordRecurringPaymentModal = ({
             value_date: todayStr,
             include_in_stats: true,
             recurring_transaction_id: recurringTransactionId,
+            // Which scheduled occurrence this settles — kept separate from
+            // the payment date so re-dating never hides a later occurrence.
+            recurring_occurrence_date: recurringTransaction.next_due_date,
           }]);
 
         if (txError) {
@@ -107,7 +110,10 @@ export const RecordRecurringPaymentModal = ({
 
         const { error: linkError } = await supabase
           .from('transactions')
-          .update({ recurring_transaction_id: recurringTransactionId })
+          .update({
+            recurring_transaction_id: recurringTransactionId,
+            recurring_occurrence_date: recurringTransaction.next_due_date,
+          })
           .eq('id', selectedTransactionId)
           .eq('user_id', user.id);
 

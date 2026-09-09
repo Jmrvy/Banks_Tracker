@@ -193,24 +193,21 @@ serve(async (req) => {
             iterDate = currentDueDate;
           }
 
-          // Deduplication: skip if the occurrence was already materialised.
+          // Deduplication: skip only if THIS occurrence was already settled.
           //
-          // A generated row carries transaction_date = value_date = its
-          // occurrence date. Matching on transaction_date alone breaks as
-          // soon as the user re-dates a past occurrence forward: an August
-          // row moved to an accounting date of 2 September made the run
-          // believe the September occurrence already existed, so it was
-          // never created and next_due_date still advanced. Requiring BOTH
-          // dates to equal the occurrence date identifies the untouched
-          // generated row and nothing else.
+          // The link is the occurrence itself (recurring_occurrence_date),
+          // never the accounting date — the user is free to re-date a
+          // payment, and doing so must not make a later occurrence look
+          // already paid. Older rows predating the column are matched on
+          // their accounting date, which is what they were created with.
           const { data: existingTx } = await supabase
             .from('transactions')
             .select('id')
             .eq('user_id', recurring.user_id)
             .eq('recurring_transaction_id', recurring.id)
-            .eq('transaction_date', iterDate)
-            .eq('value_date', iterDate)
+            .or(`recurring_occurrence_date.eq.${iterDate},and(recurring_occurrence_date.is.null,transaction_date.eq.${iterDate})`)
             .limit(1);
+
 
 
           if (existingTx && existingTx.length > 0) {
@@ -275,6 +272,7 @@ serve(async (req) => {
                 user_id: recurring.user_id,
                 installment_payment_id: recurring.installment_payment_id || null,
                 recurring_transaction_id: recurring.id,
+                recurring_occurrence_date: iterDate,
               })
               .select('id')
               .single();

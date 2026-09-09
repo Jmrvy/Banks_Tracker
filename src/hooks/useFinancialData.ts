@@ -54,6 +54,7 @@ export interface Transaction {
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
   installment_payment_id?: string | null; // Lien vers le paiement échelonné source
   recurring_transaction_id?: string | null; // Lien vers la transaction récurrente source
+  recurring_occurrence_date?: string | null; // Échéance planifiée réglée par cette opération
   /** When set, this transaction belongs to a special event budget (e.g.
    *  a trip) and is excluded from its category's monthly/period budget
    *  spend. It still contributes to global totals and to the special
@@ -1104,6 +1105,10 @@ function useFinancialDataInternal() {
         include_in_stats: true,
         installment_payment_id: rt.installment_payment_id,
         recurring_transaction_id: recurringId,
+        // The occurrence being settled is the scheduled one, even though the
+        // money moves on executionDate. Keeping them apart is what stops the
+        // next run from mistaking this row for a later occurrence.
+        recurring_occurrence_date: rt.next_due_date,
         user_id: user.id
       }]);
 
@@ -1421,13 +1426,15 @@ function useFinancialDataInternal() {
         while (currentDueDateString <= todayString && occurrencesProcessed < maxOccurrences) {
           if (rt.end_date && currentDueDateString > rt.end_date) break;
 
-          // Deduplication: skip if transaction already exists for this recurring + date
+          // Deduplication keys on the occurrence, not on the accounting date:
+          // a payment the user re-dated must not hide a later occurrence.
+          // Rows created before the column exists fall back to their date.
           const { data: existingTx } = await supabase
             .from('transactions')
             .select('id')
             .eq('user_id', user.id)
             .eq('recurring_transaction_id', rt.id)
-            .eq('transaction_date', currentDueDateString)
+            .or(`recurring_occurrence_date.eq.${currentDueDateString},and(recurring_occurrence_date.is.null,transaction_date.eq.${currentDueDateString})`)
             .limit(1);
 
           if (existingTx && existingTx.length > 0) {
@@ -1466,6 +1473,7 @@ function useFinancialDataInternal() {
                 include_in_stats: true,
                 installment_payment_id: rt.installment_payment_id,
                 recurring_transaction_id: rt.id,
+                recurring_occurrence_date: currentDueDateString,
                 user_id: user.id
               }]);
 
