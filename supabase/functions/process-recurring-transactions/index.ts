@@ -272,6 +272,7 @@ serve(async (req) => {
                 user_id: recurring.user_id,
                 installment_payment_id: recurring.installment_payment_id || null,
                 recurring_transaction_id: recurring.id,
+                recurring_occurrence_date: iterDate,
               })
               .select('id')
               .single();
