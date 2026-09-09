@@ -72,7 +72,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
     });
 
     return result.reverse();
-  }, [transactions, startDate, endDate]);
+  }, [transactions, startDate, endDate, dateType]);
 
   // In savings context: expense = deposit (money going into savings), income = withdrawal (money coming out)
   // Reimbursement installment transactions are expenses and show as positive savings
@@ -145,7 +145,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{tx.description}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(parseLocalDate(tx.transaction_date), 'dd/MM', { locale: fr })}
+                      {format(rowDate(tx), 'dd/MM', { locale: fr })}
                       <span className="ml-1">&bull; {getTypeLabel(tx.type, tx)}</span>
                     </p>
                   </div>
@@ -154,7 +154,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
                 {/* Mobile: Amount and balance */}
                 <div className="flex items-center gap-3 flex-shrink-0 sm:hidden">
                   <p className={`font-bold text-xs ${getAmountColor(tx)}`}>
-                    {getAmountPrefix(tx)}{formatCurrency(tx.amount)}
+                    {getAmountPrefix(tx)}{formatCurrency(savingsAmount(tx))}
                   </p>
                   <p className={`font-medium text-xs ${
                     tx.balanceAfter >= 0 ? 'text-primary/70' : 'text-destructive/70'
@@ -171,7 +171,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{tx.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(parseLocalDate(tx.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span>{format(rowDate(tx), 'dd MMM yyyy', { locale: fr })}</span>
                       <span>&bull;</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(tx.type, tx)}
@@ -188,7 +188,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
                 <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
                   <div className="text-right">
                     <p className={`font-bold text-base ${getAmountColor(tx)}`}>
-                      {getAmountPrefix(tx)}{formatCurrency(tx.amount)}
+                      {getAmountPrefix(tx)}{formatCurrency(savingsAmount(tx))}
                     </p>
                   </div>
                   <div className="text-right w-32">
