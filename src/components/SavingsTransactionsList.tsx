@@ -6,29 +6,41 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate, type TxDateType } from "@/lib/dateUtils";
+import { netExpenseAmount, netIncomeAmount } from "@/lib/reportsEngine";
 import { useTranslation } from "react-i18next";
 
 interface SavingsTransactionsListProps {
   transactions: Transaction[];
   startDate?: Date;
   endDate?: Date;
+  /** Same date basis the page header nets on, so both agree on the window. */
+  dateType?: TxDateType;
 }
 
-export function SavingsTransactionsList({ transactions, startDate, endDate }: SavingsTransactionsListProps) {
+/** Amount actually put aside: net of what came back (refund on a deposit,
+ *  repayment against a withdrawal), exactly like the header figures. */
+const savingsAmount = (tx: Transaction) => {
+  if (tx.installment_payment_id) return tx.amount;
+  return tx.type === 'expense' ? netExpenseAmount(tx as any) : netIncomeAmount(tx as any);
+};
+
+export function SavingsTransactionsList({ transactions, startDate, endDate, dateType = 'transaction' }: SavingsTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
 
+  const rowDate = (tx: Transaction) =>
+    tx.installment_payment_id ? parseLocalDate(tx.transaction_date) : getTxDate(tx, dateType);
+
   const transactionsWithBalance = useMemo(() => {
     const sortedTransactions = [...transactions].sort(
-      (a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime()
+      (a, b) => rowDate(a).getTime() - rowDate(b).getTime()
     );
 
     const periodTransactions = startDate && endDate
-      ? sortedTransactions.filter(tx => {
-          const transactionDate = parseLocalDate(tx.transaction_date);
-          return isWithinInterval(transactionDate, { start: startDate, end: endDate });
-        })
+      ? sortedTransactions.filter(tx =>
+          isWithinInterval(rowDate(tx), { start: startDate, end: endDate })
+        )
       : sortedTransactions;
 
     // In savings context:
@@ -36,9 +48,9 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
     // - Investment income (withdrawal) = -balance
     // - Reimbursement (income with installment_payment_id) = +balance
     const getSavingsEffect = (tx: Transaction) => {
-      if (tx.installment_payment_id) return tx.amount; // reimbursement = positive
-      if (tx.type === 'expense') return tx.amount;      // investment deposit = positive
-      if (tx.type === 'income') return -tx.amount;      // investment withdrawal = negative
+      if (tx.installment_payment_id) return savingsAmount(tx); // reimbursement = positive
+      if (tx.type === 'expense') return savingsAmount(tx);      // investment deposit = positive
+      if (tx.type === 'income') return -savingsAmount(tx);      // investment withdrawal = negative
       return 0;
     };
 
