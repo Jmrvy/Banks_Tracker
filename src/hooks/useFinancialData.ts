@@ -54,6 +54,7 @@ export interface Transaction {
   refund_of_transaction?: Transaction | null; // Transaction originale remboursée
   installment_payment_id?: string | null; // Lien vers le paiement échelonné source
   recurring_transaction_id?: string | null; // Lien vers la transaction récurrente source
+  recurring_occurrence_date?: string | null; // Échéance planifiée réglée par cette opération
   /** When set, this transaction belongs to a special event budget (e.g.
    *  a trip) and is excluded from its category's monthly/period budget
    *  spend. It still contributes to global totals and to the special
