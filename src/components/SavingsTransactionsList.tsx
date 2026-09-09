@@ -6,29 +6,41 @@ import { Transaction } from "@/hooks/useFinancialData";
 import { TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
 import { format, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { parseLocalDate, getTxDate, type TxDateType } from "@/lib/dateUtils";
+import { netExpenseAmount, netIncomeAmount } from "@/lib/reportsEngine";
 import { useTranslation } from "react-i18next";
 
 interface SavingsTransactionsListProps {
   transactions: Transaction[];
   startDate?: Date;
   endDate?: Date;
+  /** Same date basis the page header nets on, so both agree on the window. */
+  dateType?: TxDateType;
 }
 
-export function SavingsTransactionsList({ transactions, startDate, endDate }: SavingsTransactionsListProps) {
+/** Amount actually put aside: net of what came back (refund on a deposit,
+ *  repayment against a withdrawal), exactly like the header figures. */
+const savingsAmount = (tx: Transaction) => {
+  if (tx.installment_payment_id) return tx.amount;
+  return tx.type === 'expense' ? netExpenseAmount(tx as any) : netIncomeAmount(tx as any);
+};
+
+export function SavingsTransactionsList({ transactions, startDate, endDate, dateType = 'accounting' }: SavingsTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
 
+  const rowDate = (tx: Transaction) =>
+    tx.installment_payment_id ? parseLocalDate(tx.transaction_date) : getTxDate(tx, dateType);
+
   const transactionsWithBalance = useMemo(() => {
     const sortedTransactions = [...transactions].sort(
-      (a, b) => parseLocalDate(a.transaction_date).getTime() - parseLocalDate(b.transaction_date).getTime()
+      (a, b) => rowDate(a).getTime() - rowDate(b).getTime()
     );
 
     const periodTransactions = startDate && endDate
-      ? sortedTransactions.filter(tx => {
-          const transactionDate = parseLocalDate(tx.transaction_date);
-          return isWithinInterval(transactionDate, { start: startDate, end: endDate });
-        })
+      ? sortedTransactions.filter(tx =>
+          isWithinInterval(rowDate(tx), { start: startDate, end: endDate })
+        )
       : sortedTransactions;
 
     // In savings context:
@@ -36,9 +48,9 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
     // - Investment income (withdrawal) = -balance
     // - Reimbursement (income with installment_payment_id) = +balance
     const getSavingsEffect = (tx: Transaction) => {
-      if (tx.installment_payment_id) return tx.amount; // reimbursement = positive
-      if (tx.type === 'expense') return tx.amount;      // investment deposit = positive
-      if (tx.type === 'income') return -tx.amount;      // investment withdrawal = negative
+      if (tx.installment_payment_id) return savingsAmount(tx); // reimbursement = positive
+      if (tx.type === 'expense') return savingsAmount(tx);      // investment deposit = positive
+      if (tx.type === 'income') return -savingsAmount(tx);      // investment withdrawal = negative
       return 0;
     };
 
@@ -60,7 +72,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
     });
 
     return result.reverse();
-  }, [transactions, startDate, endDate]);
+  }, [transactions, startDate, endDate, dateType]);
 
   // In savings context: expense = deposit (money going into savings), income = withdrawal (money coming out)
   // Reimbursement installment transactions are expenses and show as positive savings
@@ -133,7 +145,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-xs">{tx.description}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(parseLocalDate(tx.transaction_date), 'dd/MM', { locale: fr })}
+                      {format(rowDate(tx), 'dd/MM', { locale: fr })}
                       <span className="ml-1">&bull; {getTypeLabel(tx.type, tx)}</span>
                     </p>
                   </div>
@@ -142,7 +154,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 {/* Mobile: Amount and balance */}
                 <div className="flex items-center gap-3 flex-shrink-0 sm:hidden">
                   <p className={`font-bold text-xs ${getAmountColor(tx)}`}>
-                    {getAmountPrefix(tx)}{formatCurrency(tx.amount)}
+                    {getAmountPrefix(tx)}{formatCurrency(savingsAmount(tx))}
                   </p>
                   <p className={`font-medium text-xs ${
                     tx.balanceAfter >= 0 ? 'text-primary/70' : 'text-destructive/70'
@@ -159,7 +171,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-base">{tx.description}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(parseLocalDate(tx.transaction_date), 'dd MMM yyyy', { locale: fr })}</span>
+                      <span>{format(rowDate(tx), 'dd MMM yyyy', { locale: fr })}</span>
                       <span>&bull;</span>
                       <Badge variant="outline" className="text-xs">
                         {getTypeLabel(tx.type, tx)}
@@ -176,7 +188,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate }: Sa
                 <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
                   <div className="text-right">
                     <p className={`font-bold text-base ${getAmountColor(tx)}`}>
-                      {getAmountPrefix(tx)}{formatCurrency(tx.amount)}
+                      {getAmountPrefix(tx)}{formatCurrency(savingsAmount(tx))}
                     </p>
                   </div>
                   <div className="text-right w-32">

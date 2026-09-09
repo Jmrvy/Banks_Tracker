@@ -598,10 +598,12 @@ const Savings = () => {
 
         {/* Transactions List with Running Balance */}
         {section === 'history' && (
+          // Exactly the rows the header nets: excluded rows, trip envelopes
+          // and refund/repayment legs are already out, so the running
+          // balance ends on the period's "Épargne nette".
           <SavingsTransactionsList
-            transactions={allSavingsTransactions}
-            startDate={dateRange.start}
-            endDate={dateRange.end}
+            transactions={[...periodTransactions, ...reimbursementTransactions]}
+            dateType={preferences.dateType}
           />
         )}
 
