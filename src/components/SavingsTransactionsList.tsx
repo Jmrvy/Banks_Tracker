@@ -25,7 +25,7 @@ const savingsAmount = (tx: Transaction) => {
   return tx.type === 'expense' ? netExpenseAmount(tx as any) : netIncomeAmount(tx as any);
 };
 
-export function SavingsTransactionsList({ transactions, startDate, endDate, dateType = 'transaction' }: SavingsTransactionsListProps) {
+export function SavingsTransactionsList({ transactions, startDate, endDate, dateType = 'accounting' }: SavingsTransactionsListProps) {
   const { formatCurrency } = useUserPreferences();
   const { t } = useTranslation();
 
