@@ -1415,9 +1415,11 @@ const Budget = () => {
   }, [forecastCtx, includeProjected, period.from, period.to, period.buckets, today]);
 
   // --- monthly series ----------------------------------------------------
-  // One calendar-month series per category, running from six months back to
-  // three months ahead, and the source of both the expanded panel's chart
-  // and the trailing history the suggestion is built from.
+  // One calendar-month series per category, running from the start of the
+  // current year (never fewer than six months back, so the chart still has
+  // context in January) to three months ahead, and the source of both the
+  // expanded panel's chart and the trailing history the suggestion is built
+  // from.
   //
   // Deliberately independent of the selected period: the panel answers "what
   // does this category normally cost, and what is already committed", which
@@ -1426,7 +1428,9 @@ const Budget = () => {
   // projections count toward the period's figures, while a bar labelled as
   // scheduled is making no claim about the period at all.
   const monthlySeries = useMemo(() => {
-    const TRAIL = 6;
+    // Complete months elapsed since January — the chart always covers the
+    // current year, with a floor of six so January doesn't show a lone bar.
+    const TRAIL = Math.max(6, today.getMonth());
     const AHEAD = 3;
 
     const months: { from: Date; to: Date; key: string; label: string; kind: MonthKind }[] = [];
@@ -1436,7 +1440,12 @@ const Budget = () => {
         from: startOfMonth(ref),
         to: endOfMonth(ref),
         key: format(ref, "yyyy-MM"),
-        label: format(ref, "MMM", { locale: dateLocale }),
+        // Next year's months (the ahead window from October on) would
+        // collide with this year's labels, so they carry the year.
+        label:
+          ref.getFullYear() === today.getFullYear()
+            ? format(ref, "MMM", { locale: dateLocale })
+            : format(ref, "MMM yy", { locale: dateLocale }),
         kind: i > 0 ? "past" : i === 0 ? "current" : "future",
       });
     }
@@ -1501,14 +1510,16 @@ const Budget = () => {
   // The trailing six complete months, newest first — the shape `monthlyAvg`,
   // `p75` and the suggested cap have always been fed. Sliced off the series
   // above rather than scanned again, so the chart and the suggestion can
-  // never disagree about what a month cost.
+  // never disagree about what a month cost. The chart now reaches back to
+  // January, but the suggestion keeps its six-month window.
   const historyByCategory = useMemo(() => {
     const out = new Map<string, number[]>();
+    const trail = monthlySeries.trail;
     for (const [id, series] of monthlySeries.months) {
       out.set(
         id,
         series
-          .slice(0, monthlySeries.trail)
+          .slice(Math.max(0, trail - 6), trail)
           .map((m) => m.actual)
           .reverse(),
       );
