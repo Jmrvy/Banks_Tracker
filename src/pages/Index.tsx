@@ -11,7 +11,7 @@ import { DistributionChart } from "@/components/dashboard/DistributionChart";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { HeroNetWorth } from "@/components/dashboard/HeroNetWorth";
 import { AccountsListCard } from "@/components/dashboard/AccountsListCard";
-import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
+
 import { SavingsGoalsCard } from "@/components/dashboard/SavingsGoalsCard";
 import { UpcomingCard } from "@/components/dashboard/UpcomingCard";
 import { RecurringTransactionsWarning } from "@/components/RecurringTransactionsWarning";
