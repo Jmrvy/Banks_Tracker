@@ -1415,9 +1415,11 @@ const Budget = () => {
   }, [forecastCtx, includeProjected, period.from, period.to, period.buckets, today]);
 
   // --- monthly series ----------------------------------------------------
-  // One calendar-month series per category, running from six months back to
-  // three months ahead, and the source of both the expanded panel's chart
-  // and the trailing history the suggestion is built from.
+  // One calendar-month series per category, running from the start of the
+  // current year (never fewer than six months back, so the chart still has
+  // context in January) to three months ahead, and the source of both the
+  // expanded panel's chart and the trailing history the suggestion is built
+  // from.
   //
   // Deliberately independent of the selected period: the panel answers "what
   // does this category normally cost, and what is already committed", which
