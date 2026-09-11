@@ -269,7 +269,6 @@ const Index = () => {
             list instead of standing in for it. */}
         <div className="ft-g2 items-start">
           <div className="flex flex-col gap-[18px]">
-            <RecentActivityCard />
             <AggregatedBalanceEvolution />
           </div>
           <div className="flex flex-col gap-[18px]">
