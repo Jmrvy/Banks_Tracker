@@ -1510,14 +1510,16 @@ const Budget = () => {
   // The trailing six complete months, newest first — the shape `monthlyAvg`,
   // `p75` and the suggested cap have always been fed. Sliced off the series
   // above rather than scanned again, so the chart and the suggestion can
-  // never disagree about what a month cost.
+  // never disagree about what a month cost. The chart now reaches back to
+  // January, but the suggestion keeps its six-month window.
   const historyByCategory = useMemo(() => {
     const out = new Map<string, number[]>();
+    const trail = monthlySeries.trail;
     for (const [id, series] of monthlySeries.months) {
       out.set(
         id,
         series
-          .slice(0, monthlySeries.trail)
+          .slice(Math.max(0, trail - 6), trail)
           .map((m) => m.actual)
           .reverse(),
       );
