@@ -1428,7 +1428,9 @@ const Budget = () => {
   // projections count toward the period's figures, while a bar labelled as
   // scheduled is making no claim about the period at all.
   const monthlySeries = useMemo(() => {
-    const TRAIL = 6;
+    // Complete months elapsed since January — the chart always covers the
+    // current year, with a floor of six so January doesn't show a lone bar.
+    const TRAIL = Math.max(6, today.getMonth());
     const AHEAD = 3;
 
     const months: { from: Date; to: Date; key: string; label: string; kind: MonthKind }[] = [];
@@ -1438,7 +1440,12 @@ const Budget = () => {
         from: startOfMonth(ref),
         to: endOfMonth(ref),
         key: format(ref, "yyyy-MM"),
-        label: format(ref, "MMM", { locale: dateLocale }),
+        // Next year's months (the ahead window from October on) would
+        // collide with this year's labels, so they carry the year.
+        label:
+          ref.getFullYear() === today.getFullYear()
+            ? format(ref, "MMM", { locale: dateLocale })
+            : format(ref, "MMM yy", { locale: dateLocale }),
         kind: i > 0 ? "past" : i === 0 ? "current" : "future",
       });
     }
