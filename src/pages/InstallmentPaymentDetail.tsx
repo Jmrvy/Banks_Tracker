@@ -120,10 +120,31 @@ const InstallmentPaymentDetail = () => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'adjust' | 'history'>(initialTab);
 
   // Plan-derived data
-  const linkedTransactions = useMemo(
-    () => (plan ? transactions.filter((tx) => tx.installment_payment_id === plan.id) : []),
-    [transactions, plan]
-  );
+  // The shared transaction list can be older than the plan row: the
+  // scheduler inserts the instalment server-side and updates the plan's
+  // remaining amount, and the page then showed "54,51 € paid" above a
+  // timeline with nothing paid. Read this plan's own rows directly and
+  // merge them in, so the timeline agrees with the plan it sits under.
+  const [freshLinked, setFreshLinked] = useState<Transaction[]>([]);
+  useEffect(() => {
+    if (!plan) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*, account:accounts!transactions_account_id_fkey(name, bank), category:categories(id, name, color, icon)')
+        .eq('installment_payment_id', plan.id);
+      if (!cancelled && !error) setFreshLinked((data ?? []) as unknown as Transaction[]);
+    })();
+    return () => { cancelled = true; };
+  }, [plan?.id, plan?.remaining_amount, transactions.length]);
+  const linkedTransactions = useMemo(() => {
+    if (!plan) return [];
+    const byId = new Map<string, Transaction>();
+    for (const tx of freshLinked) byId.set(tx.id, tx);
+    for (const tx of transactions) if (tx.installment_payment_id === plan.id) byId.set(tx.id, tx);
+    return [...byId.values()];
+  }, [transactions, plan, freshLinked]);
   const account = useMemo(
     () => (plan ? accounts.find((a) => a.id === plan.account_id) : null),
     [accounts, plan]
