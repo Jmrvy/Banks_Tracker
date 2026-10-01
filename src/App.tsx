@@ -56,7 +56,11 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000, // 30 seconds
       retry: 1,
-      refetchOnWindowFocus: false,
+      // The scheduler inserts recurring occurrences server-side at night;
+      // a tab left open (or a PWA resumed) drops its realtime socket and
+      // kept showing yesterday's ledger. Refresh when the app comes back.
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
     },
   },
 });
