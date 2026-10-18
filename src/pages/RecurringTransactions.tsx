@@ -332,9 +332,9 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
               <div className="ft-card p-6">
                 <div className="animate-pulse space-y-4" role="status">
                   <div className="h-8 bg-bg-subtle rounded w-1/3 mx-auto"></div>
-                  <div className="grid grid-cols-7 gap-2">
+                  <div className="grid grid-cols-7 gap-2 min-w-0">
                     {Array(35).fill(0).map((_, i) => (
-                      <div key={i} className="aspect-square bg-bg-subtle rounded"></div>
+                      <div key={i} className="aspect-square w-full min-w-0 min-h-0 bg-bg-subtle rounded"></div>
                     ))}
                   </div>
                 </div>
@@ -360,7 +360,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
             ) : (
               /* Design's `.g2s` split: fluid main column + a fixed 300px rail,
                  both collapsing at 1180px like every other two-column page. */
-              <div className="ft-g2s">
+              <div className="ft-g2s min-w-0">
                 <RecurringCalendar
                   transactions={recurringTransactions}
                   actualTransactions={transactions}

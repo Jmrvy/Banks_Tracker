@@ -84,7 +84,7 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
   return (
     <div
       title={marked ? formatCurrency(Math.abs(dayTotal)) : undefined}
-      className={`aspect-square min-w-0 rounded-[9px] border flex flex-col items-center justify-center gap-0.5 transition-colors ${
+      className={`aspect-square w-full min-w-0 min-h-0 rounded-[9px] border flex flex-col items-center justify-center gap-0.5 transition-colors ${
         isToday
           ? 'bg-bg-ink text-fg-onink border-transparent'
           : marked
@@ -1323,9 +1323,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       {/* Calendar Card */}
-      <Card className="bg-card border-line">
+      <Card className="bg-card border-line min-w-0">
         <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center justify-between gap-2">
             <Button
@@ -1385,23 +1385,24 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-2 sm:p-6 pt-0">
+        <CardContent className="p-2 sm:p-6 pt-0 min-w-0">
           {viewMode === 'month' ? (
             <>
-              {/* Days of week header */}
-              <div className="grid grid-cols-7 gap-[5px] mb-1.5">
+              {/* Days of week header. minmax(0, 1fr) so a square day
+                  cannot push Saturday and Sunday off the phone. */}
+              <div className="grid grid-cols-7 gap-[5px] mb-1.5 min-w-0">
                 {daysOfWeek.map((day, i) => (
-                  <div key={`${day}-${i}`} className="text-center text-[10.5px] font-bold text-fg-dim">
+                  <div key={`${day}-${i}`} className="min-w-0 text-center text-[10.5px] font-bold text-fg-dim">
                     {day}
                   </div>
                 ))}
               </div>
 
               {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-[5px]">
+              <div className="grid grid-cols-7 gap-[5px] min-w-0">
                 {calendarDays.map((day, index) => {
                   if (!day) {
-                    return <div key={`empty-${index}`} className="aspect-square" />;
+                    return <div key={`empty-${index}`} className="aspect-square w-full min-w-0 min-h-0" />;
                   }
 
                   const dateKey = format(day, 'yyyy-MM-dd');

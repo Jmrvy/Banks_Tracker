@@ -75,7 +75,7 @@ const Scheduled = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12">
+    <div className="min-h-screen bg-background pb-[11rem] md:pb-12">
       <div className="ft-page">
         {/* Page head — single shared header for all three tools. */}
         <div className="ft-page-head">
