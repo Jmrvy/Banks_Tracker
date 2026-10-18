@@ -22,6 +22,15 @@ export function TraceFab() {
   if (location.pathname.startsWith("/trace")) return null;
   if (surface !== "closed") return null;
 
+  // The scheduled month fills the width of a phone. This button's usual
+  // corner sits on Sunday, which is the column the screenshot was missing.
+  // The subscriptions toolbar owns Ask Trace there instead.
+  const scheduledTab = new URLSearchParams(location.search).get("tab");
+  const onMonth =
+    location.pathname.startsWith("/scheduled") &&
+    (scheduledTab === null || scheduledTab === "subscriptions");
+  if (isMobile && onMonth) return null;
+
   const label = t("trace.askTrace", { defaultValue: "Ask Trace" });
 
   return (

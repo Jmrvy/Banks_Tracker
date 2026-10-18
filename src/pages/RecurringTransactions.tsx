@@ -3,13 +3,14 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
-import { Repeat, Calendar, Pause, Play, Plus, CalendarDays } from "lucide-react";
+import { Repeat, Calendar, Pause, Play, Plus, CalendarDays, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts, ScheduledDebtPayment } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTrace } from "@/contexts/TraceContext";
 import { supabase } from "@/integrations/supabase/client";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
@@ -35,6 +36,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { openDock } = useTrace();
   const [view, setView] = useState<RecurringView>('calendar');
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
@@ -322,7 +324,23 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
               { value: 'list', label: t('recurring.viewList', { defaultValue: 'List' }) },
             ]}
           />
-          {embedded && newButton}
+          {embedded && (
+            <div className="flex items-center gap-2">
+              {/* The floating Trace button is hidden on this tab: it covered
+                  Sunday. Same action, in the row that already holds Add. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="md:hidden h-8 w-8"
+                onClick={openDock}
+                aria-label={t("trace.askTrace", { defaultValue: "Ask Trace" })}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </Button>
+              {newButton}
+            </div>
+          )}
         </div>
 
         {/* Calendar View */}
