@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bell, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
@@ -27,6 +28,12 @@ interface NotificationsSectionProps {
 export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
+  const { preferences, updatePreferences } = useUserPreferences();
+  // The select writes the calculation date immediately. Save reads this
+  // ref so a click in the same turn as the change cannot persist the
+  // previous value, and cannot persist a different one.
+  const dateTypeRef = useRef(preferences.dateType);
+  dateTypeRef.current = preferences.dateType;
 
   const [notificationPrefs, setNotificationPrefs] = useState({
     budgetAlerts: true,
@@ -34,7 +41,6 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
     sections: ['summary', 'categories', 'budgets', 'accounts', 'recurring'] as EmailSection[],
     attachPdf: true,
     topN: 6,
-    dateType: 'accounting' as 'accounting' | 'value',
     // Language used for the emails themselves. Edge functions can't read
     // the browser's i18n state, so it's persisted alongside the other
     // notification settings. Seeded from the current UI language.
@@ -62,7 +68,6 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           ?? (row.monthly_reports ? 'monthly' : 'off');
         const sectionsRaw = (row.monthly_report_sections as EmailSection[] | undefined)
           ?? ['summary', 'categories', 'budgets', 'accounts', 'recurring'];
-        const dateTypeRaw = (row.date_type as string | undefined) === 'value' ? 'value' : 'accounting';
         setNotificationPrefs({
           budgetAlerts: !!row.budget_alerts,
           cadence: (['off', 'weekly', 'monthly', 'quarterly'] as Cadence[]).includes(cadenceRaw)
@@ -73,7 +78,6 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
             : ['summary', 'categories', 'budgets', 'accounts', 'recurring'],
           attachPdf: row.monthly_report_attach_pdf !== false,
           topN: Math.max(1, Math.min(20, Number(row.monthly_report_top_n) || 6)),
-          dateType: dateTypeRaw,
           emailLanguage: String(row.email_language ?? '').startsWith('en')
             ? 'en'
             // No stored preference yet (pre-migration row): fall back to the
@@ -105,7 +109,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
           monthly_report_sections: notificationPrefs.sections,
           monthly_report_attach_pdf: notificationPrefs.attachPdf,
           monthly_report_top_n: notificationPrefs.topN,
-          date_type: notificationPrefs.dateType,
+          date_type: dateTypeRef.current,
           email_language: notificationPrefs.emailLanguage,
         } as never, { onConflict: 'user_id' });
 
@@ -279,18 +283,19 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
             </Select>
           </div>
 
-          {/* Date convention — keeps email totals aligned with the in-app
-              analysis. Defaults to accounting date. */}
+          {/* The calculation date. Changing it here changes reports,
+              emails, alerts and MCP together. */}
           {reportsOn && (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
                 {t('settings.reportDateConvention', { defaultValue: 'Date convention' })}
               </Label>
               <Select
-                value={notificationPrefs.dateType}
-                onValueChange={(v: 'accounting' | 'value') =>
-                  setNotificationPrefs((p) => ({ ...p, dateType: v }))
-                }
+                value={preferences.dateType}
+                onValueChange={(v: 'accounting' | 'value') => {
+                  dateTypeRef.current = v;
+                  updatePreferences({ dateType: v });
+                }}
               >
                 <SelectTrigger className="h-9 text-sm w-full sm:w-[240px]">
                   <SelectValue />
@@ -302,7 +307,7 @@ export const NotificationsSection = ({ user }: NotificationsSectionProps) => {
               </Select>
               <p className="text-[11px] text-muted-foreground">
                 {t('settings.reportDateConventionHint', {
-                  defaultValue: 'Pick the same convention as the Reports page so totals match.',
+                  defaultValue: 'This is the app\'s calculation date. Changing it here also changes reports, emails and alerts.',
                 })}
               </p>
             </div>
