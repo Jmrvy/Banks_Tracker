@@ -464,8 +464,11 @@
   .ft-g4  { display: grid; grid-template-columns: repeat(4, 1fr);        gap: calc(14px * var(--density)); }
   .ft-g2s { display: grid; grid-template-columns: minmax(0, 1fr) 300px;  gap: calc(18px * var(--density)); }
   @media (max-width: 1179px) {
-    .ft-g2, .ft-g2e, .ft-g3, .ft-g2s { grid-template-columns: 1fr; }
-    .ft-g4 { grid-template-columns: 1fr 1fr; }
+    /* `1fr` is minmax(auto, 1fr). A calendar's min-content is seven
+       square days, which is wider than a phone, so the column refused
+       to shrink and the weekend was clipped by the page. */
+    .ft-g2, .ft-g2e, .ft-g3, .ft-g2s { grid-template-columns: minmax(0, 1fr); }
+    .ft-g4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   }
 
   /* =========================================================================

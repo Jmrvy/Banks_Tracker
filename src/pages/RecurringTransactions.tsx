@@ -3,13 +3,14 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
-import { Repeat, Calendar, Pause, Play, Plus, CalendarDays } from "lucide-react";
+import { Repeat, Calendar, Pause, Play, Plus, CalendarDays, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFinancialData, RecurringTransaction } from "@/hooks/useFinancialData";
 import { useInstallmentPayments } from "@/hooks/useInstallmentPayments";
 import { useDebts, ScheduledDebtPayment } from "@/hooks/useDebts";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTrace } from "@/contexts/TraceContext";
 import { supabase } from "@/integrations/supabase/client";
 import NewRecurringTransactionModal from "@/components/NewRecurringTransactionModal";
 import EditRecurringTransactionModal from "@/components/EditRecurringTransactionModal";
@@ -35,6 +36,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { openDock } = useTrace();
   const [view, setView] = useState<RecurringView>('calendar');
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
@@ -322,7 +324,23 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
               { value: 'list', label: t('recurring.viewList', { defaultValue: 'List' }) },
             ]}
           />
-          {embedded && newButton}
+          {embedded && (
+            <div className="flex items-center gap-2">
+              {/* The floating Trace button is hidden on this tab: it covered
+                  Sunday. Same action, in the row that already holds Add. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="md:hidden h-8 w-8"
+                onClick={openDock}
+                aria-label={t("trace.askTrace", { defaultValue: "Ask Trace" })}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </Button>
+              {newButton}
+            </div>
+          )}
         </div>
 
         {/* Calendar View */}
@@ -332,9 +350,9 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
               <div className="ft-card p-6">
                 <div className="animate-pulse space-y-4" role="status">
                   <div className="h-8 bg-bg-subtle rounded w-1/3 mx-auto"></div>
-                  <div className="grid grid-cols-7 gap-2">
+                  <div className="grid grid-cols-7 gap-2 min-w-0">
                     {Array(35).fill(0).map((_, i) => (
-                      <div key={i} className="aspect-square bg-bg-subtle rounded"></div>
+                      <div key={i} className="aspect-square w-full min-w-0 min-h-0 bg-bg-subtle rounded"></div>
                     ))}
                   </div>
                 </div>
@@ -360,7 +378,7 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
             ) : (
               /* Design's `.g2s` split: fluid main column + a fixed 300px rail,
                  both collapsing at 1180px like every other two-column page. */
-              <div className="ft-g2s">
+              <div className="ft-g2s min-w-0">
                 <RecurringCalendar
                   transactions={recurringTransactions}
                   actualTransactions={transactions}

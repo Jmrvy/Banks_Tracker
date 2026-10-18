@@ -160,16 +160,18 @@ export function ScheduledSummary() {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
       {cards.map((card) => (
         <div key={card.key} className="ft-kpi">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-start gap-2 min-w-0">
             <div className={`ft-kpi-icon ${card.tone}`}>
               <card.icon className="h-[15px] w-[15px]" />
             </div>
-            <span className="ft-kpi-label truncate">{card.label}</span>
+            <span className="ft-kpi-label min-w-0 leading-tight">{card.label}</span>
           </div>
-          <div className={`ft-kpi-value truncate ${isPrivacyMode ? "ft-priv" : ""}`}>
+          <div className={`ft-kpi-value ${isPrivacyMode ? "ft-priv" : ""}`}>
             {card.value}
           </div>
-          <div className="ft-kpi-foot truncate">{card.foot}</div>
+          <div className="ft-kpi-foot">
+            <span className="min-w-0 whitespace-normal leading-snug">{card.foot}</span>
+          </div>
         </div>
       ))}
     </div>
