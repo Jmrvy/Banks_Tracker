@@ -93,9 +93,13 @@ export const OverTimeTab = ({ balanceEvolutionData, stats, recurringData, period
           }
           if (isExcluded) { excludedExpenses += amount; excludedCount++; }
         } else if (t.type === 'transfer') {
-          // Real cash always pays the fee. Stats follow periodContribution
-          // and skip a row excluded from statistics, fee included.
+          // Real cash always pays the fee. Stats follow periodContributions:
+          // an excluded row contributes nothing, and a transfer marked as
+          // money put back reduces expenses by its principal. The fee stays.
           if (mode === 'real' || !isExcluded) transferFees += Number(t.transfer_fee || 0);
+          if (mode !== 'real' && !isExcluded && t.offsets_category && t.category && !t.refund_of_transaction_id) {
+            expenses -= Math.abs(amount);
+          }
         }
       }
       const finalBalance = initial + income - expenses - transferFees;

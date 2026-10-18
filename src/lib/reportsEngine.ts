@@ -25,7 +25,8 @@ export interface EngineTx {
   refunded_amount?: number | null;
   repayment_of_transaction_id?: string | null;
   repaid_amount?: number | null;
-  /** Income only: came back on its category rather than being earnings. */
+  /** Income, or a transfer marked as money put back: came back on its
+   *  category rather than being earnings or a neutral move. */
   offsets_category?: boolean | null;
   category_id?: string | null;
   special_budget_id?: string | null;
@@ -121,7 +122,9 @@ export interface CategoryNet {
  *     and so is already inside `refunded` below;
  *   - `offsets_category`, for money that came back on the category without
  *     mapping to one specific expense — a gambling payout against its
- *     stakes, a reimbursement filed among genuine transfers.
+ *     stakes, a reimbursement filed among genuine transfers, or a transfer
+ *     the user marked as money put back. The original expense stays until
+ *     that mark is set.
  *
  * The two are mutually exclusive at the database level, so nothing here can
  * subtract the same money twice.
@@ -150,6 +153,11 @@ export const computeCategoryNets = (txs: EngineTx[]): Map<string, CategoryNet> =
       if (t.refund_of_transaction_id) continue;
       const row = out.get(categoryId) ?? blank();
       row.offsetIncome += netIncomeAmount(t);
+      out.set(categoryId, row);
+    } else if (isOffsettingTransfer(t)) {
+      // The principal came back. The fee is not category spend.
+      const row = out.get(categoryId) ?? blank();
+      row.offsetIncome += Math.abs(Number(t.amount) || 0);
       out.set(categoryId, row);
     }
   }
@@ -181,6 +189,7 @@ export const categorySpendAmount = (t: EngineTx): number => {
     if (t.refund_of_transaction_id) return 0;
     return -netIncomeAmount(t);
   }
+  if (isOffsettingTransfer(t)) return -Math.abs(Number(t.amount) || 0);
   return 0;
 };
 
@@ -191,8 +200,17 @@ export const participatesInCategorySpend = (t: EngineTx): boolean => {
   if (t.include_in_stats === false) return false;
   if (t.type === 'expense') return !t.repayment_of_transaction_id && !t.special_budget_id;
   if (t.type === 'income') return !!t.offsets_category && !t.refund_of_transaction_id;
-  return false;
+  return isOffsettingTransfer(t);
 };
+
+/** A transfer the user marked as money put back onto a category.
+ *  The principal reduces that category. The fee does not. Until the mark
+ *  is set, the original expense stays — a transfer between accounts is
+ *  not itself a return. */
+export const isOffsettingTransfer = (
+  t: Pick<EngineTx, 'type' | 'offsets_category' | 'category_id' | 'refund_of_transaction_id'>,
+): boolean =>
+  t.type === 'transfer' && !!t.offsets_category && !!t.category_id && !t.refund_of_transaction_id;
 
 export type PeriodRole = 'income' | 'expense' | 'transfer_fee' | 'ignored';
 
@@ -204,7 +222,12 @@ export type PeriodRole = 'income' | 'expense' | 'transfer_fee' | 'ignored';
  * expense); income marked `offsets_category` is likewise not earnings and
  * comes off expenses instead; expenses count net of refunds; income counts
  * net of repayments; repayment expenses are excluded (they net against the
- * income they settle); transfers contribute only their fee.
+ * income they settle); an unmarked transfer contributes only its fee.
+ *
+ * A marked transfer is the one row that is two contributions at once: its
+ * principal reduces expenses and its fee is still a fee. `periodContribution`
+ * can return only one role, so it keeps the fee and `periodContributions`
+ * adds the principal. Anything that sums a period folds the array.
  *
  * `computePeriodStats` is the sum of this over a period. Callers that need
  * the same money split a different way — per month, per account, per
@@ -236,8 +259,42 @@ export const periodContribution = (t: EngineTx): { role: PeriodRole; amount: num
     if (t.repayment_of_transaction_id) return ignored;
     return { role: 'expense', amount: netExpenseAmount(t) };
   }
+  // Fee only, including a marked transfer. The principal is the second
+  // part, and it lives in `periodContributions` because this returns one role.
   if (t.type === 'transfer') return { role: 'transfer_fee', amount: Number(t.transfer_fee || 0) };
   return ignored;
+};
+
+/** Every part of one row. Empty when the row does not count.
+ *  A marked transfer yields the principal as a negative expense and, when
+ *  there is one, the fee. Fold this, not `periodContribution`, wherever a
+ *  total is built. */
+export const periodContributions = (t: EngineTx): { role: PeriodRole; amount: number }[] => {
+  if (t.include_in_stats === false) return [];
+  if (isOffsettingTransfer(t)) {
+    const parts: { role: PeriodRole; amount: number }[] = [
+      { role: 'expense', amount: -Math.abs(Number(t.amount) || 0) },
+    ];
+    const fee = Number(t.transfer_fee || 0);
+    if (fee) parts.push({ role: 'transfer_fee', amount: fee });
+    return parts;
+  }
+  const one = periodContribution(t);
+  return one.role === 'ignored' ? [] : [one];
+};
+
+/** Signed savings movement. A deposit is positive, a withdrawal is
+ *  negative. A marked transfer is a withdrawal of its principal — the fee
+ *  is not savings. An unmarked transfer is not a movement. The caller
+ *  still decides which categories count. */
+export const savingsMovement = (t: EngineTx): number | null => {
+  if (t.include_in_stats === false) return null;
+  if (t.special_budget_id) return null;
+  if (t.repayment_of_transaction_id || t.refund_of_transaction_id) return null;
+  if (t.type === 'expense') return netExpenseAmount(t);
+  if (t.type === 'income') return -netIncomeAmount(t);
+  if (isOffsettingTransfer(t)) return -Math.abs(Number(t.amount) || 0);
+  return null;
 };
 
 /**
@@ -249,8 +306,9 @@ export const periodContribution = (t: EngineTx): { role: PeriodRole; amount: num
  * name instead, so the lines still add up to headline expenses and the
  * category is left to `categorySpendAmount`.
  *
- * A marked return has role expense and type income: it keeps the category
- * name and reduces that line.
+ * A marked return has role expense and type income or transfer: it keeps
+ * the category name and reduces that line. The fee is a transfer fee, not
+ * part of the line.
  */
 export const headlineExpenseLine = (
   t: Pick<EngineTx, 'type' | 'special_budget_id'>,
@@ -268,10 +326,11 @@ export const computePeriodStats = (txs: EngineTx[]): PeriodStats => {
   let expenses = 0;
   let transferFees = 0;
   for (const t of txs) {
-    const { role, amount } = periodContribution(t);
-    if (role === 'income') income += amount;
-    else if (role === 'expense') expenses += amount;
-    else if (role === 'transfer_fee') transferFees += amount;
+    for (const { role, amount } of periodContributions(t)) {
+      if (role === 'income') income += amount;
+      else if (role === 'expense') expenses += amount;
+      else if (role === 'transfer_fee') transferFees += amount;
+    }
   }
   return { income, expenses, transferFees, net: income - expenses - transferFees };
 };

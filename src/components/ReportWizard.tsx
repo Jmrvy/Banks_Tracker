@@ -49,7 +49,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { getTxDate } from "@/lib/dateUtils";
 import { resolvePeriodRange } from "@/lib/periodUtils";
-import { filterByPeriod, signedGlobalAmount, netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
+import { filterByPeriod, signedGlobalAmount, periodContributions } from "@/lib/reportsEngine";
 import {
   type ReportSection,
   type PageId,
@@ -278,17 +278,9 @@ export const ReportWizard = ({ open, onOpenChange }: ReportWizardProps) => {
       let dayIncome = 0;
       let dayExpense = 0;
       for (const t of dayTransactions) {
-        if (t.include_in_stats === false) continue;
-        if (t.type === 'income') {
-          if (t.refund_of_transaction_id) continue;
-          const net = netIncomeAmount(t as any);
-          if (t.offsets_category) dayExpense -= net;
-          else dayIncome += net;
-        } else if (t.type === 'expense') {
-          if (t.repayment_of_transaction_id) continue;
-          dayExpense += netExpenseAmount(t as any);
-        } else if (t.type === 'transfer') {
-          dayExpense += Number(t.transfer_fee || 0);
+        for (const { role, amount } of periodContributions(t as any)) {
+          if (role === 'income') dayIncome += amount;
+          else dayExpense += amount;
         }
       }
 

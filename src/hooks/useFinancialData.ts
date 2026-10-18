@@ -42,9 +42,10 @@ export interface Transaction {
   transfer_to_account?: { name: string; bank: string };
   transfer_fee?: number;
   refund_of_transaction_id?: string | null;
-  /** Income only: this money came back on its category rather than being
-   *  earnings, so it reduces that category's spend. Decided per row because
-   *  one category legitimately holds both kinds. */
+  /** Income, or a transfer marked as money put back: this principal came
+   *  back on its category, so it reduces that category's spend. It is not
+   *  earnings. Decided per row, because one category holds both kinds and
+   *  a transfer is not itself a return until it is marked. */
   offsets_category?: boolean | null;
   /** On income: how much has since been paid back. */
   repaid_amount?: number | null;
@@ -400,9 +401,13 @@ function useFinancialDataInternal() {
     transfer_fee?: number;
     transaction_date: string;
     value_date?: string;
+    /** Set together: the principal came back on this category. */
+    category_id?: string | null;
+    offsets_category?: boolean;
   }) => {
     if (!user) return;
-    
+
+    const marked = !!transfer.offsets_category && !!transfer.category_id;
     const { error } = await supabase
       .from('transactions')
       .insert([{
@@ -414,6 +419,8 @@ function useFinancialDataInternal() {
         transfer_fee: transfer.transfer_fee || 0,
         transaction_date: transfer.transaction_date,
         value_date: transfer.value_date || transfer.transaction_date,
+        category_id: marked ? transfer.category_id : null,
+        offsets_category: marked,
         user_id: user.id
       }]);
 
@@ -665,7 +672,7 @@ function useFinancialDataInternal() {
     amount?: number;
     type?: 'income' | 'expense' | 'transfer';
     account_id?: string;
-    category_id?: string;
+    category_id?: string | null;
     special_budget_id?: string | null;
     transaction_date?: string;
     value_date?: string;

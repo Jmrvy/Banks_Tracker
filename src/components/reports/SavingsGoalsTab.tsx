@@ -15,7 +15,7 @@ import type { ReportsPeriod } from '@/hooks/useReportsData';
 import { differenceInDays, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { netExpenseAmount, netIncomeAmount } from '@/lib/reportsEngine';
+import { savingsMovement } from '@/lib/reportsEngine';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { useTranslation } from 'react-i18next';
 
@@ -42,12 +42,7 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
   // sides, with no floor. A deposit is positive, a withdrawal is negative.
   const savingsContribution = (tx: Transaction): number | null => {
     if (!tx.category || !categories.some((cat) => cat.counts_as_savings && cat.id === tx.category!.id)) return null;
-    if (tx.include_in_stats === false) return null;
-    if (tx.special_budget_id) return null;
-    if (tx.repayment_of_transaction_id || tx.refund_of_transaction_id) return null;
-    if (tx.type === 'expense') return netExpenseAmount(tx);
-    if (tx.type === 'income') return -netIncomeAmount(tx);
-    return null;
+    return savingsMovement(tx);
   };
 
   // Calculate investment statistics

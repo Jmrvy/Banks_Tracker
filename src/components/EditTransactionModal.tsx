@@ -101,6 +101,17 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       return;
     }
 
+    if (formData.type === 'transfer' && formData.offsets_category && !formData.category_id) {
+      toast({
+        title: t('common.validationError'),
+        description: t('transactions.offsetsTransferNeedsCategory', {
+          defaultValue: 'Pick the category this money comes back on.',
+        }),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     const originalAmount = transaction.amount;
@@ -113,20 +124,22 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       amount: newAmount,
       type: formData.type,
       account_id: formData.account_id,
-      category_id: formData.category_id || undefined,
+      category_id: formData.type === 'transfer'
+        ? (formData.offsets_category ? formData.category_id || null : null)
+        : (formData.category_id || null),
       special_budget_id: formData.type === 'expense' ? (formData.special_budget_id || null) : null,
       transaction_date: formData.transaction_date,
       value_date: formData.value_date,
       include_in_stats: formData.include_in_stats,
-      // Only income on a category can offset it, and never a linked refund —
-      // that one already nets through its expense. The DB normalises this
-      // too, but sending a value the row cannot hold makes the save read as
-      // if it took effect.
+      // Income on a category, or a transfer marked as money put back. A
+      // linked refund already nets through its expense. Clearing the mark
+      // on a transfer also clears the category, so an unmarked transfer
+      // does not keep a category it cannot use. The DB normalises this too.
       offsets_category:
-        formData.type === 'income' &&
         !!formData.category_id &&
         !transaction.refund_of_transaction_id &&
-        formData.offsets_category,
+        formData.offsets_category &&
+        (formData.type === 'income' || formData.type === 'transfer'),
       ...(formData.type === 'transfer' && {
         transfer_to_account_id: formData.transfer_to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0
@@ -267,7 +280,41 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
             </>
           )}
 
-          {formData.type !== 'transfer' && (
+          {formData.type === 'transfer' && (
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Switch
+                id="transfer-offsets-category"
+                checked={formData.offsets_category}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    offsets_category: checked,
+                    category_id: checked ? prev.category_id : '',
+                  }))
+                }
+              />
+              <div className="min-w-0">
+                <Label htmlFor="transfer-offsets-category" className="text-sm cursor-pointer">
+                  {t('transactions.offsetsTransfer', {
+                    defaultValue: 'Put back on a category',
+                  })}
+                </Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {formData.offsets_category
+                    ? t('transactions.offsetsTransferOn', {
+                        defaultValue:
+                          'The amount reduces what this category cost. It is not income, and the transfer fee still counts.',
+                      })
+                    : t('transactions.offsetsTransferOff', {
+                        defaultValue:
+                          'This transfer leaves the budget as it is. Turn on only for money put back after it was taken out.',
+                      })}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {(formData.type !== 'transfer' || formData.offsets_category) && (
             <div className="space-y-2">
               <Label>Catégorie</Label>
               <Select

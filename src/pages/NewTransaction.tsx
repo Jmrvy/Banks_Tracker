@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { AmountInput } from '@/components/ui/amount-input';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, MinusCircle, ArrowRightLeft, Check } from 'lucide-react';
@@ -27,6 +29,7 @@ const NewTransaction = () => {
     account_id: '',
     to_account_id: '',
     category_id: '',
+    offsets_category: false,
     transfer_fee: '',
     transaction_date: new Date().toISOString().split('T')[0],
     value_date: new Date().toISOString().split('T')[0]
@@ -57,6 +60,17 @@ const NewTransaction = () => {
       return;
     }
 
+    if (formData.type === 'transfer' && formData.offsets_category && !formData.category_id) {
+      toast({
+        title: t('common.validationError'),
+        description: t('transactions.offsetsTransferNeedsCategory', {
+          defaultValue: 'Pick the category this money comes back on.',
+        }),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (formData.type === 'transfer' && formData.account_id === formData.to_account_id) {
       toast({
         title: t('common.sameAccounts'),
@@ -80,6 +94,8 @@ const NewTransaction = () => {
           transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
           transaction_date: formData.transaction_date,
           value_date: formData.value_date,
+          category_id: formData.offsets_category ? formData.category_id : null,
+          offsets_category: formData.offsets_category && !!formData.category_id,
         });
         error = result?.error;
       } else {
@@ -92,6 +108,7 @@ const NewTransaction = () => {
           transaction_date: formData.transaction_date,
           value_date: formData.value_date,
           include_in_stats: true,
+          offsets_category: formData.type === 'income' && !!formData.category_id && formData.offsets_category,
         });
         error = result?.error;
       }
@@ -117,6 +134,7 @@ const NewTransaction = () => {
           account_id: '',
           to_account_id: '',
           category_id: '',
+          offsets_category: false,
           transfer_fee: '',
           transaction_date: new Date().toISOString().split('T')[0],
           value_date: new Date().toISOString().split('T')[0]
@@ -377,9 +395,45 @@ const NewTransaction = () => {
                 </div>
               )}
 
+              {formData.type === 'transfer' && (
+                <div className="ft-field">
+                  <div className="flex items-start gap-3 rounded-lg border p-3">
+                    <Switch
+                      id="page-transfer-offsets"
+                      checked={formData.offsets_category}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          offsets_category: checked,
+                          category_id: checked ? prev.category_id : '',
+                        }))
+                      }
+                    />
+                    <div className="min-w-0">
+                      <Label htmlFor="page-transfer-offsets" className="text-sm cursor-pointer">
+                        {t('transactions.offsetsTransfer', { defaultValue: 'Put back on a category' })}
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {formData.offsets_category
+                          ? t('transactions.offsetsTransferOn', {
+                              defaultValue:
+                                'The amount reduces what this category cost. It is not income, and the transfer fee still counts.',
+                            })
+                          : t('transactions.offsetsTransferOff', {
+                              defaultValue:
+                                'This transfer leaves the budget as it is. Turn on only for money put back after it was taken out.',
+                            })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Category — chips, so the colour that makes a category
-                  recognisable is on screen instead of behind a menu. */}
-              {formData.type !== 'transfer' && (
+                  recognisable is on screen instead of behind a menu.
+                  On a transfer the chips appear only once the put-back
+                  mark is on, because an unmarked transfer has no category. */}
+              {(formData.type !== 'transfer' || formData.offsets_category) && (
                 <div className="ft-field" role="group" aria-labelledby="new-tx-category-label">
                   <label id="new-tx-category-label">{t('common.category', { defaultValue: 'Category' })}</label>
                   <div className="flex flex-wrap gap-2">
@@ -400,6 +454,32 @@ const NewTransaction = () => {
                         {category.name}
                       </button>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {formData.type === 'income' && !!formData.category_id && (
+                <div className="flex items-start gap-3 rounded-lg border p-3">
+                  <Switch
+                    id="page-income-offsets"
+                    checked={formData.offsets_category}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, offsets_category: checked }))
+                    }
+                  />
+                  <div className="min-w-0">
+                    <Label htmlFor="page-income-offsets" className="text-sm cursor-pointer">
+                      {t('transactions.offsetsCategory', { defaultValue: 'Came back on this category' })}
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {formData.offsets_category
+                        ? t('transactions.offsetsCategoryOn', {
+                            defaultValue: 'Reduces what this category cost instead of counting as income.',
+                          })
+                        : t('transactions.offsetsCategoryOff', {
+                            defaultValue: 'Counts as income. Turn on for money coming back rather than coming in.',
+                          })}
+                    </p>
                   </div>
                 </div>
               )}

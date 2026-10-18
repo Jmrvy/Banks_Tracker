@@ -1,7 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { supabaseForUser, unauthenticated, fail, ok } from "../supabase";
-import { headlineExpenseLine, periodContribution, type EngineTx } from "../../reportsEngine";
+import { headlineExpenseLine, periodContributions, type EngineTx } from "../../reportsEngine";
 import { ledgerDateColumn } from "../dateColumn";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -11,8 +11,9 @@ export default defineTool({
   title: "Spending summary",
   description:
     "Summarize income, expenses and net flow over a date range, broken down by category. " +
-    "Expenses are net of refunds and of income the user marked as having come back on a " +
-    "category; income is net of anything repaid against it. Advance settlements and refund " +
+    "Expenses are net of refunds, of income the user marked as having come back on a " +
+    "category, and of a transfer marked as money put back on one. A transfer's fee still " +
+    "counts. Income is net of anything repaid against it. Advance settlements and refund " +
     "rows are excluded — they would otherwise count the same money twice. Nothing further " +
     "should be subtracted from these figures.",
   inputSchema: {
@@ -85,23 +86,23 @@ export default defineTool({
       // rows flagged out of statistics, so opting them back in means handing
       // it a row that says it counts.
       const t = include_excluded ? { ...raw, include_in_stats: true } : raw;
-      const { role, amount } = periodContribution(t);
-      if (role === "ignored") continue;
-
-      if (role === "income") income += amount;
-      else if (role === "transfer_fee") transferFees += amount;
-      else {
-        // `amount` is negative for income that came back on its category,
-        // which is what makes it reduce the category rather than inflate it.
-        expenses += amount;
-        const categoryLabel = t.category_id ? (names.get(t.category_id) ?? "Unknown") : "Uncategorized";
-        const key = headlineExpenseLine(
-          t,
-          categoryLabel,
-          t.special_budget_id ? budgetNames.get(t.special_budget_id) : undefined,
-          "Special budget",
-        );
-        byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
+      for (const { role, amount } of periodContributions(t)) {
+        if (role === "income") income += amount;
+        else if (role === "transfer_fee") transferFees += amount;
+        else {
+          // `amount` is negative for money that came back on its category
+          // (marked income, or a transfer marked as put back), which is what
+          // makes it reduce the category rather than inflate it.
+          expenses += amount;
+          const categoryLabel = t.category_id ? (names.get(t.category_id) ?? "Unknown") : "Uncategorized";
+          const key = headlineExpenseLine(
+            t,
+            categoryLabel,
+            t.special_budget_id ? budgetNames.get(t.special_budget_id) : undefined,
+            "Special budget",
+          );
+          byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
+        }
       }
     }
 

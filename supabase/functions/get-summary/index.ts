@@ -12,7 +12,7 @@ import {
   round2,
   AuthCredentials,
 } from '../_shared/api.ts';
-import { LEDGER_COLUMNS, headlineExpenseLine, periodContribution } from '../_shared/ledgerRules.ts';
+import { LEDGER_COLUMNS, headlineExpenseLine, periodContributions } from '../_shared/ledgerRules.ts';
 
 interface Body extends AuthCredentials {
   period_start: string; // YYYY-MM-DD
@@ -86,31 +86,34 @@ Deno.serve(async (req) => {
   // spending, and floored a refund at the expense it refunded — four ways
   // to disagree with the app about the same period.
   for (const t of txs) {
-    const { role, amount } = periodContribution(t as any);
-    if (role === 'ignored') continue;
+    const parts = periodContributions(t as any);
+    if (parts.length === 0) continue;
 
     const month = (t as any)[dateField].substring(0, 7);
     const bucket = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
 
-    if (role === 'income') {
-      totalIncome += amount;
-      bucket.income += amount;
-    } else if (role === 'expense') {
-      // `amount` is negative for income that came back on its category,
-      // which is what makes it reduce the category rather than inflate it.
-      totalExpenses += amount;
-      totalRefunded += Number((t as any).refunded_amount || 0);
-      bucket.expenses += amount;
-      const row = t as any;
-      const line = headlineExpenseLine(
-        row,
-        row.categories?.name || 'Sans catégorie',
-        row.special_budget_id ? (budgetNames.get(row.special_budget_id) || 'Budget spécial') : undefined,
-        'Budget spécial',
-      );
-      categoryMap.set(line, (categoryMap.get(line) ?? 0) + amount);
-    } else {
-      totalTransferFees += amount;
+    for (const { role, amount } of parts) {
+      if (role === 'income') {
+        totalIncome += amount;
+        bucket.income += amount;
+      } else if (role === 'expense') {
+        // `amount` is negative for money that came back on its category,
+        // income or a marked transfer, which is what makes it reduce the
+        // category rather than inflate it. A transfer's fee is the other part.
+        totalExpenses += amount;
+        totalRefunded += Number((t as any).refunded_amount || 0);
+        bucket.expenses += amount;
+        const row = t as any;
+        const line = headlineExpenseLine(
+          row,
+          row.categories?.name || 'Sans catégorie',
+          row.special_budget_id ? (budgetNames.get(row.special_budget_id) || 'Budget spécial') : undefined,
+          'Budget spécial',
+        );
+        categoryMap.set(line, (categoryMap.get(line) ?? 0) + amount);
+      } else {
+        totalTransferFees += amount;
+      }
     }
 
     monthlyMap.set(month, bucket);

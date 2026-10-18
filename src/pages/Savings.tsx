@@ -19,7 +19,7 @@ import { ReimbursementDetailModal } from "@/components/ReimbursementDetailModal"
 import { SavingsTransactionsList } from "@/components/SavingsTransactionsList";
 import { differenceInDays, format, isWithinInterval } from "date-fns";
 import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
-import { netIncomeAmount, netExpenseAmount, type EngineTx } from "@/lib/reportsEngine";
+import { netIncomeAmount, netExpenseAmount, savingsMovement, type EngineTx } from "@/lib/reportsEngine";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -121,9 +121,10 @@ const Savings = () => {
     if (investmentCategoryIds.size === 0) return [];
     return transactions.filter(tx => {
       if (!isInvestment(tx)) return false;
-      if (tx.include_in_stats === false) return false;
-      if (tx.special_budget_id) return false;
-      if (tx.repayment_of_transaction_id || tx.refund_of_transaction_id) return false;
+      // savingsMovement is null for an unmarked transfer, an exclusion, a
+      // trip envelope and either leg of a refund or repayment. A marked
+      // transfer is a withdrawal of its principal.
+      if (savingsMovement(tx as EngineTx) == null) return false;
       return isWithinInterval(getTxDate(tx, preferences.dateType), {
         start: dateRange.start,
         end: dateRange.end,
@@ -160,8 +161,8 @@ const Savings = () => {
     // Net, not gross: a withdrawal since partly repaid was never that big a
     // withdrawal, and a contribution that was refunded never fully left.
     const incomeTotal = periodTransactions
-      .filter(tx => tx.type === 'income')
-      .reduce((sum, tx) => sum + netIncomeAmount(tx as any), 0);
+      .filter(tx => tx.type === 'income' || (tx.type === 'transfer' && tx.offsets_category))
+      .reduce((sum, tx) => sum + (tx.type === 'transfer' ? Math.abs(tx.amount) : netIncomeAmount(tx as any)), 0);
 
     const expenseTotal = periodTransactions
       .filter(tx => tx.type === 'expense')
@@ -173,7 +174,7 @@ const Savings = () => {
     const allSavingsTransactions = [
       ...periodTransactions.map(tx => ({
         date: getTxDate(tx, preferences.dateType),
-        amount: tx.type === 'expense' ? netExpenseAmount(tx as any) : -netIncomeAmount(tx as any),
+        amount: savingsMovement(tx as EngineTx) ?? 0,
       })),
       ...reimbursementTransactions.map(tx => ({
         date: getTxDate(tx, preferences.dateType),
@@ -216,11 +217,7 @@ const Savings = () => {
           const d = getTxDate(tx, preferences.dateType);
           return d >= monthStart && d <= monthEnd;
         })
-        .reduce((sum, tx) => {
-          if (tx.type === 'expense') return sum + tx.amount;
-          if (tx.type === 'income') return sum - tx.amount;
-          return sum;
-        }, 0);
+        .reduce((sum, tx) => sum + (savingsMovement(tx as EngineTx) ?? 0), 0);
 
       monthlyTotals.push(monthTotal);
     }
@@ -245,6 +242,7 @@ const Savings = () => {
       const entry = byMonth.get(key) ?? { label: format(d, 'MMM', { locale: dateLocale }), deposits: 0, withdrawals: 0 };
       if (tx.type === 'expense') entry.deposits += netExpenseAmount(tx as EngineTx);
       else if (tx.type === 'income') entry.withdrawals += netIncomeAmount(tx as EngineTx);
+      else if (tx.type === 'transfer' && tx.offsets_category) entry.withdrawals += Math.abs(tx.amount);
       byMonth.set(key, entry);
     }
     const rows = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
@@ -336,9 +334,7 @@ const Savings = () => {
               className="h-8 px-3 gap-1.5"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">
-                {t('savings.categoriesAction', { defaultValue: 'Categories' })}
-              </span>
+              {t('savings.categoriesAction', { defaultValue: 'Categories' })}
             </Button>
             <Button
               onClick={() => setShowNewGoalModal(true)}
@@ -350,6 +346,29 @@ const Savings = () => {
             </Button>
           </div>
         </div>
+
+        {investmentCategoryIds.size === 0 && (
+          <div className="ft-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="ft-card-title">
+                {t('savings.noneSelectedTitle', { defaultValue: 'No category is counted yet' })}
+              </h3>
+              <p className="ft-card-sub">
+                {t('savings.noneSelectedBody', {
+                  defaultValue:
+                    'Choose from the categories you already have. Expenses on them are money put away, income on them is money taken out, and this page nets both.',
+                })}
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowCategoriesModal(true)}
+              size="sm"
+              className="h-8 px-3 shrink-0"
+            >
+              {t('savings.noneSelectedAction', { defaultValue: 'Choose categories' })}
+            </Button>
+          </div>
+        )}
 
         {/* Investment statistics for the period — four across, the widest row
             the system has, every tile carrying its context in a foot line. */}
@@ -894,6 +913,7 @@ const Savings = () => {
         open={showCategoriesModal}
         onOpenChange={setShowCategoriesModal}
         categories={categories}
+        transactions={transactions}
         onSaved={refetch}
       />
 

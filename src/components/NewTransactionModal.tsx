@@ -84,10 +84,21 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
       return;
     }
 
+    if (formData.type === 'transfer' && formData.offsets_category && !formData.category_id) {
+      toast({
+        title: t('common.validationError'),
+        description: t('transactions.offsetsTransferNeedsCategory', {
+          defaultValue: 'Pick the category this money comes back on.',
+        }),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     
     let error;
-    
+
     if (formData.type === 'transfer') {
       const result = await createTransfer({
         description: formData.description || 'Transfert',
@@ -96,6 +107,8 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
         to_account_id: formData.to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
         transaction_date: formData.transaction_date,
+        category_id: formData.offsets_category ? formData.category_id : null,
+        offsets_category: formData.offsets_category && !!formData.category_id,
       });
       error = result?.error;
     } else {
@@ -312,6 +325,70 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                 value={formData.transfer_fee}
                 onChange={(value) => setFormData(prev => ({ ...prev, transfer_fee: value }))}
               />
+            </div>
+          )}
+
+          {/* A transfer is neutral until the user says this principal came
+              back on a category. The original expense stays until then. */}
+          {formData.type === 'transfer' && (
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 rounded-lg border p-3">
+                <Switch
+                  id="new-transfer-offsets"
+                  checked={formData.offsets_category}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      offsets_category: checked,
+                      category_id: checked ? prev.category_id : '',
+                    }))
+                  }
+                />
+                <div className="min-w-0">
+                  <Label htmlFor="new-transfer-offsets" className="text-sm cursor-pointer">
+                    {t('transactions.offsetsTransfer', {
+                      defaultValue: 'Put back on a category',
+                    })}
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {formData.offsets_category
+                      ? t('transactions.offsetsTransferOn', {
+                          defaultValue:
+                            'The amount reduces what this category cost. It is not income, and the transfer fee still counts.',
+                        })
+                      : t('transactions.offsetsTransferOff', {
+                          defaultValue:
+                            'This transfer leaves the budget as it is. Turn on only for money put back after it was taken out.',
+                        })}
+                  </p>
+                </div>
+              </div>
+              {formData.offsets_category && (
+                <div className="space-y-2">
+                  <Label htmlFor="transfer-category">{t('common.category', { defaultValue: 'Category' })}</Label>
+                  <Select
+                    value={formData.category_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
+                  >
+                    <SelectTrigger id="transfer-category">
+                      <SelectValue placeholder={t('common.selectCategoryOptional')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
 

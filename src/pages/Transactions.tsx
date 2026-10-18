@@ -6,7 +6,7 @@ import { Plus, Download } from "lucide-react";
 import { TransactionSearch, TransactionFilters } from "@/components/TransactionSearch";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { NewTransactionModal } from "@/components/NewTransactionModal";
-import { computePeriodStats, periodContribution } from "@/lib/reportsEngine";
+import { computePeriodStats, periodContributions } from "@/lib/reportsEngine";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
@@ -104,18 +104,19 @@ const Transactions = () => {
       // Same fold as the header: offsets reduce, repayments drop out,
       // special-budget spend stays on its category so the rows can still
       // add up to totals.expenses. An over-refund is allowed to go negative.
-      const { role, amount } = periodContribution(tx as any);
-      if (role !== "expense") continue;
-      const id = tx.category?.id ?? "__none";
-      const existing = byCategory.get(id);
-      if (existing) existing.total += amount;
-      else
-        byCategory.set(id, {
-          id,
-          name: tx.category?.name ?? t("common.uncategorized", { defaultValue: "Uncategorized" }),
-          color: tx.category?.color ?? "hsl(var(--fg-dim))",
-          total: amount,
-        });
+      for (const { role, amount } of periodContributions(tx as any)) {
+        if (role !== "expense") continue;
+        const id = tx.category?.id ?? "__none";
+        const existing = byCategory.get(id);
+        if (existing) existing.total += amount;
+        else
+          byCategory.set(id, {
+            id,
+            name: tx.category?.name ?? t("common.uncategorized", { defaultValue: "Uncategorized" }),
+            color: tx.category?.color ?? "hsl(var(--fg-dim))",
+            total: amount,
+          });
+      }
     }
     const rows = [...byCategory.values()]
       .filter((row) => Math.abs(row.total) > 0.004)

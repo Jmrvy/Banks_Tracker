@@ -1,4 +1,4 @@
-import { computePeriodStats, netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
+import { computePeriodStats, periodContributions } from "@/lib/reportsEngine";
 import { useMemo, useState, useEffect, useRef, useId } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -154,32 +154,21 @@ export function StatsCards({
     const netByBucket = new Array(days).fill(0);
     const recurringByBucket = new Array(days).fill(activeRecurring);
 
-    // Per-bucket the engine cannot help — it returns totals — so mirror its
-    // rules row by row rather than inventing looser ones, or the sparkline
-    // tells a different story from the tile above it.
+    // Per-bucket the engine cannot help — it returns totals — so fold the
+    // same contributions it sums, or the sparkline tells a different story
+    // from the tile above it. A marked transfer reduces the expense bucket
+    // by its principal and still adds its fee.
     for (const tx of statsTxns) {
       const d = dateOf(tx).getTime();
       const idx = Math.max(0, Math.min(days - 1, Math.floor((d - startDate.getTime()) / bucketMs)));
-      if (tx.type === "income" && !tx.refund_of_transaction_id) {
-        const net = netIncomeAmount(tx as any);
-        // Income that came back on its category is a reduction of spend,
-        // not earnings — the same treatment computePeriodStats gives it.
-        if (tx.offsets_category) {
-          expenseByBucket[idx] -= net;
-          netByBucket[idx] += net;
-        } else {
-          incomeByBucket[idx] += net;
-          netByBucket[idx] += net;
+      for (const { role, amount } of periodContributions(tx as any)) {
+        if (role === "income") {
+          incomeByBucket[idx] += amount;
+          netByBucket[idx] += amount;
+        } else if (role === "expense" || role === "transfer_fee") {
+          expenseByBucket[idx] += amount;
+          netByBucket[idx] -= amount;
         }
-      } else if (tx.type === "expense") {
-        if (tx.repayment_of_transaction_id) continue;
-        const net = netExpenseAmount(tx as any);
-        expenseByBucket[idx] += net;
-        netByBucket[idx] -= net;
-      } else if (tx.type === "transfer") {
-        const fee = Number(tx.transfer_fee || 0);
-        expenseByBucket[idx] += fee;
-        netByBucket[idx] -= fee;
       }
     }
 

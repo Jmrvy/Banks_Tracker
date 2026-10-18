@@ -424,11 +424,15 @@ async function runTool(
           // being earnings, the same way computePeriodStats treats it.
           if (t.offsets_category) expense -= netIncome(t);
           else income += netIncome(t);
-        } else {
-          // Only the fee leaves: a transfer moves money between the user's
-          // own accounts. Summing the principal reported a movement as
-          // though it were money gone.
+        } else if (t.type === "transfer") {
+          // Only the fee leaves an unmarked transfer: the principal moved
+          // between the user's own accounts. A transfer marked as money put
+          // back reduces the category by its principal, the same way marked
+          // income does. The fee stays a fee and is not subtracted again.
           transfers += Number(t.transfer_fee ?? 0);
+          if (t.offsets_category && t.category_id && !t.refund_of_transaction_id) {
+            expense -= Math.abs(Number(t.amount) || 0);
+          }
         }
       }
       const limit = Math.min(Math.max(Number(input.limit ?? 10), 1), 50);
@@ -439,7 +443,11 @@ async function runTool(
           id: t.id,
           date: dateColumn === "value_date" ? (t.value_date || t.transaction_date) : t.transaction_date,
           description: t.description,
-          amount: t.type === "expense" ? netExpense(t) : netIncome(t),
+          amount: t.type === "expense"
+            ? netExpense(t)
+            : t.type === "transfer"
+              ? (t.offsets_category && t.category_id ? -Math.abs(Number(t.amount) || 0) : Number(t.transfer_fee ?? 0))
+              : (t.offsets_category && !t.refund_of_transaction_id ? -netIncome(t) : netIncome(t)),
           type: t.type,
           category: t.categories?.name ?? null,
           account: t.accounts?.name ?? null,
@@ -471,7 +479,7 @@ async function runTool(
           .from("transactions")
           .select("amount, refunded_amount, repaid_amount, category_id, type, offsets_category, repayment_of_transaction_id, refund_of_transaction_id, transaction_date, value_date")
           .eq("user_id", userId)
-          .in("type", ["expense", "income"])
+          .in("type", ["expense", "income", "transfer"])
           .eq("include_in_stats", true)
           .is("special_budget_id", null)
           .gte(dateColumn, input.start)
@@ -506,7 +514,7 @@ async function runTool(
           cur.count += 1;
           spent.set(key, cur);
           bump(key, t, netExpense(t as any));
-        } else {
+        } else if ((t as any).type === "income") {
           // Only income the user marked as having come back on this category.
           // A linked refund is already inside the expense's refunded_amount,
           // so honouring both would subtract the same money twice.
@@ -516,6 +524,17 @@ async function runTool(
           cur.offset += netIncome(t as any);
           spent.set(key, cur);
           bump(key, t, -netIncome(t as any));
+        } else if ((t as any).type === "transfer") {
+          // A transfer marked as put back reduces the category by its
+          // principal. The fee is not category spend, and an unmarked
+          // transfer does not belong in this table at all.
+          if (!(t as any).offsets_category) continue;
+          if ((t as any).refund_of_transaction_id) continue;
+          const principal = Math.abs(Number((t as any).amount) || 0);
+          const cur = spent.get(key) ?? blank();
+          cur.offset += principal;
+          spent.set(key, cur);
+          bump(key, t, -principal);
         }
       }
 
@@ -765,7 +784,7 @@ Answer in ${lang === "fr" ? "French" : "English"}. Use the user's currency symbo
 # How to answer
 - Gather what you need with the read tools, then deliver everything by calling the \`answer\` tool exactly once. Never write the answer as prose — you will just be asked again.
 - Money can come back on either side, and both are already netted for you. A refund reduces the expense it refunds — past zero if more came back than went out, which makes that category cheaper rather than merely free. A repayment settles an advance: the income counts net of it and the repaying expense is not spending. Never add either back in by hand.
-- What a category cost is \`spending_by_category\`, and its \`spent\` is FINAL: refunds are already inside it and no income row may be subtracted from it. \`search_transactions\` \`expense\` is the same figure for the same filter, with one exception you must not try to reconcile by hand: an unfiltered \`expense\` is the period total and includes special-budget envelopes, which the category table files separately — \`expense_excluding_special_budgets\` is the figure that matches the sum of the category rows. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. A category holds both directions: income filed on one is earnings sitting beside the spending unless the user marked it as having come back on that category, in which case \`spending_by_category\` has already subtracted it and shows the split in \`offsetting_income\`. Either way it is never an adjustment for you to make by hand.
+- What a category cost is \`spending_by_category\`, and its \`spent\` is FINAL: refunds are already inside it and no income row may be subtracted from it. \`search_transactions\` \`expense\` is the same figure for the same filter, with one exception you must not try to reconcile by hand: an unfiltered \`expense\` is the period total and includes special-budget envelopes, which the category table files separately — \`expense_excluding_special_budgets\` is the figure that matches the sum of the category rows. Calling either one "gross" and taking refunds off it reports a number the app never shows, because those refunds were already taken off. A category holds both directions: income filed on one is earnings sitting beside the spending unless the user marked it as having come back on that category, in which case \`spending_by_category\` has already subtracted it and shows the split in \`offsetting_income\`. A transfer the user marked as money put back on a category reduces that category by its principal the same way, and that reduction is already inside \`spent\` and inside \`expense\`. The fee stays in \`transfer_fees\` and must not be subtracted again. Either way it is never an adjustment for you to make by hand.
 - A merchant that both charges and pays out (gambling, reimbursements, resale, cashback) must be reported NET. Its payouts are often uncategorized, so a category total counts the losses and misses the winnings; quoting the gross there states a cost the user did not bear. When a merchant drives a category's move, check it with \`search_transactions\` and use \`net\`.
 - Ground every figure in a tool result. Never estimate, never carry a number from one answer to the next without re-querying. If a tool returns nothing, say so plainly rather than inventing a plausible number.
 - Lead with the answer. The first block should be the verdict — a \`figure\` for a "how much" question, a \`text\` for a "why" question.
@@ -799,7 +818,7 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 # Ledger context
 An installment plan comes in two kinds, and both spend. \`payment\` spreads a purchase the user has not paid for yet. \`reimbursement\` pays back savings that already covered the cost, month by month. Either way every instalment is an EXPENSE on its category and is already inside that category's spend. Neither is a refund, neither reduces what the category cost, and \`offsetting_income\` sitting at 0 beside an installment plan is correct rather than a discrepancy to report. If a plan looks like income to you, you are reading a stored field the app overrides on the way to the ledger — trust \`type\` as \`scheduled_charges\` returns it and never infer un-netted reimbursements from a schedule.
 
-One category per name, working in both directions: the same \`Salaire\` holds the salary and any expense filed against it. A budget is a ceiling on what leaves, so a category that only ever receives money having none is correct and never worth flagging. Money coming back is netted per transaction, never per category — either by a refund link to the expense it repays, or by the user marking an income row as having come back on its category (a gambling payout against its stakes, a reimbursement filed among genuine transfers).
+One category per name, working in both directions: the same \`Salaire\` holds the salary and any expense filed against it. A budget is a ceiling on what leaves, so a category that only ever receives money having none is correct and never worth flagging. Money coming back is netted per transaction, never per category — either by a refund link to the expense it repays, or by the user marking an income row or a transfer as having come back on its category (a gambling payout against its stakes, a reimbursement filed among genuine transfers, money put back into savings after it was taken out). Until that mark is set, the original expense stays. Dates on ledger tools follow the calculation date in the context (\`date_convention\`); scheduled charges use their own due dates.
 ${JSON.stringify(ctx, null, 2)}
 
 Today is ${new Date().toISOString().slice(0, 10)}.`;

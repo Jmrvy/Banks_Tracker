@@ -99,6 +99,19 @@ function useRadar() {
         // make a category "one that spends" on its own.
         const net = Math.max(0, tx.amount - (tx.repaid_amount || 0));
         spendByCategory.set(tx.category.id, (spendByCategory.get(tx.category.id) ?? 0) - net);
+      } else if (
+        tx.type === "transfer" &&
+        tx.offsets_category &&
+        !tx.refund_of_transaction_id &&
+        getTxDate(tx, preferences.dateType) >= monthStart
+      ) {
+        // A transfer marked as money put back reduces the category by its
+        // principal, the same way marked income does. It does not, on its
+        // own, make the category one that spends.
+        spendByCategory.set(
+          tx.category.id,
+          (spendByCategory.get(tx.category.id) ?? 0) - Math.abs(tx.amount),
+        );
       }
     }
     const over = categories

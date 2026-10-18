@@ -15,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { useFinancialData } from "@/hooks/useFinancialData";
-import { periodContribution } from "@/lib/reportsEngine";
+import { periodContributions } from "@/lib/reportsEngine";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
@@ -114,10 +114,11 @@ export const EvolutionTab = ({
           else if (t.type === 'expense') expenses += amount;
           else if (t.type === 'transfer') transferFees += Number(t.transfer_fee || 0);
         } else {
-          const { role, amount: contrib } = periodContribution(t as any);
-          if (role === 'income') income += contrib;
-          else if (role === 'expense') expenses += contrib;
-          else if (role === 'transfer_fee') transferFees += contrib;
+          for (const { role, amount: contrib } of periodContributions(t as any)) {
+            if (role === 'income') income += contrib;
+            else if (role === 'expense') expenses += contrib;
+            else if (role === 'transfer_fee') transferFees += contrib;
+          }
         }
       }
 

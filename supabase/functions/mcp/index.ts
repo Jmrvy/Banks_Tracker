@@ -171,6 +171,7 @@ import { startOfDay, endOfDay } from "npm:date-fns@^3.6.0";
 // src/lib/reportsEngine.ts
 var netExpenseAmount = (t) => Number(t.amount) - Number(t.refunded_amount || 0);
 var netIncomeAmount = (t) => Math.max(0, Number(t.amount) - Number(t.repaid_amount || 0));
+var isOffsettingTransfer = (t) => t.type === "transfer" && !!t.offsets_category && !!t.category_id && !t.refund_of_transaction_id;
 var periodContribution = (t) => {
   const ignored = { role: "ignored", amount: 0 };
   if (t.include_in_stats === false) return ignored;
@@ -186,6 +187,19 @@ var periodContribution = (t) => {
   if (t.type === "transfer") return { role: "transfer_fee", amount: Number(t.transfer_fee || 0) };
   return ignored;
 };
+var periodContributions = (t) => {
+  if (t.include_in_stats === false) return [];
+  if (isOffsettingTransfer(t)) {
+    const parts = [
+      { role: "expense", amount: -Math.abs(Number(t.amount) || 0) }
+    ];
+    const fee = Number(t.transfer_fee || 0);
+    if (fee) parts.push({ role: "transfer_fee", amount: fee });
+    return parts;
+  }
+  const one = periodContribution(t);
+  return one.role === "ignored" ? [] : [one];
+};
 var headlineExpenseLine = (t, categoryName, specialBudgetName, unnamed = "Uncategorized") => {
   if (t.type === "expense" && t.special_budget_id) return specialBudgetName || unnamed;
   return categoryName || unnamed;
@@ -196,7 +210,7 @@ var round2 = (n) => Math.round(n * 100) / 100;
 var spending_summary_default = defineTool6({
   name: "spending_summary",
   title: "Spending summary",
-  description: "Summarize income, expenses and net flow over a date range, broken down by category. Expenses are net of refunds and of income the user marked as having come back on a category; income is net of anything repaid against it. Advance settlements and refund rows are excluded \u2014 they would otherwise count the same money twice. Nothing further should be subtracted from these figures.",
+  description: "Summarize income, expenses and net flow over a date range, broken down by category. Expenses are net of refunds, of income the user marked as having come back on a category, and of a transfer marked as money put back on one. A transfer's fee still counts. Income is net of anything repaid against it. Advance settlements and refund rows are excluded \u2014 they would otherwise count the same money twice. Nothing further should be subtracted from these figures.",
   inputSchema: {
     from: z3.string().describe("Inclusive start date, YYYY-MM-DD."),
     to: z3.string().describe("Inclusive end date, YYYY-MM-DD."),
@@ -234,20 +248,20 @@ var spending_summary_default = defineTool6({
     const byCategory = /* @__PURE__ */ new Map();
     for (const raw of tx) {
       const t = include_excluded ? { ...raw, include_in_stats: true } : raw;
-      const { role, amount } = periodContribution(t);
-      if (role === "ignored") continue;
-      if (role === "income") income += amount;
-      else if (role === "transfer_fee") transferFees += amount;
-      else {
-        expenses += amount;
-        const categoryLabel = t.category_id ? names.get(t.category_id) ?? "Unknown" : "Uncategorized";
-        const key = headlineExpenseLine(
-          t,
-          categoryLabel,
-          t.special_budget_id ? budgetNames.get(t.special_budget_id) : void 0,
-          "Special budget"
-        );
-        byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
+      for (const { role, amount } of periodContributions(t)) {
+        if (role === "income") income += amount;
+        else if (role === "transfer_fee") transferFees += amount;
+        else {
+          expenses += amount;
+          const categoryLabel = t.category_id ? names.get(t.category_id) ?? "Unknown" : "Uncategorized";
+          const key = headlineExpenseLine(
+            t,
+            categoryLabel,
+            t.special_budget_id ? budgetNames.get(t.special_budget_id) : void 0,
+            "Special budget"
+          );
+          byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
+        }
       }
     }
     return ok({

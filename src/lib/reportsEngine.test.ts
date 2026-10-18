@@ -13,6 +13,9 @@ import {
   categorySpendAmount,
   participatesInCategorySpend,
   periodContribution,
+  periodContributions,
+  isOffsettingTransfer,
+  savingsMovement,
   headlineExpenseLine,
   type EngineTx,
 } from './reportsEngine';
@@ -268,6 +271,54 @@ describe('periodContribution', () => {
     expect(computeCategoryNets([t]).get('c1')).toBeUndefined();
   });
 
+  it('a marked transfer reduces the category by its principal and keeps the fee', () => {
+    const spend = tx({ amount: 200, type: 'expense', transaction_date: D, category_id: 'loisirs' });
+    const back = tx({
+      amount: 50,
+      type: 'transfer',
+      transaction_date: D,
+      category_id: 'loisirs',
+      offsets_category: true,
+      transfer_fee: 3,
+    });
+    const plain = tx({ amount: 80, type: 'transfer', transaction_date: D, transfer_fee: 2 });
+    // The single-role function keeps the fee. The principal is the other part.
+    expect(periodContribution(back)).toEqual({ role: 'transfer_fee', amount: 3 });
+    expect(isOffsettingTransfer(back)).toBe(true);
+    expect(periodContributions(back)).toEqual([
+      { role: 'expense', amount: -50 },
+      { role: 'transfer_fee', amount: 3 },
+    ]);
+    expect(categorySpendAmount(back)).toBe(-50);
+    expect(participatesInCategorySpend(back)).toBe(true);
+    expect(computeCategoryNets([spend, back, plain]).get('loisirs')!.net).toBe(150);
+    const stats = computePeriodStats([spend, back, plain]);
+    expect(stats).toEqual({ income: 0, expenses: 150, transferFees: 5, net: -155 });
+    expect(savingsMovement(back)).toBe(-50);
+    expect(savingsMovement(plain)).toBeNull();
+  });
+
+  it('a round trip of an expense and a marked put-back leaves only the fee', () => {
+    const out = tx({ amount: 1000, type: 'expense', transaction_date: D, category_id: 'epargne' });
+    const back = tx({
+      amount: 1000,
+      type: 'transfer',
+      transaction_date: D,
+      category_id: 'epargne',
+      offsets_category: true,
+      transfer_fee: 2,
+    });
+    expect(computePeriodStats([out, back])).toEqual({ income: 0, expenses: 0, transferFees: 2, net: -2 });
+    expect(computeCategoryNets([out, back]).get('epargne')!.net).toBe(0);
+  });
+
+  it('an unmarked transfer, even with the flag and no category, does not change the category', () => {
+    const spend = tx({ amount: 100, type: 'expense', transaction_date: D, category_id: 'loisirs' });
+    const move = tx({ amount: 100, type: 'transfer', transaction_date: D, transfer_fee: 1, offsets_category: true });
+    expect(categorySpendAmount(move)).toBe(0);
+    expect(computePeriodStats([spend, move])).toEqual({ income: 0, expenses: 100, transferFees: 1, net: -101 });
+  });
+
   it('sums to computePeriodStats over a mixed set', () => {
     const txs = [
       tx({ amount: 3000, type: 'income', transaction_date: D }),
@@ -275,11 +326,11 @@ describe('periodContribution', () => {
       tx({ amount: 500, type: 'expense', transaction_date: D, refunded_amount: 50 }),
       tx({ amount: 90, type: 'expense', transaction_date: D, repayment_of_transaction_id: 'x' }),
       tx({ amount: 400, type: 'transfer', transaction_date: D, transfer_fee: 2 }),
+      tx({ amount: 40, type: 'transfer', transaction_date: D, category_id: 'loisirs', offsets_category: true, transfer_fee: 1 }),
     ];
     const folded = txs.reduce(
       (acc, t) => {
-        const { role, amount } = periodContribution(t);
-        if (role !== 'ignored') acc[role] += amount;
+        for (const { role, amount } of periodContributions(t)) acc[role] += amount;
         return acc;
       },
       { income: 0, expense: 0, transfer_fee: 0 } as Record<string, number>,
@@ -288,7 +339,7 @@ describe('periodContribution', () => {
     expect(folded.income).toBe(stats.income);
     expect(folded.expense).toBe(stats.expenses);
     expect(folded.transfer_fee).toBe(stats.transferFees);
-    expect(stats).toEqual({ income: 3000, expenses: 250, transferFees: 2, net: 2748 });
+    expect(stats).toEqual({ income: 3000, expenses: 210, transferFees: 3, net: 2787 });
   });
 });
 

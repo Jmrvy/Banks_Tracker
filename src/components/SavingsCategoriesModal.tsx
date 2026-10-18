@@ -15,23 +15,28 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Category } from "@/hooks/useFinancialData";
 import { describeError } from "@/lib/errorMessage";
 
+interface CountedTransaction {
+  type: string;
+  category?: { id: string } | null;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: Category[];
+  /** Existing rows, so each category can show how many expenses and incomes it already holds. */
+  transactions?: CountedTransaction[];
   onSaved: () => void;
 }
 
 /**
  * Chooses which categories feed the savings page.
  *
- * Both directions matter and for different reasons: what you put away is
- * an expense, what you take back out or earn on it is income, and the page
- * nets the two. One tick now covers both — when a category was split into
- * an expense row and an income twin, ticking only one of the pair reported
- * contributions as savings while withdrawals left the figure untouched.
+ * One tick covers the category the user already has. Expenses on it are
+ * money put away, income on it is money taken out, and the page nets both.
+ * There is no second list to tick.
  */
-export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved }: Props) {
+export function SavingsCategoriesModal({ open, onOpenChange, categories, transactions = [], onSaved }: Props) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -47,6 +52,19 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
     () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
     [categories],
   );
+
+  const sideCounts = useMemo(() => {
+    const map = new Map<string, { expenses: number; incomes: number }>();
+    for (const tx of transactions) {
+      const id = tx.category?.id;
+      if (!id) continue;
+      const row = map.get(id) ?? { expenses: 0, incomes: 0 };
+      if (tx.type === "expense") row.expenses += 1;
+      else if (tx.type === "income") row.incomes += 1;
+      map.set(id, row);
+    }
+    return map;
+  }, [transactions]);
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -101,7 +119,7 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
           <DialogDescription className="text-xs">
             {t("savings.categoriesDesc", {
               defaultValue:
-                "Money set aside is an expense and money taken back out is income. Tick a category and this page nets both directions of it.",
+                "Tick a category you already have. Expenses on it are money put away, income on it is money taken out, and this page nets the two.",
             })}
           </DialogDescription>
         </DialogHeader>
@@ -122,7 +140,16 @@ export function SavingsCategoriesModal({ open, onOpenChange, categories, onSaved
                   onCheckedChange={() => toggle(category.id)}
                 />
                 <CategoryIcon icon={category.icon} color={category.color} size={20} />
-                <span className="text-sm">{category.name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="text-sm block truncate">{category.name}</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    {t("savings.categoriesRowHint", {
+                      expenses: sideCounts.get(category.id)?.expenses ?? 0,
+                      incomes: sideCounts.get(category.id)?.incomes ?? 0,
+                      defaultValue: "{{expenses}} expenses · {{incomes}} incomes",
+                    })}
+                  </span>
+                </span>
               </label>
             ))
           )}
