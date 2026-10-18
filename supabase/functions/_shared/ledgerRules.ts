@@ -86,6 +86,11 @@ export const countsAsIncome = (t: LedgerRow): boolean =>
   !t.refund_of_transaction_id &&
   !t.offsets_category;
 
+/** A transfer the user marked as money put back onto a category. */
+export function isOffsettingTransfer(t: LedgerRow): boolean {
+  return t.type === 'transfer' && !!t.offsets_category && !!t.category_id && !t.refund_of_transaction_id;
+}
+
 export interface PeriodStats {
   income: number;
   expenses: number;
@@ -128,11 +133,49 @@ export function periodContribution(t: LedgerRow): { role: PeriodRole; amount: nu
     return { role: 'expense', amount: netExpenseAmount(t) };
   }
   if (t.type === 'transfer') {
-    // Only the fee leaves — the principal moves between the user's own
-    // accounts.
+    // Fee only, including a marked transfer. The principal is the second
+    // part and lives in periodContributions, because this returns one role.
+    // Until the mark is set the principal is neutral: it moved between the
+    // user's own accounts.
     return { role: 'transfer_fee', amount: num(t.transfer_fee) };
   }
   return ignored;
+}
+
+/** Every part of one row. A marked transfer yields a negative expense for
+ *  the principal and, when there is one, the fee. Fold this wherever a
+ *  total is built. */
+export function periodContributions(t: LedgerRow): { role: PeriodRole; amount: number }[] {
+  if (t.include_in_stats === false) return [];
+  if (isOffsettingTransfer(t)) {
+    const parts: { role: PeriodRole; amount: number }[] = [
+      { role: 'expense', amount: -Math.abs(num(t.amount)) },
+    ];
+    const fee = num(t.transfer_fee);
+    if (fee) parts.push({ role: 'transfer_fee', amount: fee });
+    return parts;
+  }
+  const one = periodContribution(t);
+  return one.role === 'ignored' ? [] : [one];
+}
+
+/**
+ * Which line a headline expense belongs on. Mirrors headlineExpenseLine.
+ *
+ * Special-budget spend stays in headline expenses — the money left the
+ * account — but filing it under the category makes that category look
+ * over its cap. The line is the special budget's name instead. A marked
+ * return has role expense and type income: it keeps the category name
+ * and reduces that line. The lines still add up to headline expenses.
+ */
+export function headlineExpenseLine(
+  t: Pick<LedgerRow, 'type' | 'special_budget_id'>,
+  categoryName: string | null | undefined,
+  specialBudgetName: string | null | undefined,
+  unnamed = 'Uncategorized',
+): string {
+  if (t.type === 'expense' && t.special_budget_id) return specialBudgetName || unnamed;
+  return categoryName || unnamed;
 }
 
 /** Headline stats for a set of rows. Mirrors computePeriodStats. */
@@ -141,10 +184,11 @@ export function computePeriodStats(rows: LedgerRow[]): PeriodStats {
   let expenses = 0;
   let transferFees = 0;
   for (const t of rows) {
-    const { role, amount } = periodContribution(t);
-    if (role === 'income') income += amount;
-    else if (role === 'expense') expenses += amount;
-    else if (role === 'transfer_fee') transferFees += amount;
+    for (const { role, amount } of periodContributions(t)) {
+      if (role === 'income') income += amount;
+      else if (role === 'expense') expenses += amount;
+      else if (role === 'transfer_fee') transferFees += amount;
+    }
   }
   return { income, expenses, transferFees, net: income - expenses - transferFees };
 }
@@ -174,6 +218,10 @@ export function computeCategoryNets(rows: LedgerRow[]): Map<string, CategoryNet>
     } else if (offsetsItsCategory(t)) {
       const row = out.get(key) ?? blank();
       row.offsetIncome += netIncomeAmount(t);
+      out.set(key, row);
+    } else if (t.include_in_stats !== false && isOffsettingTransfer(t)) {
+      const row = out.get(key) ?? blank();
+      row.offsetIncome += Math.abs(num(t.amount));
       out.set(key, row);
     }
   }

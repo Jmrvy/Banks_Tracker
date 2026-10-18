@@ -15,6 +15,7 @@ import { CategoryCumulativeChart } from "@/components/charts/CategoryCumulativeC
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { useTranslation } from "react-i18next";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { categorySpendAmount, participatesInCategorySpend, type EngineTx } from "@/lib/reportsEngine";
 
 interface CategoriesTabProps {
   categoryChartData: CategoryData[];
@@ -58,22 +59,24 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
     const activeDateType = dateType || preferences.dateType;
 
     const realTxs = transactions
-      // Special-budget transactions are counted under the special budget
-      // bracket, not under their category — exclude here.
-      .filter(t => t.category?.name === selectedCategory && t.type === 'expense' && t.include_in_stats !== false && !t.special_budget_id)
+      // Same rows as the category total: expenses, plus income marked as
+      // having come back on this category. A plain investment income is
+      // earnings and stays out until that mark is set.
+      .filter(t => t.category?.name === selectedCategory && participatesInCategorySpend(t as EngineTx))
       .map(t => {
         const refundedAmount = (t as any).refunded_amount || 0;
         const grossAmount = Math.abs(t.amount);
-        const netAmount = Math.max(0, grossAmount - refundedAmount);
+        const netAmount = categorySpendAmount(t as EngineTx);
+        const isReturn = t.type === 'income';
 
         return {
           id: t.id,
           description: t.description,
-          amount: grossAmount,
+          amount: isReturn ? netAmount : grossAmount,
           netAmount,
           refundedAmount,
-          isFullyRefunded: refundedAmount >= grossAmount,
-          hasRefund: refundedAmount > 0,
+          isFullyRefunded: !isReturn && refundedAmount >= grossAmount,
+          hasRefund: !isReturn && refundedAmount > 0,
           bank: t.account?.bank || 'other',
           date: activeDateType === 'value' ? ((t as any).value_date || t.transaction_date) : t.transaction_date,
           valueDate: (t as any).value_date,
@@ -556,7 +559,7 @@ export const CategoriesTab = ({ categoryChartData, transactions, periodStart, pe
                             "h-full rounded-full transition-all duration-500",
                             isOverBudget ? "bg-destructive" : "bg-success"
                           )}
-                          style={{ width: `${Math.min(100, percentage)}%` }}
+                          style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
                         />
                       </div>
                       <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">

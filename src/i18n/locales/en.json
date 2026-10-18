@@ -1044,7 +1044,7 @@
         ],
         "tips": [
           "Set realistic goals using your average monthly savings — visible in the Reports page.",
-          "Income tagged as 'Investment' is a deposit; expense tagged as 'Investment' is a withdrawal."
+          "An expense tagged Investment is money put away; an income tagged Investment is money taken out. Savings nets both. A budget keeps the expense until that income is marked “Came back on this category”."
         ],
         "title": "Savings"
       },
@@ -1549,9 +1549,10 @@
     "behind": "Behind",
     "cancel": "Cancel",
     "categoriesAction": "Categories",
-    "categoriesDesc": "Money set aside is an expense and money taken back out is income. Pick both sides so the page can net them.",
+    "categoriesDesc": "Tick a category you already have. Expenses on it are money put away, income on it is money taken out, and this page nets the two.",
     "categoriesExpenseHint": "What you put away.",
     "categoriesIncomeHint": "What you take back out, and what it earns.",
+    "categoriesRowHint": "{{expenses}} expenses · {{incomes}} incomes",
     "categoriesSaveFailed": "Could not update the categories.",
     "categoriesSaved": "Savings categories updated",
     "categoriesSavedDesc": "{{count}} categories now feed this page.",
@@ -1626,6 +1627,9 @@
     "noGoals": "No savings goals defined",
     "noMovements": "No savings movements in this period.",
     "noTransactions": "No savings transactions for this period",
+    "noneSelectedAction": "Choose categories",
+    "noneSelectedBody": "Choose from the categories you already have. Expenses on them are money put away, income on them is money taken out, and this page nets both.",
+    "noneSelectedTitle": "No category is counted yet",
     "of": "of {{amount}}",
     "ofTarget": "of {{amount}} targeted",
     "onTrack": "On track",
@@ -1829,7 +1833,7 @@
     "reportAttachPdfHint": "Adds the statement-style PDF to the email (1–3 pages depending on volume).",
     "reportCadence": "Cadence",
     "reportDateConvention": "Date convention",
-    "reportDateConventionHint": "Pick the same convention as the Reports page so totals match.",
+    "reportDateConventionHint": "This is the app's calculation date. Changing it here also changes reports, emails and alerts.",
     "reportSection": {
       "accounts": "Accounts",
       "budgets": "Budget breaches",
@@ -2242,6 +2246,10 @@
     "offsetsCategory": "Came back on this category",
     "offsetsCategoryOff": "Counts as income. Turn on for money coming back rather than coming in.",
     "offsetsCategoryOn": "Reduces what this category cost instead of counting as income.",
+    "offsetsTransfer": "Put back on a category",
+    "offsetsTransferNeedsCategory": "Pick the category this money comes back on.",
+    "offsetsTransferOff": "This transfer leaves the budget as it is. Turn on only for money put back after it was taken out.",
+    "offsetsTransferOn": "The amount reduces what this category cost. It is not income, and the transfer fee still counts.",
     "outgoingTransfer": "Outgoing transfer",
     "outstandingLeft": "{{amount}} outstanding",
     "outstandingSuffix": "outstanding",

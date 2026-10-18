@@ -5,8 +5,8 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { format, startOfMonth, endOfMonth, differenceInDays, subMonths, subYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
-import { filterByPeriod, computePeriodStats, statsForRange, computeInitialBalance, signedGlobalAmount, realNetChange, netExpenseAmount } from "@/lib/reportsEngine";
-import { resolvePeriodRange, priorPeriodRange } from "@/lib/periodUtils";
+import { filterByPeriod, computePeriodStats, statsForRange, computeInitialBalance, signedGlobalAmount, realNetChange, categorySpendAmount, participatesInCategorySpend, type EngineTx } from "@/lib/reportsEngine";
+import { effectiveMonthsBetween, resolvePeriodRange, priorPeriodRange } from "@/lib/periodUtils";
 import {
   lastScheduledInstallment,
   paymentsLeft,
@@ -149,6 +149,77 @@ export interface UseReportsDataOptions {
    *  has rows they settle how many instalments are left; without them the
    *  count is inferred from the balance. */
   installmentRecords?: InstallmentScheduleRow[];
+}
+
+function asEngineTx(t: Transaction): EngineTx {
+  return {
+    amount: t.amount,
+    type: t.type,
+    transaction_date: t.transaction_date,
+    value_date: t.value_date,
+    include_in_stats: t.include_in_stats,
+    refund_of_transaction_id: t.refund_of_transaction_id,
+    refunded_amount: t.refunded_amount,
+    repayment_of_transaction_id: t.repayment_of_transaction_id,
+    repaid_amount: t.repaid_amount,
+    offsets_category: t.offsets_category,
+    category_id: t.category?.id ?? null,
+    special_budget_id: t.special_budget_id,
+    transfer_fee: t.transfer_fee,
+  };
+}
+
+/** How many monthly caps the selected range covers. A calendar year is 12
+ *  and a calendar month is 1; a custom stub is the share of each month it
+ *  actually touches, the same denominator Budget uses. */
+function budgetMultiplierFor(period: { from: Date; to: Date }): number {
+  return effectiveMonthsBetween(period.from, period.to);
+}
+
+/** Category spend for Analyse. Same rule as Budget: a return reduces the
+ *  category only once it is marked `offsets_category`. */
+function buildCategoryChartData(
+  txs: Transaction[],
+  categories: { id: string; name: string; color: string; budget?: number | null }[],
+  budgetMultiplier: number,
+): CategoryData[] {
+  const acc: Record<string, { name: string; spent: number; budget: number; color: string }> = {};
+  const meta = new Map(categories.map((c) => [c.id, c]));
+
+  for (const t of txs) {
+    const engine = asEngineTx(t);
+    if (!participatesInCategorySpend(engine)) continue;
+    const categoryId = t.category?.id || "uncategorized";
+    if (!acc[categoryId]) {
+      const cat = meta.get(categoryId);
+      acc[categoryId] = {
+        name: cat?.name || t.category?.name || "Non catégorisé",
+        spent: 0,
+        budget: Number(cat?.budget || 0) * budgetMultiplier,
+        color: cat?.color || t.category?.color || "#6b7280",
+      };
+    }
+    acc[categoryId].spent += categorySpendAmount(engine);
+  }
+
+  for (const category of categories) {
+    if (category.budget && category.budget > 0 && !acc[category.id]) {
+      acc[category.id] = {
+        name: category.name,
+        spent: 0,
+        budget: Number(category.budget) * budgetMultiplier,
+        color: category.color,
+      };
+    }
+  }
+
+  return Object.values(acc)
+    .map((data) => ({
+      ...data,
+      percentage: data.budget > 0 ? ((data.spent / data.budget) * 100).toFixed(1) : "0",
+      remaining: data.budget > 0 ? data.budget - data.spent : 0,
+    }))
+    .sort((a, b) => b.spent - a.spent);
 }
 
 export const useReportsData = (
@@ -368,73 +439,11 @@ export const useReportsData = (
     return dailyData;
   }, [transactions, accounts, period, skipHeavy]);
 
-  // Données pour les catégories avec budgets
-  const categoryChartData = useMemo<CategoryData[]>(() => {
-    // Calculer le multiplicateur de budget selon la période
-    let budgetMultiplier = 1;
-    
-    if (periodType === 'year') {
-      budgetMultiplier = 12;
-    } else if (periodType === 'custom') {
-      const daysInPeriod = differenceInDays(period.to, period.from) + 1;
-      budgetMultiplier = daysInPeriod / 30; // 1 mois = 30 jours
-    }
-    // periodType === 'month' → budgetMultiplier = 1 (pas de changement)
-    
-    // Filtrer uniquement les transactions qui doivent être incluses dans les stats
-    // Utiliser le montant NET (original - remboursé) pour les dépenses
-    // Pre-build category budget lookup (O(1) instead of O(n) per transaction)
-    const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
-
-    const expensesByCategory = filteredTransactions
-      // Special-budget tx live in their own bracket and don't count
-      // against the category budgets. Settling an advance is not spending
-      // either — and post-merge that matters more than it used to, because
-      // useLinkRepayment stamps the settled income's category onto the
-      // repaying expense, and that category can now carry a budget.
-      .filter(t => t.type === 'expense' && t.include_in_stats !== false
-        && !t.special_budget_id && !t.repayment_of_transaction_id)
-      .reduce((acc, t) => {
-        const categoryId = t.category?.id || 'uncategorized';
-        const categoryName = t.category?.name || 'Non catégorisé';
-        const categoryBudget = categoryBudgetMap.get(categoryId) || 0;
-        const categoryColor = t.category?.color || '#6b7280';
-        
-        // Calculer le montant net (après remboursement)
-        const netAmount = netExpenseAmount(t);
-
-        if (!acc[categoryId]) {
-          acc[categoryId] = {
-            name: categoryName,
-            spent: 0,
-            budget: Number(categoryBudget) * budgetMultiplier,
-            color: categoryColor
-          };
-        }
-        acc[categoryId].spent += netAmount;
-        return acc;
-      }, {} as Record<string, { name: string; spent: number; budget: number; color: string }>);
-
-    // Ajouter les catégories avec budget mais sans dépenses
-    categories.forEach(category => {
-      if (category.budget && category.budget > 0 && !expensesByCategory[category.id]) {
-        expensesByCategory[category.id] = {
-          name: category.name,
-          spent: 0,
-          budget: Number(category.budget) * budgetMultiplier,
-          color: category.color
-        };
-      }
-    });
-
-    return Object.entries(expensesByCategory)
-      .map(([_, data]) => ({
-        ...data,
-        percentage: data.budget > 0 ? (data.spent / data.budget * 100).toFixed(1) : "0",
-        remaining: data.budget > 0 ? Math.max(0, data.budget - data.spent) : 0
-      }))
-      .sort((a, b) => b.spent - a.spent);
-  }, [filteredTransactions, categories, periodType, period]);
+  // Category spend shares Budget's rule, including a marked return.
+  const categoryChartData = useMemo<CategoryData[]>(
+    () => buildCategoryChartData(filteredTransactions, categories, budgetMultiplierFor(period)),
+    [filteredTransactions, categories, periodType, period],
+  );
 
   // Données pour les transactions récurrentes
   const emptyRecurringData: RecurringData = {
@@ -965,42 +974,11 @@ export const useReportsData = (
 
   const secondaryCategoryChartData = useMemo<CategoryData[]>(() => {
     if (!useSecondary) return categoryChartData;
-    let budgetMultiplier = 1;
-    if (periodType === 'year') budgetMultiplier = 12;
-    else if (periodType === 'custom') budgetMultiplier = (differenceInDays(period.to, period.from) + 1) / 30;
-
-    const categoryBudgetMap = new Map(categories.map(c => [c.id, c.budget || 0]));
-    const expensesByCategory = secondaryFilteredTransactions
-      // Same predicate as categoryChartData above — the two must agree or
-      // the value-date comparison contradicts the accounting-date one.
-      .filter(t => t.type === 'expense' && t.include_in_stats !== false
-        && !t.special_budget_id && !t.repayment_of_transaction_id)
-      .reduce((acc, t) => {
-        const categoryId = t.category?.id || 'uncategorized';
-        const categoryName = t.category?.name || 'Non catégorisé';
-        const categoryBudget = categoryBudgetMap.get(categoryId) || 0;
-        const categoryColor = t.category?.color || '#6b7280';
-        const netAmount = netExpenseAmount(t);
-        if (!acc[categoryId]) {
-          acc[categoryId] = { name: categoryName, spent: 0, budget: Number(categoryBudget) * budgetMultiplier, color: categoryColor };
-        }
-        acc[categoryId].spent += netAmount;
-        return acc;
-      }, {} as Record<string, { name: string; spent: number; budget: number; color: string }>);
-
-    categories.forEach(category => {
-      if (category.budget && category.budget > 0 && !expensesByCategory[category.id]) {
-        expensesByCategory[category.id] = { name: category.name, spent: 0, budget: Number(category.budget) * budgetMultiplier, color: category.color };
-      }
-    });
-
-    return Object.entries(expensesByCategory)
-      .map(([_, data]) => ({
-        ...data,
-        percentage: data.budget > 0 ? (data.spent / data.budget * 100).toFixed(1) : "0",
-        remaining: data.budget > 0 ? Math.max(0, data.budget - data.spent) : 0,
-      }))
-      .sort((a, b) => b.spent - a.spent);
+    return buildCategoryChartData(
+      secondaryFilteredTransactions,
+      categories,
+      budgetMultiplierFor(period),
+    );
   }, [useSecondary, categoryChartData, secondaryFilteredTransactions, categories, periodType, period]);
 
   const secondaryIncomeAnalysisComputed = useIncomeAnalysis(useSecondary ? secondaryFilteredTransactions : []);

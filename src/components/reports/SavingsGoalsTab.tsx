@@ -15,6 +15,7 @@ import type { ReportsPeriod } from '@/hooks/useReportsData';
 import { differenceInDays, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { savingsMovement } from '@/lib/reportsEngine';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { useTranslation } from 'react-i18next';
 
@@ -37,38 +38,30 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
       ? parseLocalDate(tx.value_date || tx.transaction_date)
       : parseLocalDate(tx.transaction_date);
 
-  // Net of any partial refund — fully-refunded entries collapse to 0.
-  const netExpense = (tx: Transaction) =>
-    Math.max(0, Number(tx.amount) - Number((tx as any).refunded_amount || 0));
+  // Same net as Épargne: every category flagged counts_as_savings, both
+  // sides, with no floor. A deposit is positive, a withdrawal is negative.
+  const savingsContribution = (tx: Transaction): number | null => {
+    if (!tx.category || !categories.some((cat) => cat.counts_as_savings && cat.id === tx.category!.id)) return null;
+    return savingsMovement(tx);
+  };
 
   // Calculate investment statistics
   const investmentStats = useMemo(() => {
-    const investmentCategory = categories.find(cat =>
-      cat.name.toLowerCase() === 'investissements' ||
-      cat.name.toLowerCase() === 'investissement' ||
-      cat.name.toLowerCase() === 'épargne'
-    );
+    const empty = { total: 0, monthlyAverage: 0, weightedAverage: 0, monthlyData: [], evolutionData: [], trend: 0, count: 0 };
+    const rows = transactions.flatMap((tx) => {
+      const amount = savingsContribution(tx);
+      return amount == null ? [] : [{ tx, amount }];
+    });
+    if (rows.length === 0 && !categories.some((cat) => cat.counts_as_savings)) return empty;
 
-    if (!investmentCategory) {
-      return { total: 0, monthlyAverage: 0, weightedAverage: 0, monthlyData: [], evolutionData: [], trend: 0, count: 0 };
-    }
+    const total = rows.reduce((sum, row) => sum + row.amount, 0);
+    const count = rows.length;
 
-    // Honour the global stats exclusion flag — same rule the rest of the app
-    // applies — and only count transactions in this category.
-    const investmentTransactions = transactions.filter(
-      tx => tx.type === 'expense'
-        && tx.category?.id === investmentCategory.id
-        && tx.include_in_stats !== false
-    );
-
-    const total = investmentTransactions.reduce((sum, tx) => sum + netExpense(tx), 0);
-    const count = investmentTransactions.length;
-
-    // Monthly breakdown — bucket on the user's preferred date column, net of refunds.
+    // Monthly breakdown — bucket on the user's preferred date column.
     const monthlyMap = new Map<string, number>();
-    investmentTransactions.forEach(tx => {
+    rows.forEach(({ tx, amount }) => {
       const month = format(dateOf(tx), 'yyyy-MM');
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + netExpense(tx));
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + amount);
     });
 
     const monthlyData = Array.from(monthlyMap.entries())
@@ -99,16 +92,15 @@ export const SavingsGoalsTab = ({ transactions, period }: SavingsGoalsTabProps) 
     const evolutionData: Array<{ date: string; amount: number; cumulative: number }> = [];
     let cumulative = 0;
 
-    const sortedTransactions = [...investmentTransactions].sort(
-      (a, b) => dateOf(a).getTime() - dateOf(b).getTime()
+    const sorted = [...rows].sort(
+      (a, b) => dateOf(a.tx).getTime() - dateOf(b.tx).getTime()
     );
 
-    sortedTransactions.forEach(tx => {
-      const net = netExpense(tx);
-      cumulative += net;
+    sorted.forEach(({ tx, amount }) => {
+      cumulative += amount;
       evolutionData.push({
         date: format(dateOf(tx), 'dd/MM/yyyy'),
-        amount: net,
+        amount,
         cumulative
       });
     });

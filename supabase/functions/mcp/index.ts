@@ -71,6 +71,18 @@ var list_categories_default = defineTool2({
 // src/lib/mcp/tools/list-transactions.ts
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z } from "npm:zod@^3.25.76";
+
+// src/lib/mcp/dateColumn.ts
+function ledgerDateColumnFrom(dateType) {
+  return dateType === "value" ? "value_date" : "transaction_date";
+}
+async function ledgerDateColumn(supabase) {
+  const { data, error } = await supabase.from("notification_preferences").select("date_type").maybeSingle();
+  if (error || !data) return "transaction_date";
+  return ledgerDateColumnFrom(data.date_type);
+}
+
+// src/lib/mcp/tools/list-transactions.ts
 var list_transactions_default = defineTool3({
   name: "list_transactions",
   title: "List transactions",
@@ -87,11 +99,13 @@ var list_transactions_default = defineTool3({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (input, ctx) => {
     if (!ctx.isAuthenticated()) return unauthenticated();
-    let q = supabaseForUser(ctx).from("transactions").select(
+    const supabase = supabaseForUser(ctx);
+    const dateColumn = await ledgerDateColumn(supabase);
+    let q = supabase.from("transactions").select(
       "id, description, amount, type, transaction_date, value_date, account_id, category_id, refunded_amount, include_in_stats"
-    ).order("transaction_date", { ascending: false }).limit(input.limit ?? 50);
-    if (input.from) q = q.gte("transaction_date", input.from);
-    if (input.to) q = q.lte("transaction_date", input.to);
+    ).order(dateColumn, { ascending: false }).limit(input.limit ?? 50);
+    if (input.from) q = q.gte(dateColumn, input.from);
+    if (input.to) q = q.lte(dateColumn, input.to);
     if (input.type) q = q.eq("type", input.type);
     if (input.account_id) q = q.eq("account_id", input.account_id);
     if (input.category_id) q = q.eq("category_id", input.category_id);
@@ -157,6 +171,7 @@ import { startOfDay, endOfDay } from "npm:date-fns@^3.6.0";
 // src/lib/reportsEngine.ts
 var netExpenseAmount = (t) => Number(t.amount) - Number(t.refunded_amount || 0);
 var netIncomeAmount = (t) => Math.max(0, Number(t.amount) - Number(t.repaid_amount || 0));
+var isOffsettingTransfer = (t) => t.type === "transfer" && !!t.offsets_category && !!t.category_id && !t.refund_of_transaction_id;
 var periodContribution = (t) => {
   const ignored = { role: "ignored", amount: 0 };
   if (t.include_in_stats === false) return ignored;
@@ -172,13 +187,30 @@ var periodContribution = (t) => {
   if (t.type === "transfer") return { role: "transfer_fee", amount: Number(t.transfer_fee || 0) };
   return ignored;
 };
+var periodContributions = (t) => {
+  if (t.include_in_stats === false) return [];
+  if (isOffsettingTransfer(t)) {
+    const parts = [
+      { role: "expense", amount: -Math.abs(Number(t.amount) || 0) }
+    ];
+    const fee = Number(t.transfer_fee || 0);
+    if (fee) parts.push({ role: "transfer_fee", amount: fee });
+    return parts;
+  }
+  const one = periodContribution(t);
+  return one.role === "ignored" ? [] : [one];
+};
+var headlineExpenseLine = (t, categoryName, specialBudgetName, unnamed = "Uncategorized") => {
+  if (t.type === "expense" && t.special_budget_id) return specialBudgetName || unnamed;
+  return categoryName || unnamed;
+};
 
 // src/lib/mcp/tools/spending-summary.ts
 var round2 = (n) => Math.round(n * 100) / 100;
 var spending_summary_default = defineTool6({
   name: "spending_summary",
   title: "Spending summary",
-  description: "Summarize income, expenses and net flow over a date range, broken down by category. Expenses are net of refunds and of income the user marked as having come back on a category; income is net of anything repaid against it. Advance settlements and refund rows are excluded \u2014 they would otherwise count the same money twice. Nothing further should be subtracted from these figures.",
+  description: "Summarize income, expenses and net flow over a date range, broken down by category. Expenses are net of refunds, of income the user marked as having come back on a category, and of a transfer marked as money put back on one. A transfer's fee still counts. Income is net of anything repaid against it. Advance settlements and refund rows are excluded \u2014 they would otherwise count the same money twice. Nothing further should be subtracted from these figures.",
   inputSchema: {
     from: z3.string().describe("Inclusive start date, YYYY-MM-DD."),
     to: z3.string().describe("Inclusive end date, YYYY-MM-DD."),
@@ -188,14 +220,18 @@ var spending_summary_default = defineTool6({
   handler: async ({ from, to, include_excluded }, ctx) => {
     if (!ctx.isAuthenticated()) return unauthenticated();
     const supabase = supabaseForUser(ctx);
-    const COLUMNS = "amount, type, category_id, refunded_amount, repaid_amount, include_in_stats, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee";
+    const dateColumn = await ledgerDateColumn(supabase);
+    const COLUMNS = "amount, type, category_id, special_budget_id, refunded_amount, repaid_amount, include_in_stats, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee";
     const PAGE = 1e3;
-    const page = (offset) => supabase.from("transactions").select(COLUMNS, offset === 0 ? { count: "exact" } : void 0).gte("transaction_date", from).lte("transaction_date", to).order("transaction_date", { ascending: true }).order("id", { ascending: true }).range(offset, offset + PAGE - 1);
-    const [first, { data: cats }] = await Promise.all([
+    const page = (offset) => supabase.from("transactions").select(COLUMNS, offset === 0 ? { count: "exact" } : void 0).gte(dateColumn, from).lte(dateColumn, to).order(dateColumn, { ascending: true }).order("id", { ascending: true }).range(offset, offset + PAGE - 1);
+    const [first, { data: cats, error: catsError }, { data: budgets, error: budgetsError }] = await Promise.all([
       page(0),
-      supabase.from("categories").select("id, name")
+      supabase.from("categories").select("id, name"),
+      supabase.from("special_budgets").select("id, name")
     ]);
     if (first.error) return fail(first.error.message);
+    if (catsError) return fail(catsError.message);
+    if (budgetsError) return fail(budgetsError.message);
     const tx = [...first.data ?? []];
     const total = first.count ?? tx.length;
     for (let offset = tx.length; tx.length < total && offset < total; offset = tx.length) {
@@ -205,24 +241,31 @@ var spending_summary_default = defineTool6({
       tx.push(...next.data);
     }
     const names = new Map((cats ?? []).map((c) => [c.id, c.name]));
+    const budgetNames = new Map((budgets ?? []).map((b) => [b.id, b.name]));
     let income = 0;
     let expenses = 0;
     let transferFees = 0;
     const byCategory = /* @__PURE__ */ new Map();
     for (const raw of tx) {
       const t = include_excluded ? { ...raw, include_in_stats: true } : raw;
-      const { role, amount } = periodContribution(t);
-      if (role === "ignored") continue;
-      if (role === "income") income += amount;
-      else if (role === "transfer_fee") transferFees += amount;
-      else {
-        expenses += amount;
-        const key = t.category_id ? names.get(t.category_id) ?? "Unknown" : "Uncategorized";
-        byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
+      for (const { role, amount } of periodContributions(t)) {
+        if (role === "income") income += amount;
+        else if (role === "transfer_fee") transferFees += amount;
+        else {
+          expenses += amount;
+          const categoryLabel = t.category_id ? names.get(t.category_id) ?? "Unknown" : "Uncategorized";
+          const key = headlineExpenseLine(
+            t,
+            categoryLabel,
+            t.special_budget_id ? budgetNames.get(t.special_budget_id) : void 0,
+            "Special budget"
+          );
+          byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
+        }
       }
     }
     return ok({
-      period: { from, to },
+      period: { from, to, date_column: dateColumn },
       income: round2(income),
       expenses: round2(expenses),
       transfer_fees: round2(transferFees),

@@ -352,7 +352,7 @@ export function AdjustPlanForm({ plan }: Props) {
               type="button"
               variant={modifyField === c.key ? 'default' : 'outline'}
               size="sm"
-              className="h-9 text-[11px] sm:text-xs"
+              className="h-auto min-h-9 whitespace-normal px-1.5 py-1.5 text-[11px] leading-tight sm:text-xs"
               onClick={() => setModifyField(c.key)}
             >
               {c.label}

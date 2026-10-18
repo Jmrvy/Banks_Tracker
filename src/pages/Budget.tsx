@@ -74,7 +74,8 @@ import {
 } from "@/lib/scheduledCharges";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/lib/errorMessage";
-import { computeCategoryNets } from "@/lib/reportsEngine";
+import { categorySpendAmount, computeCategoryNets } from "@/lib/reportsEngine";
+import { effectiveMonthsBetween } from "@/lib/periodUtils";
 import { fr as frLocale, enUS as enLocale } from "date-fns/locale";
 import {
   addDays,
@@ -184,28 +185,11 @@ function Money({ v, className }: { v: number; className?: string }) {
  * outright. Flooring either at zero is what had this page reading 104 % of
  * budget beside "40,00 € left" on the same card.
  */
+/** Per-row figure for the charts. The period total still comes from
+ *  `computeCategoryNets`; this is the same rule, so a marked return
+ *  ("came back on this category") reduces the cap here too. */
 function categorySpend(tx: Transaction): number {
-  if (tx.include_in_stats === false) return 0;
-  if (tx.type === "expense") {
-    // Repaying an advance is settling a debt, not spending. The income it
-    // repays already counts net of it; charging it to a budget as well would
-    // take the same money out twice.
-    if (tx.repayment_of_transaction_id) return 0;
-    // Tagged to a special event/trip budget — counted there, not under
-    // the regular category budget bracket.
-    if (tx.special_budget_id) return 0;
-    return tx.amount - (tx.refunded_amount || 0);
-  }
-  if (tx.type === "income") {
-    // Only income that says it came back on this category. A linked refund
-    // already nets through its expense's refunded_amount.
-    if (!tx.offsets_category) return 0;
-    if (tx.refund_of_transaction_id) return 0;
-    // Floored, matching netIncomeAmount: an advance repaid past its value
-    // is not a credit to the budget it was never charged to.
-    return -Math.max(0, tx.amount - (tx.repaid_amount || 0));
-  }
-  return 0;
+  return categorySpendAmount(tx);
 }
 
 function p75(arr: number[]): number {
@@ -226,23 +210,6 @@ function niceRoundStep(n: number): number {
 function niceRound(n: number): number {
   if (n <= 0) return 0;
   return Math.round(n / niceRoundStep(n)) * niceRoundStep(n);
-}
-
-function effectiveMonthsBetween(from: Date, to: Date): number {
-  if (to <= from) return 0;
-  let total = 0;
-  let cursor = startOfMonth(from);
-  while (cursor <= to) {
-    const monthStart = cursor;
-    const monthEnd = endOfMonth(cursor);
-    const overlapStart = monthStart < from ? from : monthStart;
-    const overlapEnd = monthEnd > to ? to : monthEnd;
-    const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
-    const monthDays = getDaysInMonth(cursor);
-    total += overlapDays / monthDays;
-    cursor = addMonths(cursor, 1);
-  }
-  return total;
 }
 
 function statusOf(used: number, periodBudget: number | null, elapsed: number): Status {
@@ -1983,13 +1950,24 @@ const Budget = () => {
                 { value: "custom", label: t("budget.pCustom", { defaultValue: "Custom" }) },
               ]}
             />
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="gap-1.5"
+              aria-label={t("budget.exportCsv", { defaultValue: "Export CSV" })}
+            >
               <Download className="h-3.5 w-3.5" />
-              {t("budget.exportCsv", { defaultValue: "Export CSV" })}
+              <span className="hidden sm:inline">{t("budget.exportCsv", { defaultValue: "Export CSV" })}</span>
             </Button>
-            <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
+            <Button
+              size="sm"
+              onClick={() => setNewOpen(true)}
+              className="gap-1.5"
+              aria-label={t("budget.newCategory", { defaultValue: "New category" })}
+            >
               <Plus className="h-3.5 w-3.5" />
-              {t("budget.newCategory", { defaultValue: "New category" })}
+              <span className="hidden sm:inline">{t("budget.newCategory", { defaultValue: "New category" })}</span>
             </Button>
           </div>
         </div>

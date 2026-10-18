@@ -3,7 +3,8 @@ import {
   startOfQuarter, endOfQuarter,
   startOfYear, endOfYear,
   subMonths, subQuarters, subYears,
-  addDays, differenceInDays,
+  addDays, addMonths, differenceInDays, differenceInCalendarDays,
+  getDaysInMonth,
 } from 'date-fns';
 import { normalizePeriod } from './dateUtils';
 
@@ -68,4 +69,29 @@ export function priorPeriodRange(type: PeriodType, range: DateRange): DateRange 
       return normalizePeriod({ from: addDays(to, -(days - 1)), to });
     }
   }
+}
+
+/**
+ * How many calendar months a range covers, weighting a partial month by the
+ * share of its days that fall inside the range.
+ *
+ * This is the budget denominator. A monthly cap times this number is the
+ * cap for the range: a full calendar year stays 12, a full month stays 1,
+ * and a stub (the 15th through the end of a 31-day month) is 17/31 rather
+ * than a flat day-count divided by 30. The last day is inclusive.
+ */
+export function effectiveMonthsBetween(from: Date, to: Date): number {
+  if (to <= from) return 0;
+  let total = 0;
+  let cursor = startOfMonth(from);
+  while (cursor <= to) {
+    const monthStart = cursor;
+    const monthEnd = endOfMonth(cursor);
+    const overlapStart = monthStart < from ? from : monthStart;
+    const overlapEnd = monthEnd > to ? to : monthEnd;
+    const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
+    total += overlapDays / getDaysInMonth(cursor);
+    cursor = addMonths(cursor, 1);
+  }
+  return total;
 }

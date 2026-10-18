@@ -68,18 +68,18 @@ export function ExcludedTransactionsModal({
   const content = (
     <>
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-1 sm:gap-2 py-3 border-y border-border">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-2 py-3 border-y border-border">
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Revenus exclus</p>
-          <p className="font-semibold text-success text-xs sm:text-sm font-mono tabular-nums">+{formatCurrency(totals.income)}</p>
+          <p className="font-semibold text-success text-xs sm:text-sm font-mono tabular-nums whitespace-nowrap">+{formatCurrency(totals.income)}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Dépenses exclues</p>
-          <p className="font-semibold text-destructive text-xs sm:text-sm font-mono tabular-nums">-{formatCurrency(totals.expense)}</p>
+          <p className="font-semibold text-destructive text-xs sm:text-sm font-mono tabular-nums whitespace-nowrap">-{formatCurrency(totals.expense)}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Impact net</p>
-          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${netImpact >= 0 ? 'text-success' : 'text-destructive'}`}>
+          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums whitespace-nowrap ${netImpact >= 0 ? 'text-success' : 'text-destructive'}`}>
             {netImpact >= 0 ? '+' : ''}{formatCurrency(netImpact)}
           </p>
         </div>

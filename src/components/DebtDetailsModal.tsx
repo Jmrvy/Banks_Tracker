@@ -282,24 +282,24 @@ export const DebtDetailsModal = ({
                 <span className="text-[11px] sm:text-sm font-medium font-mono tabular-nums">{progress.toFixed(1)}%</span>
               </div>
               <Progress value={progress} className="h-2 sm:h-3 mb-3" />
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-2">
                 {/* KPI tiles — sized down from the full .ft-kpi-value clamp so
                     three figures fit a phone-width modal (QuickPreview precedent). */}
                 <div className="ft-kpi p-2.5 sm:p-3 gap-1">
                   <p className="ft-kpi-label truncate">Total</p>
-                  <p className={cn("ft-kpi-value text-[13px] sm:text-base truncate", isPrivacyMode && "ft-priv")}>
+                  <p className={cn("ft-kpi-value text-[13px] sm:text-base whitespace-nowrap", isPrivacyMode && "ft-priv")}>
                     {formatCurrency(debt.total_amount)}
                   </p>
                 </div>
                 <div className="ft-kpi p-2.5 sm:p-3 gap-1">
                   <p className="ft-kpi-label truncate">Payé</p>
-                  <p className={cn("ft-kpi-value text-[13px] sm:text-base text-pos truncate", isPrivacyMode && "ft-priv")}>
+                  <p className={cn("ft-kpi-value text-[13px] sm:text-base text-pos whitespace-nowrap", isPrivacyMode && "ft-priv")}>
                     {formatCurrency(amountPaid)}
                   </p>
                 </div>
                 <div className="ft-kpi p-2.5 sm:p-3 gap-1">
                   <p className="ft-kpi-label truncate">Restant</p>
-                  <p className={cn("ft-kpi-value text-[13px] sm:text-base text-warn truncate", isPrivacyMode && "ft-priv")}>
+                  <p className={cn("ft-kpi-value text-[13px] sm:text-base text-warn whitespace-nowrap", isPrivacyMode && "ft-priv")}>
                     {formatCurrency(debt.remaining_amount)}
                   </p>
                 </div>

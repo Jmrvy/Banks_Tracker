@@ -156,7 +156,7 @@ const handler = async (req: Request): Promise<Response> => {
           // are already inside refunded_amount above.
           const { data: offsetTxs, error: offsetError } = await supabaseAdmin
             .from('transactions')
-            .select('amount, repaid_amount')
+            .select('amount, repaid_amount, transaction_date, value_date')
             .eq('user_id', userPref.user_id)
             .eq('category_id', category.id)
             .eq('type', 'income')
@@ -170,25 +170,52 @@ const handler = async (req: Request): Promise<Response> => {
             console.error(`Error fetching offsetting income for category ${category.id}:`, offsetError);
             continue;
           }
+
+          // A transfer marked as money put back reduces the same total. Its
+          // fee is not category spend. Leaving it out warned about a breach
+          // the budget page, which subtracts the principal, does not show.
+          const { data: offsetTransfers, error: transferOffsetError } = await supabaseAdmin
+            .from('transactions')
+            .select('amount, transaction_date, value_date')
+            .eq('user_id', userPref.user_id)
+            .eq('category_id', category.id)
+            .eq('type', 'transfer')
+            .eq('offsets_category', true)
+            .eq('include_in_stats', true)
+            .is('refund_of_transaction_id', null)
+            .gte(dateColumn, monthStart.toISOString().split('T')[0])
+            .lte(dateColumn, monthEnd.toISOString().split('T')[0]);
+
+          if (transferOffsetError) {
+            console.error(`Error fetching offsetting transfers for category ${category.id}:`, transferOffsetError);
+            continue;
+          }
+
           for (const t of offsetTxs ?? []) {
             totalSpent -= netIncomeAmount(t as any);
+          }
+          for (const t of offsetTransfers ?? []) {
+            totalSpent -= Math.abs(Number(t.amount) || 0);
           }
 
           const budget = Number(category.budget);
 
-          // Build cumulative daily series for the SVG chart — uses net spend
-          // so the breach plot mirrors the same total we alert on.
+          // Cumulative net spend, so the breach plot matches the total we
+          // alert on — marked returns included, not only the expenses.
+          const dateOf = (t: { transaction_date: string; value_date?: string | null }) =>
+            dateType === 'value' ? (t.value_date || t.transaction_date) : t.transaction_date;
+          const events: { date: string; delta: number }[] = [];
+          for (const t of (transactions || [])) events.push({ date: dateOf(t), delta: netOf(t) });
+          for (const t of offsetTxs ?? []) events.push({ date: dateOf(t), delta: -netIncomeAmount(t as any) });
+          for (const t of offsetTransfers ?? []) events.push({ date: dateOf(t), delta: -Math.abs(Number(t.amount) || 0) });
+          events.sort((a, b) => a.date.localeCompare(b.date));
           const dailyData: { date: string; cumulative: number }[] = [];
           let cumulative = 0;
-          for (const t of (transactions || [])) {
-            cumulative += netOf(t);
-            const txDate = dateType === 'value' ? (t.value_date || t.transaction_date) : t.transaction_date;
-            const existing = dailyData.find(d => d.date === txDate);
-            if (existing) {
-              existing.cumulative = cumulative;
-            } else {
-              dailyData.push({ date: txDate, cumulative });
-            }
+          for (const event of events) {
+            cumulative += event.delta;
+            const existing = dailyData.find(d => d.date === event.date);
+            if (existing) existing.cumulative = cumulative;
+            else dailyData.push({ date: event.date, cumulative });
           }
 
           // If budget is exceeded, send alert

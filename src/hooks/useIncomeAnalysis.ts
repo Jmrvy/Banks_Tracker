@@ -12,6 +12,7 @@ interface Transaction {
   };
   include_in_stats?: boolean;
   refund_of_transaction_id?: string | null;
+  offsets_category?: boolean | null;
   repaid_amount?: number | null;
   category?: { id: string; name: string } | null;
 }
@@ -127,7 +128,10 @@ export const useIncomeAnalysis = (transactions: Transaction[]): IncomeCategory[]
     const incomeTransactions = transactions.filter(t =>
       t.type === 'income' &&
       t.include_in_stats !== false &&
-      !t.refund_of_transaction_id
+      !t.refund_of_transaction_id &&
+      // Marked as money that came back on a category: it reduces that
+      // category's spend, so it is not an income source.
+      !t.offsets_category
     );
 
     if (incomeTransactions.length === 0) return [];

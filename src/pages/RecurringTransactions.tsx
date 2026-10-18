@@ -379,22 +379,22 @@ const RecurringTransactions = ({ embedded = false }: RecurringTransactionsProps 
                 <div className="flex flex-col gap-[18px]">
                   {/* At-a-glance stats — moved here from the top of the page */}
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
+                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <div className="ft-kpi-icon pos h-6 w-6"><Play className="h-3 w-3" /></div>
                         <span className="ft-eyebrow truncate">{t('recurring.active', { defaultValue: 'Active' })}</span>
                       </div>
                       <div className="font-mono text-xl font-medium tracking-[-0.03em] leading-none">{activeTransactions.length}</div>
                     </div>
-                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
+                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <div className="ft-kpi-icon h-6 w-6"><Pause className="h-3 w-3 text-muted-foreground" /></div>
                         <span className="ft-eyebrow truncate">{t('recurring.inactive', { defaultValue: 'Inactive' })}</span>
                       </div>
                       <div className="font-mono text-xl font-medium tracking-[-0.03em] leading-none">{inactiveTransactions.length}</div>
                     </div>
-                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
+                    <div className="ft-card p-2.5 sm:p-3 flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <div className="ft-kpi-icon warn h-6 w-6"><Calendar className="h-3 w-3" /></div>
                         <span className="ft-eyebrow truncate">{t('recurring.next7d', { defaultValue: '7 days' })}</span>
                       </div>

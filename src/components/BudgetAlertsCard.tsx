@@ -7,6 +7,7 @@ import { CategoryTransactionsModal, type CategoryTransaction } from '@/component
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useTranslation } from 'react-i18next';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { categorySpendAmount, participatesInCategorySpend } from '@/lib/reportsEngine';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -67,29 +68,25 @@ export const BudgetAlertsCard = () => {
     if (!selectedCategory) return [];
     const dateType = preferences.dateType;
     return filteredTransactions
-      // Mirror the budget aggregation: special-budget (event/trip) rows
-      // live in their own envelope and don't count toward the category
-      // budget, so they're excluded from this drill-down too.
-      // Settling an advance is not spending either — same predicate as
-      // computeCategoryNets, so this list sums to the figure on the row
-      // that opened it.
-      .filter(t => t.type === 'expense' && t.category?.name === selectedCategory
-        && t.include_in_stats !== false && !t.special_budget_id
-        && !t.repayment_of_transaction_id)
-      .map(t => ({
-        id: t.id,
-        description: t.description,
-        amount: t.amount,
-        // Signed, matching netExpenseAmount: an over-refund is money back.
-        netAmount: t.amount - (t.refunded_amount || 0),
-        refundedAmount: t.refunded_amount || 0,
-        hasRefund: (t.refunded_amount || 0) > 0,
-        isFullyRefunded: (t.refunded_amount || 0) >= t.amount,
-        bank: t.account?.bank || '',
-        date: t.transaction_date,
-        valueDate: t.value_date,
-        type: t.type,
-      }))
+      // Same rows as the category total, including a marked return.
+      .filter(t => t.category?.name === selectedCategory && participatesInCategorySpend(t))
+      .map(t => {
+        const isReturn = t.type === 'income';
+        const netAmount = categorySpendAmount(t);
+        return {
+          id: t.id,
+          description: t.description,
+          amount: isReturn ? netAmount : t.amount,
+          netAmount,
+          refundedAmount: t.refunded_amount || 0,
+          hasRefund: !isReturn && (t.refunded_amount || 0) > 0,
+          isFullyRefunded: !isReturn && (t.refunded_amount || 0) >= t.amount,
+          bank: t.account?.bank || '',
+          date: t.transaction_date,
+          valueDate: t.value_date,
+          type: t.type,
+        };
+      })
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
   }, [selectedCategory, filteredTransactions, preferences.dateType]);
 

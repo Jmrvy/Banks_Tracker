@@ -84,7 +84,7 @@ const CalendarDayCell = memo(({ day, dateKey, dayTransactions, isToday, formatCu
   return (
     <div
       title={marked ? formatCurrency(Math.abs(dayTotal)) : undefined}
-      className={`aspect-square rounded-[9px] border flex flex-col items-center justify-center gap-0.5 transition-colors ${
+      className={`aspect-square min-w-0 rounded-[9px] border flex flex-col items-center justify-center gap-0.5 transition-colors ${
         isToday
           ? 'bg-bg-ink text-fg-onink border-transparent'
           : marked
@@ -1300,12 +1300,12 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                 </Button>
               </div>
             ) : (
-              <div className="flex gap-2 pt-2 border-t border-border/50">
-                <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                <Button size="sm" variant="outline" className="flex-1 min-w-[8.5rem] h-9 text-xs gap-1.5"
                   onClick={() => onEdit(transaction)}>
                   <Pencil className="h-3.5 w-3.5" /> Modifier
                 </Button>
-                <Button size="sm" variant="outline" className="flex-1 h-9 text-xs gap-1.5"
+                <Button size="sm" variant="outline" className="flex-1 min-w-[8.5rem] h-9 text-xs gap-1.5"
                   onClick={() => onToggleActive(transaction.id, transaction.is_active)}>
                   {transaction.is_active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                   {transaction.is_active ? 'Désactiver' : 'Activer'}
@@ -1426,7 +1426,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
           ) : (
             <>
               {/* Year grid: 12 month tiles */}
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                 {yearMonths.map((m) => {
                   const net = m.income - m.expense;
                   const max = Math.max(m.income, m.expense) || 1;
@@ -1460,10 +1460,9 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                       }`}>
                         {net >= 0 ? '+' : ''}{formatCurrency(net)}
                       </div>
-                      <div className="text-[10.5px] text-fg-dim tabular-nums leading-tight">
-                        <span className="text-pos">+{formatCurrency(m.income)}</span>
-                        {' · '}
-                        <span className="text-neg">-{formatCurrency(m.expense)}</span>
+                      <div className="mt-0.5 flex flex-wrap gap-x-1.5 text-[10.5px] text-fg-dim tabular-nums leading-tight">
+                        <span className="text-pos whitespace-nowrap">+{formatCurrency(m.income)}</span>
+                        <span className="text-neg whitespace-nowrap">-{formatCurrency(m.expense)}</span>
                       </div>
                     </button>
                   );
@@ -1472,44 +1471,48 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
 
               {/* Year totals — same sunk-card / eyebrow / mono-figure idiom
                   as the month strip, so the two views read as one system. */}
-              <div className="mt-3 pt-3 border-t border-line-soft grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="ft-card ft-card-sunk p-3.5">
+              <div className="mt-3 pt-3 border-t border-line-soft flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:gap-3">
+                <div className="ft-card ft-card-sunk px-3 py-2.5 sm:p-3.5 min-w-0">
+                  <div className="flex items-center justify-between gap-3 sm:block min-w-0">
                   <div className="ft-eyebrow truncate">
                     {t('recurring.yearTotal', {
                       defaultValue: 'Total {{year}}',
                       year: format(currentMonth, 'yyyy'),
                     })}
                   </div>
-                  <div className={`font-mono text-xl font-medium tracking-[-0.03em] mt-1.5 ${yearTotals.net >= 0 ? 'text-pos' : 'text-neg'}`}>
+                  <div className={`font-mono text-lg sm:text-xl font-medium tracking-[-0.03em] shrink-0 sm:mt-1.5 ${yearTotals.net >= 0 ? 'text-pos' : 'text-neg'}`}>
                     {yearTotals.net >= 0 ? '+' : ''}{formatCurrency(yearTotals.net)}
                   </div>
-                  <div className="text-[11.5px] text-fg-dim mt-0.5 tabular-nums">
-                    <span className="text-pos">+{formatCurrency(yearTotals.income)}</span>
-                    {' · '}
-                    <span className="text-neg">-{formatCurrency(yearTotals.expense)}</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap gap-x-1.5 text-[11.5px] text-fg-dim tabular-nums">
+                    <span className="text-pos whitespace-nowrap">+{formatCurrency(yearTotals.income)}</span>
+                    <span className="text-neg whitespace-nowrap">-{formatCurrency(yearTotals.expense)}</span>
                   </div>
                 </div>
-                <div className="ft-card ft-card-sunk p-3.5">
+                <div className="ft-card ft-card-sunk px-3 py-2.5 sm:p-3.5 min-w-0">
+                  <div className="flex items-center justify-between gap-3 sm:block min-w-0">
                   <div className="ft-eyebrow truncate">
                     {t('recurring.perMonthAverage', { defaultValue: 'Average / month' })}
                   </div>
-                  <div className={`font-mono text-xl font-medium tracking-[-0.03em] mt-1.5 ${yearTotals.net >= 0 ? 'text-pos' : 'text-neg'}`}>
+                  <div className={`font-mono text-lg sm:text-xl font-medium tracking-[-0.03em] shrink-0 sm:mt-1.5 ${yearTotals.net >= 0 ? 'text-pos' : 'text-neg'}`}>
                     {yearTotals.net >= 0 ? '+' : ''}{formatCurrency(yearTotals.net / 12)}
                   </div>
-                  <div className="text-[11.5px] text-fg-dim mt-0.5 tabular-nums">
-                    <span className="text-pos">+{formatCurrency(yearTotals.income / 12)}</span>
-                    {' · '}
-                    <span className="text-neg">-{formatCurrency(yearTotals.expense / 12)}</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap gap-x-1.5 text-[11.5px] text-fg-dim tabular-nums">
+                    <span className="text-pos whitespace-nowrap">+{formatCurrency(yearTotals.income / 12)}</span>
+                    <span className="text-neg whitespace-nowrap">-{formatCurrency(yearTotals.expense / 12)}</span>
                   </div>
                 </div>
-                <div className="ft-card ft-card-sunk p-3.5">
+                <div className="ft-card ft-card-sunk px-3 py-2.5 sm:p-3.5 min-w-0">
+                  <div className="flex items-center justify-between gap-3 sm:block min-w-0">
                   <div className="ft-eyebrow truncate">
                     {t('recurring.occurrences', { defaultValue: 'Occurrences' })}
                   </div>
-                  <div className="font-mono text-xl font-medium tracking-[-0.03em] mt-1.5">
+                  <div className="font-mono text-lg sm:text-xl font-medium tracking-[-0.03em] shrink-0 sm:mt-1.5">
                     {yearMonths.reduce((s, m) => s + m.count, 0)}
                   </div>
-                  <div className="text-[11.5px] text-fg-dim mt-0.5">
+                  </div>
+                  <div className="text-[11.5px] text-fg-dim mt-0.5 break-words">
                     {t('recurring.plannedThisYear', { defaultValue: 'planned this year' })}
                   </div>
                 </div>
@@ -1540,7 +1543,7 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
               mono figure, with the +/− split demoted to a single dim line. */}
           {(monthlySummary.totalIncome > 0 || monthlySummary.totalExpense > 0) && (
             <div className="mt-4 pt-3 border-t border-line-soft">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:gap-3">
                 {[
                   {
                     key: 'total',
@@ -1567,18 +1570,19 @@ const RecurringCalendar = ({ transactions, actualTransactions = [], installmentP
                     net: monthlySummary.upcomingNet,
                   },
                 ].map(({ key, Icon, label, income, expense, net }) => (
-                  <div key={key} className="ft-card ft-card-sunk p-3.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Icon className="h-3 w-3 text-fg-dim flex-shrink-0" />
-                      <span className="ft-eyebrow truncate">{label}</span>
+                  <div key={key} className="ft-card ft-card-sunk px-3 py-2.5 sm:p-3.5 min-w-0">
+                    <div className="flex items-center justify-between gap-3 sm:block min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Icon className="h-3 w-3 text-fg-dim flex-shrink-0" />
+                        <span className="ft-eyebrow truncate">{label}</span>
+                      </div>
+                      <div className={`font-mono text-lg sm:text-xl font-medium tracking-[-0.03em] shrink-0 sm:mt-1.5 ${net >= 0 ? 'text-pos' : 'text-neg'}`}>
+                        {net >= 0 ? '+' : ''}{formatCurrency(net)}
+                      </div>
                     </div>
-                    <div className={`font-mono text-xl font-medium tracking-[-0.03em] mt-1.5 ${net >= 0 ? 'text-pos' : 'text-neg'}`}>
-                      {net >= 0 ? '+' : ''}{formatCurrency(net)}
-                    </div>
-                    <div className="text-[11.5px] text-fg-dim mt-0.5 tabular-nums">
-                      <span className="text-pos">+{formatCurrency(income)}</span>
-                      {' · '}
-                      <span className="text-neg">-{formatCurrency(expense)}</span>
+                    <div className="mt-0.5 flex flex-wrap gap-x-1.5 text-[11.5px] text-fg-dim tabular-nums">
+                      <span className="text-pos whitespace-nowrap">+{formatCurrency(income)}</span>
+                      <span className="text-neg whitespace-nowrap">-{formatCurrency(expense)}</span>
                     </div>
                   </div>
                 ))}

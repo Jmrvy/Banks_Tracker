@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveNamePlaceholders } from "@/utils/namePlaceholders";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { periodContributions } from "@/lib/reportsEngine";
 
 interface EvolutionTabProps {
   balanceEvolutionData: BalanceDataPoint[];
@@ -93,20 +94,31 @@ export const EvolutionTab = ({
         const amount = Number(t.amount);
         const refunded = Number(t.refunded_amount || 0);
 
-        if (t.type === 'income') {
-          if (mode === 'real') income += amount;
-          else if (!isExcluded && !t.refund_of_transaction_id) income += amount;
-          if (isExcluded) { excludedIncome += amount; excludedCount++; }
-        } else if (t.type === 'expense') {
-          if (mode === 'real') {
-            expenses += amount;
-          } else if (!isExcluded) {
-            expenses += Math.max(0, amount - refunded);
-            if (refunded > 0) { refundOffset += Math.min(refunded, amount); refundedCount++; }
+        // Side tallies stay gross: they describe what was left out, not the
+        // headline. The headline itself follows the shared period rule in
+        // stats mode (offsets reduce expenses, repayments drop out, an
+        // over-refund can go negative, an excluded transfer fee does not
+        // count). Real mode stays the cash ledger: every row, gross.
+        if (isExcluded && (t.type === 'income' || t.type === 'expense')) {
+          excludedCount++;
+          if (t.type === 'income') excludedIncome += amount;
+          else excludedExpenses += amount;
+        }
+        if (t.type === 'expense' && refunded > 0 && !isExcluded) {
+          refundOffset += Math.min(refunded, amount);
+          refundedCount++;
+        }
+
+        if (mode === 'real') {
+          if (t.type === 'income') income += amount;
+          else if (t.type === 'expense') expenses += amount;
+          else if (t.type === 'transfer') transferFees += Number(t.transfer_fee || 0);
+        } else {
+          for (const { role, amount: contrib } of periodContributions(t as any)) {
+            if (role === 'income') income += contrib;
+            else if (role === 'expense') expenses += contrib;
+            else if (role === 'transfer_fee') transferFees += contrib;
           }
-          if (isExcluded) { excludedExpenses += amount; excludedCount++; }
-        } else if (t.type === 'transfer') {
-          transferFees += Number(t.transfer_fee || 0);
         }
       }
 
@@ -482,19 +494,19 @@ export const EvolutionTab = ({
           </CardHeader>
           <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3">
             {/* Summary row */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div className="p-2 sm:p-2.5 rounded-xl bg-success/5 border border-success/10 text-center">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">Revenus</p>
-                <p className="text-xs sm:text-sm font-bold text-success">+{formatCurrency(projectedIncome)}</p>
+                <p className="text-xs sm:text-sm font-bold text-success whitespace-nowrap">+{formatCurrency(projectedIncome)}</p>
               </div>
               <div className="p-2 sm:p-2.5 rounded-xl bg-destructive/5 border border-destructive/10 text-center">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">Dépenses</p>
-                <p className="text-xs sm:text-sm font-bold text-destructive">-{formatCurrency(projectedExpenses)}</p>
+                <p className="text-xs sm:text-sm font-bold text-destructive whitespace-nowrap">-{formatCurrency(projectedExpenses)}</p>
               </div>
               <div className="p-2 sm:p-2.5 rounded-xl bg-primary/5 border border-primary/10 text-center">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t('dashboard.projectedBalanceShort')}</p>
                 <p className={cn(
-                  "text-xs sm:text-sm font-bold",
+                  "text-xs sm:text-sm font-bold whitespace-nowrap",
                   projectedFinalBalance >= 0 ? "text-success" : "text-destructive"
                 )}>
                   {formatCurrency(projectedFinalBalance)}

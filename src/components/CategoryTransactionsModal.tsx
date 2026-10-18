@@ -24,6 +24,7 @@ import { eachDayOfInterval, differenceInDays, format, addDays, addWeeks, addMont
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { categorySpendAmount, participatesInCategorySpend } from "@/lib/reportsEngine";
 
 /** View-model for transactions displayed in the category modal */
 export interface CategoryTransaction {
@@ -127,10 +128,7 @@ export const CategoryTransactionsModal = ({
     const catTxs = allTransactions
       .filter(
         (t) =>
-          t.type === "expense" &&
-          t.include_in_stats !== false &&
-          !t.special_budget_id &&
-          !t.repayment_of_transaction_id &&
+          participatesInCategorySpend(t) &&
           t.category?.name === categoryName
       )
       .sort(
@@ -158,13 +156,7 @@ export const CategoryTransactionsModal = ({
       const dayStr = format(day, "yyyy-MM-dd");
       const dayTotal = catTxs
         .filter((t) => getTransactionDate(t) === dayStr)
-        .reduce((s, t) => {
-          // Signed: an over-refunded day genuinely walks the cumulative
-          // line back down.
-          const gross = Number(t.amount);
-          const refunded = Number((t as any).refunded_amount || 0);
-          return s + (gross - refunded);
-        }, 0);
+        .reduce((s, t) => s + categorySpendAmount(t), 0);
       cumulative += dayTotal;
       spentByDay.set(dayStr, cumulative);
     }

@@ -234,7 +234,7 @@ export const FlowsTab = ({
   // Counted over the same rows the totals are built from. Counting every row
   // of a type made the caption say "14 transactions" above a list of 11.
   const incomeCount = filteredTransactions.filter(
-    t => t.type === 'income' && t.include_in_stats !== false && !t.refund_of_transaction_id,
+    t => t.type === 'income' && t.include_in_stats !== false && !t.refund_of_transaction_id && !t.offsets_category,
   ).length + (includeUpcoming ? projectedIncomeCount : 0);
   const expenseCount = filteredTransactions.filter(
     t => t.type === 'expense' && t.include_in_stats !== false && !t.repayment_of_transaction_id,

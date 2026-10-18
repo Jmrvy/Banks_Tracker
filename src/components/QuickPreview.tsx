@@ -208,7 +208,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
       {/* Monthly summary KPIs */}
       <div>
         <p className="ft-eyebrow mb-2 capitalize">{currentMonth}</p>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 md:gap-4">
           <div className="ft-kpi p-3 sm:p-4">
             <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
               <div className="ft-kpi-icon pos flex-shrink-0"><ArrowDownRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></div>
@@ -217,7 +217,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             <BlurredAmount
               amount={formatCurrency(monthlyStats.income)}
               block
-              className="ft-kpi-value text-pos truncate min-w-0"
+              className="ft-kpi-value text-pos whitespace-nowrap min-w-0"
             />
           </div>
           <div className="ft-kpi p-3 sm:p-4">
@@ -228,7 +228,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             <BlurredAmount
               amount={formatCurrency(monthlyStats.expenses)}
               block
-              className="ft-kpi-value text-destructive truncate min-w-0"
+              className="ft-kpi-value text-destructive whitespace-nowrap min-w-0"
             />
           </div>
           <div className="ft-kpi p-3 sm:p-4">
@@ -239,7 +239,7 @@ export const QuickPreview = ({ onShowFullDashboard }: QuickPreviewProps) => {
             <BlurredAmount
               amount={`${formatCurrency(monthlyStats.net)}`}
               block
-              className={`ft-kpi-value truncate min-w-0 ${monthlyStats.net >= 0 ? 'text-pos' : 'text-destructive'}`}
+              className={`ft-kpi-value whitespace-nowrap min-w-0 ${monthlyStats.net >= 0 ? 'text-pos' : 'text-destructive'}`}
             />
           </div>
         </div>

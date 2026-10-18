@@ -104,22 +104,22 @@ export function ValueDateDifferenceModal({
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-1 sm:gap-2 py-2 sm:py-3 border-y border-border">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-2 py-2 sm:py-3 border-y border-border">
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Revenus (diff)</p>
-          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${netDifferenceIncome >= 0 ? 'text-success' : 'text-destructive'}`}>
+          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums whitespace-nowrap ${netDifferenceIncome >= 0 ? 'text-success' : 'text-destructive'}`}>
             {netDifferenceIncome >= 0 ? '+' : ''}{formatCurrency(netDifferenceIncome)}
           </p>
         </div>
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Dépenses (diff)</p>
-          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${netDifferenceExpense <= 0 ? 'text-success' : 'text-destructive'}`}>
+          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums whitespace-nowrap ${netDifferenceExpense <= 0 ? 'text-success' : 'text-destructive'}`}>
             {netDifferenceExpense >= 0 ? '+' : ''}{formatCurrency(netDifferenceExpense)}
           </p>
         </div>
         <div className="text-center">
           <p className="text-[10px] sm:text-xs text-muted-foreground">Impact net</p>
-          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${netImpact >= 0 ? 'text-success' : 'text-destructive'}`}>
+          <p className={`font-semibold text-xs sm:text-sm font-mono tabular-nums whitespace-nowrap ${netImpact >= 0 ? 'text-success' : 'text-destructive'}`}>
             {netImpact >= 0 ? '+' : ''}{formatCurrency(netImpact)}
           </p>
         </div>

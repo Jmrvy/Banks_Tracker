@@ -22,6 +22,7 @@ interface SavingsTransactionsListProps {
  *  repayment against a withdrawal), exactly like the header figures. */
 const savingsAmount = (tx: Transaction) => {
   if (tx.installment_payment_id) return tx.amount;
+  if (tx.type === 'transfer') return Math.abs(Number(tx.amount) || 0);
   return tx.type === 'expense' ? netExpenseAmount(tx as any) : netIncomeAmount(tx as any);
 };
 
@@ -51,6 +52,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
       if (tx.installment_payment_id) return savingsAmount(tx); // reimbursement = positive
       if (tx.type === 'expense') return savingsAmount(tx);      // investment deposit = positive
       if (tx.type === 'income') return -savingsAmount(tx);      // investment withdrawal = negative
+      if (tx.type === 'transfer' && tx.offsets_category) return -savingsAmount(tx);
       return 0;
     };
 
@@ -86,6 +88,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
       case 'expense':
         return <TrendingUp className="h-4 w-4 text-success" />;
       case 'income':
+      case 'transfer':
         return <TrendingDown className="h-4 w-4 text-destructive" />;
       default:
         return <PiggyBank className="h-4 w-4 text-primary" />;
@@ -100,6 +103,7 @@ export function SavingsTransactionsList({ transactions, startDate, endDate, date
       case 'expense':
         return t('savings.deposit');
       case 'income':
+      case 'transfer':
         return t('savings.withdrawal');
       default:
         return type;

@@ -12,7 +12,7 @@ import {
   round2,
   AuthCredentials,
 } from '../_shared/api.ts';
-import { LEDGER_COLUMNS, periodContribution } from '../_shared/ledgerRules.ts';
+import { LEDGER_COLUMNS, headlineExpenseLine, periodContributions } from '../_shared/ledgerRules.ts';
 
 interface Body extends AuthCredentials {
   period_start: string; // YYYY-MM-DD
@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     ? 'transaction_date'
     : 'value_date';
 
-  const [accountsResp, txResp] = await Promise.all([
+  const [accountsResp, txResp, budgetsResp] = await Promise.all([
     supabase
       .from('accounts')
       .select('id, name, balance, account_type, currency')
@@ -51,6 +51,10 @@ Deno.serve(async (req) => {
       .gte(dateField, body.period_start)
       .lte(dateField, body.period_end)
       .neq('include_in_stats', false),
+    supabase
+      .from('special_budgets')
+      .select('id, name')
+      .eq('user_id', userId),
   ]);
 
   if (accountsResp.error) {
@@ -59,8 +63,12 @@ Deno.serve(async (req) => {
   if (txResp.error) {
     return errorResponse(500, { code: 'query_failed', message: 'Failed to fetch transactions', details: txResp.error.message });
   }
+  if (budgetsResp.error) {
+    return errorResponse(500, { code: 'query_failed', message: 'Failed to fetch special budgets', details: budgetsResp.error.message });
+  }
 
   const txs = txResp.data ?? [];
+  const budgetNames = new Map((budgetsResp.data ?? []).map((b) => [b.id, b.name]));
   const accounts = (accountsResp.data ?? []).map(a => ({ ...a, balance: round2(Number(a.balance)) }));
 
   let totalIncome = 0;
@@ -78,25 +86,34 @@ Deno.serve(async (req) => {
   // spending, and floored a refund at the expense it refunded — four ways
   // to disagree with the app about the same period.
   for (const t of txs) {
-    const { role, amount } = periodContribution(t as any);
-    if (role === 'ignored') continue;
+    const parts = periodContributions(t as any);
+    if (parts.length === 0) continue;
 
     const month = (t as any)[dateField].substring(0, 7);
     const bucket = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
 
-    if (role === 'income') {
-      totalIncome += amount;
-      bucket.income += amount;
-    } else if (role === 'expense') {
-      // `amount` is negative for income that came back on its category,
-      // which is what makes it reduce the category rather than inflate it.
-      totalExpenses += amount;
-      totalRefunded += Number((t as any).refunded_amount || 0);
-      bucket.expenses += amount;
-      const catName = (t as any).categories?.name || 'Sans catégorie';
-      categoryMap.set(catName, (categoryMap.get(catName) ?? 0) + amount);
-    } else {
-      totalTransferFees += amount;
+    for (const { role, amount } of parts) {
+      if (role === 'income') {
+        totalIncome += amount;
+        bucket.income += amount;
+      } else if (role === 'expense') {
+        // `amount` is negative for money that came back on its category,
+        // income or a marked transfer, which is what makes it reduce the
+        // category rather than inflate it. A transfer's fee is the other part.
+        totalExpenses += amount;
+        totalRefunded += Number((t as any).refunded_amount || 0);
+        bucket.expenses += amount;
+        const row = t as any;
+        const line = headlineExpenseLine(
+          row,
+          row.categories?.name || 'Sans catégorie',
+          row.special_budget_id ? (budgetNames.get(row.special_budget_id) || 'Budget spécial') : undefined,
+          'Budget spécial',
+        );
+        categoryMap.set(line, (categoryMap.get(line) ?? 0) + amount);
+      } else {
+        totalTransferFees += amount;
+      }
     }
 
     monthlyMap.set(month, bucket);

@@ -20,7 +20,7 @@ import {
   successResponse,
   round2,
 } from '../_shared/api.ts';
-import { netExpenseAmount, netIncomeAmount, periodContribution } from '../_shared/ledgerRules.ts';
+import { netExpenseAmount, netIncomeAmount, periodContributions } from '../_shared/ledgerRules.ts';
 
 type TxType = 'expense' | 'income' | 'transfer';
 type DateField = 'transaction_date' | 'value_date';
@@ -246,12 +246,16 @@ Deno.serve(async (req) => {
   let totalTransferFees = 0;
   let offsettingIncome = 0;
   for (const t of transactions) {
-    const { role, amount } = periodContribution(t);
-    if (role === 'income') totalIncome += amount;
-    else if (role === 'expense') {
-      totalExpenses += amount;
-      if (t.type === 'income') offsettingIncome += -amount;
-    } else if (role === 'transfer_fee') totalTransferFees += amount;
+    for (const { role, amount } of periodContributions(t)) {
+      if (role === 'income') totalIncome += amount;
+      else if (role === 'expense') {
+        totalExpenses += amount;
+        // Marked income and a marked put-back both reduce expenses. The
+        // field keeps its name; a transfer's principal belongs in it too,
+        // or the reduction in total_expenses has nothing beside it.
+        if (t.type === 'income' || t.type === 'transfer') offsettingIncome += -amount;
+      } else if (role === 'transfer_fee') totalTransferFees += amount;
+    }
   }
 
   const grossExpenses = expenses.reduce((s, t) => s + Number(t.amount), 0);
@@ -267,12 +271,13 @@ Deno.serve(async (req) => {
     if (!acc[name]) acc[name] = { count: 0, total: 0, expenses: 0, income: 0, refunded: 0 };
     acc[name].count++;
     acc[name].total += Number(t.amount);
-    const { role, amount } = periodContribution(t);
-    if (role === 'expense') {
-      acc[name].expenses += amount;
-      acc[name].refunded += t.refunded_amount;
-    } else if (role === 'income') {
-      acc[name].income += amount;
+    for (const { role, amount } of periodContributions(t)) {
+      if (role === 'expense') {
+        acc[name].expenses += amount;
+        acc[name].refunded += t.refunded_amount;
+      } else if (role === 'income') {
+        acc[name].income += amount;
+      }
     }
     return acc;
   }, {});
@@ -289,9 +294,10 @@ Deno.serve(async (req) => {
     const name = t.accounts?.name || 'Inconnu';
     if (!acc[name]) acc[name] = { count: 0, expenses: 0, income: 0, transfers: 0 };
     acc[name].count++;
-    const { role, amount } = periodContribution(t);
-    if (role === 'expense') acc[name].expenses += amount;
-    else if (role === 'income') acc[name].income += amount;
+    for (const { role, amount } of periodContributions(t)) {
+      if (role === 'expense') acc[name].expenses += amount;
+      else if (role === 'income') acc[name].income += amount;
+    }
     // The principal, not the fee: this line answers "how much moved through
     // this account", which is a different question from the period totals.
     if (t.type === 'transfer') acc[name].transfers += Number(t.amount);

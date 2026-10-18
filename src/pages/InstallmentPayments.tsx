@@ -312,13 +312,13 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+          <div className="ft-kpi min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="ft-kpi-icon warn">
                 <Wallet className="h-4 w-4" />
               </div>
-              <span className="ft-kpi-label">
+              <span className="ft-kpi-label truncate">
                 {t('installments.totalDue', { defaultValue: 'Total due' })}
               </span>
             </div>
@@ -329,41 +329,41 @@ const InstallmentPayments = ({ embedded = false }: InstallmentPaymentsProps = {}
                   .reduce((sum, p) => sum + p.remaining_amount, 0)
               )}
             </div>
-            <div className="ft-kpi-foot">
+            <div className="ft-kpi-foot min-w-0 whitespace-normal">
               {t('installments.nPlans', {
                 defaultValue: '{{n}} plans',
                 n: activeCount,
               })}
             </div>
           </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
+          <div className="ft-kpi min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="ft-kpi-icon pos">
                 <CreditCard className="h-4 w-4" />
               </div>
-              <span className="ft-kpi-label">
+              <span className="ft-kpi-label truncate">
                 {t('installments.active', { defaultValue: 'Active' })}
               </span>
             </div>
             <div className="ft-kpi-value">{activeCount}</div>
-            <div className="ft-kpi-foot">
+            <div className="ft-kpi-foot min-w-0 whitespace-normal">
               {t('installments.monthlyLoad', {
                 defaultValue: '{{amount}} per instalment cycle',
                 amount: formatCurrency(activeInstalmentLoad),
               })}
             </div>
           </div>
-          <div className="ft-kpi">
-            <div className="flex items-center gap-2.5">
+          <div className="ft-kpi min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="ft-kpi-icon">
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </div>
-              <span className="ft-kpi-label">
+              <span className="ft-kpi-label truncate">
                 {t('installments.completed', { defaultValue: 'Completed' })}
               </span>
             </div>
             <div className="ft-kpi-value">{completedCount}</div>
-            <div className="ft-kpi-foot">
+            <div className="ft-kpi-foot min-w-0 whitespace-normal">
               {t('installments.settledInFull', { defaultValue: 'settled in full' })}
             </div>
           </div>

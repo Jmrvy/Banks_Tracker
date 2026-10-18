@@ -20,7 +20,7 @@ import {
 } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { TOOLTIP_CLASS } from "@/lib/chartConfig";
-import { netIncomeAmount, netExpenseAmount } from "@/lib/reportsEngine";
+import { periodContributions } from "@/lib/reportsEngine";
 import { getTxDate } from "@/lib/dateUtils";
 
 interface CashflowChartProps {
@@ -66,19 +66,12 @@ export function CashflowChart({ startDate: _start, endDate: _end }: CashflowChar
       const d = getTxDate(tx, preferences.dateType);
       const m = months.find((x) => isWithinInterval(d, { start: x.from, end: x.to }));
       if (!m) continue;
-      // Mirrors computePeriodStats row by row — the engine returns totals,
-      // and these are monthly buckets. Any divergence here shows up as bars
-      // that disagree with the KPI tiles directly above them.
-      if (tx.type === "income" && !tx.refund_of_transaction_id) {
-        const net = netIncomeAmount(tx as any);
-        // Came back on its category: a reduction of spend, not earnings.
-        if (tx.offsets_category) m.expense -= net;
-        else m.income += net;
-      } else if (tx.type === "expense") {
-        if (tx.repayment_of_transaction_id) continue;
-        m.expense += netExpenseAmount(tx as any);
-      } else if (tx.type === "transfer" && tx.transfer_fee) {
-        m.expense += Number(tx.transfer_fee);
+      // The same contributions computePeriodStats sums. These are monthly
+      // buckets; any other rule shows up as bars that disagree with the
+      // KPI tiles directly above them.
+      for (const { role, amount } of periodContributions(tx as any)) {
+        if (role === "income") m.income += amount;
+        else m.expense += amount;
       }
     }
     return months;

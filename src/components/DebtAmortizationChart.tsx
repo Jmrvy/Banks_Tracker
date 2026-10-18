@@ -93,18 +93,18 @@ export const DebtAmortizationChart = ({ scheduledPayments, totalAmount }: DebtAm
         <p className="text-[10px] sm:text-xs text-muted-foreground uppercase mb-3">Amortissement</p>
 
         {/* Cost summary */}
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-3">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-2 text-center mb-3">
           <div className="bg-[hsl(200,75%,60%)]/10 rounded-lg p-1.5 sm:p-2">
             <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Intérêts</p>
-            <p className="text-[11px] sm:text-sm font-bold text-[hsl(200,75%,60%)] truncate">{formatCurrency(totals.interest)}</p>
+            <p className="text-[11px] sm:text-sm font-bold text-[hsl(200,75%,60%)] whitespace-nowrap">{formatCurrency(totals.interest)}</p>
           </div>
           <div className="bg-[hsl(280,70%,65%)]/10 rounded-lg p-1.5 sm:p-2">
             <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Assurance</p>
-            <p className="text-[11px] sm:text-sm font-bold text-[hsl(280,70%,65%)] truncate">{formatCurrency(totals.insurance)}</p>
+            <p className="text-[11px] sm:text-sm font-bold text-[hsl(280,70%,65%)] whitespace-nowrap">{formatCurrency(totals.insurance)}</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-1.5 sm:p-2">
             <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase">Coût total</p>
-            <p className="text-[11px] sm:text-sm font-bold truncate">{formatCurrency(totals.total)}</p>
+            <p className="text-[11px] sm:text-sm font-bold whitespace-nowrap">{formatCurrency(totals.total)}</p>
           </div>
         </div>
 

@@ -15,6 +15,14 @@ import { TransactionTypeModal } from "./TransactionTypeModal";
 import { useTranslation } from "react-i18next";
 import { parseLocalDate } from "@/lib/dateUtils";
 
+/** Cash that left this account. A transfer keeps its principal plus the fee.
+ *  Any other expense is net of what was refunded, and may go negative when
+ *  more came back than left. */
+function accountCashExpense(t: Transaction): number {
+  if (t.type === "transfer") return t.amount + (t.transfer_fee || 0);
+  return t.amount - (t.refunded_amount || 0);
+}
+
 interface AccountDetailsProps {
   accountId: string;
   transactions: Transaction[];
@@ -94,12 +102,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
         t.type === 'expense' || 
         (t.type === 'transfer' && t.account_id === accountId)
       ))
-      .reduce((sum, t) => {
-        if (t.type === 'transfer') {
-          return sum + t.amount + (t.transfer_fee || 0);
-        }
-        return sum + t.amount;
-      }, 0);
+      .reduce((sum, t) => sum + accountCashExpense(t), 0);
     
     const transfers = accountTransactions
       .filter(t => t.type === 'transfer')
@@ -141,11 +144,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       }
       // Expenses = regular expenses + outgoing transfers
       if (t.type === 'expense' || (t.type === 'transfer' && t.account_id === accountId)) {
-        if (t.type === 'transfer') {
-          data[index].expenses += t.amount + (t.transfer_fee || 0);
-        } else {
-          data[index].expenses += t.amount;
-        }
+        data[index].expenses += accountCashExpense(t);
       }
     };
     
@@ -354,7 +353,7 @@ export function AccountDetails({ accountId, transactions, balance, startDate, en
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
         <Card 
           className="border-border bg-card cursor-pointer hover:bg-accent/50 transition-colors"
           onClick={() => setShowTransactionTypeModal('income')}
