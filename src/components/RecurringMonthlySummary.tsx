@@ -103,8 +103,8 @@ export function RecurringMonthlySummary() {
     <div className="flex flex-col gap-3">
       {/* Monthly summary tile */}
       <div className="ft-card p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="ft-eyebrow">
+        <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+          <div className="ft-eyebrow min-w-0">
             {t("recurring.thisMonth", { defaultValue: "This month" })}
           </div>
           {/* Design's segmented control: the selected chip lifts onto

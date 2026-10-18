@@ -53,7 +53,7 @@ export function Segmented<T extends string>({
     // `.ft-noscroll` hides the bar in WebKit as well as Firefox/Safari.
     <div
       className={cn(
-        "max-w-full overflow-x-auto ft-noscroll",
+        "min-w-0 max-w-full overflow-x-auto ft-noscroll",
         bleed && "-mx-4 px-4 md:mx-0 md:px-0",
         className,
       )}
