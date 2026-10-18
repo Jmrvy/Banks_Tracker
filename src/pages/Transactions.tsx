@@ -6,7 +6,7 @@ import { Plus, Download } from "lucide-react";
 import { TransactionSearch, TransactionFilters } from "@/components/TransactionSearch";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { NewTransactionModal } from "@/components/NewTransactionModal";
-import { computePeriodStats } from "@/lib/reportsEngine";
+import { computePeriodStats, periodContribution } from "@/lib/reportsEngine";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
@@ -101,22 +101,27 @@ const Transactions = () => {
   const breakdown = useMemo(() => {
     const byCategory = new Map<string, { id: string; name: string; color: string; total: number }>();
     for (const tx of transactions.filter(matchesFilters)) {
-      if (tx.type !== "expense" || tx.include_in_stats === false) continue;
-      const net = Math.max(0, tx.amount - (tx.refunded_amount || 0));
-      if (net <= 0) continue;
+      // Same fold as the header: offsets reduce, repayments drop out,
+      // special-budget spend stays on its category so the rows can still
+      // add up to totals.expenses. An over-refund is allowed to go negative.
+      const { role, amount } = periodContribution(tx as any);
+      if (role !== "expense") continue;
       const id = tx.category?.id ?? "__none";
       const existing = byCategory.get(id);
-      if (existing) existing.total += net;
+      if (existing) existing.total += amount;
       else
         byCategory.set(id, {
           id,
           name: tx.category?.name ?? t("common.uncategorized", { defaultValue: "Uncategorized" }),
           color: tx.category?.color ?? "hsl(var(--fg-dim))",
-          total: net,
+          total: amount,
         });
     }
-    const rows = [...byCategory.values()].sort((a, b) => b.total - a.total);
-    return { rows: rows.slice(0, 7), max: rows[0]?.total ?? 1 };
+    const rows = [...byCategory.values()]
+      .filter((row) => Math.abs(row.total) > 0.004)
+      .sort((a, b) => b.total - a.total);
+    const positive = rows.filter((row) => row.total > 0).map((row) => row.total);
+    return { rows: rows.slice(0, 7), max: Math.max(...positive, 1) };
   }, [transactions, matchesFilters, t]);
 
   // Totals reflect the active filters so the header stays in sync
@@ -303,7 +308,7 @@ const Transactions = () => {
                           <div
                             className="ft-progress-fill"
                             style={{
-                              width: `${(row.total / breakdown.max) * 100}%`,
+                              width: `${Math.max(0, (row.total / breakdown.max) * 100)}%`,
                               background: row.color,
                             }}
                           />

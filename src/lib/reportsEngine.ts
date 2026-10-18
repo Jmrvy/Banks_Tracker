@@ -240,6 +240,28 @@ export const periodContribution = (t: EngineTx): { role: PeriodRole; amount: num
   return ignored;
 };
 
+/**
+ * Which line a headline expense belongs on.
+ *
+ * `periodContribution` puts special-budget spend in expenses, because the
+ * money left the account. Filing that same amount under the category makes
+ * the category look like it blew its cap. The line is the special budget's
+ * name instead, so the lines still add up to headline expenses and the
+ * category is left to `categorySpendAmount`.
+ *
+ * A marked return has role expense and type income: it keeps the category
+ * name and reduces that line.
+ */
+export const headlineExpenseLine = (
+  t: Pick<EngineTx, 'type' | 'special_budget_id'>,
+  categoryName: string | null | undefined,
+  specialBudgetName: string | null | undefined,
+  unnamed = 'Uncategorized',
+): string => {
+  if (t.type === 'expense' && t.special_budget_id) return specialBudgetName || unnamed;
+  return categoryName || unnamed;
+};
+
 /** Headline stats for an already-filtered set of transactions. */
 export const computePeriodStats = (txs: EngineTx[]): PeriodStats => {
   let income = 0;

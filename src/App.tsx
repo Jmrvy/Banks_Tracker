@@ -41,6 +41,7 @@ const Install = lazy(() => import("@/pages/Install"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { CalculationDateSync } from "@/components/CalculationDateSync";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useChartTouch } from "@/hooks/useChartTouch";
@@ -266,6 +267,7 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <AuthProvider>
+                <CalculationDateSync />
                 <FinancialDataProvider>
                 <PeriodProvider>
                   <PrivacyProvider>

@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { supabaseForUser, unauthenticated, fail, ok } from "../supabase";
+import { ledgerDateColumn } from "../dateColumn";
 
 export default defineTool({
   name: "list_transactions",
@@ -19,16 +20,18 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (input, ctx) => {
     if (!ctx.isAuthenticated()) return unauthenticated();
-    let q = supabaseForUser(ctx)
+    const supabase = supabaseForUser(ctx);
+    const dateColumn = await ledgerDateColumn(supabase);
+    let q = supabase
       .from("transactions")
       .select(
         "id, description, amount, type, transaction_date, value_date, account_id, category_id, refunded_amount, include_in_stats",
       )
-      .order("transaction_date", { ascending: false })
+      .order(dateColumn, { ascending: false })
       .limit(input.limit ?? 50);
 
-    if (input.from) q = q.gte("transaction_date", input.from);
-    if (input.to) q = q.lte("transaction_date", input.to);
+    if (input.from) q = q.gte(dateColumn, input.from);
+    if (input.to) q = q.lte(dateColumn, input.to);
     if (input.type) q = q.eq("type", input.type);
     if (input.account_id) q = q.eq("account_id", input.account_id);
     if (input.category_id) q = q.eq("category_id", input.category_id);

@@ -13,6 +13,7 @@ import {
   categorySpendAmount,
   participatesInCategorySpend,
   periodContribution,
+  headlineExpenseLine,
   type EngineTx,
 } from './reportsEngine';
 import { normalizePeriod } from './dateUtils';
@@ -229,6 +230,34 @@ describe('periodContribution', () => {
     expect(periodContribution(tx({ amount: 100, type: 'expense', transaction_date: D, refunded_amount: 160 })).amount).toBe(-60);
     expect(periodContribution(tx({ amount: 100, type: 'income', transaction_date: D, repaid_amount: 100 })).amount).toBe(0);
     expect(periodContribution(tx({ amount: 500, type: 'transfer', transaction_date: D, transfer_fee: 3 }))).toEqual({ role: 'transfer_fee', amount: 3 });
+  });
+
+  it('files a special-budget expense on its own line and keeps a marked return on the category', () => {
+    const vacation = tx({ amount: 80, type: 'expense', transaction_date: D, category_id: 'loisirs', special_budget_id: 'sb' });
+    const spend = tx({ amount: 200, type: 'expense', transaction_date: D, category_id: 'loisirs' });
+    const back = tx({ amount: 50, type: 'income', transaction_date: D, category_id: 'loisirs', offsets_category: true });
+    const lines = new Map<string, number>();
+    for (const t of [vacation, spend, back]) {
+      const { role, amount } = periodContribution(t);
+      if (role !== 'expense') continue;
+      const name = headlineExpenseLine(
+        t,
+        'Loisirs',
+        t.special_budget_id ? 'Vacances' : null,
+      );
+      lines.set(name, (lines.get(name) ?? 0) + amount);
+    }
+    expect(lines.get('Vacances')).toBe(80);
+    expect(lines.get('Loisirs')).toBe(150);
+    const sum = [...lines.values()].reduce((s, n) => s + n, 0);
+    expect(sum).toBe(computePeriodStats([vacation, spend, back]).expenses);
+    expect(headlineExpenseLine(tx({ amount: 1, type: 'expense', transaction_date: D }), null, null)).toBe('Uncategorized');
+    expect(headlineExpenseLine(
+      tx({ amount: 1, type: 'expense', transaction_date: D, special_budget_id: 'sb' }),
+      'Loisirs',
+      null,
+      'Budget spécial',
+    )).toBe('Budget spécial');
   });
 
   it('counts a special-budget expense, unlike the category rule', () => {

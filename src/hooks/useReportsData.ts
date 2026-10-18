@@ -6,7 +6,7 @@ import { format, startOfMonth, endOfMonth, differenceInDays, subMonths, subYears
 import { fr } from "date-fns/locale";
 import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
 import { filterByPeriod, computePeriodStats, statsForRange, computeInitialBalance, signedGlobalAmount, realNetChange, categorySpendAmount, participatesInCategorySpend, type EngineTx } from "@/lib/reportsEngine";
-import { resolvePeriodRange, priorPeriodRange } from "@/lib/periodUtils";
+import { effectiveMonthsBetween, resolvePeriodRange, priorPeriodRange } from "@/lib/periodUtils";
 import {
   lastScheduledInstallment,
   paymentsLeft,
@@ -169,13 +169,11 @@ function asEngineTx(t: Transaction): EngineTx {
   };
 }
 
-function budgetMultiplierFor(
-  periodType: "month" | "year" | "custom",
-  period: { from: Date; to: Date },
-): number {
-  if (periodType === "year") return 12;
-  if (periodType === "custom") return (differenceInDays(period.to, period.from) + 1) / 30;
-  return 1;
+/** How many monthly caps the selected range covers. A calendar year is 12
+ *  and a calendar month is 1; a custom stub is the share of each month it
+ *  actually touches, the same denominator Budget uses. */
+function budgetMultiplierFor(period: { from: Date; to: Date }): number {
+  return effectiveMonthsBetween(period.from, period.to);
 }
 
 /** Category spend for Analyse. Same rule as Budget: a return reduces the
@@ -443,7 +441,7 @@ export const useReportsData = (
 
   // Category spend shares Budget's rule, including a marked return.
   const categoryChartData = useMemo<CategoryData[]>(
-    () => buildCategoryChartData(filteredTransactions, categories, budgetMultiplierFor(periodType, period)),
+    () => buildCategoryChartData(filteredTransactions, categories, budgetMultiplierFor(period)),
     [filteredTransactions, categories, periodType, period],
   );
 
@@ -979,7 +977,7 @@ export const useReportsData = (
     return buildCategoryChartData(
       secondaryFilteredTransactions,
       categories,
-      budgetMultiplierFor(periodType, period),
+      budgetMultiplierFor(period),
     );
   }, [useSecondary, categoryChartData, secondaryFilteredTransactions, categories, periodType, period]);
 

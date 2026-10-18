@@ -75,6 +75,7 @@ import {
 import { cn } from "@/lib/utils";
 import { describeError } from "@/lib/errorMessage";
 import { categorySpendAmount, computeCategoryNets } from "@/lib/reportsEngine";
+import { effectiveMonthsBetween } from "@/lib/periodUtils";
 import { fr as frLocale, enUS as enLocale } from "date-fns/locale";
 import {
   addDays,
@@ -209,23 +210,6 @@ function niceRoundStep(n: number): number {
 function niceRound(n: number): number {
   if (n <= 0) return 0;
   return Math.round(n / niceRoundStep(n)) * niceRoundStep(n);
-}
-
-function effectiveMonthsBetween(from: Date, to: Date): number {
-  if (to <= from) return 0;
-  let total = 0;
-  let cursor = startOfMonth(from);
-  while (cursor <= to) {
-    const monthStart = cursor;
-    const monthEnd = endOfMonth(cursor);
-    const overlapStart = monthStart < from ? from : monthStart;
-    const overlapEnd = monthEnd > to ? to : monthEnd;
-    const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
-    const monthDays = getDaysInMonth(cursor);
-    total += overlapDays / monthDays;
-    cursor = addMonths(cursor, 1);
-  }
-  return total;
 }
 
 function statusOf(used: number, periodBudget: number | null, elapsed: number): Status {
@@ -1966,13 +1950,24 @@ const Budget = () => {
                 { value: "custom", label: t("budget.pCustom", { defaultValue: "Custom" }) },
               ]}
             />
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="gap-1.5"
+              aria-label={t("budget.exportCsv", { defaultValue: "Export CSV" })}
+            >
               <Download className="h-3.5 w-3.5" />
-              {t("budget.exportCsv", { defaultValue: "Export CSV" })}
+              <span className="hidden sm:inline">{t("budget.exportCsv", { defaultValue: "Export CSV" })}</span>
             </Button>
-            <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
+            <Button
+              size="sm"
+              onClick={() => setNewOpen(true)}
+              className="gap-1.5"
+              aria-label={t("budget.newCategory", { defaultValue: "New category" })}
+            >
               <Plus className="h-3.5 w-3.5" />
-              {t("budget.newCategory", { defaultValue: "New category" })}
+              <span className="hidden sm:inline">{t("budget.newCategory", { defaultValue: "New category" })}</span>
             </Button>
           </div>
         </div>

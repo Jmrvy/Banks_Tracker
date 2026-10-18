@@ -1,7 +1,8 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { supabaseForUser, unauthenticated, fail, ok } from "../supabase";
-import { periodContribution, type EngineTx } from "../../reportsEngine";
+import { headlineExpenseLine, periodContribution, type EngineTx } from "../../reportsEngine";
+import { ledgerDateColumn } from "../dateColumn";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -27,8 +28,9 @@ export default defineTool({
     if (!ctx.isAuthenticated()) return unauthenticated();
     const supabase = supabaseForUser(ctx);
 
+    const dateColumn = await ledgerDateColumn(supabase);
     const COLUMNS =
-      "amount, type, category_id, refunded_amount, repaid_amount, include_in_stats, " +
+      "amount, type, category_id, special_budget_id, refunded_amount, repaid_amount, include_in_stats, " +
       "refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee";
 
     // Paged, and ordered so the paging is stable. This read had neither: an
@@ -43,17 +45,20 @@ export default defineTool({
       supabase
         .from("transactions")
         .select(COLUMNS, offset === 0 ? { count: "exact" } : undefined)
-        .gte("transaction_date", from)
-        .lte("transaction_date", to)
-        .order("transaction_date", { ascending: true })
+        .gte(dateColumn, from)
+        .lte(dateColumn, to)
+        .order(dateColumn, { ascending: true })
         .order("id", { ascending: true })
         .range(offset, offset + PAGE - 1);
 
-    const [first, { data: cats }] = await Promise.all([
+    const [first, { data: cats, error: catsError }, { data: budgets, error: budgetsError }] = await Promise.all([
       page(0),
       supabase.from("categories").select("id, name"),
+      supabase.from("special_budgets").select("id, name"),
     ]);
     if (first.error) return fail(first.error.message);
+    if (catsError) return fail(catsError.message);
+    if (budgetsError) return fail(budgetsError.message);
 
     const tx = [...(first.data ?? [])];
     const total = first.count ?? tx.length;
@@ -65,6 +70,7 @@ export default defineTool({
     }
 
     const names = new Map((cats ?? []).map((c) => [c.id, c.name]));
+    const budgetNames = new Map((budgets ?? []).map((b) => [b.id, b.name]));
     let income = 0;
     let expenses = 0;
     let transferFees = 0;
@@ -88,13 +94,19 @@ export default defineTool({
         // `amount` is negative for income that came back on its category,
         // which is what makes it reduce the category rather than inflate it.
         expenses += amount;
-        const key = t.category_id ? (names.get(t.category_id) ?? "Unknown") : "Uncategorized";
+        const categoryLabel = t.category_id ? (names.get(t.category_id) ?? "Unknown") : "Uncategorized";
+        const key = headlineExpenseLine(
+          t,
+          categoryLabel,
+          t.special_budget_id ? budgetNames.get(t.special_budget_id) : undefined,
+          "Special budget",
+        );
         byCategory.set(key, (byCategory.get(key) ?? 0) + amount);
       }
     }
 
     return ok({
-      period: { from, to },
+      period: { from, to, date_column: dateColumn },
       income: round2(income),
       expenses: round2(expenses),
       transfer_fees: round2(transferFees),

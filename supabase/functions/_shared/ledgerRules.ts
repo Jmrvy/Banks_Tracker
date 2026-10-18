@@ -135,6 +135,25 @@ export function periodContribution(t: LedgerRow): { role: PeriodRole; amount: nu
   return ignored;
 }
 
+/**
+ * Which line a headline expense belongs on. Mirrors headlineExpenseLine.
+ *
+ * Special-budget spend stays in headline expenses — the money left the
+ * account — but filing it under the category makes that category look
+ * over its cap. The line is the special budget's name instead. A marked
+ * return has role expense and type income: it keeps the category name
+ * and reduces that line. The lines still add up to headline expenses.
+ */
+export function headlineExpenseLine(
+  t: Pick<LedgerRow, 'type' | 'special_budget_id'>,
+  categoryName: string | null | undefined,
+  specialBudgetName: string | null | undefined,
+  unnamed = 'Uncategorized',
+): string {
+  if (t.type === 'expense' && t.special_budget_id) return specialBudgetName || unnamed;
+  return categoryName || unnamed;
+}
+
 /** Headline stats for a set of rows. Mirrors computePeriodStats. */
 export function computePeriodStats(rows: LedgerRow[]): PeriodStats {
   let income = 0;

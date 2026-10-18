@@ -191,7 +191,7 @@ const Accounts = () => {
       .reduce((s, t) => s + t.amount, 0);
     const periodExpense = periodTxns
       .filter((t) => t.include_in_stats !== false && (t.type === "expense" || (t.type === "transfer" && t.account_id === selectedAccountId)))
-      .reduce((s, t) => s + (t.type === "transfer" ? t.amount + (t.transfer_fee || 0) : Math.max(0, t.amount - (t.refunded_amount || 0))), 0);
+      .reduce((s, t) => s + (t.type === "transfer" ? t.amount + (t.transfer_fee || 0) : t.amount - (t.refunded_amount || 0)), 0);
     const periodNet = periodIncome - periodExpense;
 
     return (
@@ -311,12 +311,12 @@ const Accounts = () => {
                   </span>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 md:gap-[18px] md:border-l md:border-line md:pl-6 self-center min-w-0">
+              <div className="flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:gap-3 md:gap-[18px] md:border-l md:border-line md:pl-6 self-center min-w-0">
                 <div className="ft-hero-stat min-w-0">
                   <span className="ft-eyebrow truncate">
                     {t("common.income", { defaultValue: "Income" })}
                   </span>
-                  <span className="ft-hero-stat-value text-pos truncate">
+                  <span className="ft-hero-stat-value text-pos whitespace-nowrap">
                     +{fmtBal(periodIncome)}
                   </span>
                 </div>
@@ -324,7 +324,7 @@ const Accounts = () => {
                   <span className="ft-eyebrow truncate">
                     {t("common.expenses", { defaultValue: "Spent" })}
                   </span>
-                  <span className="ft-hero-stat-value text-destructive truncate">
+                  <span className="ft-hero-stat-value text-destructive whitespace-nowrap">
                     −{fmtBal(periodExpense)}
                   </span>
                 </div>
@@ -333,7 +333,7 @@ const Accounts = () => {
                     {t("dashboard.net", { defaultValue: "Net" })}
                   </span>
                   <span
-                    className={`ft-hero-stat-value truncate ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}
+                    className={`ft-hero-stat-value whitespace-nowrap ${periodNet >= 0 ? "text-pos" : "text-destructive"}`}
                   >
                     {fmtBal(periodNet, { sign: true })}
                   </span>

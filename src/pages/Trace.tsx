@@ -15,7 +15,7 @@ import { useDateFnsLocale } from "@/hooks/useDateFnsLocale";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
-import { parseLocalDate } from "@/lib/dateUtils";
+import { getTxDate } from "@/lib/dateUtils";
 
 interface ActivityRow {
   id: string;
@@ -35,7 +35,7 @@ interface ActivityRow {
 function useRadar() {
   const { t } = useTranslation();
   const { transactions, categories } = useFinancialData();
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
 
   return useMemo(() => {
     const cards: { id: string; title: string; sub: string; body: string; action: string; query: string }[] = [];
@@ -44,10 +44,14 @@ function useRadar() {
     // income to uncategorized spending gives a headline figure that is
     // neither one nor the other.
     const uncategorized = transactions.filter(
-      (tx) => !tx.category && tx.type === "expense" && tx.include_in_stats !== false,
+      (tx) =>
+        !tx.category &&
+        tx.type === "expense" &&
+        tx.include_in_stats !== false &&
+        !tx.repayment_of_transaction_id,
     );
     if (uncategorized.length > 0) {
-      const total = uncategorized.reduce((s, tx) => s + Math.abs(tx.amount), 0);
+      const total = uncategorized.reduce((s, tx) => s + (tx.amount - (tx.refunded_amount || 0)), 0);
       cards.push({
         id: "uncategorized",
         title: t("trace.radarUncategorized", {
@@ -75,15 +79,27 @@ function useRadar() {
     // only worth raising about one that actually spends.
     const everSpent = new Set<string>();
     for (const tx of transactions) {
-      if (tx.type !== "expense" || tx.include_in_stats === false || !tx.category) continue;
-      if (tx.special_budget_id) continue;
-      everSpent.add(tx.category.id);
-      if (parseLocalDate(tx.transaction_date) < monthStart) continue;
-      // Not floored, matching netExpenseAmount: an expense refunded past its
-      // value makes the category cheaper, and flooring would hide that from
-      // the over-budget check.
-      const net = tx.amount - (tx.refunded_amount || 0);
-      spendByCategory.set(tx.category.id, (spendByCategory.get(tx.category.id) ?? 0) + net);
+      if (tx.include_in_stats === false || !tx.category || tx.special_budget_id) continue;
+      if (tx.type === "expense") {
+        if (tx.repayment_of_transaction_id) continue;
+        everSpent.add(tx.category.id);
+        if (getTxDate(tx, preferences.dateType) < monthStart) continue;
+        // Not floored, matching netExpenseAmount: an expense refunded past its
+        // value makes the category cheaper, and flooring would hide that from
+        // the over-budget check.
+        const net = tx.amount - (tx.refunded_amount || 0);
+        spendByCategory.set(tx.category.id, (spendByCategory.get(tx.category.id) ?? 0) + net);
+      } else if (
+        tx.type === "income" &&
+        tx.offsets_category &&
+        !tx.refund_of_transaction_id &&
+        getTxDate(tx, preferences.dateType) >= monthStart
+      ) {
+        // A marked return reduces this month's category spend. It does not
+        // make a category "one that spends" on its own.
+        const net = Math.max(0, tx.amount - (tx.repaid_amount || 0));
+        spendByCategory.set(tx.category.id, (spendByCategory.get(tx.category.id) ?? 0) - net);
+      }
     }
     const over = categories
       .filter((c) => c.budget != null && c.budget > 0 && (spendByCategory.get(c.id) ?? 0) > c.budget!)
@@ -139,7 +155,7 @@ function useRadar() {
     }
 
     return cards;
-  }, [transactions, categories, t, formatCurrency]);
+  }, [transactions, categories, t, formatCurrency, preferences.dateType]);
 }
 
 function Radar({ onAsk }: { onAsk: (query: string) => void }) {

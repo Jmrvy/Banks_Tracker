@@ -87,10 +87,9 @@ const Savings = () => {
     return transactions.filter(tx => {
       if (!tx.installment_payment_id) return false;
       if (!reimbursementInstallmentIds.has(tx.installment_payment_id)) return false;
-      const transactionDate = parseLocalDate(tx.transaction_date);
-      return isWithinInterval(transactionDate, { start: dateRange.start, end: dateRange.end });
+      return isWithinInterval(getTxDate(tx, preferences.dateType), { start: dateRange.start, end: dateRange.end });
     });
-  }, [transactions, reimbursementInstallmentIds, dateRange]);
+  }, [transactions, reimbursementInstallmentIds, dateRange, preferences.dateType]);
 
   const reimbursementStats = useMemo(() => {
     const total = reimbursementTransactions.reduce((sum, tx) => sum + tx.amount, 0);
@@ -177,7 +176,7 @@ const Savings = () => {
         amount: tx.type === 'expense' ? netExpenseAmount(tx as any) : -netIncomeAmount(tx as any),
       })),
       ...reimbursementTransactions.map(tx => ({
-        date: parseLocalDate(tx.transaction_date),
+        date: getTxDate(tx, preferences.dateType),
         amount: tx.amount,
       }))
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -189,7 +188,7 @@ const Savings = () => {
     });
 
     return { totalSaved: netTotal, transactionCount: periodTransactions.length + reimbursementTransactions.length, trendData, incomeTotal, expenseTotal, netTotal };
-  }, [periodTransactions, investmentCategoryIds, reimbursementTransactions, reimbursementStats.total]);
+  }, [periodTransactions, investmentCategoryIds, reimbursementTransactions, reimbursementStats.total, preferences.dateType]);
 
   // Calculate monthly average based on weighted recent months (more weight to recent)
   const allTimeStats = useMemo(() => {
@@ -214,7 +213,7 @@ const Savings = () => {
 
       const monthTotal = allInvestmentTransactions
         .filter(tx => {
-          const d = parseLocalDate(tx.transaction_date);
+          const d = getTxDate(tx, preferences.dateType);
           return d >= monthStart && d <= monthEnd;
         })
         .reduce((sum, tx) => {
@@ -233,7 +232,7 @@ const Savings = () => {
     const weightedAverage = weightedSum / totalWeight;
 
     return { monthlyAverage: weightedAverage };
-  }, [transactions, investmentCategoryIds, isInvestment]);
+  }, [transactions, investmentCategoryIds, isInvestment, preferences.dateType]);
 
   // Presentation-level folds of figures the page already holds — nothing new
   // is computed, the same rows are simply grouped by month for the breakdown
