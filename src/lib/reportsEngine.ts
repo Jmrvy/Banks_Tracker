@@ -160,6 +160,40 @@ export const computeCategoryNets = (txs: EngineTx[]): Map<string, CategoryNet> =
   return out;
 };
 
+/**
+ * Signed contribution of one row to its category's spend.
+ *
+ * The per-row form of `computeCategoryNets`: summing this over the rows of
+ * one category equals that category's `net`. Income counts only when it is
+ * marked as having come back on the category — ordinary income that shares
+ * the name is earnings, and the app cannot tell a real investment from
+ * money put back until that mark is set.
+ */
+export const categorySpendAmount = (t: EngineTx): number => {
+  if (t.include_in_stats === false) return 0;
+  if (t.type === 'expense') {
+    if (t.repayment_of_transaction_id) return 0;
+    if (t.special_budget_id) return 0;
+    return netExpenseAmount(t);
+  }
+  if (t.type === 'income') {
+    if (!t.offsets_category) return 0;
+    if (t.refund_of_transaction_id) return 0;
+    return -netIncomeAmount(t);
+  }
+  return 0;
+};
+
+/** Rows that belong in a category-spend list, including a fully refunded
+ *  expense whose net is zero. Distinct from `categorySpendAmount`, which
+ *  returns 0 both for those and for rows that are not spending at all. */
+export const participatesInCategorySpend = (t: EngineTx): boolean => {
+  if (t.include_in_stats === false) return false;
+  if (t.type === 'expense') return !t.repayment_of_transaction_id && !t.special_budget_id;
+  if (t.type === 'income') return !!t.offsets_category && !t.refund_of_transaction_id;
+  return false;
+};
+
 export type PeriodRole = 'income' | 'expense' | 'transfer_fee' | 'ignored';
 
 /**

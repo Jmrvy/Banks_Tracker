@@ -74,7 +74,7 @@ import {
 } from "@/lib/scheduledCharges";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/lib/errorMessage";
-import { computeCategoryNets } from "@/lib/reportsEngine";
+import { categorySpendAmount, computeCategoryNets } from "@/lib/reportsEngine";
 import { fr as frLocale, enUS as enLocale } from "date-fns/locale";
 import {
   addDays,
@@ -184,28 +184,11 @@ function Money({ v, className }: { v: number; className?: string }) {
  * outright. Flooring either at zero is what had this page reading 104 % of
  * budget beside "40,00 € left" on the same card.
  */
+/** Per-row figure for the charts. The period total still comes from
+ *  `computeCategoryNets`; this is the same rule, so a marked return
+ *  ("came back on this category") reduces the cap here too. */
 function categorySpend(tx: Transaction): number {
-  if (tx.include_in_stats === false) return 0;
-  if (tx.type === "expense") {
-    // Repaying an advance is settling a debt, not spending. The income it
-    // repays already counts net of it; charging it to a budget as well would
-    // take the same money out twice.
-    if (tx.repayment_of_transaction_id) return 0;
-    // Tagged to a special event/trip budget — counted there, not under
-    // the regular category budget bracket.
-    if (tx.special_budget_id) return 0;
-    return tx.amount - (tx.refunded_amount || 0);
-  }
-  if (tx.type === "income") {
-    // Only income that says it came back on this category. A linked refund
-    // already nets through its expense's refunded_amount.
-    if (!tx.offsets_category) return 0;
-    if (tx.refund_of_transaction_id) return 0;
-    // Floored, matching netIncomeAmount: an advance repaid past its value
-    // is not a credit to the budget it was never charged to.
-    return -Math.max(0, tx.amount - (tx.repaid_amount || 0));
-  }
-  return 0;
+  return categorySpendAmount(tx);
 }
 
 function p75(arr: number[]): number {

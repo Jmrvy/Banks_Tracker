@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type { ReportCtx } from '../types';
+import { participatesInCategorySpend } from '@/lib/reportsEngine';
 
 export function renderBudgets(ctx: ReportCtx) {
   const {
@@ -88,10 +89,7 @@ export function renderBudgets(ctx: ReportCtx) {
     // when only nine of them were inside the 588.88.
     const txCount = filteredTransactions.filter(
       (tx) =>
-        tx.type === 'expense' &&
-        tx.include_in_stats !== false &&
-        !tx.special_budget_id &&
-        !tx.repayment_of_transaction_id &&
+        participatesInCategorySpend(tx) &&
         (tx.category?.name || '').toLowerCase() === wName,
     ).length;
 

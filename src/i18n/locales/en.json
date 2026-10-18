@@ -1044,7 +1044,7 @@
         ],
         "tips": [
           "Set realistic goals using your average monthly savings — visible in the Reports page.",
-          "Income tagged as 'Investment' is a deposit; expense tagged as 'Investment' is a withdrawal."
+          "An expense tagged Investment is money put away; an income tagged Investment is money taken out. Savings nets both. A budget keeps the expense until that income is marked “Came back on this category”."
         ],
         "title": "Savings"
       },

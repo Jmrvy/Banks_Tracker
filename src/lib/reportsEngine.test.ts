@@ -10,6 +10,8 @@ import {
   netExpenseAmount,
   netIncomeAmount,
   computeCategoryNets,
+  categorySpendAmount,
+  participatesInCategorySpend,
   periodContribution,
   type EngineTx,
 } from './reportsEngine';
@@ -135,6 +137,21 @@ describe('computeCategoryNets', () => {
 
   // The case a refund link cannot express: a gambling payout is not a refund
   // of any one stake, so it carries the flag instead of a target expense.
+  it('categorySpendAmount sums to the same net', () => {
+    const txs = [
+      tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),
+      tx({ amount: 130, type: 'income', transaction_date: '2026-06-02', category_id: 'loisirs', offsets_category: true }),
+      tx({ amount: 80, type: 'income', transaction_date: '2026-06-03', category_id: 'loisirs' }),
+      tx({ amount: 40, type: 'expense', transaction_date: '2026-06-04', category_id: 'loisirs', include_in_stats: false }),
+      tx({ amount: 15, type: 'expense', transaction_date: '2026-06-05', category_id: 'loisirs', special_budget_id: 'trip' }),
+      tx({ amount: 10, type: 'transfer', transaction_date: '2026-06-06', category_id: 'loisirs', transfer_fee: 1 }),
+    ];
+    const sum = txs.reduce((s, t) => s + categorySpendAmount(t), 0);
+    expect(sum).toBe(computeCategoryNets(txs).get('loisirs')!.net);
+    expect(sum).toBe(70);
+    expect(txs.filter(participatesInCategorySpend)).toHaveLength(2);
+  });
+
   it('subtracts income that says it came back on the category', () => {
     const txs = [
       tx({ amount: 200, type: 'expense', transaction_date: '2026-06-01', category_id: 'loisirs' }),

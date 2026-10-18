@@ -1044,7 +1044,7 @@
         ],
         "tips": [
           "Définissez des objectifs réalistes basés sur votre épargne mensuelle moyenne visible dans les Rapports.",
-          "Un revenu en catégorie « Investissement » est un dépôt ; une dépense en catégorie « Investissement » est un retrait."
+          "Une dépense taguée investissement est un versement ; un revenu tagué investissement est un retrait. Épargne les solde. Le budget garde la dépense tant que ce revenu n'est pas marqué « Revenu sur cette catégorie »."
         ],
         "title": "Épargne"
       },
