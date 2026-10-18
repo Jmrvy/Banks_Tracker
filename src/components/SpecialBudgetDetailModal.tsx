@@ -216,12 +216,12 @@ export const SpecialBudgetDetailModal = ({
           {/* Body */}
           <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
             {/* KPIs */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
               <div className="bg-bg-subtle border border-line rounded-xl px-3 py-2.5">
                 <div className="text-[10px] uppercase tracking-[0.04em] font-semibold text-muted-foreground">
                   {t('specialBudgets.committed', { defaultValue: 'Committed' })}
                 </div>
-                <div className="font-mono text-lg font-bold tracking-tight mt-1">
+                <div className="font-mono text-base sm:text-lg font-bold tracking-tight mt-1 whitespace-nowrap">
                   {formatCurrency(c.total)}
                 </div>
               </div>
@@ -231,7 +231,7 @@ export const SpecialBudgetDetailModal = ({
                 </div>
                 <div
                   className={cn(
-                    'font-mono text-lg font-bold tracking-tight mt-1',
+                    'font-mono text-base sm:text-lg font-bold tracking-tight mt-1 whitespace-nowrap',
                     c.over && 'text-neg'
                   )}
                 >
@@ -244,7 +244,7 @@ export const SpecialBudgetDetailModal = ({
                 </div>
                 <div
                   className={cn(
-                    'font-mono text-lg font-bold tracking-tight mt-1',
+                    'font-mono text-base sm:text-lg font-bold tracking-tight mt-1 whitespace-nowrap',
                     c.remaining < 0 ? 'text-neg' : 'text-pos'
                   )}
                 >

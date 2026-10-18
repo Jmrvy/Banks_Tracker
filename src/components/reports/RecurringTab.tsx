@@ -239,18 +239,18 @@ export const RecurringTab = ({
             </h3>
             {spendingPatternsData ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <div className="p-2 bg-success/5 border border-success/10 rounded-xl text-center">
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Moy. entrants/j</p>
-                    <p className={cn("text-xs sm:text-sm font-semibold text-success font-mono tabular-nums", isPrivacyMode && "ft-priv")}>+{formatCurrency(spendingPatternsData.dailyAvgIncome)}</p>
+                    <p className={cn("text-xs sm:text-sm font-semibold text-success font-mono tabular-nums whitespace-nowrap", isPrivacyMode && "ft-priv")}>+{formatCurrency(spendingPatternsData.dailyAvgIncome)}</p>
                   </div>
                   <div className="p-2 bg-destructive/5 border border-destructive/10 rounded-xl text-center">
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Moy. sortants/j</p>
-                    <p className={cn("text-xs sm:text-sm font-semibold text-destructive font-mono tabular-nums", isPrivacyMode && "ft-priv")}>-{formatCurrency(spendingPatternsData.dailyAvgExpenses)}</p>
+                    <p className={cn("text-xs sm:text-sm font-semibold text-destructive font-mono tabular-nums whitespace-nowrap", isPrivacyMode && "ft-priv")}>-{formatCurrency(spendingPatternsData.dailyAvgExpenses)}</p>
                   </div>
                   <div className={cn("p-2 rounded-xl text-center border", spendingPatternsData.dailyNet >= 0 ? "bg-success/5 border-success/10" : "bg-destructive/5 border-destructive/10")}>
                     <p className="text-[9px] sm:text-[10px] text-muted-foreground">Net/jour</p>
-                    <p className={cn("text-xs sm:text-sm font-semibold font-mono tabular-nums", spendingPatternsData.dailyNet >= 0 ? "text-success" : "text-destructive", isPrivacyMode && "ft-priv")}>
+                    <p className={cn("text-xs sm:text-sm font-semibold font-mono tabular-nums whitespace-nowrap", spendingPatternsData.dailyNet >= 0 ? "text-success" : "text-destructive", isPrivacyMode && "ft-priv")}>
                       {spendingPatternsData.dailyNet >= 0 ? '+' : ''}{formatCurrency(spendingPatternsData.dailyNet)}
                     </p>
                   </div>

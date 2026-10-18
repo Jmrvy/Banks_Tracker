@@ -651,20 +651,22 @@ export const NewInstallmentPaymentModal = ({ open, onOpenChange }: NewInstallmen
                 <ListChecks className="h-4 w-4 text-primary" />
                 <Label className="text-sm font-medium">Échéancier {calculationMode === 'manual' ? 'personnalisé' : 'prévisionnel'}</Label>
               </div>
-              <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
-                  <span>#</span>
-                  <span>Date</span>
-                  <span className="text-right">Montant</span>
-                </div>
-                <div className="max-h-[40vh] overflow-y-auto divide-y divide-border">
-                  {schedulePreview.map((item) => (
-                    <div key={item.index} className="grid grid-cols-3 gap-2 px-3 py-2 text-xs">
-                      <span className="text-muted-foreground">{item.index}</span>
-                      <span>{format(item.date, 'dd/MM/yyyy')}</span>
-                      <span className="text-right font-medium font-mono tabular-nums">{formatCurrency(item.amount)}</span>
-                    </div>
-                  ))}
+              <div className="border rounded-lg overflow-x-auto">
+                <div className="min-w-[18rem]">
+                  <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
+                    <span>#</span>
+                    <span>Date</span>
+                    <span className="text-right">Montant</span>
+                  </div>
+                  <div className="max-h-[40vh] overflow-y-auto divide-y divide-border">
+                    {schedulePreview.map((item) => (
+                      <div key={item.index} className="grid grid-cols-3 gap-2 px-3 py-2 text-xs">
+                        <span className="text-muted-foreground">{item.index}</span>
+                        <span>{format(item.date, 'dd/MM/yyyy')}</span>
+                        <span className="text-right font-medium font-mono tabular-nums whitespace-nowrap">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
