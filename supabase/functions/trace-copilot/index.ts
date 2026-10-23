@@ -445,6 +445,11 @@ async function runTool(
         .map((t: any) => ({
           id: t.id,
           date: dateColumn === "value_date" ? (t.value_date || t.transaction_date) : t.transaction_date,
+          // Both dates, always: `date` follows the user's basis, but a
+          // question about the OTHER date ("what's the value date of…")
+          // is unanswerable when the row only carries the selected one.
+          transaction_date: t.transaction_date,
+          value_date: t.value_date ?? null,
           description: t.description,
           amount: t.type === "expense"
             ? netExpense(t)
@@ -622,6 +627,9 @@ async function runTool(
       const rows = (data ?? []).map((t: any) => ({
         id: t.id,
         date: dateColumn === "value_date" ? (t.value_date || t.transaction_date) : t.transaction_date,
+        // Both dates, always — see search_transactions.
+        transaction_date: t.transaction_date,
+        value_date: t.value_date ?? null,
         description: t.description,
         amount: Number(t.amount),
         type: t.type,
