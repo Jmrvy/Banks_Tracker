@@ -51,7 +51,10 @@ const DEFAULT_REASONING_EFFORT = Deno.env.get("TRACE_REASONING_EFFORT") ?? "medi
  * target — a real multi-round answer has been seen to take 119s, so
  * trimming this to feel safer just converts slow successes into failures.
  */
-const INVOCATION_BUDGET_MS = 135_000;
+// The reply now streams keep-alive bytes (see `streamingHandler`), so the
+// 150s idle cut-off no longer applies; what remains is the worker's wall
+// clock (400s on paid plans). Kept well under it to leave time to reply.
+const INVOCATION_BUDGET_MS = 330_000;
 
 /** Held back from the last call so a timeout can still be reported. */
 const RESPONSE_RESERVE_MS = 3_000;
@@ -1097,7 +1100,7 @@ const handler = async (req: Request): Promise<Response> => {
               "larger output budget in Settings › Trace copilot."
             : ranOutOfTime
             ? `Trace ran out of time on that one. ${model} needed more than the ` +
-              "two minutes a request gets. Narrow the question — one period, or one " +
+              "five minutes a request gets. Narrow the question — one period, or one " +
               "kind of spending — or pick a faster model in Settings › Trace copilot."
             : outOfRounds
               ? `Trace kept gathering and never answered. ${model} used all ` +
@@ -1130,4 +1133,40 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-serve(handler);
+/**
+ * Supabase drops a request whose response has not started within 150s,
+ * however long the worker itself may run. A multi-round answer can take
+ * longer, so the response starts at once and a space is written every few
+ * seconds while Trace works; the JSON follows. Leading whitespace is valid
+ * JSON, so `functions.invoke` still parses the body unchanged. Status is
+ * always 200 — every failure is already reported in the body as `error`.
+ */
+const HEARTBEAT_MS = 5_000;
+const streamingHandler = (req: Request): Response | Promise<Response> => {
+  if (req.method === "OPTIONS") return handler(req);
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(enc.encode(" "));
+      const beat = setInterval(() => {
+        try { controller.enqueue(enc.encode(" ")); } catch { /* closed */ }
+      }, HEARTBEAT_MS);
+      handler(req)
+        .then((res) => res.text())
+        .catch((err) =>
+          JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
+        )
+        .then((text) => {
+          clearInterval(beat);
+          controller.enqueue(enc.encode(text));
+          controller.close();
+        });
+    },
+  });
+  return new Response(stream, {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-cache" },
+  });
+};
+
+serve(streamingHandler);
