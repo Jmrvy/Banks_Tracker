@@ -329,44 +329,38 @@ const NewTransaction = () => {
               {/* Destination Account Selection (Transfer only) */}
               {formData.type === 'transfer' && (
                 <div className="ft-field">
-                  <label htmlFor="to_account">
+                  <label>
                     {t('newTransaction.destinationAccount', { defaultValue: 'Destination account' })} *
                   </label>
-                  <Select
-                    value={formData.to_account_id} 
-                    onValueChange={(value) => {
-                      setFormData(prev => {
-                        const toAccount = accounts.find(acc => acc.id === value);
-                        const fromAccount = accounts.find(acc => acc.id === prev.account_id);
-                        const aliases = preferences?.accountAliases || {};
-                        const getAlias = (acc: any) => aliases[acc.id] || acc.name;
-                        const autoDescription = fromAccount && toAccount 
-                          ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
-                          : prev.description;
-                        return { ...prev, to_account_id: value, description: autoDescription };
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={t('common.selectDestinationAccount', {
-                          defaultValue: 'Select the destination account',
-                        })}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{account.name}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {account.bank.replace(/_/g, ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-wrap gap-2">
+                    {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
+                      <button
+                        key={account.id}
+                        type="button"
+                        aria-pressed={formData.to_account_id === account.id}
+                        onClick={() => {
+                          setFormData(prev => {
+                            const toAccount = accounts.find(acc => acc.id === account.id);
+                            const fromAccount = accounts.find(acc => acc.id === prev.account_id);
+                            const aliases = preferences?.accountAliases || {};
+                            const getAlias = (acc: any) => aliases[acc.id] || acc.name;
+                            const autoDescription = fromAccount && toAccount
+                              ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
+                              : prev.description;
+                            return { ...prev, to_account_id: account.id, description: autoDescription };
+                          });
+                        }}
+                        className={`ft-chip ${formData.to_account_id === account.id ? 'active' : ''}`}
+                      >
+                        <i
+                          className="dot"
+                          style={{ background: BANK_COLORS[account.bank] ?? BANK_COLORS.other }}
+                          aria-hidden
+                        />
+                        {account.name}
+                      </button>
+                    ))}
+                  </div>
                   {selectedToAccount && (
                     <p className="text-[12px] text-fg-mute">
                       {t('common.balance', { defaultValue: 'Balance' })}: {formatCurrency(selectedToAccount.balance)}
