@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -8,6 +9,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dateUtils";
+import { periodContributions } from "@/lib/reportsEngine";
 
 interface Transaction {
   id: string;
@@ -27,6 +29,10 @@ interface Transaction {
   };
   isProjection?: boolean;
   projectedSource?: 'recurring' | 'debt' | 'installment';
+  include_in_stats?: boolean | null;
+  offsets_category?: boolean | null;
+  repayment_of_transaction_id?: string | null;
+  repaid_amount?: number | null;
 }
 
 interface TransactionTypeModalProps {
@@ -36,6 +42,13 @@ interface TransactionTypeModalProps {
   type: 'income' | 'expense';
   period: string;
   dateType?: 'accounting' | 'value';
+  /** Select and sum rows with the headline period rule (`periodContributions`)
+   *  instead of trusting the caller's list. Pass every transaction of the
+   *  period: the modal keeps the rows that count toward `type` and the amount
+   *  each contributes, so its total equals the card that opened it — money
+   *  that came back on a category appears as a negative spending line, and
+   *  repayments, repaid income and over-refunds net exactly as on the card. */
+  periodRule?: boolean;
 }
 
 export const TransactionTypeModal = ({
@@ -44,7 +57,8 @@ export const TransactionTypeModal = ({
   transactions,
   type,
   period,
-  dateType
+  dateType,
+  periodRule = false,
 }: TransactionTypeModalProps) => {
   const { t } = useTranslation();
   const { preferences, formatCurrency } = useUserPreferences();
@@ -66,7 +80,23 @@ export const TransactionTypeModal = ({
     return net;
   };
 
-  const totalAmount = transactions.reduce((sum, t) => sum + getDisplayAmount(t), 0);
+  // One amount per row, from the same rule as the card when `periodRule` is set.
+  const rows = useMemo(() => {
+    if (!periodRule) {
+      return transactions.map((tx) => ({ tx, amount: getDisplayAmount(tx) }));
+    }
+    const out: { tx: Transaction; amount: number }[] = [];
+    for (const tx of transactions) {
+      const parts = periodContributions(tx as any).filter((p) => p.role === type);
+      if (parts.length === 0) continue;
+      out.push({ tx, amount: parts.reduce((s, p) => s + p.amount, 0) });
+    }
+    return out;
+    // getDisplayAmount only reads `type`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions, periodRule, type]);
+
+  const totalAmount = rows.reduce((sum, r) => sum + r.amount, 0);
   const title = type === 'income' ? t('common.income') : t('common.expenses');
   const Icon = type === 'income' ? TrendingUp : TrendingDown;
   const colorClass = type === 'income' ? 'text-success' : 'text-destructive';
@@ -113,12 +143,12 @@ export const TransactionTypeModal = ({
             </div>
             <div className="ft-kpi">
               <span className="ft-kpi-label truncate">{t('common.transactions', { defaultValue: 'Transactions' })}</span>
-              <div className="ft-kpi-value">{transactions.length}</div>
+              <div className="ft-kpi-value">{rows.length}</div>
             </div>
           </div>
 
           {/* Transactions List */}
-          {transactions.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="ft-card flush">
               <div className="ft-empty">
                 <Icon className="h-[26px] w-[26px]" />
@@ -128,9 +158,12 @@ export const TransactionTypeModal = ({
           ) : (
             <div className="ft-card flush">
               <TooltipProvider>
-                {transactions.map((transaction) => {
+                {rows.map(({ tx: transaction, amount: rowAmount }) => {
                   const hasDiff = hasDateDifference(transaction);
-                  const refundInfo = type === 'expense' ? getRefundInfo(transaction) : null;
+                  // A spending line carried by an income/transfer is money
+                  // that came back on its category: it lowers the total.
+                  const isMoneyBack = type === 'expense' && transaction.type !== 'expense';
+                  const refundInfo = type === 'expense' && !isMoneyBack ? getRefundInfo(transaction) : null;
 
                   return (
                     /* Read-only rows: keep the divided-list shape but no hover
@@ -142,6 +175,11 @@ export const TransactionTypeModal = ({
                           {transaction.isProjection && (
                             <span className="ft-tag acc flex-shrink-0">
                               {t('reports.forecastSuffix', { defaultValue: 'forecast' })}
+                            </span>
+                          )}
+                          {isMoneyBack && (
+                            <span className="ft-tag pos flex-shrink-0">
+                              {t('transactions.moneyBack', { defaultValue: 'money back' })}
                             </span>
                           )}
                           {type === 'expense' && refundInfo?.hasRefund && (
@@ -168,7 +206,7 @@ export const TransactionTypeModal = ({
                                   <p className="font-medium">
                                     Net (stats) :{' '}
                                     <span className={cn('font-mono tabular-nums', isPrivacyMode && 'ft-priv')}>
-                                      {formatCurrency(refundInfo.net)}
+                                      {formatCurrency(rowAmount)}
                                     </span>
                                   </p>
                                 </div>
@@ -232,12 +270,12 @@ export const TransactionTypeModal = ({
                                 isPrivacyMode && 'ft-priv',
                               )}
                             >
-                              {formatCurrency(refundInfo.net)}
+                              {formatCurrency(rowAmount)}
                             </span>
                           </>
                         ) : (
-                          <span className={cn('ft-row-amt block', colorClass, isPrivacyMode && 'ft-priv')}>
-                            {formatCurrency(Number(transaction.amount))}
+                          <span className={cn('ft-row-amt block', isMoneyBack ? 'text-success' : colorClass, isPrivacyMode && 'ft-priv')}>
+                            {formatCurrency(rowAmount)}
                           </span>
                         )}
                       </div>

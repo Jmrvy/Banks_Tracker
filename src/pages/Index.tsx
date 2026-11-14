@@ -281,7 +281,8 @@ const Index = () => {
       <TransactionTypeModal
         open={showIncomeModal}
         onOpenChange={setShowIncomeModal}
-        transactions={filteredTransactions.filter(t => t.type === 'income')}
+        transactions={filteredTransactions}
+        periodRule
         type="income"
         period={periodLabel}
       />
@@ -289,7 +290,8 @@ const Index = () => {
       <TransactionTypeModal
         open={showExpensesModal}
         onOpenChange={setShowExpensesModal}
-        transactions={filteredTransactions.filter(t => t.type === 'expense')}
+        transactions={filteredTransactions}
+        periodRule
         type="expense"
         period={periodLabel}
       />

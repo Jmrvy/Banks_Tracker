@@ -2232,6 +2232,7 @@
     "linkRepaymentDesc": "Rattachement de {{amount}}. Le revenu sera compté net, et cette ligne cessera de compter comme une dépense.",
     "linkRepaymentTitle": "Quel revenu ce remboursement rembourse-t-il ?",
     "loadMore": "Charger plus",
+    "moneyBack": "retour",
     "nOnThisAccount_one": "{{count}} opération sur ce compte",
     "nOnThisAccount_other": "{{count}} opérations sur ce compte",
     "newTransaction": "Nouvelle Transaction",

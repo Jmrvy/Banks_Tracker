@@ -221,21 +221,13 @@ const Reports = () => {
     );
   }, [includeUpcoming, recurringData.periodItems, t]);
 
-  const incomeModalTransactions = useMemo(() => {
-    const realTransactions = filteredTransactions.filter(tx => tx.type === 'income' && tx.include_in_stats !== false && !tx.refund_of_transaction_id);
+  // Every row of the period plus the forecast; the modal keeps what counts
+  // toward its side under the same rule as the card (`periodRule`), so the
+  // list adds up to the figure that was clicked.
+  const modalTransactions = useMemo(() => {
     const combined = includeUpcoming
-      ? [...realTransactions, ...projectedTransactions.filter(tx => tx.type === 'income')]
-      : realTransactions;
-
-    return [...combined].sort((a, b) => getTxDate(b, dateType).getTime() - getTxDate(a, dateType).getTime());
-  }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
-
-  const expenseModalTransactions = useMemo(() => {
-    const realTransactions = filteredTransactions.filter(tx => tx.type === 'expense' && tx.include_in_stats !== false);
-    const combined = includeUpcoming
-      ? [...realTransactions, ...projectedTransactions.filter(tx => tx.type === 'expense')]
-      : realTransactions;
-
+      ? [...filteredTransactions, ...projectedTransactions]
+      : filteredTransactions;
     return [...combined].sort((a, b) => getTxDate(b, dateType).getTime() - getTxDate(a, dateType).getTime());
   }, [dateType, filteredTransactions, includeUpcoming, projectedTransactions]);
 
@@ -394,7 +386,8 @@ const Reports = () => {
       <TransactionTypeModal
         open={showIncomeModal}
         onOpenChange={setShowIncomeModal}
-        transactions={incomeModalTransactions}
+        transactions={modalTransactions}
+        periodRule
         type="income"
         period={period.label}
         dateType={dateType}
@@ -403,7 +396,8 @@ const Reports = () => {
       <TransactionTypeModal
         open={showExpensesModal}
         onOpenChange={setShowExpensesModal}
-        transactions={expenseModalTransactions}
+        transactions={modalTransactions}
+        periodRule
         type="expense"
         period={period.label}
         dateType={dateType}

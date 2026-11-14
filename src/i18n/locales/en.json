@@ -2232,6 +2232,7 @@
     "linkRepaymentDesc": "Attaching {{amount}}. The income will count net of it, and this row will stop counting as spending.",
     "linkRepaymentTitle": "Which income does this repay?",
     "loadMore": "Load more",
+    "moneyBack": "money back",
     "nOnThisAccount_one": "{{count}} on this account",
     "nOnThisAccount_other": "{{count}} on this account",
     "newTransaction": "New Transaction",
