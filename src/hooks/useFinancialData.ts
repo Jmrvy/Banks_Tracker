@@ -5,6 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { recalculateDebtRemaining } from '@/utils/debtUtils';
 import { resolveNamePlaceholders } from '@/utils/namePlaceholders';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { legAmount } from '@/lib/fx';
+import { useFxRates } from '@/hooks/useFxRates';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 
 // Query keys for React Query cache
@@ -25,6 +28,19 @@ export interface Account {
    * accounting dates, so a future-posted transaction cannot move cash early. */
   initial_balance?: number;
   created_at: string;
+  /** Set on a currency subaccount: the main account it belongs to. */
+  parent_account_id?: string | null;
+  /** Set on a currency subaccount (e.g. "GBP"); empty = base currency. */
+  currency?: string | null;
+  /** Base-currency rate of the subaccount's opening balance. */
+  initial_fx_rate?: number | null;
+  /** Weighted average rate of the currency held (maintained by the DB). */
+  fx_rate?: number | null;
+  /** Subaccounts only, computed client-side: balance in its own currency. */
+  native_balance?: number;
+  /** Subaccounts only: base per foreign unit used for `balance` (market,
+   *  or the average rate when no market rate is known). */
+  value_rate?: number;
 }
 
 export interface Transaction {
@@ -36,10 +52,13 @@ export interface Transaction {
   transaction_date: string; // Date comptable
   value_date: string; // Date de valeur
   include_in_stats: boolean; // Si la transaction doit être incluse dans les stats
-  account: { name: string; bank: string };
+  account: { name: string; bank: string; currency?: string | null };
   category: { id: string; name: string; color: string; icon?: string | null } | null;
   transfer_to_account_id?: string;
-  transfer_to_account?: { name: string; bank: string };
+  transfer_to_account?: { name: string; bank: string; currency?: string | null };
+  /** Amount in the subaccount's own currency, when one side is a currency
+   *  subaccount. `amount` is always in the base currency. */
+  foreign_amount?: number | null;
   transfer_fee?: number;
   refund_of_transaction_id?: string | null;
   /** Income, or a transfer marked as money put back: this principal came
@@ -151,9 +170,9 @@ function useFinancialDataInternal() {
           .select(
             `
           *,
-          account:accounts!transactions_account_id_fkey(name, bank),
+          account:accounts!transactions_account_id_fkey(name, bank, currency),
           category:categories(id, name, color, icon),
-          transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank)
+          transfer_to_account:accounts!transactions_transfer_to_account_id_fkey(name, bank, currency)
         `,
             from === 0 ? { count: 'exact' } : undefined,
           )
@@ -201,6 +220,11 @@ function useFinancialDataInternal() {
   });
 
   const transactions = transactionsQuery.data ?? [];
+  const { preferences } = useUserPreferences();
+  const { rates: marketRates } = useFxRates(
+    preferences.currency || 'EUR',
+    (accountsQuery.data ?? []).map((a) => a.currency).filter(Boolean) as string[],
+  );
   const accounts = useMemo(() => {
     const rawAccounts = accountsQuery.data ?? [];
     const today = new Date();
@@ -212,27 +236,40 @@ function useFinancialDataInternal() {
       // follow the bank ledger: only transactions whose accounting date has
       // arrived affect today's balance. The user's reporting date preference
       // intentionally has no bearing on this calculation.
-      if (account.initial_balance == null) return account;
+      //
+      // A currency subaccount is replayed in its own currency, then valued
+      // in the base currency at today's market rate (average rate offline),
+      // so `balance` stays summable with every other account.
+      const foreign = !!account.currency;
+      if (account.initial_balance == null && !foreign) return account;
 
       let balance = Number(account.initial_balance) || 0;
       for (const transaction of transactions) {
         if (parseLocalDate(transaction.transaction_date) > today) continue;
 
         if (transaction.account_id === account.id) {
-          if (transaction.type === 'income') balance += Number(transaction.amount) || 0;
-          else if (transaction.type === 'expense') balance -= Number(transaction.amount) || 0;
-          else balance -= (Number(transaction.amount) || 0) + (Number(transaction.transfer_fee) || 0);
+          const amt = legAmount(transaction, account);
+          if (transaction.type === 'income') balance += amt;
+          else if (transaction.type === 'expense') balance -= amt;
+          else balance -= amt + (Number(transaction.transfer_fee) || 0);
         } else if (
           transaction.type === 'transfer' &&
           transaction.transfer_to_account_id === account.id
         ) {
-          balance += Number(transaction.amount) || 0;
+          balance += legAmount(transaction, account);
         }
       }
 
-      return { ...account, balance };
+      if (!foreign) return { ...account, balance };
+      const valueRate = marketRates[account.currency!] ?? (Number(account.fx_rate) || 1);
+      return {
+        ...account,
+        native_balance: balance,
+        value_rate: valueRate,
+        balance: Math.round(balance * valueRate * 100) / 100,
+      };
     });
-  }, [accountsQuery.data, transactions]);
+  }, [accountsQuery.data, transactions, marketRates]);
   const categories = categoriesQuery.data ?? [];
 
   // Convenience invalidation helpers (replace old fetch* callbacks)
