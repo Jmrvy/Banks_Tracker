@@ -20,9 +20,13 @@ export type Database = {
           balance: number
           bank: Database["public"]["Enums"]["bank_type"]
           created_at: string | null
+          currency: string | null
+          fx_rate: number | null
           id: string
           initial_balance: number
+          initial_fx_rate: number | null
           name: string
+          parent_account_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -31,9 +35,13 @@ export type Database = {
           balance?: number
           bank?: Database["public"]["Enums"]["bank_type"]
           created_at?: string | null
+          currency?: string | null
+          fx_rate?: number | null
           id?: string
           initial_balance?: number
+          initial_fx_rate?: number | null
           name: string
+          parent_account_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -42,13 +50,24 @@ export type Database = {
           balance?: number
           bank?: Database["public"]["Enums"]["bank_type"]
           created_at?: string | null
+          currency?: string | null
+          fx_rate?: number | null
           id?: string
           initial_balance?: number
+          initial_fx_rate?: number | null
           name?: string
+          parent_account_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "accounts_parent_account_id_fkey"
+            columns: ["parent_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "accounts_user_id_fkey"
             columns: ["user_id"]
@@ -922,6 +941,7 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           description: string
+          foreign_amount: number | null
           id: string
           include_in_stats: boolean
           installment_payment_id: string | null
@@ -947,6 +967,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description: string
+          foreign_amount?: number | null
           id?: string
           include_in_stats?: boolean
           installment_payment_id?: string | null
@@ -972,6 +993,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string
+          foreign_amount?: number | null
           id?: string
           include_in_stats?: boolean
           installment_payment_id?: string | null
@@ -1083,6 +1105,14 @@ export type Database = {
           new_balance: number
           old_balance: number
         }[]
+      }
+      revalue_foreign_account: {
+        Args: { p_account_id: string }
+        Returns: undefined
+      }
+      tx_leg_amount: {
+        Args: { p_account_id: string; p_amount: number; p_foreign: number }
+        Returns: number
       }
     }
     Enums: {
