@@ -46,3 +46,36 @@ describe('balance legs', () => {
     expect(legAmount(tx, { currency: null })).toBe(91);
   });
 });
+
+import { foreignMode, resolveLegs } from './fx';
+
+describe('what a form saves for a subaccount', () => {
+  const EUR = { currency: null };
+  const GBP = { currency: 'GBP' };
+
+  it('converting 91 € into 70 GBP stores 91 € and 70 GBP', () => {
+    const mode = foreignMode('transfer', EUR, GBP);
+    expect(mode).toBe('convert_in');
+    expect(resolveLegs({ mode, entered: 91, rate: 1.3, received: 70 })).toEqual({ amount: 91, foreign_amount: 70 });
+  });
+
+  it('without a received figure, 91 € at 1.3 gives 70 GBP', () => {
+    expect(resolveLegs({ mode: 'convert_in', entered: 91, rate: 1.3 })).toEqual({ amount: 91, foreign_amount: 70 });
+  });
+
+  it('spending 10 GBP at an average of 1.27 is counted as 12,70 €', () => {
+    const mode = foreignMode('expense', GBP);
+    expect(mode).toBe('spend');
+    expect(resolveLegs({ mode, entered: 10, rate: 1.27 })).toEqual({ amount: 12.7, foreign_amount: 10 });
+  });
+
+  it('converting 50 GBP back into 58 € keeps the 58 € entered', () => {
+    const mode = foreignMode('transfer', GBP, EUR);
+    expect(mode).toBe('convert_out');
+    expect(resolveLegs({ mode, entered: 50, rate: 1.27, received: 58 })).toEqual({ amount: 58, foreign_amount: 50 });
+  });
+
+  it('a transfer between two subaccounts is not supported', () => {
+    expect(foreignMode('transfer', GBP, { currency: 'USD' })).toBe('unsupported');
+  });
+});
