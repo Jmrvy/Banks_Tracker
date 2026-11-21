@@ -177,3 +177,35 @@ export function foreignCurrencyOf(tx: {
   if (tx.foreign_amount == null) return null;
   return tx.account?.currency || tx.transfer_to_account?.currency || null;
 }
+
+/**
+ * How an account is named in pickers and headers: a subaccount reads
+ * "CB Ultra · GBP" (its parent's name, then its own name or currency) so it
+ * cannot be mistaken for a main account.
+ */
+export function accountDisplayName(
+  account: { name: string; currency?: string | null; parent_account_id?: string | null },
+  all: Array<{ id: string; name: string }>,
+): string {
+  if (!account.parent_account_id) return account.name;
+  const parent = all.find((a) => a.id === account.parent_account_id);
+  const own = account.name?.trim() || account.currency || '';
+  if (!parent) return own;
+  return own.toLowerCase().includes(parent.name.toLowerCase()) ? own : `${parent.name} · ${own}`;
+}
+
+/**
+ * Orders accounts so each main account is followed by its subaccounts —
+ * the order pickers and lists show them in.
+ */
+export function withSubaccountsNested<T extends { id: string; parent_account_id?: string | null }>(accounts: T[]): T[] {
+  const mains = accounts.filter((a) => !a.parent_account_id);
+  const out: T[] = [];
+  for (const m of mains) {
+    out.push(m);
+    out.push(...accounts.filter((a) => a.parent_account_id === m.id));
+  }
+  // Orphans (parent not loaded) last, so nothing disappears.
+  out.push(...accounts.filter((a) => a.parent_account_id && !mains.some((m) => m.id === a.parent_account_id)));
+  return out;
+}

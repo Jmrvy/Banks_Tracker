@@ -353,12 +353,53 @@ function useFinancialDataInternal() {
 
   const createAccount = async (account: Omit<Account, 'id' | 'created_at'>) => {
     if (!user) return;
+    // Client-computed fields are not columns.
+    const { native_balance: _n, value_rate: _v, ...row } = account;
     const { error } = await supabase
       .from('accounts')
-      .insert([{ ...account, initial_balance: account.balance, user_id: user.id }]);
+      .insert([{ ...row, initial_balance: account.balance, user_id: user.id }]);
 
     if (!error) {
       fetchAccounts();
+    }
+    return { error };
+  };
+
+  /**
+   * A currency subaccount under a main account. Balances are in the
+   * subaccount's own currency; `initial_fx_rate` is base per one unit.
+   * Bank and type are inherited from the parent by the database.
+   */
+  const saveSubaccount = async (input: {
+    id?: string;
+    parent_account_id: string;
+    name: string;
+    currency: string;
+    initial_balance: number;
+    initial_fx_rate: number;
+  }) => {
+    if (!user) return { error: new Error('Not authenticated') as Error };
+    const parent = (accountsQuery.data ?? []).find((a) => a.id === input.parent_account_id);
+    if (!parent) return { error: new Error('parent_account_not_found') };
+    const fields = {
+      name: input.name.trim(),
+      currency: input.currency.trim().toUpperCase(),
+      initial_balance: input.initial_balance,
+      initial_fx_rate: input.initial_fx_rate,
+    };
+    const { error } = input.id
+      ? await supabase.from('accounts').update(fields).eq('id', input.id).eq('user_id', user.id)
+      : await supabase.from('accounts').insert([{
+          ...fields,
+          parent_account_id: input.parent_account_id,
+          balance: input.initial_balance,
+          bank: parent.bank,
+          account_type: parent.account_type,
+          user_id: user.id,
+        }]);
+    if (!error) {
+      fetchAccounts();
+      fetchTransactions();
     }
     return { error };
   };
@@ -441,6 +482,10 @@ function useFinancialDataInternal() {
     /** Set together: the principal came back on this category. */
     category_id?: string | null;
     offsets_category?: boolean;
+    /** When one side is a currency subaccount: the figure in its currency
+     *  (`amount` stays in the base currency). Omit to let the database
+     *  convert at the subaccount's average rate. */
+    foreign_amount?: number | null;
   }) => {
     if (!user) return;
 
@@ -458,6 +503,7 @@ function useFinancialDataInternal() {
         value_date: transfer.value_date || transfer.transaction_date,
         category_id: marked ? transfer.category_id : null,
         offsets_category: marked,
+        ...(transfer.foreign_amount != null ? { foreign_amount: transfer.foreign_amount } : {}),
         user_id: user.id
       }]);
 
@@ -717,6 +763,8 @@ function useFinancialDataInternal() {
     transfer_fee?: number;
     include_in_stats?: boolean;
     offsets_category?: boolean;
+    /** Figure in the subaccount's currency (null clears it); see createTransfer. */
+    foreign_amount?: number | null;
   }) => {
     if (!user) return { error: { message: 'User not authenticated' } };
 
@@ -1787,6 +1835,7 @@ function useFinancialDataInternal() {
     recurringTransactions,
     loading,
     createAccount,
+    saveSubaccount,
     deleteAccount,
     getAccountDeletionImpact,
     createTransaction,
