@@ -14,6 +14,9 @@ import { useSpecialBudgets } from '@/hooks/useSpecialBudgets';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { useForeignLeg } from '@/hooks/useForeignLeg';
+import { ForeignLegFields } from '@/components/ForeignLegFields';
+import { accountDisplayName, foreignMode, withSubaccountsNested } from '@/lib/fx';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -25,7 +28,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { accounts, categories, updateTransaction } = useFinancialData();
+  const { accounts: rawAccounts, categories, updateTransaction } = useFinancialData();
+  const accounts = withSubaccountsNested(rawAccounts);
   const { specialBudgets } = useSpecialBudgets();
   const activeSpecialBudgets = specialBudgets.filter((b) => b.status !== 'closed');
 
@@ -48,9 +52,22 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   // Update form data when transaction changes
   useEffect(() => {
     if (transaction) {
+      // The amount field is in the SOURCE account's currency: a subaccount
+      // spend or a conversion out of one is edited in that currency.
+      const mode = foreignMode(
+        transaction.type,
+        rawAccounts.find((a) => a.id === transaction.account_id),
+        transaction.type === 'transfer'
+          ? rawAccounts.find((a) => a.id === transaction.transfer_to_account_id)
+          : null,
+      );
+      const typed =
+        (mode === 'spend' || mode === 'convert_out') && transaction.foreign_amount != null
+          ? Math.abs(Number(transaction.foreign_amount))
+          : Math.abs(transaction.amount);
       setFormData({
         description: transaction.description,
-        amount: Math.abs(transaction.amount).toString(),
+        amount: typed.toString(),
         type: transaction.type,
         account_id: transaction.account_id,
         category_id: transaction.category?.id || '',
@@ -63,7 +80,49 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         offsets_category: transaction.offsets_category ?? false
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transaction]);
+
+  /** A saved subaccount spend keeps the rate it was valued at: editing the
+   *  description must not revalue it at today's average. */
+  const sameAccounts =
+    !!transaction &&
+    formData.account_id === transaction.account_id &&
+    formData.type === transaction.type;
+  const savedSpendRate =
+    sameAccounts && transaction.foreign_amount && Number(transaction.foreign_amount) > 0
+      ? Math.abs(transaction.amount) / Number(transaction.foreign_amount)
+      : null;
+
+  const fx = useForeignLeg({
+    spendRate: savedSpendRate,
+    type: formData.type,
+    source: rawAccounts.find((a) => a.id === formData.account_id),
+    dest: formData.type === 'transfer' ? rawAccounts.find((a) => a.id === formData.transfer_to_account_id) : null,
+    entered: formData.amount,
+    seed: transaction
+      ? {
+          type: transaction.type,
+          account_id: transaction.account_id,
+          to_account_id: transaction.transfer_to_account_id,
+          // The other side of a conversion, as saved.
+          receivedText:
+            transaction.foreign_amount == null
+              ? ''
+              : String(
+                  foreignMode(
+                    transaction.type,
+                    rawAccounts.find((a) => a.id === transaction.account_id),
+                    rawAccounts.find((a) => a.id === transaction.transfer_to_account_id),
+                  ) === 'convert_out'
+                    ? Math.abs(transaction.amount)
+                    : Number(transaction.foreign_amount),
+                ),
+        }
+      : null,
+  });
+
+  const legs = fx.legs;
 
   const resetForm = () => {
     setFormData({
@@ -112,16 +171,19 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
       return;
     }
 
+    if (fx.blocked) return;
+
     setLoading(true);
 
     const originalAmount = transaction.amount;
-    const newAmount = parseFloat(formData.amount);
+    const newAmount = legs.amount;
     const amountChanged = newAmount !== originalAmount;
     const hasInstallmentPayment = !!transaction.installment_payment_id;
 
     const updates = {
       description: formData.description || (formData.type === 'transfer' ? 'Transfert' : ''),
       amount: newAmount,
+      foreign_amount: legs.foreign_amount,
       type: formData.type,
       account_id: formData.account_id,
       category_id: formData.type === 'transfer'
@@ -186,6 +248,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         label: t('common.update', { defaultValue: 'Update' }),
         pendingLabel: t('common.updating', { defaultValue: 'Updating...' }),
         pending: loading,
+        disabled: fx.blocked,
       }}
     >
         <form id="edit-transaction-form" onSubmit={handleSubmit} className="space-y-4">
@@ -203,7 +266,9 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Montant *</Label>
+            <Label htmlFor="amount">
+              Montant{fx.mode === 'spend' || fx.mode === 'convert_out' ? ` (${fx.enteredCurrency})` : ''} *
+            </Label>
             <AmountInput
               id="amount"
               value={formData.amount}
@@ -241,7 +306,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
               <SelectContent>
                 {accounts.map(account => (
                   <SelectItem key={account.id} value={account.id}>
-                    {account.name}
+                    <span className={account.parent_account_id ? 'pl-3' : ''}>{accountDisplayName(account, rawAccounts)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -262,7 +327,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
                   <SelectContent>
                     {accounts.filter(account => account.id !== formData.account_id).map(account => (
                       <SelectItem key={account.id} value={account.id}>
-                        {account.name}
+                        <span className={account.parent_account_id ? 'pl-3' : ''}>{accountDisplayName(account, rawAccounts)}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -279,6 +344,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
               </div>
             </>
           )}
+
+          <ForeignLegFields fx={fx} idPrefix="edit-tx-fx" />
 
           {formData.type === 'transfer' && (
             <div className="flex items-start gap-3 rounded-lg border p-3">

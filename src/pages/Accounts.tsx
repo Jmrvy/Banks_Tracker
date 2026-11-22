@@ -12,6 +12,8 @@ import {
   Trash2,
   Wallet,
   ArrowRightLeft,
+  Coins,
+  Pencil,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,6 +36,10 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { parseLocalDate, getTxDate } from "@/lib/dateUtils";
+import { SubaccountModal } from "@/components/SubaccountModal";
+import { ForeignAmountTag } from "@/components/ForeignLegFields";
+import { foreignCurrencyOf, formatInCurrency, accountDisplayName } from "@/lib/fx";
+import type { Account } from "@/hooks/useFinancialData";
 
 const initialsOf = (name: string) =>
   name
@@ -77,7 +83,8 @@ const Accounts = () => {
   const { accounts, transactions, loading } = useFinancialData();
   const { formatCurrency, preferences } = useUserPreferences();
   const { dateRange, periodLabel } = usePeriod();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const fxLocale = i18n.language === "fr" ? "fr-FR" : "en-GB";
   const location = useLocation();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     (location.state as any)?.selectedAccountId || null
@@ -89,6 +96,21 @@ const Accounts = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const seriesByAccount = useAccountSeries(accounts, transactions, 90);
+
+  // Currency subaccounts live under their main account: lists show main
+  // accounts, each followed by its subaccounts, and a main account's figure
+  // includes them (subaccount `balance` is already valued in the base
+  // currency, so it adds up with everything else).
+  const [subModal, setSubModal] = useState<{ parent: Account; sub?: Account | null } | null>(null);
+  const mainAccounts = accounts.filter((a) => !a.parent_account_id);
+  const subsOf = (id: string) => accounts.filter((a) => a.parent_account_id === id);
+  const totalWithSubs = (a: Account) =>
+    a.parent_account_id ? a.balance : a.balance + subsOf(a.id).reduce((s, x) => s + x.balance, 0);
+  const parentOf = (a: Account) => accounts.find((x) => x.id === a.parent_account_id);
+  const fmtNative = (a: Account) =>
+    hideBalances ? "•••••" : formatInCurrency(a.native_balance ?? 0, a.currency || "EUR", fxLocale);
+  const fmtRate = (r?: number | null) =>
+    r ? Number(r.toFixed(4)).toLocaleString(fxLocale, { maximumFractionDigits: 4 }) : "—";
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
   const change30dTotal = accounts.reduce(
@@ -219,7 +241,8 @@ const Accounts = () => {
             <div className="min-w-0 flex-1">
               <div className="ft-eyebrow">{getBankLabel(selectedAccount.bank, t)}</div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="ft-page-title text-2xl">{selectedAccount.name}</h1>
+                <h1 className="ft-page-title text-2xl">{accountDisplayName(selectedAccount, accounts)}</h1>
+                {selectedAccount.currency && <span className="ft-tag">{selectedAccount.currency}</span>}
                 <span className="ft-tag">{getAccountTypeLabel(selectedAccount.account_type, t)}</span>
               </div>
             </div>
@@ -249,19 +272,35 @@ const Accounts = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[240px]">
+                  {!selectedAccount.parent_account_id ? (
+                    <DropdownMenuItem onSelect={() => setSubModal({ parent: selectedAccount })}>
+                      <Coins className="h-3.5 w-3.5 mr-2" />
+                      {t("subaccounts.add", { defaultValue: "Add a currency subaccount" })}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        const parent = parentOf(selectedAccount);
+                        if (parent) setSubModal({ parent, sub: selectedAccount });
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-2" />
+                      {t("subaccounts.edit", { defaultValue: "Edit subaccount" })}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
-                    disabled={accounts.length <= 1}
+                    disabled={mainAccounts.length <= 1 && !selectedAccount.parent_account_id}
                     className="text-destructive focus:text-destructive data-[disabled]:text-muted-foreground"
                     onSelect={(e) => {
                       e.preventDefault();
-                      if (accounts.length <= 1) return;
+                      if (mainAccounts.length <= 1 && !selectedAccount.parent_account_id) return;
                       setShowDeleteModal(true);
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" />
                     {t("accounts.delete", { defaultValue: "Delete account" })}
                   </DropdownMenuItem>
-                  {accounts.length <= 1 && (
+                  {mainAccounts.length <= 1 && !selectedAccount.parent_account_id && (
                     <div className="px-2 pt-1 pb-1.5 text-[11px] text-muted-foreground leading-snug">
                       {t("accounts.cannotDeleteLast", {
                         defaultValue: "You must keep at least one account.",
@@ -273,6 +312,12 @@ const Accounts = () => {
             </div>
           </div>
 
+          <SubaccountModal
+            open={!!subModal}
+            onOpenChange={(o) => !o && setSubModal(null)}
+            parent={subModal?.parent}
+            subaccount={subModal?.sub}
+          />
           <DeleteAccountModal
             open={showDeleteModal}
             onOpenChange={setShowDeleteModal}
@@ -293,8 +338,30 @@ const Accounts = () => {
                   {t("accounts.availableBalance", { defaultValue: "Available balance" })}
                 </div>
                 <div className="ft-hero-value mt-3 break-words">
-                  {hideBalances ? "•••••" : formatCurrency(selectedAccount.balance)}
+                  {selectedAccount.currency
+                    ? fmtNative(selectedAccount)
+                    : hideBalances
+                      ? "•••••"
+                      : formatCurrency(selectedAccount.balance)}
                 </div>
+                {selectedAccount.currency && (
+                  <div className="mt-2 text-[12.5px] text-muted-foreground">
+                    ≈ {fmtBal(selectedAccount.balance)} ·{" "}
+                    {t("subaccounts.avgRate", {
+                      defaultValue: "average rate 1 {{currency}} = {{rate}}",
+                      currency: selectedAccount.currency,
+                      rate: fmtRate(selectedAccount.fx_rate),
+                    })}
+                  </div>
+                )}
+                {!selectedAccount.currency && subsOf(selectedAccount.id).length > 0 && (
+                  <div className="mt-2 text-[12.5px] text-muted-foreground">
+                    {t("subaccounts.totalWithSubs", {
+                      defaultValue: "{{total}} including subaccounts",
+                      total: fmtBal(totalWithSubs(selectedAccount)),
+                    })}
+                  </div>
+                )}
                 {/* The chip carries the percentage only; the absolute figure
                     sits beside it in mute text, the way the system does it. */}
                 <div className="flex flex-wrap items-center gap-x-[9px] gap-y-1 mt-3 text-[12.5px] text-muted-foreground">
@@ -366,7 +433,7 @@ const Accounts = () => {
             <div className="ft-eyebrow">{t("navigation.accounts")}</div>
             <h1 className="ft-page-title">{t("accounts.allAccounts", { defaultValue: "All accounts" })}</h1>
             <div className="ft-page-sub">
-              {accounts.length} {t("accounts.linkedAccounts", { defaultValue: "linked accounts" })}
+              {mainAccounts.length} {t("accounts.linkedAccounts", { defaultValue: "linked accounts" })}
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -408,6 +475,7 @@ const Accounts = () => {
           {TYPE_GROUPS.map((group) => {
             const list = accounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
             const total = list.reduce((s, a) => s + a.balance, 0);
+            const mainCount = list.filter((a) => !a.parent_account_id).length;
             return (
               <div key={group.key} className="ft-card p-5">
                 <div className="flex items-center gap-2">
@@ -418,7 +486,7 @@ const Accounts = () => {
                   {fmtBal(total)}
                 </div>
                 <div className="text-[12px] text-fg-dim truncate">
-                  {t("accounts.nAccounts", { count: list.length, defaultValue: "{{count}} accounts" })}
+                  {t("accounts.nAccounts", { count: mainCount, defaultValue: "{{count}} accounts" })}
                   {compositionScale > 0 &&
                     ` · ${((Math.max(0, total) / compositionScale) * 100).toFixed(0)} %`}
                 </div>
@@ -432,9 +500,9 @@ const Accounts = () => {
         <div className="ft-g2 items-start">
           <div className="flex flex-col gap-[18px] min-w-0">
             {TYPE_GROUPS.map((group) => {
-              const list = accounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
+              const list = mainAccounts.filter((a) => (group.types as readonly string[]).includes(a.account_type));
               if (list.length === 0) return null;
-              const total = list.reduce((s, a) => s + a.balance, 0);
+              const total = list.reduce((s, a) => s + totalWithSubs(a), 0);
               return (
                 <div key={group.key} className="ft-card-flush">
                   <div className="ft-card-head">
@@ -453,9 +521,11 @@ const Accounts = () => {
                       const changePct = series?.changePct ?? 0;
                       const flat = Math.abs(change) < 0.01;
                       const active = previewAccountId === account.id;
+                      const subs = subsOf(account.id);
+                      const rowTotal = totalWithSubs(account);
                       return (
+                        <div key={account.id} className="flex flex-col">
                         <button
-                          key={account.id}
                           type="button"
                           onClick={() => setPreviewAccountId(account.id)}
                           onDoubleClick={() => setSelectedAccountId(account.id)}
@@ -480,6 +550,7 @@ const Accounts = () => {
                             <div className="ft-row-title truncate">{account.name}</div>
                             <div className="ft-row-sub truncate">
                               {getBankLabel(account.bank, t)} · {getAccountTypeLabel(account.account_type, t)}
+                              {subs.length > 0 && ` · ${subs.map((x) => x.currency).join(", ")}`}
                             </div>
                           </div>
                           <div className="h-[30px] hidden sm:block">
@@ -488,8 +559,8 @@ const Accounts = () => {
                             )}
                           </div>
                           <div>
-                            <div className={`ft-row-amt ${account.balance < 0 ? "text-destructive" : ""}`}>
-                              {fmtBal(account.balance)}
+                            <div className={`ft-row-amt ${rowTotal < 0 ? "text-destructive" : ""}`}>
+                              {fmtBal(rowTotal)}
                             </div>
                             {!flat && (
                               <div className="ft-row-amt sub mt-0.5">
@@ -506,6 +577,41 @@ const Accounts = () => {
                             )}
                           </div>
                         </button>
+                        {subs.map((sub) => {
+                          const subActive = previewAccountId === sub.id;
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() => setPreviewAccountId(sub.id)}
+                              onDoubleClick={() => setSelectedAccountId(sub.id)}
+                              aria-pressed={subActive}
+                              className="ft-list-row text-left w-full grid-cols-[38px_minmax(0,1fr)_auto] !py-2"
+                              style={{ background: subActive ? "hsl(var(--accent-wash))" : undefined }}
+                            >
+                              <div className="flex justify-center">
+                                <span className="ft-tag !text-[10px]">{sub.currency}</span>
+                              </div>
+                              <div className="min-w-0 pl-1 border-l border-line-soft">
+                                <div className="ft-row-title truncate text-[13px]">{sub.name || sub.currency}</div>
+                                <div className="ft-row-sub truncate">
+                                  {t("subaccounts.avgRate", {
+                                    defaultValue: "average rate 1 {{currency}} = {{rate}}",
+                                    currency: sub.currency,
+                                    rate: fmtRate(sub.fx_rate),
+                                  })}
+                                </div>
+                              </div>
+                              <div>
+                                <div className={`ft-row-amt text-[13px] ${(sub.native_balance ?? 0) < 0 ? "text-destructive" : ""}`}>
+                                  {fmtNative(sub)}
+                                </div>
+                                <div className="ft-row-amt sub mt-0.5">≈ {fmtBal(sub.balance)}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        </div>
                       );
                     })}
                   </div>
@@ -541,7 +647,7 @@ const Accounts = () => {
                       {initialsOf(previewAccount.name)}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="ft-card-title truncate">{previewAccount.name}</h3>
+                      <h3 className="ft-card-title truncate">{accountDisplayName(previewAccount, accounts)}</h3>
                       <div className="ft-card-sub truncate">
                         {getBankLabel(previewAccount.bank, t)} · {getAccountTypeLabel(previewAccount.account_type, t)}
                       </div>
@@ -564,12 +670,28 @@ const Accounts = () => {
                       <DropdownMenuItem onSelect={() => setSelectedAccountId(previewAccount.id)}>
                         {t("accounts.openAccount", { defaultValue: "Open account" })}
                       </DropdownMenuItem>
+                  {!previewAccount.parent_account_id ? (
+                    <DropdownMenuItem onSelect={() => setSubModal({ parent: previewAccount })}>
+                      <Coins className="h-3.5 w-3.5 mr-2" />
+                      {t("subaccounts.add", { defaultValue: "Add a currency subaccount" })}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        const parent = parentOf(previewAccount);
+                        if (parent) setSubModal({ parent, sub: previewAccount });
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-2" />
+                      {t("subaccounts.edit", { defaultValue: "Edit subaccount" })}
+                    </DropdownMenuItem>
+                  )}
                       <DropdownMenuItem
-                        disabled={accounts.length <= 1}
+                        disabled={mainAccounts.length <= 1 && !previewAccount.parent_account_id}
                         className="text-destructive focus:text-destructive data-[disabled]:text-muted-foreground"
                         onSelect={(e) => {
                           e.preventDefault();
-                          if (accounts.length <= 1) return;
+                          if (mainAccounts.length <= 1 && !previewAccount.parent_account_id) return;
                           setShowDeleteModal(true);
                         }}
                       >
@@ -579,9 +701,38 @@ const Accounts = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <div className={`font-mono text-[32px] font-medium tracking-[-0.03em] truncate ${previewAccount.balance < 0 ? "text-destructive" : ""}`}>
-                  {fmtBal(previewAccount.balance)}
+                <div className={`font-mono text-[32px] font-medium tracking-[-0.03em] truncate ${totalWithSubs(previewAccount) < 0 ? "text-destructive" : ""}`}>
+                  {previewAccount.currency ? fmtNative(previewAccount) : fmtBal(totalWithSubs(previewAccount))}
                 </div>
+                {previewAccount.currency && (
+                  <div className="mt-1 text-[12.5px] text-muted-foreground">
+                    ≈ {fmtBal(previewAccount.balance)} ·{" "}
+                    {t("subaccounts.avgRate", {
+                      defaultValue: "average rate 1 {{currency}} = {{rate}}",
+                      currency: previewAccount.currency,
+                      rate: fmtRate(previewAccount.fx_rate),
+                    })}
+                  </div>
+                )}
+                {!previewAccount.currency && subsOf(previewAccount.id).length > 0 && (
+                  <div className="mt-3 flex flex-col gap-1.5 rounded-lg border border-line-soft bg-bg-subtle p-3 text-[12.5px]">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">{t("subaccounts.mainPart", { defaultValue: "Main account" })}</span>
+                      <span className="font-mono">{fmtBal(previewAccount.balance)}</span>
+                    </div>
+                    {subsOf(previewAccount.id).map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => setPreviewAccountId(sub.id)}
+                        className="flex justify-between gap-3 text-left hover:text-foreground"
+                      >
+                        <span className="text-muted-foreground truncate">{sub.name || sub.currency} · {fmtNative(sub)}</span>
+                        <span className="font-mono whitespace-nowrap">≈ {fmtBal(sub.balance)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {Math.abs(previewChange) > 0.01 && (
                   <div className="flex flex-wrap items-center gap-x-[9px] gap-y-1 mt-[7px]">
                     <span className={`ft-delta ${previewChange > 0 ? "up" : "down"}`}>
@@ -669,9 +820,14 @@ const Accounts = () => {
                               : t("common.uncategorized", { defaultValue: "Uncategorized" }))}
                         </div>
                       </div>
-                      <div className={`ft-row-amt ${tx.type === "income" ? "text-pos" : ""}`}>
-                        {tx.type === "income" ? "+" : "−"}
-                        {formatCurrency(tx.amount)}
+                      <div className="text-right">
+                        <div className={`ft-row-amt ${tx.type === "income" ? "text-pos" : ""}`}>
+                          {tx.type === "income" ? "+" : "−"}
+                          {formatCurrency(tx.amount)}
+                        </div>
+                        {!hideBalances && (
+                          <ForeignAmountTag amount={tx.foreign_amount} currency={foreignCurrencyOf(tx)} className="block text-right" />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -793,6 +949,12 @@ const Accounts = () => {
       </div>
 
       <NewAccountModal open={showNewAccountModal} onOpenChange={setShowNewAccountModal} />
+      <SubaccountModal
+        open={!!subModal}
+        onOpenChange={(o) => !o && setSubModal(null)}
+        parent={subModal?.parent}
+        subaccount={subModal?.sub}
+      />
       <NewTransactionModal
         open={showNewTransactionModal}
         onOpenChange={setShowNewTransactionModal}

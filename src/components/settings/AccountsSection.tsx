@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AmountInput } from "@/components/ui/amount-input";
-import { Database, Edit3, Save, Trash2, X, RefreshCw, History } from "lucide-react";
+import { Database, Edit3, Save, Trash2, X, RefreshCw, History, Coins } from "lucide-react";
+import { SubaccountModal } from "@/components/SubaccountModal";
+import { withSubaccountsNested, formatInCurrency } from "@/lib/fx";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -101,7 +103,15 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
     fetchHistory();
   };
 
+  const [subModal, setSubModal] = useState<{ parent: Account; sub?: Account | null } | null>(null);
+
   const startEditing = async (account: Account) => {
+    // A subaccount's figures are in its own currency, with a rate.
+    if (account.parent_account_id) {
+      const parent = accounts.find((a) => a.id === account.parent_account_id);
+      if (parent) setSubModal({ parent, sub: account });
+      return;
+    }
     // Fetch initial_balance from DB since it's not in the Account interface
     const { data } = await supabase
       .from('accounts')
@@ -213,6 +223,12 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
 
   return (
     <>
+      <SubaccountModal
+        open={!!subModal}
+        onOpenChange={(o) => !o && setSubModal(null)}
+        parent={subModal?.parent}
+        subaccount={subModal?.sub}
+      />
       <div className="ft-card">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
@@ -246,8 +262,8 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
             inside a card. The colour glyph carries the bank's brand tint. */}
         <div>
           <div className="flex flex-col">
-            {accounts.map((account) => (
-              <div key={account.id} className="border-t border-line-soft py-2.5">
+            {withSubaccountsNested(accounts).map((account) => (
+              <div key={account.id} className={`border-t border-line-soft py-2.5 ${account.parent_account_id ? 'pl-6' : ''}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     {editingAccount === account.id ? (
@@ -300,7 +316,9 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                             {getBankLabel(account.bank, t)}
                             {' · '}
                             <span className="font-mono tabular-nums">
-                              {formatCurrency(Number(account.balance))}
+                              {account.currency
+                                ? formatInCurrency(Number(account.native_balance ?? 0), account.currency)
+                                : formatCurrency(Number(account.balance))}
                             </span>
                           </div>
                         </div>
@@ -319,6 +337,18 @@ export const AccountsSection = ({ accounts, refetch, formatCurrency }: AccountsS
                       </>
                     ) : (
                       <>
+                        {!account.parent_account_id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSubModal({ parent: account })}
+                            aria-label={t('subaccounts.add', { defaultValue: 'Add a currency subaccount' })}
+                            title={t('subaccounts.add', { defaultValue: 'Add a currency subaccount' })}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Coins className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => startEditing(account)} aria-label={t('common.edit')} className="h-8 w-8 p-0">
                           <Edit3 className="h-3.5 w-3.5" />
                         </Button>

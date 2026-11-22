@@ -43,6 +43,9 @@ export function useForeignLeg(args: {
   entered: string;
   /** Edit forms: the saved conversion, applied while the same accounts stay selected. */
   seed?: Seed | null;
+  /** Edit forms: the rate a saved subaccount spend was valued at, kept so
+   *  editing it does not revalue it at today's average. */
+  spendRate?: number | null;
 }) {
   const { preferences } = useUserPreferences();
   const base = preferences.currency || 'EUR';
@@ -83,7 +86,7 @@ export function useForeignLeg(args: {
       received = entered > 0 ? roundTo(mode === 'convert_in' ? entered / rate : entered * rate) : 0;
     }
   } else if (mode === 'spend') {
-    rate = avgRate ?? defaultRate;
+    rate = (args.spendRate && args.spendRate > 0 ? args.spendRate : null) ?? avgRate ?? defaultRate;
   }
 
   const legs = resolveLegs({ mode, entered, rate, received: received || null });

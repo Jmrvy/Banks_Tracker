@@ -16,6 +16,10 @@ import { useSpecialBudgets } from '@/hooks/useSpecialBudgets';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { DatePicker } from '@/components/ui/date-picker';
 import { transactionSchemaWithTransfer, validateForm } from '@/lib/validations';
+import { useForeignLeg } from '@/hooks/useForeignLeg';
+import { ForeignLegFields } from '@/components/ForeignLegFields';
+import { accountDisplayName, formatInCurrency, withSubaccountsNested } from '@/lib/fx';
+import type { Account } from '@/hooks/useFinancialData';
 
 interface NewTransactionModalProps {
   open: boolean;
@@ -26,10 +30,15 @@ interface NewTransactionModalProps {
 }
 
 export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense' }: NewTransactionModalProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const { formatCurrency, preferences } = useUserPreferences();
-  const { accounts, categories, createTransaction, createTransfer } = useFinancialData();
+  const { accounts: rawAccounts, categories, createTransaction, createTransfer } = useFinancialData();
+  const accounts = withSubaccountsNested(rawAccounts);
+  const fxLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-GB';
+  /** A subaccount's balance reads in its own currency. */
+  const balanceText = (a: Account) =>
+    a.currency ? formatInCurrency(a.native_balance ?? 0, a.currency, fxLocale) : formatCurrency(a.balance);
   const { specialBudgets } = useSpecialBudgets();
   const activeSpecialBudgets = specialBudgets.filter((b) => b.status !== 'closed');
 
@@ -66,6 +75,13 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
     });
   };
 
+  const fx = useForeignLeg({
+    type: formData.type,
+    source: rawAccounts.find((a) => a.id === formData.account_id),
+    dest: formData.type === 'transfer' ? rawAccounts.find((a) => a.id === formData.to_account_id) : null,
+    entered: formData.amount,
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -95,6 +111,8 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
       return;
     }
 
+    if (fx.blocked) return;
+
     setLoading(true);
     
     let error;
@@ -102,7 +120,8 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
     if (formData.type === 'transfer') {
       const result = await createTransfer({
         description: formData.description || 'Transfert',
-        amount: parseFloat(formData.amount),
+        amount: fx.legs.amount,
+        foreign_amount: fx.legs.foreign_amount,
         from_account_id: formData.account_id,
         to_account_id: formData.to_account_id,
         transfer_fee: formData.transfer_fee ? parseFloat(formData.transfer_fee) : 0,
@@ -114,7 +133,8 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
     } else {
       const result = await createTransaction({
         description: formData.description,
-        amount: parseFloat(formData.amount),
+        amount: fx.legs.amount,
+        foreign_amount: fx.legs.foreign_amount,
         type: formData.type as 'income' | 'expense',
         account_id: formData.account_id,
         category_id: formData.category_id || undefined,
@@ -138,7 +158,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                        formData.type === 'transfer' ? t('transactions.transfer') : t('transactions.expense');
       toast({
         title: `${typeLabel} créé${formData.type === 'transfer' ? '' : 'e'}`,
-        description: `${typeLabel} de ${formatCurrency(parseFloat(formData.amount) || 0)} ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
+        description: `${typeLabel} de ${fx.mode === 'spend' || fx.mode === 'convert_out' ? formatInCurrency(parseFloat(formData.amount) || 0, fx.enteredCurrency, fxLocale) : formatCurrency(parseFloat(formData.amount) || 0)} ajouté${formData.type === 'transfer' ? '' : 'e'} avec succès.`,
       });
       
       resetForm();
@@ -217,7 +237,9 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
 
           {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="amount">Montant *</Label>
+            <Label htmlFor="amount">
+              Montant{fx.mode === 'spend' || fx.mode === 'convert_out' ? ` (${fx.enteredCurrency})` : ''} *
+            </Label>
             <AmountInput
               id="amount"
               placeholder="0.00"
@@ -236,7 +258,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                 setFormData(prev => {
                   const fromAccount = accounts.find(acc => acc.id === value);
                   const toAccount = accounts.find(acc => acc.id === prev.to_account_id);
-                  const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                  const getAlias = (acc: any) => preferences.accountAliases[acc.id] || accountDisplayName(acc, rawAccounts);
                   const autoDescription = prev.type === 'transfer' && fromAccount && toAccount 
                     ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
                     : prev.description;
@@ -256,9 +278,9 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                   accounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       <div className="flex items-center justify-between w-full">
-                        <span>{account.name}</span>
+                        <span className={account.parent_account_id ? 'pl-3' : ''}>{accountDisplayName(account, rawAccounts)}</span>
                         <Badge variant="outline" className="ml-2 text-xs font-mono tabular-nums">
-                          {formatCurrency(account.balance)}
+                          {balanceText(account)}
                         </Badge>
                       </div>
                     </SelectItem>
@@ -268,7 +290,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
             </Select>
             {selectedAccount && (
               <div className="text-sm text-muted-foreground">
-                Solde actuel: <span className="font-mono tabular-nums">{formatCurrency(selectedAccount.balance)}</span>
+                Solde actuel: <span className="font-mono tabular-nums">{balanceText(selectedAccount)}</span>
               </div>
             )}
           </div>
@@ -283,7 +305,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                   setFormData(prev => {
                     const toAccount = accounts.find(acc => acc.id === value);
                     const fromAccount = accounts.find(acc => acc.id === prev.account_id);
-                    const getAlias = (acc: any) => preferences.accountAliases[acc.id] || acc.name;
+                    const getAlias = (acc: any) => preferences.accountAliases[acc.id] || accountDisplayName(acc, rawAccounts);
                     const autoDescription = fromAccount && toAccount 
                       ? `Transfert ${getAlias(fromAccount)} → ${getAlias(toAccount)}`
                       : prev.description;
@@ -298,9 +320,9 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
                   {accounts.filter(acc => acc.id !== formData.account_id).map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       <div className="flex items-center justify-between w-full">
-                        <span>{account.name}</span>
+                        <span className={account.parent_account_id ? 'pl-3' : ''}>{accountDisplayName(account, rawAccounts)}</span>
                         <Badge variant="outline" className="ml-2 text-xs font-mono tabular-nums">
-                          {formatCurrency(account.balance)}
+                          {balanceText(account)}
                         </Badge>
                       </div>
                     </SelectItem>
@@ -309,11 +331,13 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
               </Select>
               {selectedToAccount && (
                 <div className="text-sm text-muted-foreground">
-                  Solde actuel: <span className="font-mono tabular-nums">{formatCurrency(selectedToAccount.balance)}</span>
+                  Solde actuel: <span className="font-mono tabular-nums">{balanceText(selectedToAccount)}</span>
                 </div>
               )}
             </div>
           )}
+
+          <ForeignLegFields fx={fx} idPrefix="new-tx-fx" />
 
           {/* Transfer Fee (Transfer only) */}
           {formData.type === 'transfer' && (
@@ -559,7 +583,7 @@ export const NewTransactionModal = ({ open, onOpenChange, defaultType = 'expense
             >
               Annuler
             </Button>
-            <Button type="submit" form="new-transaction-form" disabled={loading} className="flex-1 h-9 text-xs sm:text-sm">
+            <Button type="submit" form="new-transaction-form" disabled={loading || fx.blocked} className="flex-1 h-9 text-xs sm:text-sm">
               {loading ? 'Création...' : 'Créer'}
             </Button>
           </div>
