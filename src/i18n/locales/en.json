@@ -621,6 +621,19 @@
     "unauthorized": "Unauthorized",
     "updateError": "Unable to update"
   },
+  "fx": {
+    "averageAfter": "after this: {{rate}}",
+    "averageNow": "Your average rate now: {{rate}}",
+    "convertInTitle": "Conversion into {{currency}}",
+    "convertOutHint": "Leaves {{amount}} on the subaccount. Your average rate does not change.",
+    "convertOutTitle": "Conversion back to {{currency}}",
+    "rateLabel": "Rate: 1 {{currency}} = … {{base}}",
+    "spendHint": "Amount in {{currency}}. Counted as {{base}} in your stats, at your average rate ({{rate}}).",
+    "todayRate": "Today's rate: {{rate}}",
+    "unsupported": "Transfers between two currency subaccounts are not supported. Go through the main account.",
+    "useIt": "use it",
+    "youReceive": "You receive ({{currency}})"
+  },
   "install": {
     "benefitFullscreen": "Full-screen, no browser chrome",
     "benefitHome": "Opens straight from the home screen",
@@ -1990,6 +2003,30 @@
     "usedShort": "used",
     "validationError": "Name and a valid amount are required."
   },
+  "subaccounts": {
+    "add": "Add a currency subaccount",
+    "avgRate": "average rate 1 {{currency}} = {{rate}}",
+    "create": "Create subaccount",
+    "created": "Subaccount created",
+    "currency": "Currency",
+    "currencyLockedHint": "The currency can no longer change once the subaccount has transactions.",
+    "description": "Money held in another currency inside {{parent}}. Its balance counts in the account total, in {{base}}.",
+    "edit": "Edit subaccount",
+    "editTitle": "Edit subaccount",
+    "errors": {
+      "duplicate": "This account already has a subaccount in this currency."
+    },
+    "mainPart": "Main account",
+    "newTitle": "New currency subaccount",
+    "openingBalance": "Opening balance ({{currency}})",
+    "openingHint": "What it held before the first transaction you record, in its own currency.",
+    "openingRate": "Opening rate: 1 {{currency}} = … {{base}}",
+    "openingRateHint": "What that money cost you. Spending is counted in {{base}} at the average rate, starting from this one.",
+    "openingValue": "{{native}} counts as {{value}}",
+    "pickCurrency": "Pick a currency",
+    "totalWithSubs": "{{total}} including subaccounts",
+    "updated": "Subaccount updated"
+  },
   "tour": {
     "checklist": {
       "eyebrow": "Discover",
@@ -2216,6 +2253,8 @@
     "from": "From",
     "fullyRefunded": "Fully refunded",
     "fullyRepaid": "Advance fully repaid",
+    "fxAverageRate": "Average rate used",
+    "fxChosenRate": "Rate chosen",
     "hasRefund": "Has refund",
     "history": "History",
     "inExpenses": "in expenses",

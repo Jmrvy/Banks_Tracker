@@ -32,6 +32,8 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { getCategoryIcon } from "@/lib/categoryIcons";
+import { ForeignAmountTag } from '@/components/ForeignLegFields';
+import { foreignCurrencyOf } from '@/lib/fx';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -237,6 +239,7 @@ const TransactionRow = React.memo(
             {transaction.type === 'income' ? '+' : transaction.type === 'transfer' ? '↔' : '−'}
             {formatCurrency(Math.abs(displayAmount))}
           </span>
+          <ForeignAmountTag amount={transaction.foreign_amount} currency={foreignCurrencyOf(transaction)} className="block text-right" />
           {isPartiallyRefunded && (
             <div className="ft-row-amt sub line-through">
               −{formatCurrency(transaction.amount)}

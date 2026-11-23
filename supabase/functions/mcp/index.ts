@@ -36,19 +36,53 @@ function ok(payload) {
   };
 }
 
+// src/lib/mcp/accountValue.ts
+var positive = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+var round = (n, d = 2) => Math.round((n + Number.EPSILON) * 10 ** d) / 10 ** d;
+function valueAccount(a) {
+  const native = Number(a.balance) || 0;
+  if (!a.currency) return { base_balance: round(native), native_balance: round(native), avg_rate: null };
+  const rate = positive(a.fx_rate) ?? positive(a.initial_fx_rate);
+  return {
+    base_balance: rate == null ? null : round(native * rate),
+    native_balance: round(native),
+    avg_rate: rate == null ? null : round(rate, 6)
+  };
+}
+
 // src/lib/mcp/tools/list-accounts.ts
 var list_accounts_default = defineTool({
   name: "list_accounts",
   title: "List accounts",
-  description: "List the signed-in user's bank accounts with their type, bank and current balance.",
+  description: "List the signed-in user's bank accounts and currency subaccounts with type, bank and balance; `balance` is always in euros, a subaccount also gives its own-currency balance and average rate.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {
     if (!ctx.isAuthenticated()) return unauthenticated();
-    const { data, error } = await supabaseForUser(ctx).from("accounts").select("id, name, bank, account_type, balance").order("name");
+    const { data, error } = await supabaseForUser(ctx).from("accounts").select("id, name, bank, account_type, balance, currency, parent_account_id, fx_rate, initial_fx_rate").order("name");
     if (error) return fail(error.message);
-    const total = (data ?? []).reduce((s, a) => s + Number(a.balance ?? 0), 0);
-    return ok({ accounts: data ?? [], total_balance: Math.round(total * 100) / 100 });
+    const accounts = (data ?? []).map((a) => {
+      const v = valueAccount(a);
+      return {
+        id: a.id,
+        name: a.name,
+        bank: a.bank,
+        account_type: a.account_type,
+        // Base currency (EUR). A parent's balance excludes its subaccounts.
+        balance: v.base_balance,
+        ...a.currency ? {
+          subaccount_of: a.parent_account_id,
+          currency: a.currency,
+          native_balance: v.native_balance,
+          average_rate: v.avg_rate
+        } : {}
+      };
+    });
+    const total = accounts.reduce((s, a) => s + (a.balance ?? 0), 0);
+    return ok({ accounts, total_balance: Math.round(total * 100) / 100 });
   }
 });
 
@@ -83,6 +117,10 @@ async function ledgerDateColumn(supabase) {
 }
 
 // src/lib/mcp/tools/list-transactions.ts
+var currencyOf = (x) => {
+  const row = Array.isArray(x) ? x[0] : x;
+  return row?.currency ?? null;
+};
 var list_transactions_default = defineTool3({
   name: "list_transactions",
   title: "List transactions",
@@ -102,7 +140,7 @@ var list_transactions_default = defineTool3({
     const supabase = supabaseForUser(ctx);
     const dateColumn = await ledgerDateColumn(supabase);
     let q = supabase.from("transactions").select(
-      "id, description, amount, type, transaction_date, value_date, account_id, category_id, refunded_amount, include_in_stats"
+      "id, description, amount, foreign_amount, type, transaction_date, value_date, account_id, transfer_to_account_id, category_id, refunded_amount, include_in_stats, account:accounts!transactions_account_id_fkey(currency), transfer_to:accounts!transactions_transfer_to_account_id_fkey(currency)"
     ).order(dateColumn, { ascending: false }).limit(input.limit ?? 50);
     if (input.from) q = q.gte(dateColumn, input.from);
     if (input.to) q = q.lte(dateColumn, input.to);
@@ -112,7 +150,11 @@ var list_transactions_default = defineTool3({
     if (input.search) q = q.ilike("description", `%${input.search}%`);
     const { data, error } = await q;
     if (error) return fail(error.message);
-    return ok({ count: data?.length ?? 0, transactions: data ?? [] });
+    const transactions = (data ?? []).map(({ account, transfer_to, foreign_amount, ...t }) => {
+      const currency = foreign_amount == null ? null : currencyOf(account) ?? currencyOf(transfer_to);
+      return currency ? { ...t, foreign_amount: Number(foreign_amount), foreign_currency: currency } : t;
+    });
+    return ok({ count: transactions.length, transactions });
   }
 });
 
@@ -284,7 +326,9 @@ var create_transaction_default = defineTool7({
   description: "Record a new income or expense transaction on one of the signed-in user's accounts.",
   inputSchema: {
     account_id: z4.string().uuid().describe("Target account, from list_accounts."),
-    amount: z4.number().positive().describe("Positive amount in the account currency."),
+    amount: z4.number().positive().describe(
+      "Positive amount in the account's own currency: euros for a main account, the subaccount's currency (e.g. GBP) for a currency subaccount, which is then valued in euros at its average rate."
+    ),
     type: z4.enum(["income", "expense"]),
     description: z4.string().trim().min(1).max(255),
     transaction_date: z4.string().describe("Accounting date, YYYY-MM-DD."),
@@ -303,7 +347,7 @@ var create_transaction_default = defineTool7({
       transaction_date: input.transaction_date,
       value_date: input.value_date ?? input.transaction_date,
       category_id: input.category_id ?? null
-    }).select("id, description, amount, type, transaction_date, category_id").single();
+    }).select("id, description, amount, foreign_amount, type, transaction_date, category_id").single();
     if (error) return fail(error.message);
     return ok({ transaction: data });
   }
@@ -315,7 +359,7 @@ var mcp_default = defineMcp({
   name: "spendingtrackerjmrvy",
   title: "spendingtrackerjmrvy",
   version: "0.1.0",
-  instructions: "Tools for a personal finance tracker. Read the signed-in user's bank accounts, categories, transactions, savings goals and upcoming commitments, summarize spending over a period, and record new income or expense transactions. Amounts are already netted: refunds are inside the expense they refund, repayments inside the income they settle, and money the user marked as having come back on a category reduces that category. Never subtract a refund or repayment yourself. Dates are YYYY-MM-DD.",
+  instructions: "Tools for a personal finance tracker. Read the signed-in user's bank accounts, categories, transactions, savings goals and upcoming commitments, summarize spending over a period, and record new income or expense transactions. Amounts are already netted: refunds are inside the expense they refund, repayments inside the income they settle, and money the user marked as having come back on a category reduces that category. Never subtract a refund or repayment yourself. Amounts and balances are in euros; a currency subaccount (e.g. a GBP pocket under a main account) also reports its own-currency figure and the weighted-average rate it is valued at \u2014 never add those native figures to euro ones. Dates are YYYY-MM-DD.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"

@@ -3,6 +3,7 @@ import { ArrowRightLeft, Info } from 'lucide-react';
 import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { usePrivacy } from '@/contexts/PrivacyContext';
 import { formatInCurrency } from '@/lib/fx';
 import type { ForeignLeg } from '@/hooks/useForeignLeg';
 
@@ -124,7 +125,8 @@ export function ForeignAmountTag({
   className?: string;
 }) {
   const { i18n } = useTranslation();
-  if (amount == null || !currency) return null;
+  const { isPrivacyMode } = usePrivacy();
+  if (amount == null || !currency || isPrivacyMode) return null;
   const locale = i18n.language === 'fr' ? 'fr-FR' : 'en-GB';
   return (
     <span className={`font-mono tabular-nums text-[11px] text-fg-mute whitespace-nowrap ${className}`}>

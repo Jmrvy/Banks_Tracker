@@ -10,6 +10,7 @@ import {
   round2,
   AuthCredentials,
 } from '../_shared/api.ts';
+import { valueAccount } from '../_shared/accountValue.ts';
 
 interface Body extends AuthCredentials {
   account_types?: ('checking' | 'savings' | 'credit' | 'investment')[];
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
 
   let query = supabase
     .from('accounts')
-    .select('id, name, bank, account_type, balance, currency, created_at, updated_at')
+    .select('id, name, bank, account_type, balance, currency, parent_account_id, fx_rate, initial_fx_rate, created_at, updated_at')
     .eq('user_id', userId)
     .order('name', { ascending: true });
 
@@ -46,7 +47,20 @@ Deno.serve(async (req) => {
     return errorResponse(500, { code: 'query_failed', message: 'Failed to fetch accounts', details: error.message });
   }
 
-  const accounts = (data ?? []).map(a => ({ ...a, balance: round2(Number(a.balance)) }));
+  // `balance` is always base currency. A currency subaccount also reports
+  // its own-currency `native_balance` and the average rate it is valued at.
+  const accounts = (data ?? []).map((a) => {
+    const v = valueAccount(a);
+    const { fx_rate: _r, initial_fx_rate: _i, ...rest } = a;
+    return {
+      ...rest,
+      balance: v.base_balance ?? 0,
+      native_balance: v.native_balance,
+      currency: v.currency,
+      avg_rate: v.avg_rate,
+      valued: v.base_balance != null,
+    };
+  });
   const total = accounts.reduce((s, a) => s + a.balance, 0);
   const byType = accounts.reduce((acc: Record<string, { count: number; total: number }>, a) => {
     const t = a.account_type || 'other';

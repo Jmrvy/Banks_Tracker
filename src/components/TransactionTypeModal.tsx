@@ -10,6 +10,8 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { cn } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { periodContributions } from "@/lib/reportsEngine";
+import { ForeignAmountTag } from '@/components/ForeignLegFields';
+import { foreignCurrencyOf } from '@/lib/fx';
 
 interface Transaction {
   id: string;
@@ -277,6 +279,9 @@ export const TransactionTypeModal = ({
                           <span className={cn('ft-row-amt block', isMoneyBack ? 'text-success' : colorClass, isPrivacyMode && 'ft-priv')}>
                             {formatCurrency(rowAmount)}
                           </span>
+                        )}
+                        {!(transaction as any).isProjected && (
+                          <ForeignAmountTag amount={(transaction as any).foreign_amount} currency={foreignCurrencyOf(transaction as any)} className="block text-right" />
                         )}
                       </div>
                     </div>

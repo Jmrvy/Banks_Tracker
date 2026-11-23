@@ -24,6 +24,8 @@ import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { getCategoryIcon } from "@/lib/categoryIcons";
+import { ForeignAmountTag } from "@/components/ForeignLegFields";
+import { foreignCurrencyOf } from "@/lib/fx";
 
 const CATEGORY_ICONS: Record<string, typeof ShoppingBag> = {
   groceries: ShoppingBag,
@@ -177,6 +179,7 @@ export const AggregatedBalanceEvolution = () => {
                   {positive ? "+" : tx.type === "transfer" ? "↔" : "−"}
                   {formatCurrency(Math.abs(tx.amount))}
                 </div>
+                <ForeignAmountTag amount={tx.foreign_amount} currency={foreignCurrencyOf(tx)} className="block text-right" />
                 <div className={`ft-row-amt sub ${isPrivacyMode ? "ft-priv" : ""}`}>
                   → {formatCurrency(balanceAfter)}
                 </div>

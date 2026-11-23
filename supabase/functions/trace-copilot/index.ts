@@ -19,6 +19,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { netExpenseAmount, netIncomeAmount } from "../_shared/ledgerRules.ts";
+import { ACCOUNT_FX_COLUMNS, totalBase, valueAccount } from "../_shared/accountValue.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -196,6 +197,14 @@ const ANSWER_SCHEMA = obj({
   },
   blocks: { type: "array", items: BLOCK_SCHEMA },
 });
+
+/** The subaccount-currency side of a row, when it has one. `amount` stays
+ *  the base-currency figure every total is built from. */
+function foreignLeg(t: any): Record<string, unknown> {
+  if (t.foreign_amount == null) return {};
+  const cur = t.accounts?.currency || t.transfer_to?.currency || null;
+  return cur ? { foreign_amount: Number(t.foreign_amount), foreign_currency: cur } : {};
+}
 
 // ─── tools ─────────────────────────────────────────────────────────────
 /** Wraps a tool in OpenRouter's (OpenAI-shaped) function envelope. */
@@ -380,7 +389,7 @@ async function runTool(
     case "search_transactions": {
       let q = db
         .from("transactions")
-        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee, special_budget_id, type, transaction_date, value_date, category_id, account_id, categories(name), accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, refunded_amount, repaid_amount, refund_of_transaction_id, repayment_of_transaction_id, offsets_category, transfer_fee, special_budget_id, type, transaction_date, value_date, category_id, account_id, foreign_amount, categories(name), accounts!transactions_account_id_fkey(name, currency), transfer_to:accounts!transactions_transfer_to_account_id_fkey(currency)")
         .eq("user_id", userId)
         .eq("include_in_stats", true)
         // Special-budget rows STAY. This tool answers period questions, and
@@ -456,6 +465,7 @@ async function runTool(
             : t.type === "transfer"
               ? (t.offsets_category && t.category_id ? -Math.abs(Number(t.amount) || 0) : Number(t.transfer_fee ?? 0))
               : (t.offsets_category && !t.refund_of_transaction_id ? -netIncome(t) : netIncome(t)),
+          ...foreignLeg(t),
           type: t.type,
           category: t.categories?.name ?? null,
           account: t.accounts?.name ?? null,
@@ -609,7 +619,7 @@ async function runTool(
         // value_date too: this tool used to order by and report
         // transaction_date whatever date basis the user works in, so it
         // quoted dates the app does not show for the same row.
-        .select("id, description, amount, transaction_date, value_date, type, accounts!transactions_account_id_fkey(name)")
+        .select("id, description, amount, transaction_date, value_date, type, foreign_amount, accounts!transactions_account_id_fkey(name, currency), transfer_to:accounts!transactions_transfer_to_account_id_fkey(currency)")
         .eq("user_id", userId)
         .is("category_id", null)
         .neq("type", "transfer")
@@ -632,6 +642,7 @@ async function runTool(
         value_date: t.value_date ?? null,
         description: t.description,
         amount: Number(t.amount),
+        ...foreignLeg(t),
         type: t.type,
         account: t.accounts?.name ?? null,
       }));
@@ -830,6 +841,8 @@ When the user asks for a change you can express as ledger edits, emit a \`propos
 An installment plan comes in two kinds, and both spend. \`payment\` spreads a purchase the user has not paid for yet. \`reimbursement\` pays back savings that already covered the cost, month by month. Either way every instalment is an EXPENSE on its category and is already inside that category's spend. Neither is a refund, neither reduces what the category cost, and \`offsetting_income\` sitting at 0 beside an installment plan is correct rather than a discrepancy to report. If a plan looks like income to you, you are reading a stored field the app overrides on the way to the ledger — trust \`type\` as \`scheduled_charges\` returns it and never infer un-netted reimbursements from a schedule.
 
 One category per name, working in both directions: the same \`Salaire\` holds the salary and any expense filed against it. A budget is a ceiling on what leaves, so a category that only ever receives money having none is correct and never worth flagging. Money coming back is netted per transaction, never per category — either by a refund link to the expense it repays, or by the user marking an income row or a transfer as having come back on its category (a gambling payout against its stakes, a reimbursement filed among genuine transfers, money put back into savings after it was taken out). Until that mark is set, the original expense stays. Dates on ledger tools follow the calculation date in the context (\`date_convention\`); scheduled charges use their own due dates. Every transaction row also carries both \`transaction_date\` (accounting) and \`value_date\`, so a question about the other basis is answerable — quote the field the user asked about, and say which one it is when the two differ.
+
+Currency subaccounts: an account with \`currency\` set is a subaccount of \`subaccount_of\`, holding that currency. Its \`native_balance\` is in that currency; its \`balance\` is the base-currency value at \`average_rate\` (the weighted-average rate the money was converted at — not today's market rate, so say "at your average rate" when you quote it). \`total_balance\` is already summed in base currency; never add native balances to base ones. On transaction rows, \`amount\` is always base currency and is what every statistic uses; \`foreign_amount\` + \`foreign_currency\` is the same row in the subaccount's currency. Quote both when the user asks about a foreign-currency spend or conversion.
 ${JSON.stringify(ctx, null, 2)}
 
 Today is ${new Date().toISOString().slice(0, 10)}.`;
@@ -902,7 +915,7 @@ const handler = async (req: Request): Promise<Response> => {
     // have?" without a tool round trip, and it gives the model the ids it
     // needs to call the tools meaningfully.
     const [accountsRes, categoriesRes, countRes] = await Promise.all([
-      db.from("accounts").select("id, name, bank, account_type, balance").eq("user_id", userId),
+      db.from("accounts").select(`id, name, bank, account_type, balance, ${ACCOUNT_FX_COLUMNS}`).eq("user_id", userId),
       db.from("categories").select("id, name, budget").eq("user_id", userId).order("name"),
       db
         .from("transactions")
@@ -914,13 +927,28 @@ const handler = async (req: Request): Promise<Response> => {
       currency,
       date_convention: dateColumn === "value_date" ? "value date" : "accounting date",
       transaction_count: countRes.count ?? 0,
-      accounts: (accountsRes.data ?? []).map((a: any) => ({
-        id: a.id,
-        name: a.name,
-        bank: a.bank,
-        type: a.account_type,
-        balance: Number(a.balance),
-      })),
+      // A currency subaccount's balance is in its own currency; `balance`
+      // here is always base currency so the model can add them up, with the
+      // native figure and the average rate beside it.
+      accounts: (accountsRes.data ?? []).map((a: any) => {
+        const v = valueAccount(a);
+        return {
+          id: a.id,
+          name: a.name,
+          bank: a.bank,
+          type: a.account_type,
+          balance: v.base_balance,
+          ...(v.currency
+            ? {
+                subaccount_of: a.parent_account_id,
+                currency: v.currency,
+                native_balance: v.native_balance,
+                average_rate: v.avg_rate,
+              }
+            : {}),
+        };
+      }),
+      total_balance: totalBase(accountsRes.data ?? []),
       // One category per name, working in both directions: the same one can
       // hold a salary and a refund. A missing budget therefore means "never
       // capped", not "income category" — categories that only ever receive

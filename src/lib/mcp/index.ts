@@ -17,7 +17,7 @@ export default defineMcp({
   title: "spendingtrackerjmrvy",
   version: "0.1.0",
   instructions:
-    "Tools for a personal finance tracker. Read the signed-in user's bank accounts, categories, transactions, savings goals and upcoming commitments, summarize spending over a period, and record new income or expense transactions. Amounts are already netted: refunds are inside the expense they refund, repayments inside the income they settle, and money the user marked as having come back on a category reduces that category. Never subtract a refund or repayment yourself. Dates are YYYY-MM-DD.",
+    "Tools for a personal finance tracker. Read the signed-in user's bank accounts, categories, transactions, savings goals and upcoming commitments, summarize spending over a period, and record new income or expense transactions. Amounts are already netted: refunds are inside the expense they refund, repayments inside the income they settle, and money the user marked as having come back on a category reduces that category. Never subtract a refund or repayment yourself. Amounts and balances are in euros; a currency subaccount (e.g. a GBP pocket under a main account) also reports its own-currency figure and the weighted-average rate it is valued at — never add those native figures to euro ones. Dates are YYYY-MM-DD.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

@@ -9,7 +9,12 @@ export default defineTool({
     "Record a new income or expense transaction on one of the signed-in user's accounts.",
   inputSchema: {
     account_id: z.string().uuid().describe("Target account, from list_accounts."),
-    amount: z.number().positive().describe("Positive amount in the account currency."),
+    amount: z
+      .number()
+      .positive()
+      .describe(
+        "Positive amount in the account's own currency: euros for a main account, the subaccount's currency (e.g. GBP) for a currency subaccount, which is then valued in euros at its average rate.",
+      ),
     type: z.enum(["income", "expense"]),
     description: z.string().trim().min(1).max(255),
     transaction_date: z
@@ -36,7 +41,7 @@ export default defineTool({
         value_date: input.value_date ?? input.transaction_date,
         category_id: input.category_id ?? null,
       })
-      .select("id, description, amount, type, transaction_date, category_id")
+      .select("id, description, amount, foreign_amount, type, transaction_date, category_id")
       .single();
     if (error) return fail(error.message);
     return ok({ transaction: data });

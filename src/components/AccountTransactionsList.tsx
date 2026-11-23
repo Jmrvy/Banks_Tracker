@@ -10,6 +10,8 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { TransactionDetailModal } from "./TransactionDetailModal";
 import { useTranslation } from "react-i18next";
 import { getCategoryIcon } from "@/lib/categoryIcons";
+import { ForeignAmountTag } from '@/components/ForeignLegFields';
+import { foreignCurrencyOf } from '@/lib/fx';
 
 interface AccountTransactionsListProps {
   accountId: string;
@@ -183,6 +185,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                     'text-primary'
                   }`}>
                     {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
+                    <ForeignAmountTag amount={t.foreign_amount} currency={foreignCurrencyOf(t)} className="block text-right" />
                   </p>
                   <p className={`font-medium text-xs ${
                     t.balanceAfter >= 0 ? 'text-success/70' : 'text-destructive/70'
@@ -228,6 +231,7 @@ export function AccountTransactionsList({ accountId, transactions, initialBalanc
                     }`}>
                       {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
                     </p>
+                    <ForeignAmountTag amount={t.foreign_amount} currency={foreignCurrencyOf(t)} className="block text-right" />
                     {t.type === 'transfer' && t.transfer_fee && t.transfer_fee > 0 && (
                       <p className="text-xs text-muted-foreground">
                         Frais: {formatCurrency(t.transfer_fee)}

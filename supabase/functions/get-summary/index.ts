@@ -12,6 +12,7 @@ import {
   round2,
   AuthCredentials,
 } from '../_shared/api.ts';
+import { valueAccount } from '../_shared/accountValue.ts';
 import { LEDGER_COLUMNS, headlineExpenseLine, periodContributions } from '../_shared/ledgerRules.ts';
 
 interface Body extends AuthCredentials {
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
   const [accountsResp, txResp, budgetsResp] = await Promise.all([
     supabase
       .from('accounts')
-      .select('id, name, balance, account_type, currency')
+      .select('id, name, balance, account_type, currency, parent_account_id, fx_rate, initial_fx_rate')
       .eq('user_id', userId),
     supabase
       .from('transactions')
@@ -69,7 +70,12 @@ Deno.serve(async (req) => {
 
   const txs = txResp.data ?? [];
   const budgetNames = new Map((budgetsResp.data ?? []).map((b) => [b.id, b.name]));
-  const accounts = (accountsResp.data ?? []).map(a => ({ ...a, balance: round2(Number(a.balance)) }));
+  // Base-currency `balance` for every account; subaccounts keep their own-
+  // currency figure beside it so the two are never added together.
+  const accounts = (accountsResp.data ?? []).map((a) => {
+    const v = valueAccount(a);
+    return { ...a, balance: v.base_balance ?? 0, native_balance: v.native_balance, currency: v.currency, avg_rate: v.avg_rate };
+  });
 
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -139,7 +145,14 @@ Deno.serve(async (req) => {
     period: { start: body.period_start, end: body.period_end, date_type: dateField },
     balances: {
       current_total: round2(totalBalance),
-      by_account: accounts.map(a => ({ account: a.name, type: a.account_type, balance: a.balance, currency: a.currency })),
+      by_account: accounts.map(a => ({
+        account: a.name,
+        type: a.account_type,
+        balance: a.balance,
+        ...(a.currency
+          ? { subaccount_of: a.parent_account_id, currency: a.currency, native_balance: a.native_balance, avg_rate: a.avg_rate }
+          : {}),
+      })),
     },
     totals: {
       income: round2(totalIncome),

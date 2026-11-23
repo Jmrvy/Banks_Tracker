@@ -621,6 +621,19 @@
     "unauthorized": "Non autorisé",
     "updateError": "Impossible de mettre à jour"
   },
+  "fx": {
+    "averageAfter": "après celle-ci : {{rate}}",
+    "averageNow": "Ton taux moyen actuel : {{rate}}",
+    "convertInTitle": "Conversion en {{currency}}",
+    "convertOutHint": "Il restera {{amount}} sur le sous-compte. Ton taux moyen ne change pas.",
+    "convertOutTitle": "Reconversion en {{currency}}",
+    "rateLabel": "Taux : 1 {{currency}} = … {{base}}",
+    "spendHint": "Montant en {{currency}}. Compté {{base}} dans tes stats, à ton taux moyen ({{rate}}).",
+    "todayRate": "Taux du jour : {{rate}}",
+    "unsupported": "Les virements entre deux sous-comptes en devise ne sont pas possibles. Passe par le compte principal.",
+    "useIt": "l'utiliser",
+    "youReceive": "Tu reçois ({{currency}})"
+  },
   "install": {
     "benefitFullscreen": "Plein écran, sans barre de navigateur",
     "benefitHome": "Accessible depuis l'écran d'accueil",
@@ -1990,6 +2003,30 @@
     "usedShort": "utilisé",
     "validationError": "Le nom et un montant valide sont requis."
   },
+  "subaccounts": {
+    "add": "Ajouter un sous-compte en devise",
+    "avgRate": "taux moyen 1 {{currency}} = {{rate}}",
+    "create": "Créer le sous-compte",
+    "created": "Sous-compte créé",
+    "currency": "Devise",
+    "currencyLockedHint": "La devise ne peut plus changer une fois que le sous-compte a des transactions.",
+    "description": "De l'argent détenu dans une autre devise au sein de {{parent}}. Son solde compte dans le total du compte, en {{base}}.",
+    "edit": "Modifier le sous-compte",
+    "editTitle": "Modifier le sous-compte",
+    "errors": {
+      "duplicate": "Ce compte a déjà un sous-compte dans cette devise."
+    },
+    "mainPart": "Compte principal",
+    "newTitle": "Nouveau sous-compte en devise",
+    "openingBalance": "Solde d'ouverture ({{currency}})",
+    "openingHint": "Ce qu'il contenait avant la première transaction que tu enregistres, dans sa devise.",
+    "openingRate": "Taux d'ouverture : 1 {{currency}} = … {{base}}",
+    "openingRateHint": "Ce que cet argent t'a coûté. Les dépenses sont comptées en {{base}} au taux moyen, à partir de celui-ci.",
+    "openingValue": "{{native}} compte pour {{value}}",
+    "pickCurrency": "Choisis une devise",
+    "totalWithSubs": "{{total}} sous-comptes inclus",
+    "updated": "Sous-compte mis à jour"
+  },
   "tour": {
     "checklist": {
       "eyebrow": "Découvrir",
@@ -2216,6 +2253,8 @@
     "from": "De",
     "fullyRefunded": "Intégralement remboursée",
     "fullyRepaid": "Avance entièrement remboursée",
+    "fxAverageRate": "Taux moyen utilisé",
+    "fxChosenRate": "Taux choisi",
     "hasRefund": "Avec remboursement",
     "history": "Historique",
     "inExpenses": "en dépenses",

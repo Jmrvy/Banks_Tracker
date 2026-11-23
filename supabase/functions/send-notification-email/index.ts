@@ -573,7 +573,7 @@ const handler = async (req: Request): Promise<Response> => {
       const accountRows = accountsList.map((acc: any) => {
         const flow = (Number(acc.income) || 0) - (Number(acc.expense) || 0);
         return `<tr>
-          <td style="padding:13px 0;border-bottom:1px solid #efece4;font-family:${sansStack};font-size:13.5px;color:#0c0d0c;font-weight:500;">${escapeHtml(acc.name)}</td>
+          <td style="padding:13px 0;border-bottom:1px solid #efece4;font-family:${sansStack};font-size:13.5px;color:#0c0d0c;font-weight:500;">${escapeHtml(acc.name)}${acc.currency ? `<div style="font-family:${monoStack};font-size:11px;color:#6e716c;font-weight:400;padding-top:3px;">${escapeHtml(tr(lang, 'report.fxLine', { native: `${Number(acc.native_balance || 0).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${acc.currency}`, currency: acc.currency, rate: Number(acc.avg_rate || 0).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { maximumFractionDigits: 4 }) }))}</div>` : ''}</td>
           <td style="padding:13px 18px 13px 0;border-bottom:1px solid #efece4;font-family:${monoStack};font-size:12px;color:#6e716c;text-align:right;white-space:nowrap;">${money(lang, flow, { decimals: 0, sign: true })}</td>
           <td style="padding:13px 0;border-bottom:1px solid #efece4;font-family:${monoStack};font-size:13px;font-weight:500;text-align:right;white-space:nowrap;color:${Number(acc.balance) >= 0 ? '#0c0d0c' : '#c83a2a'};">${money(lang, Number(acc.balance))}</td>
         </tr>`;

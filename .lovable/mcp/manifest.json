@@ -19,7 +19,7 @@
       {
         "name": "list_accounts",
         "title": "List accounts",
-        "description": "List the signed-in user's bank accounts with their type, bank and current balance.",
+        "description": "List the signed-in user's bank accounts and currency subaccounts with type, bank and balance; `balance` is always in euros, a subaccount also gives its own-currency balance and average rate.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -192,7 +192,7 @@
             "amount": {
               "type": "number",
               "exclusiveMinimum": 0,
-              "description": "Positive amount in the account currency."
+              "description": "Positive amount in the account's own currency: euros for a main account, the subaccount's currency (e.g. GBP) for a currency subaccount, which is then valued in euros at its average rate."
             },
             "type": {
               "type": "string",

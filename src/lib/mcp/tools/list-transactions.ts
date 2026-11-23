@@ -3,6 +3,12 @@ import { z } from "zod";
 import { supabaseForUser, unauthenticated, fail, ok } from "../supabase";
 import { ledgerDateColumn } from "../dateColumn";
 
+/** An embedded account's currency; the generated types model the embed as a list. */
+const currencyOf = (x: unknown): string | null => {
+  const row = (Array.isArray(x) ? x[0] : x) as { currency?: string | null } | null | undefined;
+  return row?.currency ?? null;
+};
+
 export default defineTool({
   name: "list_transactions",
   title: "List transactions",
@@ -25,7 +31,7 @@ export default defineTool({
     let q = supabase
       .from("transactions")
       .select(
-        "id, description, amount, type, transaction_date, value_date, account_id, category_id, refunded_amount, include_in_stats",
+        "id, description, amount, foreign_amount, type, transaction_date, value_date, account_id, transfer_to_account_id, category_id, refunded_amount, include_in_stats, account:accounts!transactions_account_id_fkey(currency), transfer_to:accounts!transactions_transfer_to_account_id_fkey(currency)",
       )
       .order(dateColumn, { ascending: false })
       .limit(input.limit ?? 50);
@@ -39,6 +45,12 @@ export default defineTool({
 
     const { data, error } = await q;
     if (error) return fail(error.message);
-    return ok({ count: data?.length ?? 0, transactions: data ?? [] });
+    // `amount` is always euros (what every statistic uses); a row on a
+    // currency subaccount also carries its own-currency figure.
+    const transactions = (data ?? []).map(({ account, transfer_to, foreign_amount, ...t }) => {
+      const currency = foreign_amount == null ? null : currencyOf(account) ?? currencyOf(transfer_to);
+      return currency ? { ...t, foreign_amount: Number(foreign_amount), foreign_currency: currency } : t;
+    });
+    return ok({ count: transactions.length, transactions });
   },
 });

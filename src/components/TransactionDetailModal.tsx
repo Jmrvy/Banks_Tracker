@@ -24,6 +24,8 @@ import { fr, enUS } from "date-fns/locale";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTranslation } from "react-i18next";
+import { ForeignAmountTag } from '@/components/ForeignLegFields';
+import { foreignCurrencyOf } from '@/lib/fx';
 
 interface TransactionDetailModalProps {
   open: boolean;
@@ -49,7 +51,7 @@ interface OriginalTransaction {
 }
 
 export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit, onDelete, onRefund }: TransactionDetailModalProps) {
-  const { formatCurrency } = useUserPreferences();
+  const { formatCurrency, preferences } = useUserPreferences();
   const { t, i18n } = useTranslation();
   const { isPrivacyMode } = usePrivacy();
   const { refetch } = useFinancialData();
@@ -182,6 +184,8 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
 
   if (!transaction) return null;
 
+  const fxCurrency = foreignCurrencyOf(transaction as any);
+
   const getTypeIcon = () => {
     switch (transaction.type) {
       case 'income':
@@ -242,6 +246,24 @@ export function TransactionDetailModal({ open, onOpenChange, transaction, onEdit
               {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}
               {formatCurrency(Math.abs(transaction.amount))}
             </p>
+            {fxCurrency && transaction.foreign_amount != null && !isPrivacyMode && (
+              <div className="mt-1 text-[12.5px] text-muted-foreground">
+                <ForeignAmountTag amount={transaction.foreign_amount} currency={fxCurrency} className="!text-[13px]" />
+                {Number(transaction.foreign_amount) > 0 && (
+                  <span>
+                    {' · '}
+                    {transaction.type === 'transfer'
+                      ? t('transactions.fxChosenRate', { defaultValue: 'Rate chosen' })
+                      : t('transactions.fxAverageRate', { defaultValue: 'Average rate used' })}
+                    {': '}1 {fxCurrency} ={' '}
+                    {(Math.abs(transaction.amount) / Number(transaction.foreign_amount)).toLocaleString(undefined, {
+                      maximumFractionDigits: 4,
+                    })}{' '}
+                    {preferences.currency || 'EUR'}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
               <span className="ft-tag">{getTypeLabel()}</span>
               {transaction.refund_of_transaction_id && (

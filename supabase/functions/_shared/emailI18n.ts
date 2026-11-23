@@ -92,6 +92,7 @@ const FR: Dict = {
   "report.closedTag": "clôturé",
   "report.accountsTitle": "Soldes par compte",
   "report.totalBalance": "Solde total",
+  "report.fxLine": "{native} · au taux moyen 1 {currency} = {rate} €",
   "report.cta.dashboard": "Ouvrir le tableau de bord",
   "report.foot.cadence": "Changer la cadence",
   "report.foot.note":
@@ -208,6 +209,7 @@ const EN: Dict = {
   "report.closedTag": "closed",
   "report.accountsTitle": "Accounts",
   "report.totalBalance": "Total balance",
+  "report.fxLine": "{native} · at average rate 1 {currency} = {rate} €",
   "report.cta.dashboard": "Open dashboard",
   "report.foot.cadence": "Switch cadence",
   "report.foot.note":

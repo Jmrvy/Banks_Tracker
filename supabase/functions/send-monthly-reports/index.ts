@@ -14,6 +14,7 @@ import {
 } from "https://esm.sh/date-fns@3.6.0";
 import { enGB, fr } from "https://esm.sh/date-fns@3.6.0/locale";
 import { type EmailLang, normalizeLang, tr } from "../_shared/emailI18n.ts";
+import { ACCOUNT_FX_COLUMNS, totalBase, valueAccount } from "../_shared/accountValue.ts";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
@@ -304,6 +305,16 @@ async function generateSlidesPdf(data: any, lang: EmailLang): Promise<string> {
 
       const accName = String(acc.name ?? '').substring(0, 36);
       p4.drawText(accName, { x: tM, y: curY + 9, size: 11, font: sansBold, color: ink });
+      if (acc.currency) {
+        p4.drawText(
+          s('report.fxLine', {
+            native: `${Number(acc.native_balance || 0).toFixed(2)} ${acc.currency}`,
+            currency: acc.currency,
+            rate: Number(acc.avg_rate || 0).toFixed(4),
+          }).replace('€', 'EUR'),
+          { x: tM, y: curY - 1, size: 7.5, font: mono, color: mute },
+        );
+      }
 
       const inc = `+${Number(acc.income || 0).toFixed(0)} EUR`;
       p4.drawText(inc, { x: tM + tW * 0.45, y: curY + 9, size: 11, font: mono, color: pos });
@@ -624,7 +635,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Fetch accounts
         const { data: accounts } = await supabaseAdmin
           .from('accounts')
-          .select('id, name, balance')
+          .select(`id, name, balance, ${ACCOUNT_FX_COLUMNS}`)
           .eq('user_id', userPref.user_id);
 
         // Fetch last month transactions — pull every column we need to filter
@@ -674,7 +685,9 @@ const handler = async (req: Request): Promise<Response> => {
         const income = periodStats.income;
         const expenses = periodStats.expenses;
         const transferFees = periodStats.transferFees;
-        const totalBalance = accList.reduce((s: number, a: any) => s + Number(a.balance), 0);
+        // A currency subaccount's balance is in its own currency — valued
+        // at its average rate before anything is added up.
+        const totalBalance = totalBase(accList as any);
 
         const prevStats = computePeriodStats(prevTxList as any);
         const prevIncome = prevStats.income;
@@ -749,9 +762,16 @@ const handler = async (req: Request): Promise<Response> => {
         // Per-account breakdown — same refund-aware totals.
         const accountSummaries = accList.map((acc: any) => {
           const accTx = txList.filter((t: any) => t.account_id === acc.id);
+          const v = valueAccount(acc);
+          const parent = acc.parent_account_id ? accList.find((p: any) => p.id === acc.parent_account_id) : null;
           return {
-            name: acc.name,
-            balance: Number(acc.balance),
+            name: parent ? `${parent.name} · ${acc.name || v.currency}` : acc.name,
+            balance: v.base_balance ?? 0,
+            // Set only for a currency subaccount: its own-currency figure
+            // and the rate `balance` was valued at.
+            currency: v.currency,
+            native_balance: v.native_balance,
+            avg_rate: v.avg_rate,
             // Same rules per account as the headline, or the account rows
             // fail to add up to the totals printed above them.
             income: computePeriodStats(accTx as any).income,
